@@ -639,6 +639,7 @@ describe("memory network simulation", () => {
     access_count: 0,
     last_accessed_at: null,
     source: "manual" as const,
+    agent_id: null,
     created_at: now,
     updated_at: now,
   });

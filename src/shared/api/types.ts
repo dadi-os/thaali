@@ -189,6 +189,8 @@ export type NodeRecord = {
   access_count: number;
   last_accessed_at: string | null;
   source: NodeSource;
+  /** Dimaag agent that created the node; null unless source is agent. */
+  agent_id: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -235,9 +237,16 @@ export type QueryResponse = {
   offset: number;
 };
 
-/** POST /recall body. */
+/** POST /recall body: anchors from `from`, else the filters, else `query`; `hops` fixes the walk depth. */
 export type RecallRequest = {
-  query: string;
+  query?: string;
+  from?: string[];
+  hops?: number;
+  kind?: NodeKind;
+  name?: string;
+  occurred_from?: string;
+  occurred_to?: string;
+  status?: PlanStatus;
   limit?: number;
 };
 
@@ -247,12 +256,13 @@ export type RecallResponse = {
     NodeRecord & {
       detail: NodeDetail;
       hops: number;
-      score: number;
+      /** Null when the request had no query. */
+      score: number | null;
     }
   >;
   edges: EdgeRecord[];
-  coverage: number;
-  sufficient: boolean;
+  coverage: number | null;
+  sufficient: boolean | null;
   hops_taken: number;
   anchors: string[];
 };
