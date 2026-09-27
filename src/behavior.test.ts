@@ -41,6 +41,7 @@ import {
 } from "./features/agents/tree";
 import { createMemorySimulation, mergeGraph, type GraphData } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/ForceGraph";
+import { buildActivity } from "./features/agents/activity";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
 import {
   hasRememberedSessions,
@@ -160,7 +161,7 @@ describe("toolStatus", () => {
     expect(formatToolSignature("noop", {})).toBe("noop()");
   });
 
-  it("picks the first unfinished tool_use from thoughts", () => {
+  it("picks the first unfinished tool_use from responses", () => {
     const logs: LogRecord[] = [
       {
         ...baseLog,
@@ -171,15 +172,8 @@ describe("toolStatus", () => {
       },
       {
         ...baseLog,
-        id: "c1",
-        event: "tool_call",
-        payload: { id: "t1", name: "read_file", input: { path: "a.ts" } },
-        created_at: "2026-01-01T00:00:02Z",
-      },
-      {
-        ...baseLog,
         id: "th1",
-        event: "thought",
+        event: "response",
         payload: {
           content: [
             {
@@ -218,7 +212,7 @@ describe("toolStatus", () => {
       {
         ...baseLog,
         id: "th1",
-        event: "thought",
+        event: "response",
         payload: {
           content: [{ type: "tool_use", id: "t1", name: "yield", input: {} }],
         },
@@ -1168,5 +1162,56 @@ describe("searchHouse", () => {
     const result = searchHouse("toaster", rooms, devices);
     expect(result.rooms).toEqual([]);
     expect(result.matches).toBe(0);
+  });
+});
+
+describe("buildActivity", () => {
+  const log = (partial: Partial<LogRecord> & Pick<LogRecord, "id" | "event" | "payload" | "created_at">): LogRecord => ({
+    agent_id: "browser-worker",
+    lane: "reasoning",
+    ...partial,
+  });
+
+  it("keeps a model turn's thinking, text and tool calls in order, paired with results", () => {
+    const turns = buildActivity([
+      log({
+        id: "res-1",
+        event: "tool_result",
+        payload: { tool_use_id: "t1", name: "browser_screenshot", content: "a page", is_error: false },
+        created_at: "2026-01-01T00:00:02Z",
+      }),
+      log({
+        id: "resp-1",
+        event: "response",
+        payload: {
+          content: [
+            { type: "thinking", thinking: "tree came back empty", signature: "s" },
+            { type: "text", text: "Accessibility tree appears empty, taking a screenshot instead." },
+            { type: "tool_use", id: "t1", name: "browser_screenshot", input: { scope: "page" } },
+            { type: "tool_use", id: "t2", name: "browser_click", input: {} },
+          ],
+        },
+        created_at: "2026-01-01T00:00:01Z",
+      }),
+    ]);
+
+    expect(turns).toHaveLength(1);
+    expect(turns[0]!.blocks.map((block) => block.kind)).toEqual(["thinking", "text", "tool", "tool"]);
+    const [, , screenshot, click] = turns[0]!.blocks;
+    expect(screenshot).toMatchObject({ name: "browser_screenshot", result: { content: "a page", isError: false } });
+    expect(click).toMatchObject({ name: "browser_click", result: null });
+  });
+
+  it("orders turns newest first and drops turns with nothing to show", () => {
+    const turns = buildActivity([
+      log({ id: "a", event: "response", payload: { content: [{ type: "text", text: "first" }] }, created_at: "2026-01-01T00:00:01Z" }),
+      log({ id: "b", event: "response", payload: { content: [{ type: "text", text: "  " }] }, created_at: "2026-01-01T00:00:02Z" }),
+      log({ id: "c", event: "response", payload: { content: [{ type: "redacted_thinking", data: "x" }] }, created_at: "2026-01-01T00:00:03Z", lane: "conversation" }),
+      log({ id: "d", event: "message", payload: { content: "hi" }, created_at: "2026-01-01T00:00:04Z" }),
+    ]);
+
+    expect(turns.map((turn) => turn.key)).toEqual(["c", "a"]);
+    expect(turns[0]!.lane).toBe("conversation");
+    expect(turns[0]!.blocks[0]!.kind).toBe("redacted");
   });
 });

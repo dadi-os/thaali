@@ -1,8 +1,12 @@
 /** Reasoning vs conversation lane on an agent. */
 export type Lane = "reasoning" | "conversation";
 
-/** Agent log event kinds from Dimaag. */
-export type LogEvent = "thought" | "tool_call" | "tool_result" | "message";
+/**
+ * Agent log event kinds from Dimaag. `response` is one model call's output,
+ * blocks in order (thinking, text, tool_use), logged before its tools run;
+ * `tool_result` carries the tool's name and outcome; `message` a delivery.
+ */
+export type LogEvent = "response" | "tool_result" | "message";
 
 /** Outbound file on POST /messages — base64 payload, no data-URL prefix. */
 export type MessageAttachment = {

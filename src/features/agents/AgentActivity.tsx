@@ -1,137 +1,17 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { dimaag } from "../../shared/api";
-import type { Lane, LogRecord } from "../../shared/api/types";
+import type { Lane } from "../../shared/api/types";
 import { formatAbsolute, formatRelative } from "./tree";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { POLL_MS } from "../../shared/lib/ux/poll";
+import { buildActivity, type ActivityBlock, type ActivityTurn } from "./activity";
 
 export type AgentActivityProps = {
   agentId: string;
   open: boolean;
   connected: boolean;
 };
-
-type ThoughtItem = {
-  kind: "thought";
-  key: string;
-  lane: Lane;
-  at: string;
-  text: string | null;
-  toolNames: string[];
-};
-
-type ToolItem = {
-  kind: "tool";
-  key: string;
-  lane: Lane;
-  at: string;
-  name: string;
-  input: Record<string, unknown>;
-  resultContent: string | null;
-  isError: boolean;
-};
-
-type ActivityItem = ThoughtItem | ToolItem;
-
-function asRecord(value: unknown): Record<string, unknown> | null {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return null;
-  }
-  return value as Record<string, unknown>;
-}
-
-function extractThought(payload: Record<string, unknown>): {
-  text: string | null;
-  toolNames: string[];
-} {
-  const content = payload.content;
-  if (!Array.isArray(content)) {
-    return { text: null, toolNames: [] };
-  }
-  const texts: string[] = [];
-  const toolNames: string[] = [];
-  for (const block of content) {
-    const row = asRecord(block);
-    if (!row) {
-      continue;
-    }
-    if (row.type === "text" && typeof row.text === "string") {
-      const t = row.text.trim();
-      if (t) {
-        texts.push(t);
-      }
-    }
-    if (row.type === "tool_use" && typeof row.name === "string") {
-      toolNames.push(row.name);
-    }
-  }
-  return {
-    text: texts.length > 0 ? texts.join("\n") : null,
-    toolNames,
-  };
-}
-
-/** Newest-first feed: pair tool_call with its result, keep thoughts with signal. */
-function buildActivity(logs: LogRecord[]): ActivityItem[] {
-  const chronological = [...logs].reverse();
-  const results = new Map<
-    string,
-    { content: string; isError: boolean; at: string }
-  >();
-  for (const log of chronological) {
-    if (log.event !== "tool_result") {
-      continue;
-    }
-    const id = log.payload.tool_use_id;
-    if (typeof id !== "string") {
-      continue;
-    }
-    results.set(id, {
-      content: typeof log.payload.content === "string" ? log.payload.content : "",
-      isError: log.payload.is_error === true,
-      at: log.created_at,
-    });
-  }
-
-  const items: ActivityItem[] = [];
-  for (const log of chronological) {
-    if (log.event === "thought") {
-      const { text, toolNames } = extractThought(log.payload);
-      if (!text && toolNames.length === 0) {
-        continue;
-      }
-      items.push({
-        kind: "thought",
-        key: log.id,
-        lane: log.lane,
-        at: log.created_at,
-        text,
-        toolNames,
-      });
-      continue;
-    }
-    if (log.event === "tool_call") {
-      const id = typeof log.payload.id === "string" ? log.payload.id : log.id;
-      const name =
-        typeof log.payload.name === "string" ? log.payload.name : "tool";
-      const input = asRecord(log.payload.input) ?? {};
-      const result = results.get(id);
-      items.push({
-        kind: "tool",
-        key: log.id,
-        lane: log.lane,
-        at: log.created_at,
-        name,
-        input,
-        resultContent: result?.content ?? null,
-        isError: result?.isError ?? false,
-      });
-    }
-  }
-
-  return items.reverse();
-}
 
 function truncate(text: string, max: number): string {
   const one = text.replace(/\s+/g, " ").trim();
@@ -184,24 +64,9 @@ function isRedundantYieldResult(content: string): boolean {
   return false;
 }
 
-function LaneMark({
-  lane,
-  tone = "idle",
-}: {
-  lane: Lane;
-  tone?: "idle" | "live" | "error";
-}) {
+function LaneMark({ lane }: { lane: Lane }) {
   const label = lane === "reasoning" ? "Reasoning" : "Conversation";
-  const fill =
-    tone === "error"
-      ? "bg-ink-muted"
-      : tone === "live"
-        ? lane === "reasoning"
-          ? "bg-sage/40"
-          : "bg-sage"
-        : lane === "reasoning"
-          ? "bg-sage-line/55"
-          : "bg-sage-line";
+  const fill = lane === "reasoning" ? "bg-sage/40" : "bg-sage";
   return (
     <span
       aria-label={label}
@@ -211,81 +76,139 @@ function LaneMark({
   );
 }
 
-function ThoughtRow({ item }: { item: ThoughtItem }) {
+/** Model thinking: one muted italic line, expanding to the full reasoning. */
+function ThinkingBlock({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
-  const line = item.text
-    ? truncate(item.text, 72)
-    : `chose ${item.toolNames.join(", ")}`;
-  const expandable = Boolean(item.text && item.text.length > 72);
-
   return (
-    <li>
+    <div>
       <button
         type="button"
-        className="flex w-full items-start gap-2 text-left"
-        onClick={() => {
-          if (expandable) {
-            setOpen((v) => !v);
-          }
-        }}
+        className="flex w-full items-start gap-1.5 text-left"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
       >
-        <LaneMark lane={item.lane} />
-        <span className="min-w-0 flex-1 truncate text-[12px] leading-snug text-ink-muted">
-          {line}
+        <span className="shrink-0 text-[10px] tracking-wide text-ink-ghost">
+          {open ? "▾" : "▸"} thinking
         </span>
-        <Tooltip content={formatAbsolute(item.at)}>
-          <span className="shrink-0 text-[10px] text-ink-ghost">
-            {formatRelative(item.at)}
+        {open ? null : (
+          <span className="min-w-0 flex-1 truncate text-[11px] italic leading-snug text-ink-ghost">
+            {truncate(text, 80)}
           </span>
-        </Tooltip>
+        )}
       </button>
-      {open && item.text ? (
-        <p className="mt-1 pl-3.5 text-[12px] leading-snug text-ink-muted">
-          {item.text}
+      {open ? (
+        <p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words border-l border-rule pl-2 text-[11px] italic leading-snug text-ink-ghost">
+          {text}
         </p>
       ) : null}
-    </li>
+    </div>
   );
 }
 
-function ToolRow({ item }: { item: ToolItem }) {
+/** What the model wrote alongside (or instead of) its tool calls. */
+function TextBlock({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
-  const hasParams = Object.keys(item.input).length > 0;
+  const expandable = text.length > 90 || text.includes("\n");
+  return (
+    <button
+      type="button"
+      className="block w-full text-left"
+      onClick={() => {
+        if (expandable) {
+          setOpen((v) => !v);
+        }
+      }}
+    >
+      <p
+        className={`text-[12px] leading-snug text-ink-muted ${
+          open ? "whitespace-pre-wrap break-words" : "truncate"
+        }`}
+      >
+        {open ? text : truncate(text, 90)}
+      </p>
+    </button>
+  );
+}
+
+/** A tool call: name with running/error status, expanding to its input and result. */
+function ToolBlock({ block }: { block: Extract<ActivityBlock, { kind: "tool" }> }) {
+  const [open, setOpen] = useState(false);
+  const hasParams = Object.keys(block.input).length > 0;
+  const result = block.result;
   const showResult =
-    item.resultContent !== null &&
-    !(item.name === "yield" && !item.isError && isRedundantYieldResult(item.resultContent));
+    result !== null &&
+    !(block.name === "yield" && !result.isError && isRedundantYieldResult(result.content));
+  const status =
+    result === null ? "running" : result.isError ? "error" : null;
 
   return (
-    <li>
+    <div>
       <button
         type="button"
-        className="flex w-full items-start gap-2 text-left"
+        className="flex w-full items-baseline gap-2 text-left"
         onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
       >
-        <LaneMark lane={item.lane} tone={item.isError ? "error" : "live"} />
-        <span className="min-w-0 flex-1 truncate font-mono text-[12px] leading-snug text-ink">
-          {item.name}
+        <span
+          className={`min-w-0 flex-1 truncate font-mono text-[12px] leading-snug ${
+            result?.isError ? "text-ink-muted line-through decoration-ink-ghost/60" : "text-ink"
+          }`}
+        >
+          {block.name}
         </span>
-        <Tooltip content={formatAbsolute(item.at)}>
-          <span className="shrink-0 text-[10px] text-ink-ghost">
-            {formatRelative(item.at)}
-          </span>
-        </Tooltip>
+        {status ? (
+          <span className="shrink-0 text-[10px] text-ink-ghost">{status}</span>
+        ) : null}
       </button>
       {open ? (
-        <div className="mt-1 pl-3.5">
-          {hasParams ? <ParamList input={item.input} /> : null}
-          {showResult && item.resultContent ? (
+        <div className="mt-1">
+          {hasParams ? <ParamList input={block.input} /> : null}
+          {showResult && result.content ? (
             <p
-              className={`mt-1 text-[11px] leading-snug ${
-                item.isError ? "text-ink-muted" : "text-ink-ghost"
+              className={`mt-1 max-h-32 overflow-y-auto whitespace-pre-wrap break-words text-[11px] leading-snug ${
+                result.isError ? "text-ink-muted" : "text-ink-ghost"
               }`}
             >
-              {truncate(item.resultContent, 180)}
+              {result.content}
             </p>
           ) : null}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Render one block of a model turn by kind. */
+function TurnBlock({ block }: { block: ActivityBlock }) {
+  switch (block.kind) {
+    case "thinking":
+      return <ThinkingBlock text={block.text} />;
+    case "redacted":
+      return (
+        <p className="text-[10px] tracking-wide text-ink-ghost">▸ thinking (redacted)</p>
+      );
+    case "text":
+      return <TextBlock text={block.text} />;
+    case "tool":
+      return <ToolBlock block={block} />;
+  }
+}
+
+/** One model call: lane, time, then its thinking, text and tool calls in order. */
+function TurnRow({ turn }: { turn: ActivityTurn }) {
+  return (
+    <li className="flex items-start gap-2">
+      <LaneMark lane={turn.lane} />
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        {turn.blocks.map((block) => (
+          <TurnBlock key={block.key} block={block} />
+        ))}
+      </div>
+      <Tooltip content={formatAbsolute(turn.at)}>
+        <span className="shrink-0 pt-px text-[10px] text-ink-ghost">
+          {formatRelative(turn.at)}
+        </span>
+      </Tooltip>
     </li>
   );
 }
@@ -329,7 +252,8 @@ function ParamList({ input }: { input: Record<string, unknown> }) {
 }
 
 /**
- * Recent agent lane activity from durable logs — thinking, tool calls, results.
+ * Recent agent lane activity from durable logs, one entry per model call:
+ * its thinking (collapsed), what it wrote, and each tool call with its result.
  * This is the log explorer slice for one agent, not the chat transcript.
  */
 export function AgentActivity({
@@ -340,20 +264,20 @@ export function AgentActivity({
   const logsQuery = useQuery({
     queryKey: ["agent-logs", agentId, "activity"],
     queryFn: async () => {
-      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 48 });
+      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 80 });
       return logs;
     },
     enabled: connected && open,
     refetchInterval: POLL_MS,
   });
 
-  const items = useMemo(
+  const turns = useMemo(
     () => (logsQuery.data ? buildActivity(logsQuery.data) : []),
     [logsQuery.data],
   );
   const [showAll, setShowAll] = useState(false);
-  const visible = showAll ? items : items.slice(0, 6);
-  const hidden = items.length - visible.length;
+  const visible = showAll ? turns : turns.slice(0, 6);
+  const hidden = turns.length - visible.length;
 
   return (
     <section>
@@ -363,18 +287,12 @@ export function AgentActivity({
         </h3>
         <p className="flex items-center gap-2 text-[10px] text-ink-ghost">
           <span className="inline-flex items-center gap-1" title="Reasoning">
-            <span
-              aria-hidden
-              className="inline-block size-1.5 rounded-full bg-sage-line/55"
-            />
+            <span aria-hidden className="inline-block size-1.5 rounded-full bg-sage/40" />
             work
           </span>
           <span className="inline-flex items-center gap-1" title="Conversation">
-            <span
-              aria-hidden
-              className="inline-block size-1.5 rounded-full bg-sage-line"
-            />
-            think
+            <span aria-hidden className="inline-block size-1.5 rounded-full bg-sage" />
+            talk
           </span>
         </p>
       </div>
@@ -385,20 +303,16 @@ export function AgentActivity({
       {logsQuery.isError && (
         <p className="text-[13px] text-ink-muted">Could not load activity.</p>
       )}
-      {!logsQuery.isLoading && !logsQuery.isError && items.length === 0 && (
+      {!logsQuery.isLoading && !logsQuery.isError && turns.length === 0 && (
         <p className="text-[13px] text-ink-muted">No recent activity.</p>
       )}
 
-      {items.length > 0 && (
+      {turns.length > 0 && (
         <>
-          <ol className="flex flex-col gap-1.5">
-            {visible.map((item) =>
-              item.kind === "thought" ? (
-                <ThoughtRow key={item.key} item={item} />
-              ) : (
-                <ToolRow key={item.key} item={item} />
-              ),
-            )}
+          <ol className="flex flex-col gap-2.5">
+            {visible.map((turn) => (
+              <TurnRow key={turn.key} turn={turn} />
+            ))}
           </ol>
           {hidden > 0 ? (
             <button

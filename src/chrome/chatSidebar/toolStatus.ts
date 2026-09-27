@@ -19,7 +19,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 }
 
 /**
- * Thoughts land before tools run and list every `tool_use` for the round.
+ * Response rows land before their tools run and list every `tool_use` for the round.
  * The first tool_use whose result is not yet logged is the one currently
  * executing (tools run sequentially).
  */
@@ -37,7 +37,7 @@ export function findActiveTool(logs: LogRecord[]): ActiveTool | null {
 
   const chronological = [...logs].reverse();
   for (const log of chronological) {
-    if (log.event !== "thought") {
+    if (log.event !== "response") {
       continue;
     }
     const content = log.payload.content;

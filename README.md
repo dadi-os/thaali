@@ -19,7 +19,7 @@ hath/
   src/
     pages/                 route construction sites
     features/<domain>/     agents, memory, timeline, ghar, chaavi, system, logs
-      agents/              tree, popover, host-session peek (browser frame + terminal chip)
+      agents/              tree, popover (activity: each model turn's thinking, text and tool calls), host-session peek (browser frame + terminal chip)
     chrome/                AppShell, Header, chatSidebar/
       chatSidebar/         portable unit (index = construction site)
         list/ thread/ composer/ message/
