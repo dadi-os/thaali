@@ -14,7 +14,17 @@ import {
   formatRelative,
   statusLabel,
   visualState,
+  type NodeVisual,
 } from "./tree";
+
+/** Glass tint for each agent lane, matching the node's color in the graph. */
+const VISUAL_ACCENT = {
+  dormant: "var(--ink-faint)",
+  idle: "var(--sage)",
+  reasoning: "var(--sage-deep)",
+  conversation: "var(--sage-deep)",
+  both: "var(--sage-deep)",
+} as const satisfies Record<NodeVisual, string>;
 
 export type AgentPopoverProps = {
   open: boolean;
@@ -139,22 +149,27 @@ export function AgentPopover({
       className="max-h-[min(86vh,760px)]"
       style={{ maxHeight: "min(86vh, 760px)" }}
       widthPx={460}
-      leader
+      accent={VISUAL_ACCENT[visual]}
+      contentKey={agentId}
+      hoverBridge
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
     >
-      <div className="shrink-0 border-b border-rule/60 px-4 py-2.5">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="text-[15px] font-medium text-ink">{name}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="text-[11px] tracking-wide text-ink-faint hover:text-ink-muted"
-          >
-            ESC
+      <header className="shrink-0 px-4 pt-3.5 pb-3">
+        <div className="flex items-center gap-3">
+          <span className="popover-orb" data-live={live ? "" : undefined} />
+          <h2 className="min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.01em] text-ink">
+            {name}
+          </h2>
+          <button type="button" onClick={onClose} className="popover-kbd">
+            esc
           </button>
         </div>
-      </div>
+        <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[22px]">
+          <span className="popover-pill">{status}</span>
+        </div>
+      </header>
+      <div className="mx-4 h-px shrink-0 bg-gradient-to-r from-transparent via-rule to-transparent" />
 
       {browserId !== null ? (
         <div className="shrink-0 border-b border-rule/60 px-3 py-3">
@@ -190,24 +205,6 @@ export function AgentPopover({
                   : "—"}
             </span>
           </Tooltip>
-          <span className="text-ink-ghost">Status</span>
-          <span className="inline-flex items-center gap-2 text-ink-muted">
-            {running.reasoning ? (
-              <span
-                className="inline-block size-1.5 rounded-full bg-sage/40"
-                title="Working"
-                aria-label="Working"
-              />
-            ) : null}
-            {running.conversation ? (
-              <span
-                className="inline-block size-1.5 rounded-full bg-sage"
-                title="Thinking"
-                aria-label="Thinking"
-              />
-            ) : null}
-            {status}
-          </span>
           {parent ? (
             <>
               <span className="text-ink-ghost">Parent</span>

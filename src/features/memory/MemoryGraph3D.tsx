@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, yaad } from "../../shared/api";
@@ -61,10 +61,10 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
     setQuery("");
   }, [entranceKey]);
 
-  const clearFocus = () => {
+  const clearFocus = useCallback(() => {
     details.close();
     setFocusId(null);
-  };
+  }, [details.close]);
 
   const sim = useMemo(() => createMemorySimulation(), [entranceKey]);
 
@@ -158,6 +158,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
           pinnedLabels={pinnedLabels}
           revealSeeds={revealSeeds}
           edgeLabel={(link) => link.type.replace(/_/g, " ")}
+          onZoom={clearFocus}
           onNodeHover={(node, at) => details.hover(node.id, at)}
           onNodeLeave={details.leave}
           onNodeClick={(node) => {
@@ -205,34 +206,44 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
         onClose={details.close}
         onMouseEnter={details.keep}
         onMouseLeave={details.leave}
-        widthPx={300}
-        leader
+        widthPx={320}
+        accent={selected ? `var(${KIND_TOKEN[selected.kind]})` : undefined}
+        contentKey={selected?.id}
+        hoverBridge
       >
         {selected ? (
-          <div className="flex flex-col gap-2 p-3">
-            <div className="flex items-baseline justify-between gap-2">
-              <span className="text-[14px] text-ink">{selected.title}</span>
-              <span className="shrink-0 text-[10px] font-medium tracking-[1.5px] uppercase text-sage-text">
-                {selected.kind}
-              </span>
-            </div>
+          <>
+            <header className="px-4 pt-3.5 pb-2.5">
+              <div className="flex items-center gap-3">
+                <span className="popover-orb" />
+                <h2 className="min-w-0 flex-1 text-[14px] leading-snug font-medium tracking-[-0.01em] text-ink">
+                  {selected.title}
+                </h2>
+              </div>
+              <div className="mt-2 pl-[22px]">
+                <span className="popover-pill">{selected.kind}</span>
+              </div>
+            </header>
             {selected.body ? (
-              <p className="text-[12px] leading-relaxed text-ink-muted">
-                {truncate(selected.body, 180)}
+              <p className="px-4 pb-3 pl-[38px] text-[12.5px] leading-relaxed text-ink-muted">
+                {truncate(selected.body, 220)}
               </p>
             ) : null}
-            {selected.occurred_at ? (
-              <p className="text-[11px] text-ink-ghost">
-                {new Intl.DateTimeFormat(undefined, {
-                  dateStyle: "medium",
-                  timeStyle: "short",
-                }).format(new Date(selected.occurred_at))}
-              </p>
-            ) : null}
-            <p className="text-[11px] text-ink-ghost">
-              {selected.degree} {selected.degree === 1 ? "link" : "links"}
-            </p>
-          </div>
+            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-rule to-transparent" />
+            <footer className="flex flex-wrap items-center gap-1.5 px-4 py-3 pl-[38px]">
+              {selected.occurred_at ? (
+                <span className="popover-pill">
+                  {new Intl.DateTimeFormat(undefined, {
+                    dateStyle: "medium",
+                    timeStyle: "short",
+                  }).format(new Date(selected.occurred_at))}
+                </span>
+              ) : null}
+              <span className="popover-pill">
+                {selected.degree} {selected.degree === 1 ? "link" : "links"}
+              </span>
+            </footer>
+          </>
         ) : null}
       </Popover>
     </div>

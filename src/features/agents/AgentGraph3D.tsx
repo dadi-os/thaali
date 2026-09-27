@@ -1,4 +1,5 @@
 import {
+  useCallback,
   useEffect,
   useMemo,
   useRef,
@@ -191,6 +192,11 @@ export function AgentGraph3D({
     }
   }, [entranceKey, focusOnEntry]);
 
+  const clearFocus = useCallback(() => {
+    details.close();
+    setFocusId(null);
+  }, [details.close]);
+
   const focusAgent = (agentId: string) => {
     details.close();
     setFocusId(agentId);
@@ -258,10 +264,7 @@ export function AgentGraph3D({
         interactive={interactive}
         pickable={onPick !== undefined}
         cameraPosition={[0, 60, 300]}
-        onBackgroundClick={() => {
-          setFocusId(null);
-          details.close();
-        }}
+        onBackgroundClick={clearFocus}
       >
         <ForceGraph
           sim={sim}
@@ -292,6 +295,7 @@ export function AgentGraph3D({
               </>
             );
           }}
+          onZoom={interactive ? clearFocus : undefined}
           onNodeHover={interactive ? (n, at) => details.hover(n.id, at) : undefined}
           onNodeLeave={interactive ? details.leave : undefined}
           onNodeClick={

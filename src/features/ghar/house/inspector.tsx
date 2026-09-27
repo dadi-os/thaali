@@ -123,7 +123,7 @@ export function DevicePopover({
       containerRef={containerRef}
       aria-label={`${device.name} controls`}
       widthPx={300}
-      leader
+      hoverBridge
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
     >

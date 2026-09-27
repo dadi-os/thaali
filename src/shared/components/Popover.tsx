@@ -8,13 +8,13 @@ import {
   type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence, animate, motion, useMotionValue } from "motion/react";
 import { EASE, SLOW_S } from "../lib/ux/motion";
 
 export type PopoverAnchor = {
   x: number;
   y: number;
-  /** Radius (px) of the round thing at the anchor (e.g. a graph node), 0 for a point; the panel and leader clear it. */
+  /** Radius (px) of the round thing at the anchor (e.g. a graph node), 0 for a point; the panel clears it. */
   radius: number;
 };
 
@@ -34,22 +34,33 @@ export type PopoverProps = {
   /** Element that owns the coordinate space for `anchor`. */
   containerRef?: RefObject<HTMLElement | null>;
   /**
-   * Hairline tether from the anchor's edge to the panel, over an invisible bridge that
-   * keeps the pointer "inside" the panel while it travels there from the anchor.
+   * CSS color the glass is tinted with (glow, border sheen, shadow), usually the
+   * color of the thing it describes. Omit for an untinted sheet.
    */
-  leader?: boolean;
+  accent?: string;
+  /**
+   * Identity of what the panel shows. When it changes while open, the panel glides to
+   * the new anchor and its content rises in again.
+   */
+  contentKey?: string;
+  /**
+   * Invisible bridge from the anchor's edge to the panel, so the pointer stays "inside"
+   * the panel while it travels there from the anchor. For hover-opened panels.
+   */
+  hoverBridge?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 };
 
 const PAD = 12;
-/** Space between the anchor's edge and the panel, which the leader spans. */
-const OFFSET = 26;
-/** Where the leader meets the panel, from its top, so it points at the header. */
-const LEADER_FROM_TOP = 22;
-/** Closest the leader may meet the panel to its top or bottom corner. */
-const LEADER_INSET = 16;
+/** Space between the anchor's edge and the panel. */
+const OFFSET = 22;
+/** How far above the anchor the panel's top sits, so its header lines up with it. */
+const HEADER_LIFT = 26;
+/** Spring for gliding between anchors. */
+const GLIDE = { type: "spring", stiffness: 420, damping: 38, mass: 0.9 } as const;
 
+/** Where the panel sits in the viewport, its measured size, and which side of the anchor it is on. */
 type Placement = {
   left: number;
   top: number;
@@ -60,9 +71,11 @@ type Placement = {
 
 /**
  * Anchored floating glass panel portaled to document.body.
- * Sits beside the anchor, flips and clamps to stay in the viewport, and re-places
- * only when the anchor moves or the panel resizes. Clicks stay on the panel so they
- * do not activate the widget that opened it.
+ * Sits beside the anchor without touching it, flips and clamps to stay in the
+ * viewport, glides when the anchor moves, and re-places only when the anchor moves or
+ * the panel resizes. Opens with a blur-in, a single light sheen, and content that
+ * rises in one block at a time. Clicks stay on the panel so they do not activate the
+ * widget that opened it.
  */
 export function Popover({
   open,
@@ -74,20 +87,28 @@ export function Popover({
   widthPx = 340,
   "aria-label": ariaLabel,
   containerRef,
-  leader = false,
+  accent,
+  contentKey,
+  hoverBridge = false,
   onMouseEnter,
   onMouseLeave,
 }: PopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<Placement | null>(null);
+  const placed = useRef<Placement | null>(null);
+  const glideX = useMotionValue(0);
+  const glideY = useMotionValue(0);
   const clearance = anchor.radius + OFFSET;
-  const origin = (() => {
+  /** The anchor in viewport coordinates. */
+  const originOf = () => {
     const rect = containerRef?.current?.getBoundingClientRect();
-    return rect ? { x: rect.left + anchor.x, y: rect.top + anchor.y } : anchor;
-  })();
+    return rect ? { x: rect.left + anchor.x, y: rect.top + anchor.y } : { x: anchor.x, y: anchor.y };
+  };
+  const origin = originOf();
 
   useLayoutEffect(() => {
     if (!open) {
+      setPos(null);
       return;
     }
     const place = () => {
@@ -95,9 +116,7 @@ export function Popover({
       if (!panel) {
         return;
       }
-      const rect = containerRef?.current?.getBoundingClientRect();
-      const originX = rect ? rect.left + anchor.x : anchor.x;
-      const originY = rect ? rect.top + anchor.y : anchor.y;
+      const { x: originX, y: originY } = originOf();
       const width = panel.offsetWidth;
       const height = panel.offsetHeight;
       let side: Placement["side"] = "left";
@@ -107,10 +126,7 @@ export function Popover({
         side = "right";
       }
       left = Math.max(PAD, Math.min(left, window.innerWidth - width - PAD));
-      const top = Math.max(
-        PAD,
-        Math.min(originY - LEADER_FROM_TOP, window.innerHeight - height - PAD),
-      );
+      const top = Math.max(PAD, Math.min(originY - HEADER_LIFT, window.innerHeight - height - PAD));
       setPos((prev) =>
         prev &&
         prev.left === left &&
@@ -135,6 +151,29 @@ export function Popover({
       window.removeEventListener("resize", place);
     };
   }, [open, anchor.x, anchor.y, clearance, containerRef, widthPx]);
+
+  useLayoutEffect(() => {
+    const prev = placed.current;
+    placed.current = pos;
+    if (!prev || !pos) {
+      glideX.set(0);
+      glideY.set(0);
+      return;
+    }
+    const dx = prev.left - pos.left;
+    const dy = prev.top - pos.top;
+    if (dx === 0 && dy === 0) {
+      return;
+    }
+    glideX.set(glideX.get() + dx);
+    glideY.set(glideY.get() + dy);
+    const x = animate(glideX, 0, GLIDE);
+    const y = animate(glideY, 0, GLIDE);
+    return () => {
+      x.stop();
+      y.stop();
+    };
+  }, [pos, glideX, glideY]);
 
   useEffect(() => {
     if (!open) {
@@ -168,37 +207,34 @@ export function Popover({
     };
   }, [open, onClose]);
 
-  const tether = (() => {
-    if (!leader || !pos) {
+  const bridge = (() => {
+    if (!hoverBridge || !pos) {
       return null;
     }
-    const radius = anchor.radius;
     const cx = origin.x - pos.left;
     const cy = origin.y - pos.top;
     const edgeX = pos.side === "left" ? 0 : pos.width;
-    const edgeY = Math.max(
-      LEADER_INSET,
-      Math.min(cy, pos.height - LEADER_INSET),
-    );
+    const edgeY = Math.max(0, Math.min(cy, pos.height));
     const dx = edgeX - cx;
     const dy = edgeY - cy;
     const length = Math.hypot(dx, dy);
-    if (length <= radius) {
+    if (length <= anchor.radius) {
       return null;
     }
     const ux = dx / length;
     const uy = dy / length;
-    const startX = cx + ux * (radius + 3);
-    const startY = cy + uy * (radius + 3);
-    const reach = Math.max(radius, 6);
-    const bridge = [
-      `${cx + ux * radius - uy * reach},${cy + uy * radius + ux * reach}`,
-      `${cx + ux * radius + uy * reach},${cy + uy * radius - ux * reach}`,
+    const sx = cx + ux * anchor.radius;
+    const sy = cy + uy * anchor.radius;
+    const reach = Math.max(anchor.radius, 6);
+    return [
+      `${sx - uy * reach},${sy + ux * reach}`,
+      `${sx + uy * reach},${sy - ux * reach}`,
       `${edgeX},0`,
       `${edgeX},${pos.height}`,
     ].join(" ");
-    return { startX, startY, edgeX, edgeY, bridge };
   })();
+
+  const tint = accent ? ({ "--popover-accent": accent } as CSSProperties) : undefined;
 
   return createPortal(
     <AnimatePresence>
@@ -209,41 +245,39 @@ export function Popover({
           aria-label={ariaLabel}
           className={`popover-glass fixed z-[60] flex max-h-[min(70vh,520px)] flex-col ${className ?? ""}`}
           style={{
+            ...tint,
             left: pos ? pos.left : origin.x + clearance,
-            top: pos ? pos.top : origin.y - LEADER_FROM_TOP,
+            top: pos ? pos.top : origin.y - HEADER_LIFT,
             width: `min(${widthPx}px, calc(100vw - 24px))`,
             visibility: pos ? "visible" : "hidden",
-            transformOrigin: `${pos?.side === "right" ? "right" : "left"} ${LEADER_FROM_TOP}px`,
+            transformOrigin: `${pos?.side === "right" ? "right" : "left"} ${HEADER_LIFT}px`,
+            x: glideX,
+            y: glideY,
             ...style,
           }}
-          initial={{ opacity: 0, scale: 0.97, x: pos?.side === "right" ? 6 : -6 }}
-          animate={{ opacity: 1, scale: 1, x: 0 }}
-          exit={{ opacity: 0, scale: 0.98, transition: { duration: SLOW_S / 2, ease: EASE } }}
-          transition={{ duration: SLOW_S, ease: EASE }}
+          initial={{ opacity: 0, scale: 0.96, filter: "blur(10px)" }}
+          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
+          exit={{
+            opacity: 0,
+            scale: 0.985,
+            filter: "blur(6px)",
+            transition: { duration: SLOW_S * 0.6, ease: EASE },
+          }}
+          transition={{ duration: SLOW_S * 1.2, ease: EASE }}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           onClick={(e) => e.stopPropagation()}
         >
-          {tether ? (
+          {bridge ? (
             <svg aria-hidden className="pointer-events-none absolute top-0 left-0 size-px overflow-visible">
-              <polygon points={tether.bridge} fill="transparent" pointerEvents="all" />
-              <motion.line
-                x1={tether.startX}
-                y1={tether.startY}
-                x2={tether.edgeX}
-                y2={tether.edgeY}
-                stroke="var(--sage-deep)"
-                strokeOpacity={0.55}
-                strokeWidth={1}
-                strokeLinecap="round"
-                initial={{ pathLength: 0 }}
-                animate={{ pathLength: 1 }}
-                transition={{ duration: SLOW_S, ease: EASE }}
-              />
-              <circle cx={tether.startX} cy={tether.startY} r={2.25} fill="var(--sage-deep)" />
+              <polygon points={bridge} fill="transparent" pointerEvents="all" />
             </svg>
           ) : null}
-          <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]">
+          <span aria-hidden key={`sheen-${contentKey}`} className="popover-glass__sheen" />
+          <div
+            key={`body-${contentKey}`}
+            className="popover-glass__body relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]"
+          >
             {children}
           </div>
         </motion.div>

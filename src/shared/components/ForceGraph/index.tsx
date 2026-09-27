@@ -139,6 +139,8 @@ export type ForceGraphProps<R extends { id: string }, E extends ForceEdge> = {
   onNodeHover?: (node: ForceNode<R>, at: ForceGraphPoint) => void;
   /** Pointer left a node. */
   onNodeLeave?: () => void;
+  /** User zoomed the camera (wheel or two-finger pinch), e.g. to drop the focus. */
+  onZoom?: () => void;
 };
 
 /** Orbit controls surface this scene drives (GraphSpace registers them as default). */
@@ -204,6 +206,7 @@ export function ForceGraph<R extends { id: string }, E extends ForceEdge>({
   onNodeClick,
   onNodeHover,
   onNodeLeave,
+  onZoom,
 }: ForceGraphProps<R, E>) {
   const { camera, controls, scene, gl, size } = useThree();
   const theme = useThemeTokens(THEME);
@@ -271,6 +274,24 @@ export function ForceGraph<R extends { id: string }, E extends ForceEdge>({
     orbit.addEventListener("start", release);
     return () => orbit.removeEventListener("start", release);
   }, [controls]);
+
+  useEffect(() => {
+    if (!onZoom) {
+      return;
+    }
+    const el = gl.domElement;
+    const onTouch = (e: TouchEvent) => {
+      if (e.touches.length > 1) {
+        onZoom();
+      }
+    };
+    el.addEventListener("wheel", onZoom, { passive: true });
+    el.addEventListener("touchstart", onTouch, { passive: true });
+    return () => {
+      el.removeEventListener("wheel", onZoom);
+      el.removeEventListener("touchstart", onTouch);
+    };
+  }, [gl, onZoom]);
 
   const edges = useMemo(() => {
     const geometry = new THREE.BufferGeometry();
