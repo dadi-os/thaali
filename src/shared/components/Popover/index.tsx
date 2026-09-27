@@ -9,7 +9,8 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, animate, motion, useMotionValue } from "motion/react";
-import { EASE, SLOW_S } from "../lib/ux/motion";
+import { EASE, SLOW_S, SLOWER_S } from "../../lib/ux/motion";
+import { inHoverZone } from "./zone";
 
 export type PopoverAnchor = {
   x: number;
@@ -34,22 +35,25 @@ export type PopoverProps = {
   /** Element that owns the coordinate space for `anchor`. */
   containerRef?: RefObject<HTMLElement | null>;
   /**
-   * CSS color the glass is tinted with (glow, border sheen, shadow), usually the
-   * color of the thing it describes. Omit for an untinted sheet.
-   */
-  accent?: string;
-  /**
    * Identity of what the panel shows. When it changes while open, the panel glides to
-   * the new anchor and its content rises in again.
+   * the new anchor and its content fades across.
    */
   contentKey?: string;
   /**
-   * Invisible bridge from the anchor's edge to the panel, so the pointer stays "inside"
-   * the panel while it travels there from the anchor. For hover-opened panels.
+   * Hover-opened panel. The anchor, the panel, and the gap between them form one hover
+   * zone, tracked from the pointer's position rather than enter/leave events, so moving
+   * from the anchor onto any part of the panel never reads as leaving. An invisible
+   * bridge over the gap also keeps the pointer off whatever lies beneath it.
    */
-  hoverBridge?: boolean;
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
+  hover?: PopoverHover;
+};
+
+/** Hover-zone callbacks for a hover-opened popover. */
+export type PopoverHover = {
+  /** Pointer moved within the zone; fires on every move, so it should be idempotent. */
+  onInside: () => void;
+  /** Pointer left the zone (or the window) after being inside it; fires once per exit. */
+  onOutside: () => void;
 };
 
 const PAD = 12;
@@ -58,7 +62,7 @@ const OFFSET = 22;
 /** How far above the anchor the panel's top sits, so its header lines up with it. */
 const HEADER_LIFT = 26;
 /** Spring for gliding between anchors. */
-const GLIDE = { type: "spring", stiffness: 420, damping: 38, mass: 0.9 } as const;
+const GLIDE = { type: "spring", stiffness: 380, damping: 40, mass: 0.9 } as const;
 
 /** Where the panel sits in the viewport, its measured size, and which side of the anchor it is on. */
 type Placement = {
@@ -70,12 +74,10 @@ type Placement = {
 };
 
 /**
- * Anchored floating glass panel portaled to document.body.
+ * Anchored floating glass sheet portaled to document.body.
  * Sits beside the anchor without touching it, flips and clamps to stay in the
- * viewport, glides when the anchor moves, and re-places only when the anchor moves or
- * the panel resizes. Opens with a blur-in, a single light sheen, and content that
- * rises in one block at a time. Clicks stay on the panel so they do not activate the
- * widget that opened it.
+ * viewport, glides when the anchor moves or its content resizes, and fades and settles
+ * in and out. Clicks stay on the panel so they do not activate the widget that opened it.
  */
 export function Popover({
   open,
@@ -87,11 +89,8 @@ export function Popover({
   widthPx = 340,
   "aria-label": ariaLabel,
   containerRef,
-  accent,
   contentKey,
-  hoverBridge = false,
-  onMouseEnter,
-  onMouseLeave,
+  hover,
 }: PopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<Placement | null>(null);
@@ -105,6 +104,9 @@ export function Popover({
     return rect ? { x: rect.left + anchor.x, y: rect.top + anchor.y } : { x: anchor.x, y: anchor.y };
   };
   const origin = originOf();
+  const hoverRef = useRef(hover);
+  hoverRef.current = hover;
+  const hoverable = hover !== undefined;
 
   useLayoutEffect(() => {
     if (!open) {
@@ -176,6 +178,40 @@ export function Popover({
   }, [pos, glideX, glideY]);
 
   useEffect(() => {
+    if (!open || !hoverable) {
+      return;
+    }
+    let inside = false;
+    const onMove = (e: PointerEvent) => {
+      const panel = panelRef.current;
+      const zone = hoverRef.current;
+      if (!panel || !zone) {
+        return;
+      }
+      const now = inHoverZone(e.clientX, e.clientY, panel.getBoundingClientRect(), originOf(), anchor.radius);
+      if (now) {
+        zone.onInside();
+      } else if (inside) {
+        zone.onOutside();
+      }
+      inside = now;
+    };
+    const onExit = () => {
+      if (inside) {
+        inside = false;
+        hoverRef.current?.onOutside();
+      }
+    };
+    const root = document.documentElement;
+    document.addEventListener("pointermove", onMove);
+    root.addEventListener("mouseleave", onExit);
+    return () => {
+      document.removeEventListener("pointermove", onMove);
+      root.removeEventListener("mouseleave", onExit);
+    };
+  }, [open, hoverable, anchor.x, anchor.y, anchor.radius, containerRef]);
+
+  useEffect(() => {
     if (!open) {
       return;
     }
@@ -208,7 +244,7 @@ export function Popover({
   }, [open, onClose]);
 
   const bridge = (() => {
-    if (!hoverBridge || !pos) {
+    if (!hoverable || !pos) {
       return null;
     }
     const cx = origin.x - pos.left;
@@ -234,8 +270,6 @@ export function Popover({
     ].join(" ");
   })();
 
-  const tint = accent ? ({ "--popover-accent": accent } as CSSProperties) : undefined;
-
   return createPortal(
     <AnimatePresence>
       {open ? (
@@ -245,7 +279,6 @@ export function Popover({
           aria-label={ariaLabel}
           className={`popover-glass fixed z-[60] flex max-h-[min(70vh,520px)] flex-col ${className ?? ""}`}
           style={{
-            ...tint,
             left: pos ? pos.left : origin.x + clearance,
             top: pos ? pos.top : origin.y - HEADER_LIFT,
             width: `min(${widthPx}px, calc(100vw - 24px))`,
@@ -255,17 +288,10 @@ export function Popover({
             y: glideY,
             ...style,
           }}
-          initial={{ opacity: 0, scale: 0.96, filter: "blur(10px)" }}
-          animate={{ opacity: 1, scale: 1, filter: "blur(0px)" }}
-          exit={{
-            opacity: 0,
-            scale: 0.985,
-            filter: "blur(6px)",
-            transition: { duration: SLOW_S * 0.6, ease: EASE },
-          }}
-          transition={{ duration: SLOW_S * 1.2, ease: EASE }}
-          onMouseEnter={onMouseEnter}
-          onMouseLeave={onMouseLeave}
+          initial={{ opacity: 0, scale: 0.975 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.985, transition: { duration: SLOW_S * 0.75, ease: EASE } }}
+          transition={{ duration: SLOWER_S, ease: EASE }}
           onClick={(e) => e.stopPropagation()}
         >
           {bridge ? (
@@ -273,7 +299,6 @@ export function Popover({
               <polygon points={bridge} fill="transparent" pointerEvents="all" />
             </svg>
           ) : null}
-          <span aria-hidden key={`sheen-${contentKey}`} className="popover-glass__sheen" />
           <div
             key={`body-${contentKey}`}
             className="popover-glass__body relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]"

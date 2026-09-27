@@ -15,9 +15,9 @@ export type DevicePopoverProps = {
   /** A command for this device is in flight. Controls wait in gray. */
   pending: boolean;
   onClose: () => void;
-  /** Pointer entered the panel, so a hover-close should wait. */
+  /** Pointer is on the panel or the gap to it, so a hover-close should wait. Fires on every move. */
   onHoverStart: () => void;
-  /** Pointer left the panel. */
+  /** Pointer left the panel and the gap to it. */
   onHoverEnd: () => void;
   onRename: (name: string) => void;
   onIdentify: () => void;
@@ -123,9 +123,7 @@ export function DevicePopover({
       containerRef={containerRef}
       aria-label={`${device.name} controls`}
       widthPx={300}
-      hoverBridge
-      onMouseEnter={onHoverStart}
-      onMouseLeave={onHoverEnd}
+      hover={{ onInside: onHoverStart, onOutside: onHoverEnd }}
     >
       <div className="flex flex-col gap-3 px-3.5 py-3">
         <div className="flex items-start gap-3 border-b border-rule/60 pb-2.5">

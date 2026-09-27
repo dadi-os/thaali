@@ -1,30 +1,18 @@
 import { useEffect, useState, type RefObject } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { dimaag, isMeshOnline } from "../../shared/api";
 import type { AgentRecord } from "../../shared/api/types";
 import { useConnection } from "../../hooks/useConnection";
-import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
+import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { getRunning } from "../../store/running";
 import { AgentActivity } from "./AgentActivity";
 import { BrowserFrame } from "./BrowserFrame";
+import { REVEAL } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
-import {
-  formatAbsolute,
-  formatRelative,
-  statusLabel,
-  visualState,
-  type NodeVisual,
-} from "./tree";
-
-/** Glass tint for each agent lane, matching the node's color in the graph. */
-const VISUAL_ACCENT = {
-  dormant: "var(--ink-faint)",
-  idle: "var(--sage)",
-  reasoning: "var(--sage-deep)",
-  conversation: "var(--sage-deep)",
-  both: "var(--sage-deep)",
-} as const satisfies Record<NodeVisual, string>;
+import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
+import { statusLabel, visualState } from "./tree";
 
 export type AgentPopoverProps = {
   open: boolean;
@@ -39,13 +27,13 @@ export type AgentPopoverProps = {
   terminal: { id: string; last_command: string | null } | null;
   onClose: () => void;
   onSelectParent: (id: string) => void;
-  /** Keep the panel open while the pointer is on it. */
-  onHoverStart?: () => void;
-  onHoverEnd?: () => void;
+  /** Hover zone that keeps the panel open while the pointer is on the node or the panel. */
+  hover: PopoverHover;
 };
 
 /**
- * Agent detail panel. Uses shared Popover for positioning / dismiss.
+ * Agent detail panel. Uses shared Popover for positioning / dismiss. Detail and
+ * activity that load after it opens ease in rather than popping into place.
  */
 export function AgentPopover({
   open,
@@ -58,8 +46,7 @@ export function AgentPopover({
   terminal,
   onClose,
   onSelectParent,
-  onHoverStart,
-  onHoverEnd,
+  hover,
 }: AgentPopoverProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
@@ -77,8 +64,8 @@ export function AgentPopover({
   });
 
   /**
-   * Same cache as AgentActivity — last active is last log, not agents.updated_at
-   * (that column only moves on modify_agent).
+   * Recent logs, shown as activity and read for "last active" (the last log, not
+   * agents.updated_at, which only moves on modify_agent).
    */
   const activityQuery = useQuery({
     queryKey: ["agent-logs", agentId, "activity"],
@@ -86,7 +73,7 @@ export function AgentPopover({
       if (!agentId) {
         throw new Error("agentId required");
       }
-      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 48 });
+      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 80 });
       return logs;
     },
     enabled: connected && !!agentId && open,
@@ -149,27 +136,30 @@ export function AgentPopover({
       className="max-h-[min(86vh,760px)]"
       style={{ maxHeight: "min(86vh, 760px)" }}
       widthPx={460}
-      accent={VISUAL_ACCENT[visual]}
       contentKey={agentId}
-      hoverBridge
-      onMouseEnter={onHoverStart}
-      onMouseLeave={onHoverEnd}
+      hover={hover}
     >
-      <header className="shrink-0 px-4 pt-3.5 pb-3">
-        <div className="flex items-center gap-3">
-          <span className="popover-orb" data-live={live ? "" : undefined} />
-          <h2 className="min-w-0 flex-1 truncate text-[15px] font-medium tracking-[-0.01em] text-ink">
-            {name}
-          </h2>
-          <button type="button" onClick={onClose} className="popover-kbd">
-            esc
+      <header className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="min-w-0 truncate text-[15px] font-medium text-ink">{name}</h2>
+          <button
+            type="button"
+            onClick={onClose}
+            className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-hath hover:text-ink-muted"
+          >
+            ESC
           </button>
         </div>
-        <div className="mt-2 flex flex-wrap items-center gap-1.5 pl-[22px]">
-          <span className="popover-pill">{status}</span>
-        </div>
+        <p className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-muted">
+          <span
+            aria-hidden
+            className={`inline-block size-1.5 rounded-full ${
+              live ? "bg-sage-deep" : active ? "bg-sage" : "bg-ink-faint"
+            }`}
+          />
+          {status}
+        </p>
       </header>
-      <div className="mx-4 h-px shrink-0 bg-gradient-to-r from-transparent via-rule to-transparent" />
 
       {browserId !== null ? (
         <div className="shrink-0 border-b border-rule/60 px-3 py-3">
@@ -227,63 +217,66 @@ export function AgentPopover({
           </p>
         )}
 
-        {detail && (
-          <>
-            <section className="mb-4">
-              <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
-                SYSTEM PROMPT
-              </h3>
-              <p
-                className={`whitespace-pre-wrap text-[13px] leading-relaxed text-ink ${
-                  promptOpen ? "" : "line-clamp-4"
-                }`}
-              >
-                {detail.system_prompt}
-              </p>
-              {detail.system_prompt.length > 160 && (
-                <button
-                  type="button"
-                  className="mt-1 text-[12px] text-sage-deep"
-                  onClick={() => setPromptOpen((v) => !v)}
+        <AnimatePresence initial={false}>
+          {detailQuery.isPending ? (
+            <motion.div key="loading" {...REVEAL} className="overflow-hidden">
+              <div aria-label="Loading agent detail" className="flex flex-col gap-2 pb-5">
+                <span className="h-2.5 w-24 animate-pulse rounded-full bg-rule/70" />
+                <span className="h-2.5 w-full animate-pulse rounded-full bg-rule/50" />
+                <span className="h-2.5 w-4/5 animate-pulse rounded-full bg-rule/50" />
+              </div>
+            </motion.div>
+          ) : null}
+          {detail ? (
+            <motion.div key="detail" {...REVEAL} className="overflow-hidden">
+              <section className="mb-4">
+                <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
+                  SYSTEM PROMPT
+                </h3>
+                <p
+                  className={`whitespace-pre-wrap text-[13px] leading-relaxed text-ink ${
+                    promptOpen ? "" : "line-clamp-4"
+                  }`}
                 >
-                  {promptOpen ? "Collapse" : "Expand"}
-                </button>
-              )}
-            </section>
+                  {detail.system_prompt}
+                </p>
+                {detail.system_prompt.length > 160 && (
+                  <button
+                    type="button"
+                    className="mt-1 text-[12px] text-sage-deep"
+                    onClick={() => setPromptOpen((v) => !v)}
+                  >
+                    {promptOpen ? "Collapse" : "Expand"}
+                  </button>
+                )}
+              </section>
 
-            <section className="mb-5">
-              <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
-                TOOLS
-              </h3>
-              {detail.tools.length === 0 ? (
-                <p className="text-[13px] text-ink-muted">No granted tools.</p>
-              ) : (
-                <ul className="space-y-2">
-                  {detail.tools.map((t) => (
-                    <li key={t.name}>
-                      <div className="text-[13px] font-medium text-ink">
-                        {t.name}
-                      </div>
-                      <div className="text-[12px] leading-snug text-ink-muted">
-                        {t.usage}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </section>
-          </>
-        )}
+              <section className="mb-5">
+                <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
+                  TOOLS
+                </h3>
+                {detail.tools.length === 0 ? (
+                  <p className="text-[13px] text-ink-muted">No granted tools.</p>
+                ) : (
+                  <ul className="space-y-2">
+                    {detail.tools.map((t) => (
+                      <li key={t.name}>
+                        <div className="text-[13px] font-medium text-ink">
+                          {t.name}
+                        </div>
+                        <div className="text-[12px] leading-snug text-ink-muted">
+                          {t.usage}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </section>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
 
-        <AgentActivity
-          agentId={agentId}
-          open={open}
-          connected={connected}
-        />
-
-        {detailQuery.isLoading && (
-          <p className="mt-3 text-[13px] text-ink-muted">Loading…</p>
-        )}
+        <AgentActivity logs={activityQuery} />
       </div>
     </Popover>
   );

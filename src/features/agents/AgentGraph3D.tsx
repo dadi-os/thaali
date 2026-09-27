@@ -271,7 +271,7 @@ export function AgentGraph3D({
           graph={graph}
           focusId={focusId ?? onlyMatch}
           focusScope="lineage"
-          hold={details.id !== null || focusId !== null || matches !== null}
+          hold={details.open || focusId !== null || matches !== null}
           matches={matches}
           radius={(n) => agentRadius(n.depth, !n.active)}
           look={(n) => agentLook(theme, visualState(n, runningMap[n.id]))}
@@ -323,7 +323,7 @@ export function AgentGraph3D({
 
       {interactive ? (
         <AgentPopover
-          open={details.id !== null && details.anchor !== null}
+          open={details.open}
           agentId={details.id}
           agentsById={agentsById}
           runningMap={runningMap}
@@ -331,8 +331,7 @@ export function AgentGraph3D({
           containerRef={rootRef as RefObject<HTMLElement | null>}
           browserId={detailBrowserId}
           terminal={detailTerminal}
-          onHoverStart={details.keep}
-          onHoverEnd={details.leave}
+          hover={{ onInside: details.keep, onOutside: details.leave }}
           onClose={details.close}
           onSelectParent={focusAgent}
         />

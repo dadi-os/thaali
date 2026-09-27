@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { focusSet } from "./shared/components/ForceGraph/focus";
+import { inHoverZone } from "./shared/components/Popover/zone";
 import {
   conversationBucket,
   formatRelative,
@@ -40,7 +41,13 @@ import {
   statusLabel,
   visualState,
 } from "./features/agents/tree";
-import { createMemorySimulation, mergeGraph, type GraphData } from "./features/memory/graph";
+import {
+  connectionsOf,
+  createMemorySimulation,
+  mergeGraph,
+  type GraphData,
+  type MemoryLink,
+} from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/ForceGraph";
 import { buildActivity } from "./features/agents/activity";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
@@ -1255,5 +1262,55 @@ describe("focusSet", () => {
     const set = focusSet(tree, "a", "neighbors");
     expect([...set.nodes].sort()).toEqual(["a", "a1", "a2", "root"]);
     expect([...set.links.values()].every((l) => l.after === -1)).toBe(true);
+  });
+});
+
+describe("inHoverZone", () => {
+  const panel = { left: 200, top: 80, right: 500, bottom: 480 };
+  const node = { x: 150, y: 100 };
+  const radius = 12;
+
+  it("counts the node, the panel, and the whole path between them as inside", () => {
+    expect(inHoverZone(150, 100, panel, node, radius)).toBe(true);
+    expect(inHoverZone(300, 400, panel, node, radius)).toBe(true);
+    expect(inHoverZone(175, 110, panel, node, radius)).toBe(true);
+    expect(inHoverZone(190, 300, panel, node, radius)).toBe(true);
+  });
+
+  it("counts points away from the node and panel as outside", () => {
+    expect(inHoverZone(150, 300, panel, node, radius)).toBe(false);
+    expect(inHoverZone(100, 100, panel, node, radius)).toBe(false);
+    expect(inHoverZone(600, 100, panel, node, radius)).toBe(false);
+  });
+
+  it("works with the panel flipped to the node's left", () => {
+    const left = { left: 0, top: 80, right: 300, bottom: 480 };
+    const at = { x: 360, y: 100 };
+    expect(inHoverZone(330, 250, left, at, radius)).toBe(true);
+    expect(inHoverZone(380, 250, left, at, radius)).toBe(false);
+  });
+});
+
+describe("connectionsOf", () => {
+  const node = (id: string, kind: "person" | "place" | "memory" | "plan", title: string) =>
+    ({ id, kind, title }) as MemoryLink["source"];
+  const me = node("me", "memory", "Dinner");
+  const link = (id: string, source: MemoryLink["source"], target: MemoryLink["source"], type: string) =>
+    ({ id, source, target, type, confidence: 1 }) as MemoryLink;
+  const links = [
+    link("e1", me, node("p2", "place", "Cafe"), "happened_at"),
+    link("e2", node("b", "person", "Bea"), me, "attended"),
+    link("e3", me, node("a", "person", "Arun"), "with"),
+    link("e4", node("x", "person", "Xi"), node("y", "place", "Park"), "visited"),
+  ];
+
+  it("lists every neighbor in either direction and nothing else", () => {
+    expect(connectionsOf("me", links).map((c) => c.node.id).sort()).toEqual(["a", "b", "p2"]);
+  });
+
+  it("orders people first, then by title, and records direction", () => {
+    const listed = connectionsOf("me", links);
+    expect(listed.map((c) => c.node.title)).toEqual(["Arun", "Bea", "Cafe"]);
+    expect(listed.map((c) => c.outgoing)).toEqual([true, false, true]);
   });
 });

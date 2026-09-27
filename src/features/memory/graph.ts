@@ -11,8 +11,17 @@ import type { EdgeRecord, NodeKind, NodeRecord } from "../../shared/api/types";
 import type {
   ForceGraphSimulation,
   ForceLinkDatum,
+  ForceLinkResolved,
   ForceNode,
 } from "../../shared/components/ForceGraph";
+
+/** Theme token that colors each node kind, in the scene, the legend, and the popover. */
+export const KIND_TOKEN = {
+  person: "--sage-deep",
+  place: "--sage",
+  memory: "--ink-faint",
+  plan: "--clay",
+} as const satisfies Record<NodeKind, string>;
 
 /** Undirected-render edge between two Yaad node ids. */
 export type GraphEdge = {
@@ -34,6 +43,39 @@ export type MemoryNode = ForceNode<NodeRecord>;
 
 /** The memory network's 3D force simulation. */
 export type MemorySimulation = ForceGraphSimulation<NodeRecord, GraphEdge>;
+
+/** Edge in the memory simulation, with both endpoints resolved to nodes. */
+export type MemoryLink = ForceLinkResolved<NodeRecord, GraphEdge>;
+
+/** A node's neighbor across one edge, as the popover lists it. */
+export type Connection = {
+  /** Edge id. */
+  id: string;
+  node: MemoryNode;
+  /** Edge type, e.g. `knows` or `happened_at`. */
+  type: string;
+  /** The edge points from the node to this neighbor. */
+  outgoing: boolean;
+};
+
+/** Order connections read in: people, then places, plans, and memories. */
+const KIND_ORDER: Record<NodeKind, number> = { person: 0, place: 1, plan: 2, memory: 3 };
+
+/** Every neighbor of `nodeId` across `links`, people first, then by title. */
+export function connectionsOf(nodeId: string, links: MemoryLink[]): Connection[] {
+  return links
+    .flatMap((l) =>
+      l.source.id === nodeId
+        ? [{ id: l.id, node: l.target, type: l.type, outgoing: true }]
+        : l.target.id === nodeId
+          ? [{ id: l.id, node: l.source, type: l.type, outgoing: false }]
+          : [],
+    )
+    .sort(
+      (a, b) =>
+        KIND_ORDER[a.node.kind] - KIND_ORDER[b.node.kind] || a.node.title.localeCompare(b.node.title),
+    );
+}
 
 /** Sphere radius by kind, grown by connectedness so hubs read at a glance. */
 export function nodeRadius(kind: NodeKind, degree: number): number {

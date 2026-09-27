@@ -1,16 +1,15 @@
 import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { dimaag } from "../../shared/api";
-import type { Lane } from "../../shared/api/types";
-import { formatAbsolute, formatRelative } from "./tree";
+import { AnimatePresence, motion } from "motion/react";
+import type { UseQueryResult } from "@tanstack/react-query";
+import type { Lane, LogRecord } from "../../shared/api/types";
 import { Tooltip } from "../../shared/components/Tooltip";
-import { POLL_MS } from "../../shared/lib/ux/poll";
+import { REVEAL } from "../../shared/lib/ux/motion";
+import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
 import { buildActivity, type ActivityBlock, type ActivityTurn } from "./activity";
 
 export type AgentActivityProps = {
-  agentId: string;
-  open: boolean;
-  connected: boolean;
+  /** The agent's recent logs, newest first; the popover owns and polls this query. */
+  logs: UseQueryResult<LogRecord[], Error>;
 };
 
 function truncate(text: string, max: number): string {
@@ -194,22 +193,33 @@ function TurnBlock({ block }: { block: ActivityBlock }) {
   }
 }
 
-/** One model call: lane, time, then its thinking, text and tool calls in order. */
+/**
+ * One model call: lane, time, then its thinking, text and tool calls in order. The row,
+ * and each block that arrives while the turn is still streaming, eases open.
+ */
 function TurnRow({ turn }: { turn: ActivityTurn }) {
   return (
-    <li className="flex items-start gap-2">
-      <LaneMark lane={turn.lane} />
-      <div className="flex min-w-0 flex-1 flex-col gap-1">
-        {turn.blocks.map((block) => (
-          <TurnBlock key={block.key} block={block} />
-        ))}
+    <motion.li {...REVEAL} className="overflow-hidden">
+      <div className="flex items-start gap-2 pb-2.5">
+        <LaneMark lane={turn.lane} />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <AnimatePresence initial={false}>
+            {turn.blocks.map((block) => (
+              <motion.div key={block.key} {...REVEAL} className="overflow-hidden">
+                <div className="pb-1">
+                  <TurnBlock block={block} />
+                </div>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        </div>
+        <Tooltip content={formatAbsolute(turn.at)}>
+          <span className="shrink-0 pt-px text-[10px] text-ink-ghost">
+            {formatRelative(turn.at)}
+          </span>
+        </Tooltip>
       </div>
-      <Tooltip content={formatAbsolute(turn.at)}>
-        <span className="shrink-0 pt-px text-[10px] text-ink-ghost">
-          {formatRelative(turn.at)}
-        </span>
-      </Tooltip>
-    </li>
+    </motion.li>
   );
 }
 
@@ -254,23 +264,10 @@ function ParamList({ input }: { input: Record<string, unknown> }) {
 /**
  * Recent agent lane activity from durable logs, one entry per model call:
  * its thinking (collapsed), what it wrote, and each tool call with its result.
- * This is the log explorer slice for one agent, not the chat transcript.
+ * This is the log explorer slice for one agent, not the chat transcript. Rows that
+ * arrive by polling, and the first load, ease in; cached rows show at once.
  */
-export function AgentActivity({
-  agentId,
-  open,
-  connected,
-}: AgentActivityProps) {
-  const logsQuery = useQuery({
-    queryKey: ["agent-logs", agentId, "activity"],
-    queryFn: async () => {
-      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 80 });
-      return logs;
-    },
-    enabled: connected && open,
-    refetchInterval: POLL_MS,
-  });
-
+export function AgentActivity({ logs: logsQuery }: AgentActivityProps) {
   const turns = useMemo(
     () => (logsQuery.data ? buildActivity(logsQuery.data) : []),
     [logsQuery.data],
@@ -297,34 +294,43 @@ export function AgentActivity({
         </p>
       </div>
 
-      {logsQuery.isLoading && (
-        <p className="text-[13px] text-ink-muted">Loading activity…</p>
-      )}
-      {logsQuery.isError && (
-        <p className="text-[13px] text-ink-muted">Could not load activity.</p>
-      )}
-      {!logsQuery.isLoading && !logsQuery.isError && turns.length === 0 && (
-        <p className="text-[13px] text-ink-muted">No recent activity.</p>
-      )}
+      <AnimatePresence initial={false}>
+        {logsQuery.isLoading ? (
+          <motion.div key="loading" {...REVEAL} className="overflow-hidden">
+            <div aria-label="Loading activity" className="flex flex-col gap-2 pb-2">
+              <span className="h-2.5 w-3/4 animate-pulse rounded-full bg-rule/50" />
+              <span className="h-2.5 w-1/2 animate-pulse rounded-full bg-rule/50" />
+            </div>
+          </motion.div>
+        ) : null}
+        {logsQuery.isError ? (
+          <motion.p key="error" {...REVEAL} className="overflow-hidden text-[13px] text-ink-muted">
+            Could not load activity.
+          </motion.p>
+        ) : null}
+        {logsQuery.isSuccess && turns.length === 0 ? (
+          <motion.p key="empty" {...REVEAL} className="overflow-hidden text-[13px] text-ink-muted">
+            No recent activity.
+          </motion.p>
+        ) : null}
+      </AnimatePresence>
 
-      {turns.length > 0 && (
-        <>
-          <ol className="flex flex-col gap-2.5">
-            {visible.map((turn) => (
-              <TurnRow key={turn.key} turn={turn} />
-            ))}
-          </ol>
-          {hidden > 0 ? (
-            <button
-              type="button"
-              className="mt-2 text-[11px] text-sage-deep"
-              onClick={() => setShowAll(true)}
-            >
-              {hidden} more
-            </button>
-          ) : null}
-        </>
-      )}
+      <ol className="flex flex-col">
+        <AnimatePresence initial={false}>
+          {visible.map((turn) => (
+            <TurnRow key={turn.key} turn={turn} />
+          ))}
+        </AnimatePresence>
+      </ol>
+      {hidden > 0 ? (
+        <button
+          type="button"
+          className="mt-1 text-[11px] text-sage-deep"
+          onClick={() => setShowAll(true)}
+        >
+          {hidden} more
+        </button>
+      ) : null}
     </section>
   );
 }

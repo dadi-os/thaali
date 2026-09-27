@@ -9,18 +9,17 @@ import { useThemeTokens } from "../../hooks/useThemeTokens";
 import { ForceGraph, syncForceSimulation } from "../../shared/components/ForceGraph";
 import { GraphPlaceholder } from "../../shared/components/GraphPlaceholder";
 import { GraphSpace } from "../../shared/components/GraphSpace";
-import { Popover } from "../../shared/components/Popover";
 import { SearchField } from "../../shared/components/SearchField";
 import { POLL_MS } from "../../shared/lib/ux/poll";
-import { createMemorySimulation, mergeGraph, nodeRadius, truncate, type GraphData } from "./graph";
-
-/** Theme token that colors each node kind, in the scene and the legend. */
-const KIND_TOKEN = {
-  person: "--sage-deep",
-  place: "--sage",
-  memory: "--ink-faint",
-  plan: "--clay",
-} as const satisfies Record<NodeKind, string>;
+import {
+  KIND_TOKEN,
+  createMemorySimulation,
+  mergeGraph,
+  nodeRadius,
+  truncate,
+  type GraphData,
+} from "./graph";
+import { MemoryPopover } from "./MemoryPopover";
 const KIND_TOKENS = Object.values(KIND_TOKEN);
 const EMPTY: GraphData = { nodes: [], edges: [] };
 
@@ -145,7 +144,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
           graph={graph}
           focusId={focusId ?? onlyMatch}
           focusScope="neighbors"
-          hold={details.id !== null || focusId !== null || matches !== null}
+          hold={details.open || focusId !== null || matches !== null}
           matches={matches}
           radius={(n) => nodeRadius(n.kind, n.degree)}
           look={(n) => ({
@@ -198,54 +197,21 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
         </span>
       </div>
 
-      <Popover
-        open={selected !== null && details.anchor !== null}
-        aria-label={selected ? selected.title : "Node"}
-        anchor={details.anchor ?? { x: 0, y: 0, radius: 0 }}
-        containerRef={rootRef as RefObject<HTMLElement | null>}
-        onClose={details.close}
-        onMouseEnter={details.keep}
-        onMouseLeave={details.leave}
-        widthPx={320}
-        accent={selected ? `var(${KIND_TOKEN[selected.kind]})` : undefined}
-        contentKey={selected?.id}
-        hoverBridge
-      >
-        {selected ? (
-          <>
-            <header className="px-4 pt-3.5 pb-2.5">
-              <div className="flex items-center gap-3">
-                <span className="popover-orb" />
-                <h2 className="min-w-0 flex-1 text-[14px] leading-snug font-medium tracking-[-0.01em] text-ink">
-                  {selected.title}
-                </h2>
-              </div>
-              <div className="mt-2 pl-[22px]">
-                <span className="popover-pill">{selected.kind}</span>
-              </div>
-            </header>
-            {selected.body ? (
-              <p className="px-4 pb-3 pl-[38px] text-[12.5px] leading-relaxed text-ink-muted">
-                {truncate(selected.body, 220)}
-              </p>
-            ) : null}
-            <div className="mx-4 h-px bg-gradient-to-r from-transparent via-rule to-transparent" />
-            <footer className="flex flex-wrap items-center gap-1.5 px-4 py-3 pl-[38px]">
-              {selected.occurred_at ? (
-                <span className="popover-pill">
-                  {new Intl.DateTimeFormat(undefined, {
-                    dateStyle: "medium",
-                    timeStyle: "short",
-                  }).format(new Date(selected.occurred_at))}
-                </span>
-              ) : null}
-              <span className="popover-pill">
-                {selected.degree} {selected.degree === 1 ? "link" : "links"}
-              </span>
-            </footer>
-          </>
-        ) : null}
-      </Popover>
+      {selected && details.anchor ? (
+        <MemoryPopover
+          open={details.open}
+          node={selected}
+          links={graph.links}
+          anchor={details.anchor}
+          containerRef={rootRef as RefObject<HTMLElement | null>}
+          hover={{ onInside: details.keep, onOutside: details.leave }}
+          onClose={details.close}
+          onSelect={(nodeId) => {
+            details.close();
+            setFocusId(nodeId);
+          }}
+        />
+      ) : null}
     </div>
   );
 }

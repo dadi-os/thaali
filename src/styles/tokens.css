@@ -193,181 +193,32 @@
   z-index: 2;
 }
 
-/* Floating glass popover: tinted by --popover-accent, gradient hairline, one sheen on open, content rising in. */
+/* Floating popover: one clean sheet of translucent glass; content fades across when it changes. */
 .popover-glass {
-  --popover-accent: var(--glass-border);
-  background:
-    radial-gradient(
-      130% 85% at 0% 0%,
-      color-mix(in srgb, var(--popover-accent) 15%, transparent),
-      transparent 58%
-    ),
-    radial-gradient(
-      110% 70% at 100% 100%,
-      color-mix(in srgb, var(--popover-accent) 7%, transparent),
-      transparent 62%
-    ),
-    var(--glass-sheet);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.25);
-  backdrop-filter: blur(var(--glass-blur)) saturate(1.25);
-  border-radius: 14px;
+  background: var(--glass-veil);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.3);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-window);
   box-shadow:
     inset 0 1px 0 var(--glass-rim-top),
-    inset 0 -1px 0 var(--glass-rim-bottom),
-    0 1px 2px rgba(44, 48, 42, 0.06),
-    0 22px 48px -22px color-mix(in srgb, var(--popover-accent) 45%, rgba(20, 22, 18, 0.45));
+    var(--shadow-deep),
+    0 18px 40px -24px rgba(20, 22, 18, 0.28);
+  will-change: transform, opacity;
 }
 
-.popover-glass::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  padding: 1px;
-  border-radius: inherit;
-  background: linear-gradient(
-    150deg,
-    color-mix(in srgb, var(--popover-accent) 75%, transparent),
-    var(--glass-border) 32%,
-    color-mix(in srgb, var(--glass-border) 35%, transparent) 68%,
-    color-mix(in srgb, var(--popover-accent) 35%, transparent)
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-  z-index: 3;
+.popover-glass__body {
+  animation: popover-fade var(--slow) var(--ease) both;
 }
 
-.popover-glass__sheen {
-  pointer-events: none;
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  border-radius: inherit;
-  z-index: 2;
-}
-
-.popover-glass__sheen::after {
-  content: "";
-  position: absolute;
-  top: -40%;
-  bottom: -40%;
-  left: -55%;
-  width: 38%;
-  background: linear-gradient(
-    100deg,
-    transparent,
-    color-mix(in srgb, var(--glass-rim-top) 70%, transparent) 45%,
-    color-mix(in srgb, var(--popover-accent) 18%, transparent) 55%,
-    transparent
-  );
-  transform: skewX(-14deg);
-  animation: popover-sheen 1150ms var(--ease) 140ms both;
-}
-
-.popover-glass__body > * {
-  animation: popover-rise 480ms var(--ease) both;
-}
-
-.popover-glass__body > :nth-child(2) {
-  animation-delay: 55ms;
-}
-
-.popover-glass__body > :nth-child(3) {
-  animation-delay: 110ms;
-}
-
-.popover-glass__body > :nth-child(n + 4) {
-  animation-delay: 165ms;
-}
-
-.popover-orb {
-  position: relative;
-  flex-shrink: 0;
-  width: 10px;
-  height: 10px;
-  border-radius: 999px;
-  background: radial-gradient(
-    circle at 35% 30%,
-    color-mix(in srgb, var(--popover-accent) 35%, white),
-    var(--popover-accent) 70%
-  );
-  box-shadow:
-    0 0 0 3px color-mix(in srgb, var(--popover-accent) 16%, transparent),
-    0 0 14px 2px color-mix(in srgb, var(--popover-accent) 45%, transparent);
-}
-
-.popover-orb[data-live]::after {
-  content: "";
-  position: absolute;
-  inset: -3px;
-  border-radius: inherit;
-  border: 1px solid var(--popover-accent);
-  animation: popover-orb-pulse var(--breath) var(--ease) infinite;
-}
-
-.popover-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--ink-muted);
-  background: color-mix(in srgb, var(--popover-accent) 12%, transparent);
-  border: 1px solid color-mix(in srgb, var(--popover-accent) 28%, transparent);
-}
-
-.popover-kbd {
-  padding: 1px 6px;
-  border-radius: 6px;
-  font-size: 10px;
-  letter-spacing: 0.08em;
-  color: var(--ink-faint);
-  border: 1px solid var(--rule);
-  background: color-mix(in srgb, var(--bone) 60%, transparent);
-  transition: color var(--fast) var(--ease), border-color var(--fast) var(--ease);
-}
-
-.popover-kbd:hover {
-  color: var(--ink-muted);
-  border-color: var(--sage-line);
-}
-
-@keyframes popover-sheen {
-  to {
-    left: 130%;
-  }
-}
-
-@keyframes popover-rise {
+@keyframes popover-fade {
   from {
     opacity: 0;
-    transform: translateY(6px);
-    filter: blur(3px);
-  }
-}
-
-@keyframes popover-orb-pulse {
-  0% {
-    opacity: 0.7;
-    transform: scale(1);
-  }
-  100% {
-    opacity: 0;
-    transform: scale(2.2);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .popover-glass__sheen::after,
-  .popover-glass__body > *,
-  .popover-orb[data-live]::after {
+  .popover-glass__body {
     animation: none;
   }
 }

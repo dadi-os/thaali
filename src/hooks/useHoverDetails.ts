@@ -5,19 +5,25 @@ export type DetailsAnchor = { x: number; y: number; radius: number };
 
 /** Open delay after the pointer lands on an item, so passing over it does not flash. */
 const OPEN_DELAY_MS = 160;
-/** Close delay after the pointer leaves, so it can travel onto the popover. */
-const CLOSE_DELAY_MS = 320;
+/** Close delay after the pointer leaves, so a brief slip off the item or panel is forgiven. */
+const CLOSE_DELAY_MS = 280;
 
 /** Hover-to-preview state for one details popover. */
 export type HoverDetails = {
-  /** Item whose details are open, or null. */
+  /** The popover is showing. */
+  open: boolean;
+  /**
+   * Item the popover shows, kept after it closes so the panel can animate away with
+   * its content; null until the first hover.
+   */
   id: string | null;
+  /** Where that item sits; null until the first hover. */
   anchor: DetailsAnchor | null;
   /** Pointer entered an item: open after a short delay, or keep it open if it is already showing. */
   hover: (id: string, at: DetailsAnchor) => void;
-  /** Pointer left an item or the popover: close after a short delay. */
+  /** Pointer left the item and its popover: close after a short delay. */
   leave: () => void;
-  /** Pointer reached the popover: cancel a pending close. */
+  /** Pointer is on the item or its popover: cancel a pending close. */
   keep: () => void;
   close: () => void;
 };
@@ -27,14 +33,15 @@ export type HoverDetails = {
  * Resets whenever `resetKey` changes (e.g. on page re-entry).
  */
 export function useHoverDetails(resetKey: string): HoverDetails {
-  const [state, setState] = useState<{ id: string | null; anchor: DetailsAnchor | null }>({
-    id: null,
-    anchor: null,
-  });
+  const [state, setState] = useState<{
+    open: boolean;
+    id: string | null;
+    anchor: DetailsAnchor | null;
+  }>({ open: false, id: null, anchor: null });
   const openTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
-  const idRef = useRef<string | null>(null);
-  idRef.current = state.id;
+  const shown = useRef<string | null>(null);
+  shown.current = state.open ? state.id : null;
 
   const clearTimers = useCallback(() => {
     for (const timer of [openTimer, closeTimer]) {
@@ -47,20 +54,23 @@ export function useHoverDetails(resetKey: string): HoverDetails {
 
   const close = useCallback(() => {
     clearTimers();
-    setState({ id: null, anchor: null });
+    setState((s) => ({ ...s, open: false }));
   }, [clearTimers]);
 
   useEffect(() => clearTimers, [clearTimers]);
-  useEffect(() => close(), [resetKey, close]);
+  useEffect(() => {
+    clearTimers();
+    setState({ open: false, id: null, anchor: null });
+  }, [resetKey, clearTimers]);
 
   const hover = useCallback(
     (id: string, at: DetailsAnchor) => {
       clearTimers();
-      if (idRef.current === id) {
+      if (shown.current === id) {
         return;
       }
       openTimer.current = window.setTimeout(() => {
-        setState({ id, anchor: at });
+        setState({ open: true, id, anchor: at });
       }, OPEN_DELAY_MS);
     },
     [clearTimers],
@@ -69,7 +79,7 @@ export function useHoverDetails(resetKey: string): HoverDetails {
   const leave = useCallback(() => {
     clearTimers();
     closeTimer.current = window.setTimeout(() => {
-      setState({ id: null, anchor: null });
+      setState((s) => ({ ...s, open: false }));
     }, CLOSE_DELAY_MS);
   }, [clearTimers]);
 
