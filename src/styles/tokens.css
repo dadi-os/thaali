@@ -193,6 +193,25 @@
   z-index: 2;
 }
 
+.popover-glass {
+  background: var(--glass-sheet);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.1);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-window);
+  box-shadow: var(--shadow-deep), 0 18px 40px -18px rgba(44, 48, 42, 0.28);
+}
+
+.popover-glass::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0 var(--radius-window) auto;
+  height: 1px;
+  background: var(--glass-rim-top);
+  z-index: 2;
+}
+
 .widget-frame__chrome {
   position: relative;
   z-index: 1;

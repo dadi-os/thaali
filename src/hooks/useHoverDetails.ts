@@ -1,46 +1,39 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-/** Point relative to the details container, where the popover anchors. */
-export type DetailsAnchor = { x: number; y: number };
+/** Point relative to the details container where the popover anchors, and the radius it clears. */
+export type DetailsAnchor = { x: number; y: number; radius: number };
 
 /** Open delay after the pointer lands on an item, so passing over it does not flash. */
 const OPEN_DELAY_MS = 160;
 /** Close delay after the pointer leaves, so it can travel onto the popover. */
 const CLOSE_DELAY_MS = 320;
 
-/** Hover-to-preview, click-to-pin state for one details popover. */
+/** Hover-to-preview state for one details popover. */
 export type HoverDetails = {
   /** Item whose details are open, or null. */
   id: string | null;
   anchor: DetailsAnchor | null;
-  /** True when opened by `pin`; leaving no longer closes it. */
-  pinned: boolean;
-  /** Pointer entered an item: open after a short delay (or move the anchor if already open). */
+  /** Pointer entered an item: open after a short delay, or keep it open if it is already showing. */
   hover: (id: string, at: DetailsAnchor) => void;
-  /** Pointer left an item or the popover: close after a short delay unless pinned. */
+  /** Pointer left an item or the popover: close after a short delay. */
   leave: () => void;
   /** Pointer reached the popover: cancel a pending close. */
   keep: () => void;
-  /** Open immediately and stay open until `close`. */
-  pin: (id: string, at: DetailsAnchor) => void;
   close: () => void;
 };
 
 /**
- * Timing for a details popover shared by hover preview and click pinning.
+ * Timing for a hover details popover.
  * Resets whenever `resetKey` changes (e.g. on page re-entry).
  */
 export function useHoverDetails(resetKey: string): HoverDetails {
-  const [state, setState] = useState<{
-    id: string | null;
-    anchor: DetailsAnchor | null;
-    pinned: boolean;
-  }>({ id: null, anchor: null, pinned: false });
+  const [state, setState] = useState<{ id: string | null; anchor: DetailsAnchor | null }>({
+    id: null,
+    anchor: null,
+  });
   const openTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
-  const pinnedRef = useRef(false);
   const idRef = useRef<string | null>(null);
-  pinnedRef.current = state.pinned;
   idRef.current = state.id;
 
   const clearTimers = useCallback(() => {
@@ -54,7 +47,7 @@ export function useHoverDetails(resetKey: string): HoverDetails {
 
   const close = useCallback(() => {
     clearTimers();
-    setState({ id: null, anchor: null, pinned: false });
+    setState({ id: null, anchor: null });
   }, [clearTimers]);
 
   useEffect(() => clearTimers, [clearTimers]);
@@ -62,27 +55,21 @@ export function useHoverDetails(resetKey: string): HoverDetails {
 
   const hover = useCallback(
     (id: string, at: DetailsAnchor) => {
-      if (pinnedRef.current) {
-        return;
-      }
       clearTimers();
       if (idRef.current === id) {
         return;
       }
       openTimer.current = window.setTimeout(() => {
-        setState({ id, anchor: at, pinned: false });
+        setState({ id, anchor: at });
       }, OPEN_DELAY_MS);
     },
     [clearTimers],
   );
 
   const leave = useCallback(() => {
-    if (pinnedRef.current) {
-      return;
-    }
     clearTimers();
     closeTimer.current = window.setTimeout(() => {
-      setState({ id: null, anchor: null, pinned: false });
+      setState({ id: null, anchor: null });
     }, CLOSE_DELAY_MS);
   }, [clearTimers]);
 
@@ -93,13 +80,5 @@ export function useHoverDetails(resetKey: string): HoverDetails {
     }
   }, []);
 
-  const pin = useCallback(
-    (id: string, at: DetailsAnchor) => {
-      clearTimers();
-      setState({ id, anchor: at, pinned: true });
-    },
-    [clearTimers],
-  );
-
-  return { ...state, hover, leave, keep, pin, close };
+  return { ...state, hover, leave, keep, close };
 }

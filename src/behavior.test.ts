@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { focusSet } from "./shared/components/ForceGraph/focus";
 import {
   conversationBucket,
   formatRelative,
@@ -1213,5 +1214,46 @@ describe("buildActivity", () => {
     expect(turns.map((turn) => turn.key)).toEqual(["c", "a"]);
     expect(turns[0]!.lane).toBe("conversation");
     expect(turns[0]!.blocks[0]!.kind).toBe("redacted");
+  });
+});
+
+describe("focusSet", () => {
+  const link = (source: string, target: string) => ({ source: { id: source }, target: { id: target } });
+  const tree = [
+    link("root", "a"),
+    link("a", "a1"),
+    link("a", "a2"),
+    link("a1", "a1x"),
+    link("root", "b"),
+  ];
+
+  it("lights nothing without a focus", () => {
+    const set = focusSet(tree, null, "lineage");
+    expect(set.nodes.size).toBe(0);
+    expect(set.links.size).toBe(0);
+  });
+
+  it("lineage lights the parent link and everything downstream, not siblings", () => {
+    const set = focusSet(tree, "a", "lineage");
+    expect([...set.nodes].sort()).toEqual(["a", "a1", "a1x", "a2", "root"]);
+    expect([...set.links.keys()].sort()).toEqual([0, 1, 2, 3]);
+  });
+
+  it("lineage sweeps each generation after the one above it", () => {
+    const set = focusSet(tree, "a", "lineage");
+    expect(set.links.get(0)!.after).toBe(-1);
+    expect(set.links.get(1)!.after).toBe(-1);
+    expect(set.links.get(3)!.after).toBe(set.links.get(1)!.far);
+  });
+
+  it("lineage sweeps from the focus toward the parent", () => {
+    const set = focusSet(tree, "a", "lineage");
+    expect(set.links.get(0)).toMatchObject({ near: 1, far: 0 });
+  });
+
+  it("neighbors lights every touching link in either direction, one hop only", () => {
+    const set = focusSet(tree, "a", "neighbors");
+    expect([...set.nodes].sort()).toEqual(["a", "a1", "a2", "root"]);
+    expect([...set.links.values()].every((l) => l.after === -1)).toBe(true);
   });
 });

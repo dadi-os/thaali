@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { dimaag, isMeshOnline } from "../../shared/api";
 import type { AgentRecord } from "../../shared/api/types";
 import { useConnection } from "../../hooks/useConnection";
-import { Popover } from "../../shared/components/Popover";
+import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { getRunning } from "../../store/running";
 import { AgentActivity } from "./AgentActivity";
@@ -21,7 +21,7 @@ export type AgentPopoverProps = {
   agentId: string | null;
   agentsById: Map<string, AgentRecord>;
   runningMap: ReturnType<typeof getRunning>;
-  anchor: { x: number; y: number } | null;
+  anchor: PopoverAnchor | null;
   containerRef: RefObject<HTMLElement | null>;
   /** Live Nas browser for this agent, or null. */
   browserId: number | null;
@@ -139,7 +139,7 @@ export function AgentPopover({
       className="max-h-[min(86vh,760px)]"
       style={{ maxHeight: "min(86vh, 760px)" }}
       widthPx={460}
-      caret
+      leader
       onMouseEnter={onHoverStart}
       onMouseLeave={onHoverEnd}
     >

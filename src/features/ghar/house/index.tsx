@@ -398,11 +398,12 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
     const canvas = canvasRef.current?.getBoundingClientRect();
     const rect = el.getBoundingClientRect();
     if (!canvas) {
-      return { x: rect.right, y: rect.top + rect.height / 2 };
+      return { x: rect.right, y: rect.top + rect.height / 2, radius: 0 };
     }
     return {
       x: rect.right - canvas.left,
       y: rect.top - canvas.top + rect.height / 2,
+      radius: 0,
     };
   }
 
@@ -512,6 +513,7 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
     setRoomAnchor({
       x: rect.right - origin.left + NEW_ROOM_ANCHOR_OFFSET.x,
       y: rect.bottom - origin.top + NEW_ROOM_ANCHOR_OFFSET.y,
+      radius: 0,
     });
     setNaming(true);
   }
@@ -680,7 +682,7 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
           setNaming(false);
           setRoomDraft("");
         }}
-        anchor={roomAnchor ?? { x: 0, y: 0 }}
+        anchor={roomAnchor ?? { x: 0, y: 0, radius: 0 }}
         containerRef={canvasRef}
         aria-label="New room"
         widthPx={240}

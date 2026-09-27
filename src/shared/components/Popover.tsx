@@ -11,7 +11,12 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { EASE, SLOW_S } from "../lib/ux/motion";
 
-export type PopoverAnchor = { x: number; y: number };
+export type PopoverAnchor = {
+  x: number;
+  y: number;
+  /** Radius (px) of the round thing at the anchor (e.g. a graph node), 0 for a point; the panel and leader clear it. */
+  radius: number;
+};
 
 export type PopoverProps = {
   open: boolean;
@@ -28,30 +33,36 @@ export type PopoverProps = {
   "aria-label"?: string;
   /** Element that owns the coordinate space for `anchor`. */
   containerRef?: RefObject<HTMLElement | null>;
-  /** Small arrow pointing toward the anchor. */
-  caret?: boolean;
+  /**
+   * Hairline tether from the anchor's edge to the panel, over an invisible bridge that
+   * keeps the pointer "inside" the panel while it travels there from the anchor.
+   */
+  leader?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
 };
 
 const PAD = 12;
-/** Clear the node itself — panel sits beside, not over. */
-const GAP = 28;
-const CARET = 7;
-/** Pin caret near the panel header instead of mid-body. */
-const CARET_FROM_TOP = 22;
+/** Space between the anchor's edge and the panel, which the leader spans. */
+const OFFSET = 26;
+/** Where the leader meets the panel, from its top, so it points at the header. */
+const LEADER_FROM_TOP = 22;
+/** Closest the leader may meet the panel to its top or bottom corner. */
+const LEADER_INSET = 16;
 
 type Placement = {
   left: number;
   top: number;
-  caretSide: "left" | "right";
-  caretOffset: number;
+  width: number;
+  height: number;
+  side: "left" | "right";
 };
 
 /**
- * Anchored floating panel portaled to document.body.
- * Flips / clamps to stay in the viewport — never clipped by widgets.
- * Clicks stay on the panel so they do not activate the widget that opened it.
+ * Anchored floating glass panel portaled to document.body.
+ * Sits beside the anchor, flips and clamps to stay in the viewport, and re-places
+ * only when the anchor moves or the panel resizes. Clicks stay on the panel so they
+ * do not activate the widget that opened it.
  */
 export function Popover({
   open,
@@ -63,71 +74,67 @@ export function Popover({
   widthPx = 340,
   "aria-label": ariaLabel,
   containerRef,
-  caret = false,
+  leader = false,
   onMouseEnter,
   onMouseLeave,
 }: PopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState<Placement>({
-    left: 0,
-    top: 0,
-    caretSide: "left",
-    caretOffset: 24,
-  });
+  const [pos, setPos] = useState<Placement | null>(null);
+  const clearance = anchor.radius + OFFSET;
+  const origin = (() => {
+    const rect = containerRef?.current?.getBoundingClientRect();
+    return rect ? { x: rect.left + anchor.x, y: rect.top + anchor.y } : anchor;
+  })();
 
   useLayoutEffect(() => {
     if (!open) {
       return;
     }
     const place = () => {
-      const container = containerRef?.current;
-      const rect = container?.getBoundingClientRect();
-      const panel = panelRef.current?.getBoundingClientRect();
-      const w = Math.min(widthPx, window.innerWidth - PAD * 2);
-      const h = panel?.height ?? 280;
-
-      const originX = (rect?.left ?? 0) + anchor.x;
-      const originY = (rect?.top ?? 0) + anchor.y;
-
-      let caretSide: Placement["caretSide"] = "left";
-      let left = originX + GAP;
-      let top = originY - CARET_FROM_TOP;
-
-      if (left + w > window.innerWidth - PAD) {
-        left = originX - w - GAP;
-        caretSide = "right";
+      const panel = panelRef.current;
+      if (!panel) {
+        return;
       }
-      if (left < PAD) {
-        left = PAD;
+      const rect = containerRef?.current?.getBoundingClientRect();
+      const originX = rect ? rect.left + anchor.x : anchor.x;
+      const originY = rect ? rect.top + anchor.y : anchor.y;
+      const width = panel.offsetWidth;
+      const height = panel.offsetHeight;
+      let side: Placement["side"] = "left";
+      let left = originX + clearance;
+      if (left + width > window.innerWidth - PAD) {
+        left = originX - clearance - width;
+        side = "right";
       }
-      if (top + h > window.innerHeight - PAD) {
-        top = window.innerHeight - h - PAD;
-      }
-      if (top < PAD) {
-        top = PAD;
-      }
-
-      left = Math.max(PAD, Math.min(left, window.innerWidth - w - PAD));
-      top = Math.max(
+      left = Math.max(PAD, Math.min(left, window.innerWidth - width - PAD));
+      const top = Math.max(
         PAD,
-        Math.min(
-          top,
-          window.innerHeight - Math.min(h, window.innerHeight - PAD * 2) - PAD,
-        ),
+        Math.min(originY - LEADER_FROM_TOP, window.innerHeight - height - PAD),
       );
-
-      const caretOffset = Math.max(16, Math.min(originY - top, h - 16));
-      setPos({ left, top, caretSide, caretOffset });
+      setPos((prev) =>
+        prev &&
+        prev.left === left &&
+        prev.top === top &&
+        prev.width === width &&
+        prev.height === height &&
+        prev.side === side
+          ? prev
+          : { left, top, width, height, side },
+      );
     };
 
     place();
-    const raf = requestAnimationFrame(place);
+    const panel = panelRef.current;
+    const observer = new ResizeObserver(place);
+    if (panel) {
+      observer.observe(panel);
+    }
     window.addEventListener("resize", place);
     return () => {
-      cancelAnimationFrame(raf);
+      observer.disconnect();
       window.removeEventListener("resize", place);
     };
-  }, [open, anchor.x, anchor.y, containerRef, widthPx, children]);
+  }, [open, anchor.x, anchor.y, clearance, containerRef, widthPx]);
 
   useEffect(() => {
     if (!open) {
@@ -161,36 +168,36 @@ export function Popover({
     };
   }, [open, onClose]);
 
-  const caretStyle = ((): CSSProperties | undefined => {
-    if (!caret) {
-      return undefined;
+  const tether = (() => {
+    if (!leader || !pos) {
+      return null;
     }
-    const base: CSSProperties = {
-      position: "absolute",
-      width: CARET * 2,
-      height: CARET * 2,
-      background: "var(--bone)",
-      border: "1px dashed var(--sage-line)",
-      transform: "rotate(45deg)",
-      pointerEvents: "none",
-      zIndex: 1,
-    };
-    if (pos.caretSide === "left") {
-      return {
-        ...base,
-        left: -CARET,
-        top: pos.caretOffset - CARET,
-        borderRight: "none",
-        borderTop: "none",
-      };
+    const radius = anchor.radius;
+    const cx = origin.x - pos.left;
+    const cy = origin.y - pos.top;
+    const edgeX = pos.side === "left" ? 0 : pos.width;
+    const edgeY = Math.max(
+      LEADER_INSET,
+      Math.min(cy, pos.height - LEADER_INSET),
+    );
+    const dx = edgeX - cx;
+    const dy = edgeY - cy;
+    const length = Math.hypot(dx, dy);
+    if (length <= radius) {
+      return null;
     }
-    return {
-      ...base,
-      right: -CARET,
-      top: pos.caretOffset - CARET,
-      borderLeft: "none",
-      borderBottom: "none",
-    };
+    const ux = dx / length;
+    const uy = dy / length;
+    const startX = cx + ux * (radius + 3);
+    const startY = cy + uy * (radius + 3);
+    const reach = Math.max(radius, 6);
+    const bridge = [
+      `${cx + ux * radius - uy * reach},${cy + uy * radius + ux * reach}`,
+      `${cx + ux * radius + uy * reach},${cy + uy * radius - ux * reach}`,
+      `${edgeX},0`,
+      `${edgeX},${pos.height}`,
+    ].join(" ");
+    return { startX, startY, edgeX, edgeY, bridge };
   })();
 
   return createPortal(
@@ -200,23 +207,42 @@ export function Popover({
           ref={panelRef}
           role="dialog"
           aria-label={ariaLabel}
-          className={`fixed z-[60] flex max-h-[min(70vh,520px)] flex-col overflow-visible border border-dashed border-sage-line bg-bone shadow-[var(--shadow)] ${className ?? ""}`}
+          className={`popover-glass fixed z-[60] flex max-h-[min(70vh,520px)] flex-col ${className ?? ""}`}
           style={{
-            left: pos.left,
-            top: pos.top,
+            left: pos ? pos.left : origin.x + clearance,
+            top: pos ? pos.top : origin.y - LEADER_FROM_TOP,
             width: `min(${widthPx}px, calc(100vw - 24px))`,
-            borderRadius: "var(--radius)",
+            visibility: pos ? "visible" : "hidden",
+            transformOrigin: `${pos?.side === "right" ? "right" : "left"} ${LEADER_FROM_TOP}px`,
             ...style,
           }}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: 2 }}
+          initial={{ opacity: 0, scale: 0.97, x: pos?.side === "right" ? 6 : -6 }}
+          animate={{ opacity: 1, scale: 1, x: 0 }}
+          exit={{ opacity: 0, scale: 0.98, transition: { duration: SLOW_S / 2, ease: EASE } }}
           transition={{ duration: SLOW_S, ease: EASE }}
           onMouseEnter={onMouseEnter}
           onMouseLeave={onMouseLeave}
           onClick={(e) => e.stopPropagation()}
         >
-          {caret ? <span aria-hidden style={caretStyle} /> : null}
+          {tether ? (
+            <svg aria-hidden className="pointer-events-none absolute top-0 left-0 size-px overflow-visible">
+              <polygon points={tether.bridge} fill="transparent" pointerEvents="all" />
+              <motion.line
+                x1={tether.startX}
+                y1={tether.startY}
+                x2={tether.edgeX}
+                y2={tether.edgeY}
+                stroke="var(--sage-deep)"
+                strokeOpacity={0.55}
+                strokeWidth={1}
+                strokeLinecap="round"
+                initial={{ pathLength: 0 }}
+                animate={{ pathLength: 1 }}
+                transition={{ duration: SLOW_S, ease: EASE }}
+              />
+              <circle cx={tether.startX} cy={tether.startY} r={2.25} fill="var(--sage-deep)" />
+            </svg>
+          ) : null}
           <div className="relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]">
             {children}
           </div>

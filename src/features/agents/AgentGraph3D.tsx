@@ -51,8 +51,12 @@ type AgentTheme = Record<(typeof THEME)[number], string>;
 export type AgentGraph3DProps = {
   /** Changes on each arrival at the page; resets the simulation and open details. */
   entranceKey: string;
-  /** Page mode: orbit, hover details, click to open chat. Off for the home tile, which is view-only. */
+  /** Page mode: orbit, hover details, click to focus and open chat. Off for the home tile. */
   interactive: boolean;
+  /** Agent to focus (and open in chat) on each arrival at the page, e.g. one picked on the home tile. */
+  focusOnEntry: string | null;
+  /** Home tile: an agent node was clicked. Clicks that miss every node fall through to the tile. */
+  onPick?: (agentId: string) => void;
   /** Page header slot the search box renders into; null on the home tile. */
   toolbar: HTMLElement | null;
   /** Extra classes on the root element. */
@@ -92,7 +96,14 @@ function LiveHalo({ radius, color }: { radius: number; color: string }) {
  * shell, sub-agents settle on outer shells toward their parent, and a newly spawned
  * sub-agent grows out of its parent. Used full-page and as the home tile.
  */
-export function AgentGraph3D({ entranceKey, interactive, toolbar, className }: AgentGraph3DProps) {
+export function AgentGraph3D({
+  entranceKey,
+  interactive,
+  focusOnEntry,
+  onPick,
+  toolbar,
+  className,
+}: AgentGraph3DProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const runningMap = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
@@ -173,24 +184,17 @@ export function AgentGraph3D({ entranceKey, interactive, toolbar, className }: A
   );
 
   useEffect(() => {
-    setFocusId(null);
+    setFocusId(focusOnEntry);
     setQuery("");
-  }, [entranceKey]);
+    if (focusOnEntry !== null) {
+      openAgent(focusOnEntry);
+    }
+  }, [entranceKey, focusOnEntry]);
 
   const focusAgent = (agentId: string) => {
     details.close();
     setFocusId(agentId);
     openAgent(agentId);
-  };
-
-  const showParent = (agentId: string) => {
-    if (!rootRef.current) {
-      return;
-    }
-    details.pin(agentId, {
-      x: rootRef.current.clientWidth / 2,
-      y: rootRef.current.clientHeight / 2,
-    });
   };
 
   if (!connected) {
@@ -252,6 +256,7 @@ export function AgentGraph3D({ entranceKey, interactive, toolbar, className }: A
       <GraphSpace
         key={entranceKey}
         interactive={interactive}
+        pickable={onPick !== undefined}
         cameraPosition={[0, 60, 300]}
         onBackgroundClick={() => {
           setFocusId(null);
@@ -262,11 +267,14 @@ export function AgentGraph3D({ entranceKey, interactive, toolbar, className }: A
           sim={sim}
           graph={graph}
           focusId={focusId ?? onlyMatch}
+          focusScope="lineage"
           hold={details.id !== null || focusId !== null || matches !== null}
           matches={matches}
           radius={(n) => agentRadius(n.depth, !n.active)}
           look={(n) => agentLook(theme, visualState(n, runningMap[n.id]))}
-          edgeLabel={(link, id) => (link.source.id === id ? "sub-agent" : "parent")}
+          edgeLabel={(link, id) =>
+            link.target.id === id ? "parent" : link.source.id === id ? "sub-agent" : null
+          }
           labelText={(n) => (n.name.length > 30 ? `${n.name.slice(0, 29)}…` : n.name)}
           pinnedLabels={pinnedLabels}
           revealSeeds={roots}
@@ -287,9 +295,7 @@ export function AgentGraph3D({ entranceKey, interactive, toolbar, className }: A
           onNodeHover={interactive ? (n, at) => details.hover(n.id, at) : undefined}
           onNodeLeave={interactive ? details.leave : undefined}
           onNodeClick={
-            interactive
-              ? (n) => focusAgent(n.id)
-              : undefined
+            interactive ? (n) => focusAgent(n.id) : onPick ? (n) => onPick(n.id) : undefined
           }
         />
       </GraphSpace>
@@ -324,7 +330,7 @@ export function AgentGraph3D({ entranceKey, interactive, toolbar, className }: A
           onHoverStart={details.keep}
           onHoverEnd={details.leave}
           onClose={details.close}
-          onSelectParent={showParent}
+          onSelectParent={focusAgent}
         />
       ) : null}
     </div>

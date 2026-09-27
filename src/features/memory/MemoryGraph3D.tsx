@@ -144,6 +144,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
           sim={sim}
           graph={graph}
           focusId={focusId ?? onlyMatch}
+          focusScope="neighbors"
           hold={details.id !== null || focusId !== null || matches !== null}
           matches={matches}
           radius={(n) => nodeRadius(n.kind, n.degree)}
@@ -162,11 +163,6 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
           onNodeClick={(node) => {
             details.close();
             setFocusId(node.id);
-          }}
-          onFocusArrive={(node, at) => {
-            if (node.id === focusId) {
-              details.pin(node.id, at);
-            }
           }}
         />
       </GraphSpace>
@@ -204,12 +200,13 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
       <Popover
         open={selected !== null && details.anchor !== null}
         aria-label={selected ? selected.title : "Node"}
-        anchor={details.anchor ?? { x: 0, y: 0 }}
+        anchor={details.anchor ?? { x: 0, y: 0, radius: 0 }}
         containerRef={rootRef as RefObject<HTMLElement | null>}
-        onClose={clearFocus}
+        onClose={details.close}
         onMouseEnter={details.keep}
         onMouseLeave={details.leave}
         widthPx={300}
+        leader
       >
         {selected ? (
           <div className="flex flex-col gap-2 p-3">

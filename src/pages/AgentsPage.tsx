@@ -5,13 +5,19 @@ import { PageHeader } from "../chrome/PageHeader";
 import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
+/** Router state that arrives with a focused agent, set by the home tile. */
+type AgentsPageState = { focusAgent: string } | null;
+
 /**
  * Full-canvas agent forest as a live 3D graph: orbit, zoom, hover details, click to chat.
- * Blow-up entrance remounts when arriving from home (or elsewhere).
+ * Blow-up entrance remounts when arriving from home (or elsewhere), focused on the
+ * agent picked there, if any.
  */
 export function AgentsPage() {
   const location = useLocation();
   const entranceKey = `agents:${location.key}`;
+  const state = location.state as AgentsPageState;
+  const focusOnEntry = state === null ? null : state.focusAgent;
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
 
   return (
@@ -22,7 +28,12 @@ export function AgentsPage() {
       transition={{ duration: SLOW_S, ease: EASE }}
     >
       <div className="absolute inset-0">
-        <AgentGraph3D entranceKey={entranceKey} interactive toolbar={toolbar} />
+        <AgentGraph3D
+          entranceKey={entranceKey}
+          interactive
+          focusOnEntry={focusOnEntry}
+          toolbar={toolbar}
+        />
       </div>
       <div className="pointer-events-none relative z-10">
         <PageHeader

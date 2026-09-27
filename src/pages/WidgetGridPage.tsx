@@ -48,7 +48,13 @@ export function WidgetGridPage() {
           onKeyDown={onActivate("/agents")}
           className={`${tile} md:col-span-2 md:row-span-2 md:col-start-1 md:row-start-1`}
         >
-          <AgentGraph3D entranceKey="home-agents" interactive={false} toolbar={null} />
+          <AgentGraph3D
+            entranceKey="home-agents"
+            interactive={false}
+            focusOnEntry={null}
+            onPick={(agentId) => navigate("/agents", { state: { focusAgent: agentId } })}
+            toolbar={null}
+          />
         </WidgetFrame>
       ) : (
         <WidgetFrame

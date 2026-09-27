@@ -6,6 +6,8 @@ import { useThemeTokens } from "../../hooks/useThemeTokens";
 export type GraphSpaceProps = {
   /** When true, enable orbit / zoom / pan. */
   interactive: boolean;
+  /** Take pointer hover and clicks on scene objects even without orbit (e.g. a home tile). */
+  pickable?: boolean;
   className?: string;
   children: ReactNode;
   /** Camera position at mount. */
@@ -24,6 +26,7 @@ export type GraphSpaceProps = {
  */
 export function GraphSpace({
   interactive,
+  pickable = false,
   className,
   children,
   cameraPosition = [0, 70, 140],
@@ -33,7 +36,7 @@ export function GraphSpace({
   const { "--bone": bone } = useThemeTokens(["--bone"]);
   const rootClass = [
     "relative h-full min-h-0 w-full",
-    interactive ? "" : "pointer-events-none",
+    interactive || pickable ? "" : "pointer-events-none",
     className,
   ]
     .filter(Boolean)
