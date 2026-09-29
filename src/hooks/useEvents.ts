@@ -31,9 +31,9 @@ function isDimaagEvent(data: unknown): data is DimaagEvent {
     type === "lane_started" ||
     type === "lane_finished" ||
     type === "lane_failed" ||
-    type === "dadi_started" ||
-    type === "dadi_finished" ||
-    type === "dadi_failed" ||
+    type === "router_started" ||
+    type === "router_finished" ||
+    type === "router_failed" ||
     type === "agent_spawned" ||
     type === "agent_modified"
   );
@@ -127,12 +127,12 @@ export function useEvents(): void {
         return;
       }
 
-      if (data.type === "dadi_started") {
+      if (data.type === "router_started") {
         setDadiBusy(true);
         return;
       }
 
-      if (data.type === "dadi_finished" || data.type === "dadi_failed") {
+      if (data.type === "router_finished" || data.type === "router_failed") {
         setDadiBusy(false);
         return;
       }

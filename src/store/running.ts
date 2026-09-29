@@ -71,12 +71,12 @@ export function setLaneRunning(
   emit();
 }
 
-/** True while POST /dadi is classifying. */
+/** True while POST /router is running. */
 export function isDadiBusy(): boolean {
   return dadiBusy;
 }
 
-/** Set from SSE `dadi_started` / `dadi_finished` / `dadi_failed`. */
+/** Set from SSE `router_started` / `router_finished` / `router_failed`. */
 export function setDadiBusy(next: boolean): void {
   if (dadiBusy === next) {
     return;

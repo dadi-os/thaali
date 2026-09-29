@@ -91,7 +91,7 @@ export interface ChatSidebarProps {
 /**
  * Conversation list + thread views. Live messages arrive via SSE; history is
  * loaded from durable Dimaag `GET /threads` and `GET /agents/:id/messages`.
- * Talk to Dadi is a composer onto POST /dadi.
+ * Talk to Dadi is a composer onto POST /router.
  */
 export function ChatSidebar({
   sessionKey,
@@ -484,7 +484,7 @@ export function ChatSidebar({
     });
   };
 
-  /** Speak to the router; on route, jump into the thread. */
+  /** Speak to the router; show every message it sent as you, then open the thread it handed off to last. */
   const sendDadi = async (
     content: string,
     attachments?: MessageAttachment[],
@@ -507,32 +507,25 @@ export function ChatSidebar({
       textareaRef.current?.focus();
     });
     try {
-      const res = await dimaag.postDadi({
+      const res = await dimaag.postRouter({
         content: trimmed,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
       });
       clearDraftAttachments();
-      if (res.action === "routed") {
-        openAgent(res.thread_id);
-        ingestLiveMessage(res.thread_id, {
-          seq: res.seq,
+      void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
+      for (const sent of res.messages) {
+        ingestLiveMessage(sent.to_agent_id, {
+          seq: sent.seq,
           from_user: true,
-          content: res.content,
-          at: res.created_at,
+          content: sent.content,
+          at: sent.created_at,
         });
-        return;
       }
-      if (res.action === "modified") {
-        void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
-        void queryClient.invalidateQueries({
-          queryKey: ["agent", res.agent_id],
-        });
-        openAgent(res.agent_id);
-        return;
+      const last = res.messages[res.messages.length - 1];
+      if (last) {
+        openAgent(last.to_agent_id);
       }
-      const _exhaustive: never = res;
-      void _exhaustive;
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       saveDraft(DADI_DRAFT_KEY, savedDraft);

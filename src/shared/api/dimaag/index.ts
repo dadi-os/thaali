@@ -7,7 +7,7 @@ import type {
   LogEvent,
   LogRecord,
   MessageAttachment,
-  PostDadiResponse,
+  PostRouterResponse,
   PostMessageResponse,
   ThreadSummary,
 } from "../types";
@@ -62,14 +62,14 @@ export function createDimaagClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** POST /dadi — speak to the router, not an agent. */
-    postDadi(body: {
+    /** POST /router — speak to the router, not an agent. */
+    postRouter(body: {
       content: string;
       attachments?: MessageAttachment[];
-    }): Promise<PostDadiResponse> {
+    }): Promise<PostRouterResponse> {
       return transport.request({
         baseUrl,
-        path: "/dadi",
+        path: "/router",
         method: "POST",
         body,
       });

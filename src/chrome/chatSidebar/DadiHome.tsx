@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 
-/** A Talk to Dadi send waiting on POST /dadi to pick a thread. */
+/** A Talk to Dadi send waiting on POST /router to pick a thread. */
 export type DadiRouting = {
   /** Trimmed text that was sent. */
   text: string;

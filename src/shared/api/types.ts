@@ -42,22 +42,18 @@ export type DurableMessage = {
   created_at: string;
 };
 
-/** Response from Dimaag POST /dadi. */
-export type PostDadiResponse =
-  | {
-      action: "routed";
-      thread_id: string;
-      created: boolean;
-      content: string;
-      seq: number;
-      created_at: string;
-    }
-  | {
-      action: "modified";
-      agent_id: string;
-      active: boolean;
-      system_prompt: string;
-    };
+/** One message the router sent to an agent as the user. */
+export type RoutedMessage = {
+  to_agent_id: string;
+  content: string;
+  seq: number;
+  created_at: string;
+};
+
+/** Response from Dimaag POST /router: every message it sent, in order (may be empty). */
+export type PostRouterResponse = {
+  messages: RoutedMessage[];
+};
 
 /** Nas browsers/terminals this agent recently drove. Empty after Dimaag restart. */
 export type AgentSessions = {
@@ -121,9 +117,9 @@ export type DimaagEvent =
       message: string;
       at: string;
     }
-  | { type: "dadi_started"; at: string }
-  | { type: "dadi_finished"; at: string }
-  | { type: "dadi_failed"; message: string; at: string }
+  | { type: "router_started"; at: string }
+  | { type: "router_finished"; at: string }
+  | { type: "router_failed"; message: string; at: string }
   | {
       type: "agent_spawned";
       agent_id: string;
