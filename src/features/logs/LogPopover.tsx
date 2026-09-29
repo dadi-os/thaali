@@ -1,13 +1,107 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { NasLogEntry } from "../../shared/api/nas";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { formatRelative } from "../../shared/lib/ux/time";
 import { copyText } from "../chaavi/copy";
-import { logDetail } from "./fields";
 
-/** Colour tokens for one log level: row edge bar, dot, and label text. */
+/** Structured detail pulled out of a log line's raw Loki/pino JSON. */
+export type LogDetail = {
+  /** Flat `key → value` pairs, nested objects dotted (`req.method`). */
+  fields: Array<{ key: string; value: string }>;
+  /** Error stack, when the line carries one. */
+  stack: string | null;
+  /** Pretty-printed raw JSON, or the raw text as-is when the line is not JSON. */
+  pretty: string | null;
+};
+
+/** Top-level keys the row and popover header already show, or that carry no meaning. */
+const SHOWN_KEYS = new Set(["time", "timestamp", "ts", "level", "msg", "message", "service", "v"]);
+
+/** Nesting depth past which objects are shown as JSON instead of dotted keys. */
+const MAX_DEPTH = 3;
+
+/** One field value as display text; objects and arrays as compact JSON. */
+function stringify(value: unknown): string {
+  if (typeof value === "string") {
+    return value;
+  }
+  return JSON.stringify(value);
+}
+
+/**
+ * Append `value`'s leaves to `out` as dotted keys under `prefix`, skipping keys the
+ * header already shows and `stack` strings (shown in their own section).
+ */
+function flatten(
+  value: Record<string, unknown>,
+  prefix: string,
+  depth: number,
+  out: LogDetail["fields"],
+): void {
+  for (const [key, child] of Object.entries(value)) {
+    if (!prefix && SHOWN_KEYS.has(key)) {
+      continue;
+    }
+    if (key === "stack" && typeof child === "string") {
+      continue;
+    }
+    const path = prefix ? `${prefix}.${key}` : key;
+    if (child && typeof child === "object" && !Array.isArray(child) && depth < MAX_DEPTH) {
+      flatten(child as Record<string, unknown>, path, depth + 1, out);
+    } else if (child !== undefined && child !== "") {
+      out.push({ key: path, value: stringify(child) });
+    }
+  }
+}
+
+/** First `stack` string in the object (err.stack, error.stack, …). */
+function findStack(value: unknown, depth = 0): string | null {
+  if (!value || typeof value !== "object" || depth > MAX_DEPTH) {
+    return null;
+  }
+  const record = value as Record<string, unknown>;
+  if (typeof record.stack === "string") {
+    return record.stack;
+  }
+  for (const child of Object.values(record)) {
+    const found = findStack(child, depth + 1);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+/**
+ * Split a raw log line into fields, stack, and pretty JSON. Loki lines are not always
+ * JSON (plain stdout), so non-JSON raw is kept verbatim with no fields.
+ */
+export function logDetail(raw: string | undefined): LogDetail {
+  if (!raw) {
+    return { fields: [], stack: null, pretty: null };
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    return { fields: [], stack: null, pretty: raw };
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    return { fields: [], stack: null, pretty: raw };
+  }
+  const fields: LogDetail["fields"] = [];
+  flatten(parsed as Record<string, unknown>, "", 0, fields);
+  return {
+    fields,
+    stack: findStack(parsed),
+    pretty: JSON.stringify(parsed, null, 2),
+  };
+}
+
+/** Colour classes for one log level: row edge bar, dot, and label text. */
 export type LevelTone = { bar: string; dot: string; text: string };
 
+/** Level colours: error red, warn clay, info sage, anything else ghost. */
 export function levelTone(level: string): LevelTone {
   switch (level.toLowerCase()) {
     case "error":
@@ -37,25 +131,34 @@ function formatPrecise(iso: string): string {
   return `${base}.${String(d.getMilliseconds()).padStart(3, "0")}`;
 }
 
+const ACTION_CLASS =
+  "rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-hath hover:bg-sage-fill hover:text-sage-deep";
+
 export type LogPopoverProps = {
   open: boolean;
   /** Line shown; kept after close so the panel fades out with its content. */
   entry: NasLogEntry | null;
   /** Identity of the line, so the panel glides and cross-fades between rows. */
   entryKey: string | null;
+  /** Viewport point beside the log list, level with the row. */
   anchor: PopoverAnchor | null;
   /** Clean cause for error lines, when it differs from the message. */
   cause: { title: string; code: number | null } | null;
+  /** Opened by a row click; stays until Esc or an outside click. */
   pinned: boolean;
+  /** Esc or a press outside the panel. */
   onClose: () => void;
+  /** Narrow the explorer to this line's service. */
   onFilterService: (service: string) => void;
+  /** Pointer entered the panel: cancel a pending hover close. */
   onPointerEnter: () => void;
+  /** Pointer left the panel: close after the hover delay unless pinned. */
   onPointerLeave: () => void;
 };
 
 /**
- * Full detail for one log line: exact time, whole message, parsed fields, stack,
- * and raw JSON. Opens on row hover; a click on the row pins it.
+ * Full detail for one log line: exact time, whole message, error cause, parsed
+ * fields, stack, and raw JSON. Opens on row hover; a click on the row pins it.
  */
 export function LogPopover({
   open,
@@ -72,11 +175,21 @@ export function LogPopover({
   const detail = useMemo(() => logDetail(entry?.raw), [entry?.raw]);
   const [showRaw, setShowRaw] = useState(false);
   const [copied, setCopied] = useState<"raw" | "msg" | null>(null);
+  const [copyError, setCopyError] = useState<string | null>(null);
 
   useEffect(() => {
     setShowRaw(false);
     setCopied(null);
+    setCopyError(null);
   }, [entryKey]);
+
+  useEffect(() => {
+    if (!copied) {
+      return;
+    }
+    const t = window.setTimeout(() => setCopied(null), 1200);
+    return () => window.clearTimeout(t);
+  }, [copied]);
 
   if (!entry || !anchor) {
     return null;
@@ -84,14 +197,13 @@ export function LogPopover({
 
   const tone = levelTone(entry.level);
 
-  const copy = (what: "raw" | "msg") => {
-    const text = what === "raw" ? (detail.pretty ?? entry.raw ?? entry.msg) : entry.msg;
+  const pretty = detail.pretty;
+
+  const copy = (what: "raw" | "msg", text: string) => {
+    setCopyError(null);
     copyText(text)
-      .then(() => {
-        setCopied(what);
-        window.setTimeout(() => setCopied(null), 1200);
-      })
-      .catch(() => setCopied(null));
+      .then(() => setCopied(what))
+      .catch((err: unknown) => setCopyError(err instanceof Error ? err.message : String(err)));
   };
 
   return (
@@ -114,7 +226,7 @@ export function LogPopover({
             {entry.level}
           </span>
           <span className="min-w-0 truncate text-[12px] font-medium tracking-wide text-sage-text">
-            {entry.service || "unknown"}
+            {entry.service}
           </span>
           <span className="ml-auto shrink-0 text-[10px] tracking-wide text-ink-ghost">
             {pinned ? "Pinned · Esc" : formatRelative(entry.time)}
@@ -128,7 +240,7 @@ export function LogPopover({
           </p>
 
           <p className="mt-1.5 text-[13px] leading-snug whitespace-pre-wrap text-ink [overflow-wrap:anywhere]">
-            {entry.msg || "—"}
+            {entry.msg}
           </p>
 
           {cause ? (
@@ -173,54 +285,41 @@ export function LogPopover({
             </section>
           ) : null}
 
-          {showRaw && detail.pretty ? (
+          {showRaw && pretty ? (
             <pre className="mt-3 max-h-56 overflow-auto rounded-[6px] bg-ink/[0.04] px-2.5 py-2 font-mono text-[10px] leading-relaxed text-ink-muted">
-              {detail.pretty}
+              {pretty}
             </pre>
           ) : null}
         </div>
 
         <footer className="flex shrink-0 flex-wrap items-center gap-1 border-t border-dashed border-rule px-2.5 py-2">
-          <PopoverAction onClick={() => copy("msg")}>
+          <button type="button" className={ACTION_CLASS} onClick={() => copy("msg", entry.msg)}>
             {copied === "msg" ? "Copied" : "Copy message"}
-          </PopoverAction>
-          {detail.pretty ? (
+          </button>
+          {pretty ? (
             <>
-              <PopoverAction onClick={() => copy("raw")}>
+              <button type="button" className={ACTION_CLASS} onClick={() => copy("raw", pretty)}>
                 {copied === "raw" ? "Copied" : "Copy raw"}
-              </PopoverAction>
-              <PopoverAction onClick={() => setShowRaw((v) => !v)}>
+              </button>
+              <button type="button" className={ACTION_CLASS} onClick={() => setShowRaw((v) => !v)}>
                 {showRaw ? "Hide raw" : "Show raw"}
-              </PopoverAction>
+              </button>
             </>
           ) : null}
-          {entry.service ? (
-            <PopoverAction className="ml-auto" onClick={() => onFilterService(entry.service)}>
-              Only {entry.service}
-            </PopoverAction>
+          <button
+            type="button"
+            className={`ml-auto ${ACTION_CLASS}`}
+            onClick={() => onFilterService(entry.service)}
+          >
+            Only {entry.service}
+          </button>
+          {copyError ? (
+            <p role="alert" className="w-full px-2 pt-1 text-[11px] text-error">
+              Copy failed: {copyError}
+            </p>
           ) : null}
         </footer>
       </div>
     </Popover>
-  );
-}
-
-function PopoverAction({
-  children,
-  onClick,
-  className,
-}: {
-  children: ReactNode;
-  onClick: () => void;
-  className?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-hath hover:bg-sage-fill hover:text-sage-deep ${className ?? ""}`}
-    >
-      {children}
-    </button>
   );
 }

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { logDetail } from "./fields";
+import { logDetail } from "./LogPopover";
 
 describe("logDetail", () => {
   it("flattens nested fields and skips keys the row already shows", () => {

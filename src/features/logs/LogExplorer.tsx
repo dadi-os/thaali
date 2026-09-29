@@ -186,22 +186,20 @@ function keyEntries(entries: NasLogEntry[]): Array<{ key: string; entry: NasLogE
   });
 }
 
-/**
- * Shared pill track with a sliding thumb. `sm` sits inside a field; `md` stands alone.
- */
-function Glider<T extends string>({
-  options,
-  value,
-  onChange,
-  label,
-  size = "md",
-}: {
+type GliderProps<T extends string> = {
   options: Array<{ value: T; label: string }>;
   value: T;
   onChange: (v: T) => void;
+  /** Accessible name of the radiogroup. */
   label: string;
+  /** `sm` sits inside a field (the search bar); `md` stands alone in the toolbar. */
   size?: "sm" | "md";
-}) {
+};
+
+/**
+ * Shared pill track with a sliding thumb — distinct from discrete chip toggles.
+ */
+function Glider<T extends string>({ options, value, onChange, label, size = "md" }: GliderProps<T>) {
   const index = Math.max(
     0,
     options.findIndex((o) => o.value === value),
@@ -245,20 +243,22 @@ function Glider<T extends string>({
   );
 }
 
-/** Services filter: one button that opens a checklist, instead of a chip per service. */
-function ServicePicker({
-  services,
-  status,
-  selected,
-  onToggle,
-  onClear,
-}: {
+type ServicePickerProps = {
+  /** Live services from Nas. */
   services: string[];
-  status: "loading" | "error" | "ready";
+  /** Services request has not answered yet. */
+  loading: boolean;
+  /** Nas services request failure, shown in place of the picker. */
+  error: string | null;
+  /** Services the explorer is narrowed to; empty means all. */
   selected: Set<string>;
   onToggle: (name: string) => void;
+  /** Back to all services. */
   onClear: () => void;
-}) {
+};
+
+/** Services filter: one button that opens a checklist, instead of a chip per service. */
+function ServicePicker({ services, loading, error, selected, onToggle, onClear }: ServicePickerProps) {
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
 
@@ -284,16 +284,22 @@ function ServicePicker({
     };
   }, [open]);
 
+  if (error) {
+    return (
+      <p role="alert" title={error} className="max-w-[200px] shrink-0 truncate text-[11px] text-error">
+        {error}
+      </p>
+    );
+  }
+
   const summary =
-    status === "loading"
+    loading
       ? "Services…"
-      : status === "error"
-        ? "Services unavailable"
-        : selected.size === 0
-          ? "All services"
-          : selected.size === 1
-            ? [...selected][0]
-            : `${selected.size} services`;
+      : selected.size === 0
+        ? "All services"
+        : selected.size === 1
+          ? [...selected][0]
+          : `${selected.size} services`;
 
   return (
     <div ref={rootRef} className="relative shrink-0">
@@ -301,7 +307,7 @@ function ServicePicker({
         type="button"
         aria-haspopup="listbox"
         aria-expanded={open}
-        disabled={status !== "ready"}
+        disabled={loading}
         onClick={() => setOpen((v) => !v)}
         className={`flex h-8 max-w-[160px] items-center gap-1.5 rounded-[7px] border border-dashed px-2.5 text-[11px] tracking-wide transition-colors duration-slow ease-hath disabled:opacity-60 ${
           selected.size > 0 || open
@@ -341,6 +347,7 @@ function ServicePicker({
   );
 }
 
+/** One checklist row in the services picker. */
 function ServiceOption({ label, on, onClick }: { label: string; on: boolean; onClick: () => void }) {
   return (
     <button
@@ -410,7 +417,6 @@ export function LogExplorer({ className }: LogExplorerProps) {
     },
     enabled: connected,
     refetchInterval: POLL_MS,
-    placeholderData: (prev) => prev,
   });
 
   const toggleService = (name: string) => {
@@ -435,13 +441,16 @@ export function LogExplorer({ className }: LogExplorerProps) {
   }, [rawEntries, q]);
   const hiddenNoise = rawEntries.length - rows.length;
 
-  /* Detail popover: hover previews a row, click pins it until Esc / outside click. */
   const details = useHoverDetails("logs");
   const [pinned, setPinned] = useState<string | null>(null);
   const listRef = useRef<HTMLUListElement>(null);
   const lastPointerDownInList = useRef(0);
   const lastDetail = useRef<NasLogEntry | null>(null);
 
+  /**
+   * Line the popover shows. Keeps the last one after it scrolls out of the result set so
+   * a pinned or closing panel does not empty out under the pointer.
+   */
   const detailEntry = useMemo(() => {
     const hit = rows.find((r) => r.key === details.id)?.entry ?? null;
     if (hit) {
@@ -468,6 +477,7 @@ export function LogExplorer({ className }: LogExplorerProps) {
     return { x: list.left + list.width / 2, y: r.top + r.height / 2, radius: list.width / 2 };
   };
 
+  /** Hover preview; ignored while a row is pinned. */
   const previewRow = (key: string, row: HTMLElement) => {
     if (pinned) {
       return;
@@ -478,6 +488,7 @@ export function LogExplorer({ className }: LogExplorerProps) {
     }
   };
 
+  /** Row click: pin its detail open, or unpin when it is already the pinned row. */
   const pinRow = (key: string, row: HTMLElement) => {
     if (pinned === key) {
       setPinned(null);
@@ -497,8 +508,11 @@ export function LogExplorer({ className }: LogExplorerProps) {
     }
   };
 
+  /**
+   * Popover dismiss (Esc / outside press). A press that just landed in the list is a
+   * row click handled by `pinRow`, so it does not dismiss.
+   */
   const closeDetails = useCallback(() => {
-    // A press inside the list is a row click (pin / re-pin), not a dismiss.
     if (performance.now() - lastPointerDownInList.current < 80) {
       return;
     }
@@ -557,7 +571,14 @@ export function LogExplorer({ className }: LogExplorerProps) {
 
         <ServicePicker
           services={servicesQuery.data?.services ?? []}
-          status={servicesQuery.isError ? "error" : servicesQuery.data ? "ready" : "loading"}
+          loading={servicesQuery.isLoading}
+          error={
+            servicesQuery.isError
+              ? servicesQuery.error instanceof Error
+                ? servicesQuery.error.message
+                : String(servicesQuery.error)
+              : null
+          }
           selected={selected}
           onToggle={toggleService}
           onClear={() => setSelected(new Set())}
