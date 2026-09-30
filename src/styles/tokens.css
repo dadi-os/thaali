@@ -427,7 +427,7 @@
   mask-image: linear-gradient(to bottom, transparent 0, #000 1.25rem);
 }
 
-/* Talk to Dadi routing: a thread line with a bead running down it. */
+/* Router run: a thread line with a bead running down it. */
 .routing-thread {
   position: relative;
   overflow: hidden;

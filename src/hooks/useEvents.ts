@@ -7,12 +7,13 @@ import { subscribeConnection } from "../store/connection";
 import {
   ingestLiveMessage,
   isUserThreadMessage,
+  getChatState,
   openAgent,
   seedConversations,
   setHistoryState,
   upsertConversation,
 } from "../store/chat";
-import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../store/running";
+import { seedRunningFromAgents, setRouterBusy, setLaneRunning } from "../store/running";
 import { logLine } from "../shared/lib/platform/log";
 
 const INITIAL_BACKOFF_MS = 1000;
@@ -121,19 +122,19 @@ export function useEvents(): void {
           last_at: data.at,
           from_user: data.from_agent_id === null,
         });
-        if (data.from_agent_id !== null) {
+        if (data.from_agent_id !== null && getChatState().open.kind !== "router") {
           openAgent(data.agent_id);
         }
         return;
       }
 
       if (data.type === "router_started") {
-        setDadiBusy(true);
+        setRouterBusy(true);
         return;
       }
 
       if (data.type === "router_finished" || data.type === "router_failed") {
-        setDadiBusy(false);
+        setRouterBusy(false);
         return;
       }
 
@@ -250,7 +251,7 @@ export function useEvents(): void {
         generation += 1;
         clearTimer();
         teardownStream();
-        setDadiBusy(false);
+        setRouterBusy(false);
       }
     };
 

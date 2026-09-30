@@ -16,7 +16,7 @@ const STARTERS = ["What are you working on?", "What can you help me with?"];
 
 /**
  * Placeholder for an agent thread with no messages. Sits centered like
- * DadiHome: a monogram with a slow halo, the agent's name, and starters.
+ * the router screen: a monogram with a slow halo, the agent's name, and starters.
  */
 export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
   const reduced = useReducedMotion() ?? false;

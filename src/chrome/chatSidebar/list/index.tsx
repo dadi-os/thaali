@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { IconRouter } from "../../../shared/components/IconButton";
 import { InlineMarkdown } from "../../../shared/components/Markdown";
 import { EASE } from "../../../shared/lib/ux/motion";
 import type { Conversation, HistoryStatus } from "../../../store/chat";
@@ -6,7 +7,7 @@ import { ActivityPulse } from "../ActivityPulse";
 import { groupConversations } from "../format";
 
 export interface ConversationListProps {
-  /** Thread-agent conversations (excludes Dadi). */
+  /** Agent threads you are part of. The router is not one. */
   conversations: Conversation[];
   /** Highlighted thread, if any. */
   selectedAgentId: string | null;
@@ -14,8 +15,8 @@ export interface ConversationListProps {
   historyError: string | null;
   onOpenAgent: (agentId: string) => void;
   onDismissKeyboard: () => void;
-  /** Pinned Talk to Dadi control — the sole new-chat entry. */
-  dadi: {
+  /** Pinned router control — the sole new-chat entry. */
+  router: {
     available: boolean;
     selected: boolean;
     preview: string | null;
@@ -35,7 +36,7 @@ export function ConversationList({
   historyError,
   onOpenAgent,
   onDismissKeyboard,
-  dadi,
+  router,
 }: ConversationListProps) {
   const groups = groupConversations(conversations);
   const loading = historyStatus === "loading" && conversations.length === 0;
@@ -105,35 +106,36 @@ export function ConversationList({
       <div className="shrink-0 border-t border-(--chat-edge) px-2 py-2">
         <motion.button
           type="button"
-          onClick={dadi.onOpen}
-          disabled={!dadi.available}
-          whileHover={dadi.available ? { scale: 1.012 } : undefined}
-          whileTap={dadi.available ? { scale: 0.985 } : undefined}
+          onClick={router.onOpen}
+          disabled={!router.available}
+          whileHover={router.available ? { scale: 1.012 } : undefined}
+          whileTap={router.available ? { scale: 0.985 } : undefined}
           transition={{ duration: 0.18, ease: EASE }}
           className={`flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors duration-fast ease-hath disabled:opacity-50 ${
-            dadi.selected
+            router.selected
               ? "bg-(--chat-active)"
               : "hover:bg-(--chat-hover)"
           }`}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sage-fill font-gujarati text-[15px] leading-none text-sage-deep">
-            દ
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sage-fill text-sage-deep [&_svg]:size-4">
+            <IconRouter />
           </span>
           <span className="min-w-0 flex-1">
             <span className="block text-[13.5px] font-medium text-ink">
-              Talk to Dadi
+              router
             </span>
             <span className="block truncate text-[12px] text-ink-ghost">
-              {dadi.preview ? (
-                <InlineMarkdown content={dadi.preview} />
+              {router.preview ? (
+                <InlineMarkdown content={router.preview} />
               ) : (
-                "Start something new"
+                "Say what you need"
               )}
             </span>
           </span>
-          {dadi.busy ? <ActivityPulse /> : null}
+          {router.busy ? <ActivityPulse /> : null}
         </motion.button>
       </div>
     </div>
   );
 }
+

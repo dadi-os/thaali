@@ -121,7 +121,7 @@ Rust `logutil` emits nas-contract JSON (`time` RFC3339, `level`, `service=hath`,
 | Value | Layout |
 | --- | --- |
 | `desktop` | Bone-glass header + chat rail + widget home / full pages |
-| `mobile` | Chat-only app (sidebar + thread); no widgets or system routes |
+| `mobile` | Router-first app: router or one agent thread, and a sidebar with the pages and an Agents folder; no widgets |
 
 Do not detect by viewport width. Theme follows `prefers-color-scheme` (system light/dark).
 
@@ -195,7 +195,7 @@ iOS cannot run `tailscaled` as a system daemon, so join uses the in-process dial
 
 **Desktop:** glass header + chat sidebar; `<Outlet />` swaps. Routes: `/`, `/agents`, `/memory`, `/timeline`, `/system`, `/chaavi`.
 
-**Mobile:** `MobileChatShell` — conversation drawer + thread/composer. All other paths redirect to `/`.
+**Mobile:** `MobileChatShell` — the router is home (`/`); the `MobileSidebar` slide-over opens the router, `/memory`, `/timeline`, `/ghar`, `/chaavi`, `/system`, and agent threads from an Agents folder. Other paths redirect to `/`.
 
 ## Agents / chat / memory
 
