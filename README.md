@@ -92,7 +92,7 @@ docker build --target production -t thaali .
 | `ci.yml` → `ci` | PR + push to `main` | `npm test`, `npm run build` |
 | `ci.yml` → `container` | PR + push to `main` | `docker build --target production` |
 | `ci.yml` → `publish` | `main` after `container` | `ghcr.io/dadi-os/thaali:latest` + sha tag |
-| `ci.yml` → `release-desktop` | `main` after `ci` | AppImage / DMG / NSIS (+ macOS `.app.tar.gz` for updater) → GitHub Release `thaali-<sha>`; SemVer `0.0.<run_number>` |
+| `ci.yml` → `release-desktop` | `main` after `ci` | AppImage / DMG / NSIS (+ macOS `.app.tar.gz` for updater) → GitHub Release `thaali-<sha>`; SemVer `0.0.<run_number>`. Go modules for the Tailscale build are cached per OS, keyed on `net/build-tailscale.sh` (which pins `TS_VER`) |
 | `ci.yml` → `release-updater-manifest` | `main` after any successful `release-desktop` leg | `latest.json` for platforms that uploaded this run (omit missing OS; `.sig` files stay off the release) |
 
 ## Logging / error codes
