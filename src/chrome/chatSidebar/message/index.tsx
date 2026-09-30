@@ -6,7 +6,7 @@ import {
 } from "../../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import type { ChatMessage } from "../../../store/chat";
-import { MarkdownBody } from "./MarkdownBody";
+import { MarkdownBody } from "../../../shared/components/Markdown";
 import { useRevealText } from "./useRevealText";
 
 export interface MessageBubbleProps {

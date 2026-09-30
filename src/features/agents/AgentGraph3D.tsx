@@ -10,7 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { dimaag, isMeshOnline, nas } from "../../shared/api";
 import type { AgentRecord } from "../../shared/api/types";
 import { useConnection } from "../../hooks/useConnection";
@@ -28,7 +28,7 @@ import { GraphSpace } from "../../shared/components/GraphSpace";
 import { SearchField } from "../../shared/components/SearchField";
 import { openAgent } from "../../store/chat";
 import { getRunning, seedRunningFromAgents, subscribeRunning } from "../../store/running";
-import { AgentPopover } from "./AgentPopover";
+import { AgentPopover, agentActivityQuery, agentDetailQuery } from "./AgentPopover";
 import { pickLiveBrowser, pickLiveTerminal } from "./sessions";
 import {
   agentGraph,
@@ -168,6 +168,7 @@ export function AgentGraph3D({
   );
 
   const details = useHoverDetails(entranceKey);
+  const queryClient = useQueryClient();
   const [focusId, setFocusId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
@@ -296,7 +297,15 @@ export function AgentGraph3D({
             );
           }}
           onZoom={interactive ? clearFocus : undefined}
-          onNodeHover={interactive ? (n, at) => details.hover(n.id, at) : undefined}
+          onNodeHover={
+            interactive
+              ? (n, at) => {
+                  details.hover(n.id, at);
+                  void queryClient.prefetchQuery({ ...agentDetailQuery(n.id), staleTime: POLL_MS });
+                  void queryClient.prefetchQuery({ ...agentActivityQuery(n.id), staleTime: POLL_MS });
+                }
+              : undefined
+          }
           onNodeLeave={interactive ? details.leave : undefined}
           onNodeClick={
             interactive ? (n) => focusAgent(n.id) : onPick ? (n) => onPick(n.id) : undefined

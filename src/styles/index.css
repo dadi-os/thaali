@@ -196,6 +196,41 @@ body {
   text-align: left;
 }
 
+/* Small panel text (agent popover): tighter rhythm, headings at body size. */
+.chat-md--compact {
+  gap: 0.45em;
+}
+
+.chat-md--compact h1,
+.chat-md--compact h2,
+.chat-md--compact h3,
+.chat-md--compact h4 {
+  margin: 0.1em 0 0;
+  font-size: 1em;
+}
+
+.chat-md--compact pre {
+  border-radius: 8px;
+  padding: 0.5em 0.65em;
+}
+
+/* One-line previews (InlineMarkdown): inline marks only, color inherited. */
+.inline-md strong {
+  font-weight: 600;
+}
+
+.inline-md em {
+  font-style: italic;
+}
+
+.inline-md code {
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  background: var(--sage-fill);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+}
+
 .chat-link-chip {
   display: inline-flex;
   align-items: center;

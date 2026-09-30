@@ -5,7 +5,6 @@ import {
   conversationBucket,
   formatRelative,
   groupConversations,
-  truncateOneLine,
 } from "./chrome/chatSidebar/format";
 import {
   partitionByQueued,
@@ -68,13 +67,6 @@ import { createNasClient } from "./shared/api/nas";
 import { YAAD, DIMAAG, NAS, CHAAVI, CHAAVI_VAULT, GHAR } from "./shared/api/constants";
 import type { Transport } from "./shared/api/transport";
 import type { AgentRecord } from "./shared/api/types";
-
-describe("truncateOneLine", () => {
-  it("collapses whitespace and truncates", () => {
-    expect(truncateOneLine("  hello   world  ", 20)).toBe("hello world");
-    expect(truncateOneLine("abcdefghij", 5)).toBe("abcd…");
-  });
-});
 
 describe("formatRelative", () => {
   it("formats minutes ago", () => {

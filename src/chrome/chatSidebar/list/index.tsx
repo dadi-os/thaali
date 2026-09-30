@@ -1,8 +1,9 @@
 import { motion } from "motion/react";
+import { InlineMarkdown } from "../../../shared/components/Markdown";
 import { EASE } from "../../../shared/lib/ux/motion";
 import type { Conversation, HistoryStatus } from "../../../store/chat";
 import { ActivityPulse } from "../ActivityPulse";
-import { groupConversations, truncateOneLine } from "../format";
+import { groupConversations } from "../format";
 
 export interface ConversationListProps {
   /** Thread-agent conversations (excludes Dadi). */
@@ -90,7 +91,7 @@ export function ConversationList({
                       </span>
                       <p className="truncate text-[12px] text-ink-ghost">
                         {conv.from_user ? "You: " : ""}
-                        {truncateOneLine(conv.last_message, 56)}
+                        <InlineMarkdown content={conv.last_message} />
                       </p>
                     </button>
                   );
@@ -123,9 +124,11 @@ export function ConversationList({
               Talk to Dadi
             </span>
             <span className="block truncate text-[12px] text-ink-ghost">
-              {dadi.preview
-                ? truncateOneLine(dadi.preview, 48)
-                : "Start something new"}
+              {dadi.preview ? (
+                <InlineMarkdown content={dadi.preview} />
+              ) : (
+                "Start something new"
+              )}
             </span>
           </span>
           {dadi.busy ? <ActivityPulse /> : null}

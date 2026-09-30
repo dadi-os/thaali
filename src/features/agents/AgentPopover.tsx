@@ -1,9 +1,10 @@
 import { useEffect, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { useQuery } from "@tanstack/react-query";
+import { queryOptions, useQuery } from "@tanstack/react-query";
 import { dimaag, isMeshOnline } from "../../shared/api";
 import type { AgentRecord } from "../../shared/api/types";
 import { useConnection } from "../../hooks/useConnection";
+import { MarkdownBody } from "../../shared/components/Markdown";
 import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { getRunning } from "../../store/running";
@@ -13,6 +14,39 @@ import { REVEAL } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
 import { statusLabel, visualState } from "./tree";
+
+/** Longest the panel waits for its first data before opening anyway. */
+const SETTLE_MS = 250;
+
+/** Agent detail query; shared with the graph so hovering a node can prefetch it. */
+export function agentDetailQuery(agentId: string | null) {
+  return queryOptions({
+    queryKey: ["agent", agentId],
+    queryFn: () => {
+      if (!agentId) {
+        throw new Error("agentId required");
+      }
+      return dimaag.getAgent(agentId);
+    },
+  });
+}
+
+/**
+ * Recent logs, shown as activity and read for "last active" (the last log, not
+ * agents.updated_at, which only moves on modify_agent). Shared with the graph's prefetch.
+ */
+export function agentActivityQuery(agentId: string | null) {
+  return queryOptions({
+    queryKey: ["agent-logs", agentId, "activity"],
+    queryFn: async () => {
+      if (!agentId) {
+        throw new Error("agentId required");
+      }
+      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 80 });
+      return logs;
+    },
+  });
+}
 
 export type AgentPopoverProps = {
   open: boolean;
@@ -32,8 +66,9 @@ export type AgentPopoverProps = {
 };
 
 /**
- * Agent detail panel. Uses shared Popover for positioning / dismiss. Detail and
- * activity that load after it opens ease in rather than popping into place.
+ * Agent detail panel. Uses shared Popover for positioning / dismiss. It holds its first
+ * open until detail and activity have loaded (at most SETTLE_MS), so it appears at full
+ * size instead of growing; content that arrives later eases in.
  */
 export function AgentPopover({
   open,
@@ -53,29 +88,12 @@ export function AgentPopover({
   const [promptOpen, setPromptOpen] = useState(false);
 
   const detailQuery = useQuery({
-    queryKey: ["agent", agentId],
-    queryFn: () => {
-      if (!agentId) {
-        throw new Error("agentId required");
-      }
-      return dimaag.getAgent(agentId);
-    },
+    ...agentDetailQuery(agentId),
     enabled: connected && !!agentId && open,
   });
 
-  /**
-   * Recent logs, shown as activity and read for "last active" (the last log, not
-   * agents.updated_at, which only moves on modify_agent).
-   */
   const activityQuery = useQuery({
-    queryKey: ["agent-logs", agentId, "activity"],
-    queryFn: async () => {
-      if (!agentId) {
-        throw new Error("agentId required");
-      }
-      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 80 });
-      return logs;
-    },
+    ...agentActivityQuery(agentId),
     enabled: connected && !!agentId && open,
     refetchInterval: POLL_MS,
   });
@@ -83,6 +101,22 @@ export function AgentPopover({
   useEffect(() => {
     setPromptOpen(false);
   }, [agentId]);
+
+  const [settling, setSettling] = useState(true);
+  const loading = detailQuery.isLoading || activityQuery.isLoading;
+  useEffect(() => {
+    if (!open) {
+      setSettling(true);
+      return;
+    }
+    const timer = window.setTimeout(() => setSettling(false), SETTLE_MS);
+    return () => window.clearTimeout(timer);
+  }, [open]);
+  useEffect(() => {
+    if (open && !loading) {
+      setSettling(false);
+    }
+  }, [open, loading]);
 
   if (!agentId || !anchor) {
     return null;
@@ -128,7 +162,7 @@ export function AgentPopover({
 
   return (
     <Popover
-      open={open}
+      open={open && !(settling && loading)}
       onClose={onClose}
       anchor={anchor}
       containerRef={containerRef}
@@ -233,13 +267,15 @@ export function AgentPopover({
                 <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
                   SYSTEM PROMPT
                 </h3>
-                <p
-                  className={`whitespace-pre-wrap text-[13px] leading-relaxed text-ink ${
-                    promptOpen ? "" : "line-clamp-4"
+                <div
+                  className={`text-[13px] leading-relaxed text-ink ${
+                    promptOpen
+                      ? ""
+                      : "max-h-[6.5em] overflow-hidden [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
                   }`}
                 >
-                  {detail.system_prompt}
-                </p>
+                  <MarkdownBody content={detail.system_prompt} compact />
+                </div>
                 {detail.system_prompt.length > 160 && (
                   <button
                     type="button"
@@ -265,7 +301,7 @@ export function AgentPopover({
                           {t.name}
                         </div>
                         <div className="text-[12px] leading-snug text-ink-muted">
-                          {t.usage}
+                          <MarkdownBody content={t.usage} compact />
                         </div>
                       </li>
                     ))}

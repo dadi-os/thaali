@@ -30,3 +30,5 @@ src-tauri/lib/
 *.njsproj
 *.sln
 *.sw?
+
+.claude/

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { Lane, LogRecord } from "../../shared/api/types";
+import { InlineMarkdown, MarkdownBody } from "../../shared/components/Markdown";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { REVEAL } from "../../shared/lib/ux/motion";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
@@ -11,14 +12,6 @@ export type AgentActivityProps = {
   /** The agent's recent logs, newest first; the popover owns and polls this query. */
   logs: UseQueryResult<LogRecord[], Error>;
 };
-
-function truncate(text: string, max: number): string {
-  const one = text.replace(/\s+/g, " ").trim();
-  if (one.length <= max) {
-    return one;
-  }
-  return `${one.slice(0, max - 1)}…`;
-}
 
 function prettyValue(value: unknown): string {
   if (value === null) {
@@ -91,39 +84,53 @@ function ThinkingBlock({ text }: { text: string }) {
         </span>
         {open ? null : (
           <span className="min-w-0 flex-1 truncate text-[11px] italic leading-snug text-ink-ghost">
-            {truncate(text, 80)}
+            <InlineMarkdown content={text} />
           </span>
         )}
       </button>
       {open ? (
-        <p className="mt-1 max-h-48 overflow-y-auto whitespace-pre-wrap break-words border-l border-rule pl-2 text-[11px] italic leading-snug text-ink-ghost">
-          {text}
-        </p>
+        <div className="mt-1 max-h-48 overflow-y-auto border-l border-rule pl-2 text-[11px] italic leading-snug text-ink-ghost">
+          <MarkdownBody content={text} compact />
+        </div>
       ) : null}
     </div>
   );
 }
 
-/** What the model wrote alongside (or instead of) its tool calls. */
+/**
+ * What the model wrote alongside (or instead of) its tool calls: a one-line preview
+ * that expands to the full markdown. Expanded, it is a plain block rather than a button
+ * so its links stay clickable; clicking anywhere else collapses it.
+ */
 function TextBlock({ text }: { text: string }) {
   const [open, setOpen] = useState(false);
   const expandable = text.length > 90 || text.includes("\n");
+  if (open) {
+    return (
+      <div
+        className="text-[12px] leading-snug text-ink-muted"
+        onClick={(e) => {
+          if (!(e.target as HTMLElement).closest("a")) {
+            setOpen(false);
+          }
+        }}
+      >
+        <MarkdownBody content={text} compact />
+      </div>
+    );
+  }
   return (
     <button
       type="button"
       className="block w-full text-left"
       onClick={() => {
         if (expandable) {
-          setOpen((v) => !v);
+          setOpen(true);
         }
       }}
     >
-      <p
-        className={`text-[12px] leading-snug text-ink-muted ${
-          open ? "whitespace-pre-wrap break-words" : "truncate"
-        }`}
-      >
-        {open ? text : truncate(text, 90)}
+      <p className="truncate text-[12px] leading-snug text-ink-muted">
+        <InlineMarkdown content={text} />
       </p>
     </button>
   );

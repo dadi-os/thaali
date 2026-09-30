@@ -1,21 +1,5 @@
 /** Display helpers for the chat sidebar. */
 
-/**
- * Collapse whitespace and truncate to a single line with an ellipsis.
- */
-export function truncateOneLine(
-  /** Source text. */
-  text: string,
-  /** Max characters including ellipsis. */
-  max = 72,
-): string {
-  const one = text.replace(/\s+/g, " ").trim();
-  if (one.length <= max) {
-    return one;
-  }
-  return `${one.slice(0, max - 1)}…`;
-}
-
 export type ConversationBucket = "Today" | "Yesterday" | "Previous";
 
 /**
