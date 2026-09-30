@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { motion } from "motion/react";
 import { PageHeader } from "../chrome/PageHeader";
 import { MemoryGraph3D } from "../features/memory/MemoryGraph3D";
@@ -11,6 +11,7 @@ import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 export function MemoryPage() {
   const location = useLocation();
   const entranceKey = `memory:${location.key}`;
+  const [params] = useSearchParams();
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
 
   return (
@@ -21,7 +22,7 @@ export function MemoryPage() {
       transition={{ duration: SLOW_S, ease: EASE }}
     >
       <div className="absolute inset-0">
-        <MemoryGraph3D entranceKey={entranceKey} toolbar={toolbar} />
+        <MemoryGraph3D entranceKey={entranceKey} toolbar={toolbar} focusNodeId={params.get("focus")} />
       </div>
       <div className="pointer-events-none relative z-10">
         <PageHeader

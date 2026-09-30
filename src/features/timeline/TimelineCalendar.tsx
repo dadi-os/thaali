@@ -1,20 +1,24 @@
-import { useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { useEffect, useMemo, useState } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
 import { isMeshOnline, yaad } from "../../shared/api";
-import type { NodeRecord, PlanDetail, PlanStatus } from "../../shared/api/types";
+import type { IngestResponse } from "../../shared/api/types";
 import { useConnection } from "../../hooks/useConnection";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { Glider } from "../../shared/components/Glider";
+import { IconPlus } from "../../shared/components/IconButton";
+import type { PopoverAnchor } from "../../shared/components/Popover";
+import { EASE, REVEAL, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import {
   addDays,
   endOfDay,
   endOfMonth,
+  formatDayLong,
   formatMonthTitle,
   formatTime,
+  formatUntil,
   formatWeekTitle,
   isSameDay,
-  isSameMonth,
   monthGridDays,
   startOfDay,
   startOfMonth,
@@ -23,6 +27,21 @@ import {
   weekDays,
   weekdayLabels,
 } from "./dates";
+import { BreathRing, LiveDot } from "./markers";
+import { MonthView } from "./MonthView";
+import { NodePopover } from "./NodePopover";
+import {
+  anchorOf,
+  asPlan,
+  plansOn,
+  planStartsOn,
+  spanOf,
+  statusOf,
+  type PendingAdd,
+  type PlanNode,
+} from "./plans";
+import { QuickAdd } from "./QuickAdd";
+import { WeekView } from "./WeekView";
 
 export type TimelineView = "week" | "month";
 
@@ -36,52 +55,60 @@ export type TimelineCalendarProps = {
   hideIdeas?: boolean;
 };
 
-type PlanNode = NodeRecord & { detail: PlanDetail | null };
+const VIEW_OPTIONS: Array<{ value: TimelineView; label: string }> = [
+  { value: "week", label: "Week" },
+  { value: "month", label: "Month" },
+];
 
-function asPlan(node: NodeRecord & { detail: unknown }): PlanNode | null {
-  if (node.kind !== "plan") {
-    return null;
-  }
-  const detail = node.detail as PlanDetail | null;
-  return { ...node, detail };
+/** How often live markers (now line, countdowns, ongoing pulses) re-read the clock. */
+const TICK_MS = 30_000;
+/** How long a quick-add's new entries glow. */
+const FRESH_MS = 4_000;
+/** How long a success notice stays; errors stay until dismissed. */
+const NOTICE_MS = 6_000;
+/** How far ahead the Next up pill looks. */
+const NEXT_WINDOW_DAYS = 14;
+
+/**
+ * Page motion: pages slide the way time moved (`1` later, `-1` earlier) and a view
+ * switch (`0`) settles in place.
+ */
+const PAGE = {
+  enter: (d: number) => ({ opacity: 0, x: d * 32, scale: d === 0 ? 0.985 : 1 }),
+  center: { opacity: 1, x: 0, scale: 1 },
+  exit: (d: number) => ({ opacity: 0, x: d * -32, scale: d === 0 ? 1.01 : 1 }),
+};
+
+/** A line under the header: what a quick-add or delete did, or why it failed. */
+type Notice = { tone: "info" | "error"; text: string };
+
+/** Wall clock that re-renders every `ms`, so live markers keep moving. */
+function useNow(ms: number): Date {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), ms);
+    return () => window.clearInterval(id);
+  }, [ms]);
+  return now;
 }
 
-function statusOf(plan: PlanNode): PlanStatus {
-  return plan.detail?.status ?? "confirmed";
-}
-
-function planStartsOn(plan: PlanNode, day: Date): boolean {
-  if (!plan.occurred_at) {
-    return false;
+/** What a quick-add changed, in words: the entries it created, else what it updated, else why it kept nothing. */
+function describeIngest(result: IngestResponse): string {
+  const created = result.operations.flatMap((op) => (op.op === "create_node" ? [`“${op.title}”`] : []));
+  if (created.length > 0) {
+    return `Added ${created.join(", ")}`;
   }
-  return isSameDay(new Date(plan.occurred_at), day);
-}
-
-function planOverlapsDay(plan: PlanNode, day: Date): boolean {
-  if (!plan.occurred_at) {
-    return false;
+  if (result.counts.update_node > 0) {
+    return `Updated ${result.counts.update_node} ${result.counts.update_node === 1 ? "entry" : "entries"}`;
   }
-  const start = new Date(plan.occurred_at);
-  const end = plan.detail?.end_at
-    ? new Date(plan.detail.end_at)
-    : new Date(plan.occurred_at);
-  const dayStart = startOfDay(day).getTime();
-  const dayEnd = endOfDay(day).getTime();
-  return start.getTime() <= dayEnd && end.getTime() >= dayStart;
-}
-
-function statusClass(status: PlanStatus): string {
-  if (status === "tentative") {
-    return "border border-dashed border-sage-line bg-sage-faint/80 text-sage-text";
-  }
-  if (status === "idea") {
-    return "border border-rule bg-bone text-ink-ghost";
-  }
-  return "border border-transparent bg-sage-active text-ink";
+  const reasons = result.operations.flatMap((op) => (op.op === "noop" ? [op.reason] : []));
+  return `Nothing new to keep — ${reasons.join("; ")}`;
 }
 
 /**
- * Week / month calendar of Yaad plans. Preview is a compact current-week ribbon.
+ * Week / month calendar of Yaad plans and memories. Full mode pages with motion, keeps
+ * a live now marker and Next up countdown, opens any entry for editing, and quick-adds
+ * free text through Yaad ingest. Preview is a compact current-week ribbon.
  */
 export function TimelineCalendar({
   mode,
@@ -93,18 +120,32 @@ export function TimelineCalendar({
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const preview = mode === "preview";
+  const queryClient = useQueryClient();
 
   const [internalView, setInternalView] = useState<TimelineView>("week");
   const view = viewProp ?? internalView;
   const setView = (next: TimelineView) => {
+    setDirection(0);
     onViewChange?.(next);
     if (viewProp === undefined) {
       setInternalView(next);
     }
   };
 
+  const now = useNow(TICK_MS);
+  const today = startOfDay(now);
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
-  const today = startOfDay(new Date());
+  const [direction, setDirection] = useState(0);
+  const [opened, setOpened] = useState<{ id: string; anchor: PopoverAnchor; open: boolean } | null>(null);
+  const [composer, setComposer] = useState<{
+    key: string;
+    day: Date | null;
+    anchor: PopoverAnchor;
+    open: boolean;
+  } | null>(null);
+  const [pending, setPending] = useState<PendingAdd[]>([]);
+  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
+  const [notice, setNotice] = useState<Notice | null>(null);
 
   const range = useMemo(() => {
     if (view === "week" || preview) {
@@ -118,13 +159,7 @@ export function TimelineCalendar({
   }, [anchor, view, preview]);
 
   const plansQuery = useQuery({
-    queryKey: [
-      "yaad",
-      "plans",
-      range.occurred_from,
-      range.occurred_to,
-      preview ? "preview" : "full",
-    ],
+    queryKey: ["yaad", "plans", range.occurred_from, range.occurred_to, preview ? "preview" : "full"],
     queryFn: async () => {
       const { nodes } = await yaad.query({
         kind: "plan",
@@ -141,6 +176,40 @@ export function TimelineCalendar({
     refetchInterval: POLL_MS,
   });
 
+  const memoriesQuery = useQuery({
+    queryKey: ["yaad", "memories", range.occurred_from, range.occurred_to],
+    queryFn: async () => {
+      const { nodes } = await yaad.query({
+        kind: "memory",
+        occurred_from: range.occurred_from,
+        occurred_to: range.occurred_to,
+        limit: 200,
+      });
+      return nodes;
+    },
+    enabled: connected && !preview,
+    refetchInterval: POLL_MS,
+  });
+
+  const hour = new Date(now);
+  hour.setMinutes(0, 0, 0);
+  const nextQuery = useQuery({
+    queryKey: ["yaad", "plans", "next", hour.toISOString()],
+    queryFn: async () => {
+      const { nodes } = await yaad.query({
+        kind: "plan",
+        ...toIsoBounds(hour, addDays(hour, NEXT_WINDOW_DAYS)),
+        limit: 200,
+      });
+      return nodes
+        .map(asPlan)
+        .filter((n): n is PlanNode => n !== null)
+        .filter((n) => statusOf(n) !== "idea");
+    },
+    enabled: connected && !preview,
+    refetchInterval: POLL_MS,
+  });
+
   const ideasQuery = useQuery({
     queryKey: ["yaad", "plans", "ideas"],
     queryFn: async () => {
@@ -154,27 +223,85 @@ export function TimelineCalendar({
     refetchInterval: POLL_MS,
   });
 
+  const addEntry = useMutation({
+    mutationFn: (add: PendingAdd) =>
+      yaad.ingest({
+        text: add.day ? `On ${formatDayLong(add.day)}: ${add.text}` : add.text,
+        occurred_at: new Date().toISOString(),
+        source: "ingest",
+      }),
+    onMutate: (add) => setPending((list) => [...list, add]),
+    onSettled: (_result, _error, add) => setPending((list) => list.filter((p) => p.key !== add.key)),
+    onSuccess: (result) => {
+      void queryClient.invalidateQueries({ queryKey: ["yaad"] });
+      setFresh(new Set(result.operations.flatMap((op) => (op.op === "create_node" ? [op.id] : []))));
+      setNotice({ tone: "info", text: describeIngest(result) });
+    },
+    onError: (error) => setNotice({ tone: "error", text: error.message }),
+  });
+
+  useEffect(() => {
+    if (fresh.size === 0) {
+      return;
+    }
+    const id = window.setTimeout(() => setFresh(new Set()), FRESH_MS);
+    return () => window.clearTimeout(id);
+  }, [fresh]);
+
+  useEffect(() => {
+    if (notice?.tone !== "info") {
+      return;
+    }
+    const id = window.setTimeout(() => setNotice(null), NOTICE_MS);
+    return () => window.clearTimeout(id);
+  }, [notice]);
+
   const plans = plansQuery.data ?? [];
-  const ideas = ideasQuery.data ?? [];
+  const memories = memoriesQuery.data ?? [];
   const labels = weekdayLabels();
 
-  const goPrev = () => {
+  const next = useMemo(() => {
+    const t = now.getTime();
+    const spans = (nextQuery.data ?? []).flatMap((plan) => {
+      const span = spanOf(plan);
+      return span ? [{ plan, ...span }] : [];
+    });
+    const ongoing = spans.find((s) => s.start.getTime() <= t && t < s.end.getTime());
+    if (ongoing) {
+      return { ...ongoing, ongoing: true };
+    }
+    const upcoming = spans
+      .filter((s) => s.start.getTime() > t)
+      .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
+    return upcoming ? { ...upcoming, ongoing: false } : null;
+  }, [nextQuery.data, now]);
+
+  const page = (step: 1 | -1) => {
+    setDirection(step);
     if (view === "week" || preview) {
-      setAnchor((a) => addDays(a, -7));
+      setAnchor((a) => addDays(a, 7 * step));
     } else {
-      setAnchor((a) => new Date(a.getFullYear(), a.getMonth() - 1, 1));
+      setAnchor((a) => new Date(a.getFullYear(), a.getMonth() + step, 1));
     }
   };
 
-  const goNext = () => {
-    if (view === "week" || preview) {
-      setAnchor((a) => addDays(a, 7));
-    } else {
-      setAnchor((a) => new Date(a.getFullYear(), a.getMonth() + 1, 1));
-    }
+  const goToday = () => {
+    setDirection(Math.sign(today.getTime() - startOfDay(anchor).getTime()));
+    setAnchor(today);
   };
 
-  const goToday = () => setAnchor(startOfDay(new Date()));
+  const closeNode = () => setOpened((o) => (o ? { ...o, open: false } : o));
+  const closeComposer = () => setComposer((c) => (c ? { ...c, open: false } : c));
+
+  const openNode = (id: string, el: Element) => {
+    closeComposer();
+    setOpened({ id, anchor: anchorOf(el), open: true });
+  };
+
+  const openComposer = (day: Date | null, el: Element) => {
+    closeNode();
+    setComposer({ key: crypto.randomUUID(), day, anchor: anchorOf(el), open: true });
+  };
 
   if (!connected) {
     return (
@@ -187,7 +314,7 @@ export function TimelineCalendar({
   if (plansQuery.isError) {
     return (
       <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
-        <p className="text-[13px] text-ink-muted">Could not load plans.</p>
+        <p className="text-[13px] text-error">{plansQuery.error.message}</p>
       </div>
     );
   }
@@ -198,48 +325,51 @@ export function TimelineCalendar({
       <div className={`flex h-full min-h-0 flex-col px-2 pb-2 pt-1 ${className ?? ""}`}>
         <div className="flex min-h-0 flex-1">
           {days.map((day, i) => {
-            const dayPlans = plans
-              .filter((p) => planOverlapsDay(p, day))
-              .sort((a, b) =>
-                (a.occurred_at ?? "").localeCompare(b.occurred_at ?? ""),
-              );
+            const dayPlans = plansOn(plans, day);
             const isToday = isSameDay(day, today);
             return (
-              <div
+              <motion.div
                 key={day.toISOString()}
-                className={`flex min-h-0 min-w-0 flex-1 flex-col px-1.5 pt-1 ${
-                  i > 0 ? "border-l border-rule/80" : ""
-                }`}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 }}
+                className={`flex min-h-0 min-w-0 flex-1 flex-col px-1.5 pt-1 ${i > 0 ? "border-l border-rule/80" : ""}`}
               >
-                <span className="mb-1.5 text-center text-[11px] tracking-wide text-ink-ghost">
-                  {labels[i]}
-                </span>
+                <span className="mb-1.5 text-center text-[11px] tracking-wide text-ink-ghost">{labels[i]}</span>
                 <div className="mb-2 flex justify-center">
                   <span
-                    className={`flex size-9 items-center justify-center rounded-full text-[13px] ${
-                      isToday
-                        ? "bg-ink text-bone"
-                        : "text-ink"
+                    className={`relative flex size-9 items-center justify-center rounded-full text-[13px] ${
+                      isToday ? "bg-ink text-bone" : "text-ink"
                     }`}
                   >
                     {day.getDate()}
+                    {isToday ? <BreathRing /> : null}
                   </span>
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                  {dayPlans.slice(0, 5).map((p) => (
-                    <div key={p.id} className="min-w-0">
-                      {planStartsOn(p, day) && p.occurred_at ? (
-                        <p className="text-[10px] text-ink-ghost">
-                          {formatTime(p.occurred_at)}
-                        </p>
-                      ) : null}
-                      <p className="truncate text-[11px] leading-snug text-ink">
-                        {p.title || "plan"}
-                      </p>
-                    </div>
-                  ))}
+                  {dayPlans.slice(0, 5).map((p, j) => {
+                    const span = spanOf(p)!;
+                    const live = span.start <= now && now < span.end;
+                    return (
+                      <motion.div
+                        key={p.id}
+                        initial={{ opacity: 0, y: 4 }}
+                        animate={{ opacity: span.end < now ? 0.55 : 1, y: 0 }}
+                        transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 + 0.08 + j * 0.03 }}
+                        className="min-w-0"
+                      >
+                        {planStartsOn(p, day) ? (
+                          <p className="flex items-center gap-1 text-[10px] text-ink-ghost">
+                            {live ? <LiveDot /> : null}
+                            {formatTime(p.occurred_at!)}
+                          </p>
+                        ) : null}
+                        <p className="truncate text-[11px] leading-snug text-ink">{p.title || "plan"}</p>
+                      </motion.div>
+                    );
+                  })}
                 </div>
-              </div>
+              </motion.div>
             );
           })}
         </div>
@@ -247,31 +377,18 @@ export function TimelineCalendar({
     );
   }
 
+  const title = view === "week" ? formatWeekTitle(anchor) : formatMonthTitle(anchor);
+
   return (
     <div className={`flex h-full min-h-0 gap-3 ${className ?? ""}`}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-[var(--radius)] border border-dashed border-sage-line bg-bone p-0.5">
-            {(["week", "month"] as const).map((v) => (
-              <button
-                key={v}
-                type="button"
-                onClick={() => setView(v)}
-                className={`rounded-[6px] px-2.5 py-1 text-[11px] font-medium tracking-wide transition-colors duration-slow ease-hath ${
-                  view === v
-                    ? "bg-sage-active text-sage-deep"
-                    : "text-ink-ghost hover:text-ink-muted"
-                }`}
-              >
-                {v === "week" ? "Week" : "Month"}
-              </button>
-            ))}
-          </div>
+          <Glider options={VIEW_OPTIONS} value={view} onChange={setView} label="Timeline view" />
           <div className="flex items-center gap-1">
             <button
               type="button"
-              onClick={goPrev}
-              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep hover:bg-sage-active/40"
+              onClick={() => page(-1)}
+              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-active/40"
               aria-label="Previous"
             >
               ‹
@@ -279,215 +396,218 @@ export function TimelineCalendar({
             <button
               type="button"
               onClick={goToday}
-              className="rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted hover:bg-sage-active/40"
+              className="rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-hath hover:bg-sage-active/40"
             >
               Today
             </button>
             <button
               type="button"
-              onClick={goNext}
-              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep hover:bg-sage-active/40"
+              onClick={() => page(1)}
+              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-active/40"
               aria-label="Next"
             >
               ›
             </button>
           </div>
-          <span className="text-[13px] text-ink">
-            {view === "week" ? formatWeekTitle(anchor) : formatMonthTitle(anchor)}
-          </span>
+          <div className="relative min-w-0 overflow-hidden">
+            <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+              <motion.span
+                key={title}
+                custom={direction}
+                initial={{ opacity: 0, y: direction === 0 ? 4 : direction * 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: direction === 0 ? -4 : direction * -10 }}
+                transition={{ duration: SLOW_S, ease: EASE }}
+                className="block whitespace-nowrap text-[13px] text-ink"
+              >
+                {title}
+              </motion.span>
+            </AnimatePresence>
+          </div>
+
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            {nextQuery.isError ? (
+              <span className="truncate text-[12px] text-error">{nextQuery.error.message}</span>
+            ) : next ? (
+              <motion.button
+                key={next.plan.id}
+                type="button"
+                initial={{ opacity: 0, y: -4 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: SLOW_S, ease: EASE }}
+                onClick={(e) => openNode(next.plan.id, e.currentTarget)}
+                className="flex min-w-0 max-w-[320px] items-center gap-2 rounded-full border border-rule bg-bone px-3 py-1 text-[12px] transition-colors duration-slow ease-hath hover:border-sage-line"
+              >
+                {next.ongoing ? (
+                  <LiveDot />
+                ) : (
+                  <span className="text-[10px] font-medium tracking-[1.5px] text-ink-ghost">NEXT</span>
+                )}
+                <span className="min-w-0 truncate text-ink">{next.plan.title}</span>
+                <span className="shrink-0 tabular-nums text-ink-muted">
+                  {next.ongoing ? `until ${formatTime(next.end.toISOString())}` : formatUntil(now, next.start)}
+                </span>
+              </motion.button>
+            ) : null}
+            <button
+              type="button"
+              onClick={(e) => openComposer(null, e.currentTarget)}
+              className="flex shrink-0 items-center gap-1 rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-line/50 [&>svg]:size-3.5"
+            >
+              <IconPlus />
+              Add
+            </button>
+          </div>
         </div>
 
-        {plansQuery.isLoading ? (
-          <p className="py-8 text-[13px] text-ink-ghost">Loading plans…</p>
-        ) : view === "week" ? (
-          <WeekView
-            anchor={anchor}
-            today={today}
-            plans={plans}
-            labels={labels}
-          />
-        ) : (
-          <MonthView
-            anchor={anchor}
-            today={today}
-            plans={plans}
-            labels={labels}
-            onSelectDay={(day) => {
-              setAnchor(day);
-              setView("week");
-            }}
-          />
-        )}
+        <AnimatePresence initial={false}>
+          {notice ? (
+            <motion.div key="notice" {...REVEAL} className="overflow-hidden">
+              <div
+                className={`mb-2 flex items-center gap-2 rounded-full px-3 py-1 text-[12px] ${
+                  notice.tone === "error" ? "bg-error-fill text-error" : "bg-sage-fill text-sage-deep"
+                }`}
+              >
+                <span className="min-w-0 flex-1 truncate">{notice.text}</span>
+                <button
+                  type="button"
+                  onClick={() => setNotice(null)}
+                  className="shrink-0 text-[11px] opacity-70 hover:opacity-100"
+                  aria-label="Dismiss"
+                >
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          ) : null}
+          {memoriesQuery.isError ? (
+            <motion.p key="memories-error" {...REVEAL} className="mb-2 overflow-hidden text-[12px] text-error">
+              Memories: {memoriesQuery.error.message}
+            </motion.p>
+          ) : null}
+        </AnimatePresence>
+
+        <div className="relative flex min-h-0 flex-1 flex-col">
+          <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+            <motion.div
+              key={`${view}:${range.occurred_from}`}
+              custom={direction}
+              variants={PAGE}
+              initial="enter"
+              animate="center"
+              exit="exit"
+              transition={{ duration: SLOW_S, ease: EASE }}
+              className="flex min-h-0 flex-1 flex-col"
+            >
+              {view === "week" ? (
+                <WeekView
+                  days={weekDays(anchor)}
+                  labels={labels}
+                  today={today}
+                  now={now}
+                  plans={plans}
+                  memories={memories}
+                  loading={plansQuery.isPending}
+                  fresh={fresh}
+                  pending={pending}
+                  onOpen={openNode}
+                  onAdd={openComposer}
+                />
+              ) : (
+                <MonthView
+                  days={monthGridDays(anchor)}
+                  anchor={anchor}
+                  labels={labels}
+                  today={today}
+                  plans={plans}
+                  memories={memories}
+                  loading={plansQuery.isPending}
+                  fresh={fresh}
+                  onSelectDay={(day) => {
+                    setAnchor(day);
+                    setView("week");
+                  }}
+                  onAdd={openComposer}
+                />
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </div>
 
       {!hideIdeas ? (
         <aside className="flex w-[min(200px,28%)] shrink-0 flex-col border-l border-dashed border-sage-line pl-3">
-          <span className="mb-2 text-[11px] font-medium tracking-[2px] text-sage-deep">
-            SOMEDAY
-          </span>
-          {ideasQuery.isLoading ? (
+          <span className="mb-2 text-[11px] font-medium tracking-[2px] text-sage-deep">SOMEDAY</span>
+          {ideasQuery.isError ? (
+            <p className="text-[12px] text-error">{ideasQuery.error.message}</p>
+          ) : ideasQuery.isPending ? (
             <p className="text-[12px] text-ink-ghost">…</p>
-          ) : ideas.length === 0 ? (
+          ) : ideasQuery.data.length === 0 ? (
             <p className="text-[12px] text-ink-ghost">No ideas yet</p>
           ) : (
             <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-              {ideas.map((idea, i) => (
-                <motion.li
-                  key={idea.id}
-                  initial={{ opacity: 0, y: 4 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{
-                    duration: SLOW_S,
-                    ease: EASE,
-                    delay: Math.min(i * 0.03, 0.2),
-                  }}
-                  className="rounded-[6px] border border-dashed border-rule px-2 py-1.5 text-[12px] leading-snug text-ink-muted"
-                >
-                  {idea.title}
-                </motion.li>
-              ))}
+              <AnimatePresence initial>
+                {ideasQuery.data.map((idea, i) => (
+                  <motion.li
+                    key={idea.id}
+                    layout
+                    initial={{ opacity: 0, y: 4 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, x: -6 }}
+                    transition={{
+                      duration: SLOW_S,
+                      ease: EASE,
+                      delay: Math.min(i * 0.03, 0.2),
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={(e) => openNode(idea.id, e.currentTarget)}
+                      className="w-full rounded-[6px] border border-dashed border-rule px-2 py-1.5 text-left text-[12px] leading-snug text-ink-muted transition-colors duration-slow ease-hath hover:border-sage-line hover:text-ink"
+                    >
+                      {idea.title}
+                    </button>
+                  </motion.li>
+                ))}
+              </AnimatePresence>
             </ul>
           )}
         </aside>
       ) : null}
-    </div>
-  );
-}
 
-function WeekView({
-  anchor,
-  today,
-  plans,
-  labels,
-}: {
-  anchor: Date;
-  today: Date;
-  plans: PlanNode[];
-  labels: string[];
-}) {
-  const days = weekDays(anchor);
-  return (
-    <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
-      {days.map((day, i) => {
-        const dayPlans = plans
-          .filter((p) => planOverlapsDay(p, day))
-          .sort((a, b) =>
-            (a.occurred_at ?? "").localeCompare(b.occurred_at ?? ""),
-          );
-        const isToday = isSameDay(day, today);
-        return (
-          <div
-            key={day.toISOString()}
-            className={`flex min-h-0 flex-col px-1.5 py-2 ${
-              i > 0 ? "border-l border-rule/80" : ""
-            }`}
-          >
-            <div className="mb-2 flex flex-col items-center gap-1">
-              <span className="text-[11px] tracking-wide text-ink-ghost">
-                {labels[i]}
-              </span>
-              <span
-                className={`flex size-9 items-center justify-center rounded-full text-[13px] ${
-                  isToday ? "bg-ink text-bone" : "text-ink"
-                }`}
-              >
-                {day.getDate()}
-              </span>
-            </div>
-            <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-              {dayPlans.length === 0 ? null : (
-                dayPlans.map((p) => (
-                  <div
-                    key={p.id}
-                    className={`rounded-[6px] px-1.5 py-1 text-[11px] leading-snug ${statusClass(statusOf(p))}`}
-                  >
-                    {planStartsOn(p, day) && p.occurred_at ? (
-                      <span className="mb-0.5 block text-[10px] opacity-70">
-                        {formatTime(p.occurred_at)}
-                      </span>
-                    ) : null}
-                    <span className="line-clamp-3">{p.title}</span>
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
+      {opened ? (
+        <NodePopover
+          open={opened.open}
+          nodeId={opened.id}
+          anchor={opened.anchor}
+          onClose={closeNode}
+          onSelect={(id) => setOpened((o) => (o ? { ...o, id } : o))}
+          onDeleted={(result, deletedTitle) => {
+            closeNode();
+            const swept = result.orphans.length;
+            setNotice({
+              tone: "info",
+              text: `Deleted “${deletedTitle}”${
+                swept > 0 ? ` · cleared ${swept} unlinked ${swept === 1 ? "entry" : "entries"}` : ""
+              }`,
+            });
+          }}
+        />
+      ) : null}
 
-function MonthView({
-  anchor,
-  today,
-  plans,
-  labels,
-  onSelectDay,
-}: {
-  anchor: Date;
-  today: Date;
-  plans: PlanNode[];
-  labels: string[];
-  onSelectDay: (day: Date) => void;
-}) {
-  const days = monthGridDays(anchor);
-  return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="mb-1 grid grid-cols-7 gap-1">
-        {labels.map((label) => (
-          <span
-            key={label}
-            className="text-center text-[10px] tracking-wide text-ink-ghost"
-          >
-            {label}
-          </span>
-        ))}
-      </div>
-      <div className="grid min-h-0 flex-1 grid-cols-7 gap-1">
-        {days.map((day) => {
-          const inMonth = isSameMonth(day, anchor);
-          const isToday = isSameDay(day, today);
-          const dayPlans = plans.filter((p) => planOverlapsDay(p, day));
-          return (
-            <button
-              key={day.toISOString()}
-              type="button"
-              onClick={() => onSelectDay(day)}
-              className={`flex min-h-[72px] flex-col rounded-[6px] border border-dashed px-1 py-1 text-left transition-colors duration-slow ease-hath hover:border-sage ${
-                isToday
-                  ? "border-sage bg-sage-faint/70"
-                  : inMonth
-                    ? "border-rule bg-bone/50"
-                    : "border-transparent bg-transparent opacity-40"
-              }`}
-            >
-              <span
-                className={`mb-1 text-[11px] ${
-                  isToday ? "font-medium text-sage-deep" : "text-ink-muted"
-                }`}
-              >
-                {day.getDate()}
-              </span>
-              <div className="flex flex-col gap-0.5 overflow-hidden">
-                {dayPlans.slice(0, 3).map((p) => (
-                  <span
-                    key={p.id}
-                    className={`truncate rounded-[3px] px-1 py-0.5 text-[9px] leading-tight ${statusClass(statusOf(p))}`}
-                  >
-                    {p.title}
-                  </span>
-                ))}
-                {dayPlans.length > 3 ? (
-                  <span className="text-[9px] text-ink-ghost">
-                    +{dayPlans.length - 3}
-                  </span>
-                ) : null}
-              </div>
-            </button>
-          );
-        })}
-      </div>
+      {composer ? (
+        <QuickAdd
+          key={composer.key}
+          open={composer.open}
+          day={composer.day}
+          anchor={composer.anchor}
+          onClose={closeComposer}
+          onSubmit={(text) => {
+            addEntry.mutate({ key: composer.key, day: composer.day, text });
+            closeComposer();
+          }}
+        />
+      ) : null}
     </div>
   );
 }

@@ -9,7 +9,7 @@ import { KIND_TOKEN, connectionsOf, truncate, type MemoryLink, type MemoryNode }
 const CONNECTIONS_SHOWN = 6;
 
 /** How each write source reads in the header. */
-const SOURCE_LABEL = {
+export const SOURCE_LABEL = {
   manual: "added by hand",
   agent: "added by an agent",
   ingest: "learned in conversation",

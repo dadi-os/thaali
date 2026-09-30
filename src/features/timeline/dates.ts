@@ -133,3 +133,37 @@ export function weekdayLabels(): string[] {
     ),
   );
 }
+
+/** Full local day for quick-add context and headers (e.g. "Friday, October 3, 2026"). */
+export function formatDayLong(d: Date): string {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  }).format(d);
+}
+
+/** Compact local day (e.g. "Fri, Oct 3"). */
+export function formatDayShort(d: Date): string {
+  return new Intl.DateTimeFormat(undefined, {
+    weekday: "short",
+    month: "short",
+    day: "numeric",
+  }).format(d);
+}
+
+/** Countdown from `now` to a later `at`: "in 12m", "in 2h 10m", then whole days. */
+export function formatUntil(now: Date, at: Date): string {
+  const minutes = Math.max(0, Math.round((at.getTime() - now.getTime()) / 60_000));
+  if (minutes < 60) {
+    return `in ${minutes}m`;
+  }
+  if (minutes < 24 * 60) {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`;
+  }
+  const days = Math.round((startOfDay(at).getTime() - startOfDay(now).getTime()) / 86_400_000);
+  return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(days, "day");
+}

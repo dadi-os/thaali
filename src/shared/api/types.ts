@@ -281,6 +281,50 @@ export type NodeResponse = NodeRecord & {
   edges: { outgoing: EdgeRecord[]; incoming: EdgeRecord[] };
 };
 
+/** POST /ingest body from a client: free text Yaad files into nodes and edges. */
+export type IngestRequest = {
+  text: string;
+  /** When the text was said; Yaad resolves relative dates ("tomorrow") against it. */
+  occurred_at: string;
+  participant_ids?: string[];
+  source: "ingest";
+};
+
+/** One operation Yaad applied from an ingest; creates carry the persisted `id`. */
+export type AppliedOperation =
+  | { op: "create_node"; id: string; temp_id: string; kind: NodeKind; title: string; occurred_at?: string | null }
+  | { op: "update_node"; node_id: string; title?: string }
+  | { op: "close_node"; node_id: string; reason: string }
+  | { op: "create_edge"; id: string; src: string; dst: string; type: string }
+  | { op: "close_edge"; edge_id: string; reason: string }
+  | { op: "noop"; reason: string };
+
+/** POST /ingest response. */
+export type IngestResponse = {
+  operations: AppliedOperation[];
+  counts: Record<AppliedOperation["op"], number>;
+  /** create_node temp_id → persisted uuid. */
+  temp_ids: Record<string, string>;
+  /** Nodes deleted because the batch left them with no current edge. */
+  orphans: string[];
+};
+
+/** PATCH /nodes/:id body — a hand edit; at least one field. */
+export type PatchNodeRequest = {
+  title?: string;
+  body?: string | null;
+  occurred_at?: string | null;
+  /** Plan-only detail fields; Yaad rejects detail on memories. */
+  detail?: Partial<Pick<PlanDetail, "status" | "end_at" | "recurrence">>;
+};
+
+/** DELETE /nodes/:id response. */
+export type DeleteNodeResponse = {
+  id: string;
+  /** Neighbors deleted because the delete left them with no current edge. */
+  orphans: string[];
+};
+
 /** Vault item classification in the Chaavi catalog. */
 export type ChaaviItemKind = "login" | "note" | "secret";
 

@@ -30,6 +30,11 @@ export type MemoryGraph3DProps = {
   toolbar: HTMLElement | null;
   /** Extra classes on the root element. */
   className?: string;
+  /**
+   * Node to focus on arrival (`/memory?focus=<id>`, e.g. from the timeline). Its
+   * neighborhood is loaded even when it is not among the most-used nodes.
+   */
+  focusNodeId: string | null;
 };
 
 /**
@@ -38,7 +43,7 @@ export type MemoryGraph3DProps = {
  * layout relaxes around them. Every non-memory node is labelled; the search box
  * narrows to matching titles and flies to a lone match.
  */
-export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3DProps) {
+export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: MemoryGraph3DProps) {
   const { state: connection } = useConnection();
   const theme = useThemeTokens(KIND_TOKENS);
   const connected = isMeshOnline(connection);
@@ -55,8 +60,14 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
     refetchInterval: POLL_MS,
   });
 
+  const seedQuery = useQuery({
+    queryKey: ["yaad", "graph", "seed", focusNodeId],
+    queryFn: () => yaad.graph({ seed_ids: [focusNodeId!] }),
+    enabled: connected && focusNodeId !== null,
+  });
+
   useEffect(() => {
-    setFocusId(null);
+    setFocusId(focusNodeId);
     setQuery("");
   }, [entranceKey]);
 
@@ -68,9 +79,10 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
   const sim = useMemo(() => createMemorySimulation(), [entranceKey]);
 
   const graph = useMemo(() => {
-    const data = ambientQuery.data ? mergeGraph(EMPTY, ambientQuery.data) : EMPTY;
+    const ambient = ambientQuery.data ? mergeGraph(EMPTY, ambientQuery.data) : EMPTY;
+    const data = seedQuery.data ? mergeGraph(ambient, seedQuery.data) : ambient;
     return syncForceSimulation(sim, data.nodes, data.edges);
-  }, [sim, ambientQuery.data]);
+  }, [sim, ambientQuery.data, seedQuery.data]);
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -107,6 +119,14 @@ export function MemoryGraph3D({ entranceKey, toolbar, className }: MemoryGraph3D
     return (
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder tone="error" label="Could not load Yaad" detail={ambientQuery.error.message} />
+      </div>
+    );
+  }
+
+  if (seedQuery.isError) {
+    return (
+      <div className={`h-full ${className ?? ""}`}>
+        <GraphPlaceholder tone="error" label="Could not load that node" detail={seedQuery.error.message} />
       </div>
     );
   }
