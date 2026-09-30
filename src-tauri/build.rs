@@ -6,12 +6,17 @@ fn main() {
     let linux = target.contains("linux");
 
     if ios {
+        let lib_dir = if target.ends_with("-ios-sim") {
+            "ios-sim-arm64"
+        } else {
+            "ios-arm64"
+        };
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("lib")
-            .join("ios-arm64");
+            .join(lib_dir);
         if !path.join("libhathnet.a").exists() {
             panic!(
-                "missing {}/libhathnet.a — run `cd net && ./build.sh ios-arm64` first",
+                "missing {}/libhathnet.a — run `cd net && ./build.sh {lib_dir}` first",
                 path.display()
             );
         }

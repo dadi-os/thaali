@@ -5,6 +5,7 @@
 #   ./build.sh darwin-arm64
 #   ./build.sh darwin-amd64
 #   ./build.sh ios-arm64
+#   ./build.sh ios-sim-arm64
 #   ./build.sh linux-amd64
 #   ./build.sh windows-amd64
 #   ./build.sh all
@@ -40,6 +41,17 @@ build_ios_arm64() {
     go build -buildmode=c-archive -o "$LIB_ROOT/ios-arm64/libhathnet.a" .
 }
 
+build_ios_sim_arm64() {
+  echo "→ ios-sim-arm64"
+  mkdir -p "$LIB_ROOT/ios-sim-arm64"
+  local clang sdk
+  clang="$(xcrun --sdk iphonesimulator --find clang)"
+  sdk="$(xcrun --sdk iphonesimulator --show-sdk-path)"
+  CGO_ENABLED=1 GOOS=ios GOARCH=arm64 \
+    CC="$clang -isysroot $sdk -target arm64-apple-ios15.0-simulator" \
+    go build -buildmode=c-archive -o "$LIB_ROOT/ios-sim-arm64/libhathnet.a" .
+}
+
 build_linux_amd64() {
   echo "→ linux-amd64"
   mkdir -p "$LIB_ROOT/linux-amd64"
@@ -73,18 +85,20 @@ case "$target" in
   darwin-arm64) build_darwin_arm64 ;;
   darwin-amd64) build_darwin_amd64 ;;
   ios-arm64) build_ios_arm64 ;;
+  ios-sim-arm64) build_ios_sim_arm64 ;;
   linux-amd64) build_linux_amd64 ;;
   windows-amd64) build_windows_amd64 ;;
   all)
     build_darwin_arm64
     build_darwin_amd64
     build_ios_arm64
+    build_ios_sim_arm64
     build_linux_amd64
     build_windows_amd64
     ;;
   *)
     echo "unknown target: $target" >&2
-    echo "expected: darwin-arm64 | darwin-amd64 | ios-arm64 | linux-amd64 | windows-amd64 | all" >&2
+    echo "expected: darwin-arm64 | darwin-amd64 | ios-arm64 | ios-sim-arm64 | linux-amd64 | windows-amd64 | all" >&2
     exit 1
     ;;
 esac

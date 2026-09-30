@@ -55,7 +55,7 @@ Signing / release secrets live in `.env.github` for CI only — not application 
 
 ## Local run
 
-Prerequisites once: `npm install`, then `cd net && ./build-tailscale.sh && cd ..` (desktop). For iOS builds also `cd net && ./build.sh ios-arm64`.
+Prerequisites once: `npm install`, then `cd net && ./build-tailscale.sh && cd ..` (desktop). For iOS builds also `cd net && ./build.sh ios-arm64` (device) and `./build.sh ios-sim-arm64` (simulator).
 
 ### Desktop (Tauri)
 

@@ -26,6 +26,18 @@ pub struct LocationInfo {
 /// Read battery percent and charging state from the host.
 #[tauri::command]
 pub fn device_get_battery() -> Result<BatteryInfo, String> {
+    #[cfg(mobile)]
+    {
+        return Err("capability_unsupported: battery is not readable on mobile".into());
+    }
+    #[cfg(desktop)]
+    {
+        desktop_get_battery()
+    }
+}
+
+#[cfg(desktop)]
+fn desktop_get_battery() -> Result<BatteryInfo, String> {
     let manager = battery::Manager::new().map_err(|e| format!("capability_unsupported: {e}"))?;
     let battery = manager
         .batteries()
