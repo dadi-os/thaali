@@ -45,7 +45,7 @@ export function Header() {
         className="absolute inset-y-0 left-1/2 z-10 flex -translate-x-1/2 items-center"
         aria-label="Dadi home"
       >
-        <span className="font-gujarati text-[18px] leading-none text-sage-text">
+        <span className="font-gujarati text-[18px] leading-none text-sage-text translate-y-[0.2em]">
           દાદી
         </span>
       </button>
