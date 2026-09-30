@@ -39,11 +39,6 @@ import {
   type NodeVisual,
 } from "./tree";
 
-/**
- * On the page, forests at or below this size label every agent; larger ones label
- * roots and live agents. The home tile labels live agents only.
- */
-const LABEL_ALL_MAX = 30;
 const THEME = ["--sage", "--sage-deep", "--ink-faint", "--bone"] as const;
 
 /** Resolved theme colors the agent scene draws with. */
@@ -52,7 +47,10 @@ type AgentTheme = Record<(typeof THEME)[number], string>;
 export type AgentGraph3DProps = {
   /** Changes on each arrival at the page; resets the simulation and open details. */
   entranceKey: string;
-  /** Page mode: orbit, hover details, click to focus and open chat. Off for the home tile. */
+  /**
+   * Page mode: orbit, hover details, click to focus and open chat, and a label on every
+   * agent. Off for the home tile, which labels live agents only.
+   */
   interactive: boolean;
   /** Agent to focus (and open in chat) on each arrival at the page, e.g. one picked on the home tile. */
   focusOnEntry: string | null;
@@ -156,12 +154,7 @@ export function AgentGraph3D({
     () =>
       new Set(
         graph.nodes
-          .filter((n) => {
-            if (isLiveVisual(visualState(n, runningMap[n.id]))) {
-              return true;
-            }
-            return interactive && (graph.nodes.length <= LABEL_ALL_MAX || n.depth === 0);
-          })
+          .filter((n) => interactive || isLiveVisual(visualState(n, runningMap[n.id])))
           .map((n) => n.id),
       ),
     [graph.nodes, runningMap, interactive],
