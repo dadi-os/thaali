@@ -2,6 +2,7 @@
 
 import { isTauriRuntime } from "../api/runtime";
 import { loadCredentials } from "../api/credentials";
+import { openAgent } from "../../store/chat";
 
 /** Typed failure returned to Dimaag as a command error. */
 export class DeviceError extends Error {
@@ -22,7 +23,8 @@ export type HathLocalTool =
   | "hath_get_network"
   | "hath_read_clipboard"
   | "hath_write_clipboard"
-  | "hath_send_file";
+  | "hath_send_file"
+  | "hath_open_chat";
 
 /** Run one hath_* tool against the local device; failures surface as DeviceError. */
 export async function executeHathTool(
@@ -55,6 +57,11 @@ export async function executeHathTool(
         media_type: requireString(args, "media_type"),
         data: requireString(args, "data"),
       });
+    case "hath_open_chat": {
+      const agentId = requireString(args, "agent_id");
+      openAgent(agentId);
+      return { opened: agentId };
+    }
     default: {
       const _exhaustive: never = tool;
       throw new DeviceError("invalid_request", `unknown tool ${_exhaustive}`);

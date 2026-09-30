@@ -22,6 +22,7 @@ const HATH_TOOLS = new Set<string>([
   "hath_read_clipboard",
   "hath_write_clipboard",
   "hath_send_file",
+  "hath_open_chat",
 ]);
 
 function isHathCommand(data: unknown): data is {

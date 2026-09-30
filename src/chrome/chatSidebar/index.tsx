@@ -18,7 +18,8 @@ import {
 } from "../../features/agents/sessions";
 import { useConnection } from "../../hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../hooks/useEvents";
-import { isMeshOnline } from "../../shared/api";
+import { isMeshOnline, usingTsnet } from "../../shared/api";
+import { loadCredentials } from "../../shared/api/credentials";
 import {
   addOptimistic,
   clearLiveChat,
@@ -484,7 +485,7 @@ export function ChatSidebar({
     });
   };
 
-  /** Speak to the router; show every message it sent as you, then open the thread it handed off to last. */
+  /** Hand a message to Dadi: it vanishes here, the router sends it on as you, and the router opens the chat it landed in. */
   const sendDadi = async (
     content: string,
     attachments?: MessageAttachment[],
@@ -507,10 +508,12 @@ export function ChatSidebar({
       textareaRef.current?.focus();
     });
     try {
+      const credentials = usingTsnet ? await loadCredentials() : null;
       const res = await dimaag.postRouter({
         content: trimmed,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
+        node_name: credentials?.node_name,
       });
       clearDraftAttachments();
       void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
@@ -521,10 +524,6 @@ export function ChatSidebar({
           content: sent.content,
           at: sent.created_at,
         });
-      }
-      const last = res.messages[res.messages.length - 1];
-      if (last) {
-        openAgent(last.to_agent_id);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
