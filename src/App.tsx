@@ -28,11 +28,6 @@ function AppRoutes() {
       <Routes>
         <Route element={<AppShell />}>
           <Route index element={null} />
-          <Route path="memory" element={<MemoryPage />} />
-          <Route path="timeline" element={<TimelinePage />} />
-          <Route path="ghar" element={<GharPage />} />
-          <Route path="chaavi" element={<ChaaviPage />} />
-          <Route path="system" element={<SystemPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>

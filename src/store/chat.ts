@@ -1,9 +1,4 @@
-import type {
-  DurableMessage,
-  MessageAttachment,
-  RoutedMessage,
-  ThreadSummary,
-} from "../shared/api/types";
+import type { DurableMessage, MessageAttachment, ThreadSummary } from "../shared/api/types";
 
 export type { MessageAttachment };
 
@@ -46,24 +41,8 @@ export type Conversation = {
 
 export type ChatOpen =
   | { kind: "list" }
-  | { kind: "router" }
+  | { kind: "dadi" }
   | { kind: "agent"; agentId: string };
-
-/**
- * One utterance to the router this session. The router never answers: what it
- * produces is the messages it sent as you, each landing in an agent's thread.
- */
-export type RouterRun = {
-  id: string;
-  /** What you said, as shown (attachment placeholders included). */
-  content: string;
-  at: string;
-  status: "routing" | "sent" | "failed";
-  /** Messages the router sent as you, in order. Empty until it yields. */
-  sent: RoutedMessage[];
-  /** Server message when the run failed. */
-  error: string | null;
-};
 
 export type HistoryStatus = "idle" | "loading" | "ready" | "error";
 
@@ -75,8 +54,6 @@ type ChatState = {
   open: ChatOpen;
   historyStatus: HistoryStatus;
   historyError: string | null;
-  /** Router runs this session, oldest first. The router is ephemeral: nothing on the server holds them. */
-  routerRuns: RouterRun[];
 };
 
 type Listener = (state: ChatState) => void;
@@ -87,7 +64,6 @@ let state: ChatState = {
   open: { kind: "list" },
   historyStatus: "idle",
   historyError: null,
-  routerRuns: [],
 };
 const listeners = new Set<Listener>();
 let nextTempSeq = -1;
@@ -191,55 +167,12 @@ export function openAgent(agentId: string): void {
   emit();
 }
 
-/** Open the router: its composer and this session's runs (not an agent thread). */
-export function openRouter(): void {
-  if (state.open.kind === "router") {
+/** Open the Talk to Dadi composer (not an agent thread). */
+export function openDadi(): void {
+  if (state.open.kind === "dadi") {
     return;
   }
-  state = { ...state, open: { kind: "router" } };
-  emit();
-}
-
-/** Record an utterance headed to POST /router; returns the run id. */
-export function startRouterRun(content: string): string {
-  const run: RouterRun = {
-    id: crypto.randomUUID(),
-    content,
-    at: new Date().toISOString(),
-    status: "routing",
-    sent: [],
-    error: null,
-  };
-  state = { ...state, routerRuns: [...state.routerRuns, run] };
-  emit();
-  return run.id;
-}
-
-/** The router yielded: attach every message it sent as you. */
-export function finishRouterRun(id: string, sent: RoutedMessage[]): void {
-  updateRouterRun(id, { status: "sent", sent });
-}
-
-/** POST /router failed; the run keeps the server message. */
-export function failRouterRun(id: string, error: string): void {
-  updateRouterRun(id, { status: "failed", error });
-}
-
-/** Take the runs off the router screen. */
-export function clearRouterRuns(): void {
-  if (state.routerRuns.length === 0) {
-    return;
-  }
-  state = { ...state, routerRuns: [] };
-  emit();
-}
-
-/** Patch one run by id and notify subscribers. */
-function updateRouterRun(id: string, patch: Partial<RouterRun>): void {
-  state = {
-    ...state,
-    routerRuns: state.routerRuns.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-  };
+  state = { ...state, open: { kind: "dadi" } };
   emit();
 }
 
@@ -284,7 +217,6 @@ export function resetChatStore(): void {
     open: { kind: "list" },
     historyStatus: "idle",
     historyError: null,
-    routerRuns: [],
   };
   emit();
 }

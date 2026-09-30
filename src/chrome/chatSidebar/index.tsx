@@ -29,24 +29,21 @@ import {
   listQueuedThread,
   markFailed,
   markPending,
-  failRouterRun,
-  finishRouterRun,
   openAgent,
+  openDadi,
   openList,
-  openRouter,
   removeMessage,
   resolveOptimistic,
   setHistoryState,
-  startRouterRun,
   subscribeChat,
   type MessageAttachment,
 } from "../../store/chat";
-import { ROUTER_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
+import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
 import {
   getRunning,
-  isRouterBusy,
+  isDadiBusy,
   seedRunningFromAgents,
-  setRouterBusy,
+  setDadiBusy,
   subscribeRunning,
 } from "../../store/running";
 import {
@@ -68,9 +65,9 @@ import {
   TEXTAREA_MAX_PX,
   THREAD_REFRESH_MS,
 } from "./constants";
+import { DadiHome, type DadiRouting } from "./DadiHome";
 import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
-import { RouterView } from "./RouterView";
 import { ThreadView } from "./thread";
 import { laneChipLabel } from "./toolStatus";
 
@@ -80,23 +77,30 @@ export interface ChatSidebarProps {
   className?: string;
   /**
    * `rail` — desktop ChatGPT-style dark list ↔ thread.
-   * `mobile` — router or one thread; the sidebar lives in the mobile shell.
+   * `mobile` — main thread + optional list drawer controlled outside.
    */
   variant?: "rail" | "mobile";
+  /** Mobile: whether the conversation drawer is open. */
+  drawerOpen?: boolean;
+  /** Mobile: close the conversation drawer. */
+  onDrawerClose?: () => void;
+  /** Mobile: open the conversation drawer (e.g. from empty-state control). */
+  onDrawerOpen?: () => void;
 }
 
 /**
  * Conversation list + thread views. Live messages arrive via SSE; history is
  * loaded from durable Dimaag `GET /threads` and `GET /agents/:id/messages`.
- * The router pane is a composer onto POST /router plus this session's runs.
- * On mobile the router is home: an idle list view shows it.
+ * Talk to Dadi is a composer onto POST /router.
  */
 export function ChatSidebar({
   sessionKey,
   className,
   variant = "rail",
+  drawerOpen = false,
+  onDrawerClose,
+  onDrawerOpen,
 }: ChatSidebarProps) {
-  const isMobile = variant === "mobile";
   const queryClient = useQueryClient();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
@@ -116,6 +120,10 @@ export function ChatSidebar({
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const stickToBottomRef = useRef(true);
   const [keyboardInset, setKeyboardInset] = useState(0);
+  /** Talk to Dadi send in flight: the text being routed, until a thread opens. */
+  const [routing, setRouting] = useState<DadiRouting | null>(null);
+  /** Server message from the last failed Talk to Dadi send. */
+  const [routeError, setRouteError] = useState<string | null>(null);
   /** First history fetch outcome per open thread; the empty state waits on it. */
   const [threadLoad, setThreadLoad] = useState<{
     agentId: string;
@@ -125,7 +133,7 @@ export function ChatSidebar({
   const [composerHeight, setComposerHeight] = useState(0);
   const refreshThreadRef = useRef<(() => void) | null>(null);
 
-  const routerBusy = isRouterBusy();
+  const dadiBusy = isDadiBusy();
 
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
@@ -155,14 +163,13 @@ export function ChatSidebar({
   useEffect(() => {
     if (connection === "disconnected") {
       clearLiveChat();
-      setRouterBusy(false);
+      setDadiBusy(false);
     }
   }, [connection]);
 
   const openAgentId =
     chat.open.kind === "agent" ? chat.open.agentId : null;
-  const viewingRouter =
-    chat.open.kind === "router" || (isMobile && chat.open.kind === "list");
+  const viewingDadi = chat.open.kind === "dadi";
   const viewingThread = chat.open.kind === "agent";
   const openConversation = chat.conversations.find(
     (c) => c.agent_id === openAgentId,
@@ -171,12 +178,15 @@ export function ChatSidebar({
     ? (chat.threads[openAgentId] ?? [])
     : [];
 
-  const draftKey = openAgentId ?? ROUTER_DRAFT_KEY;
+  const draftKey = openAgentId ?? DADI_DRAFT_KEY;
   const draftKeyRef = useRef(draftKey);
   const [draft, setDraftText] = useState(() => loadDraft(draftKey));
   const setDraft = (text: string) => {
     setDraftText(text);
     saveDraft(draftKeyRef.current, text);
+    if (routeError) {
+      setRouteError(null);
+    }
   };
   useLayoutEffect(() => {
     if (draftKeyRef.current === draftKey) {
@@ -193,7 +203,7 @@ export function ChatSidebar({
   const conversationBusy =
     viewingThread && openAgentId
       ? running[openAgentId]?.conversation === true
-      : routerBusy;
+      : dadiBusy;
   const reasoningBusy =
     viewingThread && openAgentId
       ? running[openAgentId]?.reasoning === true
@@ -474,12 +484,8 @@ export function ChatSidebar({
     });
   };
 
-  /**
-   * Speak to the router. Its run records every message it sent as you; the
-   * rail then opens the thread it handed off to last, while mobile stays on
-   * the router so replies come back under each message.
-   */
-  const sendRouter = async (
+  /** Speak to the router; show every message it sent as you, then open the thread it handed off to last. */
+  const sendDadi = async (
     content: string,
     attachments?: MessageAttachment[],
   ) => {
@@ -487,16 +493,16 @@ export function ChatSidebar({
     if (
       (!trimmed && (!attachments || attachments.length === 0)) ||
       !connected ||
-      routerBusy
+      dadiBusy
     ) {
       return;
     }
     const savedDraft = draft;
     const savedAttachments = draftAttachments;
-    const runId = startRouterRun(formatOutboundContent(trimmed, attachments));
     setDraft("");
-    setRouterBusy(true);
-    stickToBottomRef.current = true;
+    setRouteError(null);
+    setRouting({ text: trimmed, attachments: attachments?.length ?? 0 });
+    setDadiBusy(true);
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
@@ -516,22 +522,22 @@ export function ChatSidebar({
           at: sent.created_at,
         });
       }
-      finishRouterRun(runId, res.messages);
       const last = res.messages[res.messages.length - 1];
-      if (last && !isMobile) {
+      if (last) {
         openAgent(last.to_agent_id);
       }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
-      failRouterRun(runId, message);
-      saveDraft(ROUTER_DRAFT_KEY, savedDraft);
-      if (draftKeyRef.current === ROUTER_DRAFT_KEY) {
+      saveDraft(DADI_DRAFT_KEY, savedDraft);
+      if (draftKeyRef.current === DADI_DRAFT_KEY) {
         setDraftText(savedDraft);
         setDraftAttachments(savedAttachments);
+        setRouteError(message);
       }
-      logLine("error", message, "router_send_failed");
+      logLine("error", message, "dadi_send_failed");
     } finally {
-      setRouterBusy(false);
+      setRouting(null);
+      setDadiBusy(false);
     }
   };
 
@@ -545,7 +551,7 @@ export function ChatSidebar({
       void sendThread(openAgentId, draft, undefined, attachments);
       return;
     }
-    void sendRouter(draft, attachments);
+    void sendDadi(draft, attachments);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -555,35 +561,43 @@ export function ChatSidebar({
     }
   };
 
+  const isMobile = variant === "mobile";
+
   const backToList = () => {
     openList();
     clearDraftAttachments();
+    setRouteError(null);
   };
 
-  const openRouterPane = () => {
+  const startNewChat = () => {
     clearDraftAttachments();
-    openRouter();
+    setRouteError(null);
+    openDadi();
+    onDrawerClose?.();
+  };
+
+  const selectAgent = (agentId: string) => {
+    openAgent(agentId);
+    onDrawerClose?.();
   };
 
   const headerTitle = viewingThread
     ? (openConversation?.agent_name ??
       agentsQuery.data?.find((a) => a.id === openAgentId)?.name ??
       "Chat")
-    : "router";
+    : "Dadi";
 
   const placeholder = !connected
-    ? viewingRouter
-      ? "Connect to message the router"
-      : "Connect to message this agent"
-    : viewingRouter
-      ? "Message the router"
+    ? "Connect to message Dadi"
+    : viewingDadi
+      ? "Message Dadi…"
       : conversationBusy
         ? `Thinking…`
         : `Message agent`;
 
   const canSubmit =
     connected &&
-    !(viewingRouter && routerBusy) &&
+    !dadiBusy &&
     (draft.trim().length > 0 || draftAttachments.length > 0);
   const composerPad = composerHeight + COMPOSER_GAP;
 
@@ -614,13 +628,16 @@ export function ChatSidebar({
   const showHostPin =
     viewingThread && (liveBrowserId !== null || liveTerminal !== null);
 
-  const showComposer = viewingThread || viewingRouter;
+  const showListInDrawer = isMobile;
+  const showComposer = isMobile || viewingThread || viewingDadi;
 
   const paneKey = viewingThread
     ? `agent:${openAgentId ?? ""}`
-    : viewingRouter
-      ? "router"
-      : "list";
+    : viewingDadi
+      ? "dadi"
+      : isMobile
+        ? "mobile-empty"
+        : "list";
 
   const reducedMotion =
     typeof window !== "undefined" &&
@@ -635,14 +652,14 @@ export function ChatSidebar({
     selectedAgentId: openAgentId,
     historyStatus: chat.historyStatus,
     historyError: chat.historyError,
-    onOpenAgent: openAgent,
+    onOpenAgent: isMobile ? selectAgent : openAgent,
     onDismissKeyboard: dismissKeyboard,
-    router: {
+    dadi: {
       available: connected,
-      selected: viewingRouter,
-      preview: chat.routerRuns[chat.routerRuns.length - 1]?.content ?? null,
-      busy: routerBusy,
-      onOpen: openRouterPane,
+      selected: viewingDadi,
+      preview: null as string | null,
+      busy: dadiBusy,
+      onOpen: startNewChat,
     },
   };
 
@@ -669,7 +686,7 @@ export function ChatSidebar({
               <ConversationList {...listProps} />
             ) : null}
 
-            {paneKey === "router" ? (
+            {paneKey === "dadi" ? (
               <>
                 {!isMobile ? (
                   <div className="relative z-10 flex h-12 shrink-0 items-center gap-2 border-b border-(--chat-edge) px-3">
@@ -702,12 +719,10 @@ export function ChatSidebar({
                   </div>
                 ) : null}
                 <div className="relative min-h-0 flex-1">
-                  <RouterView
-                    runs={chat.routerRuns}
-                    threads={chat.threads}
-                    running={running}
+                  <DadiHome
                     composerPad={composerPad}
-                    onOpenAgent={openAgent}
+                    routing={routing}
+                    error={routeError}
                   />
                 </div>
               </>
@@ -793,6 +808,34 @@ export function ChatSidebar({
               </>
             ) : null}
 
+            {paneKey === "mobile-empty" && (routing || routeError) ? (
+              <DadiHome
+                composerPad={composerPad}
+                routing={routing}
+                error={routeError}
+              />
+            ) : null}
+
+            {paneKey === "mobile-empty" && !routing && !routeError ? (
+              <div
+                className="absolute inset-0 flex flex-col items-center justify-center px-8"
+                style={{ paddingBottom: composerPad }}
+              >
+                <span className="font-gujarati text-[42px] leading-none text-sage-text">
+                  દાદી
+                </span>
+                <p className="mt-4 max-w-65 text-center text-[14px] leading-relaxed text-ink-muted">
+                  Talk to Dadi about anything
+                </p>
+                <button
+                  type="button"
+                  onClick={() => onDrawerOpen?.()}
+                  className="mt-6 text-[11px] font-medium tracking-[2px] text-sage-deep"
+                >
+                  PREVIOUS CHATS
+                </button>
+              </div>
+            ) : null}
           </motion.div>
         </AnimatePresence>
 
@@ -816,13 +859,45 @@ export function ChatSidebar({
               onPickFiles={onPickFiles}
               onSubmit={onSubmit}
               onKeyDown={onKeyDown}
-              autoFocus={viewingRouter && !isMobile}
+              autoFocus={viewingDadi}
               onHeight={setComposerHeight}
             />
           ) : null}
         </AnimatePresence>
       </div>
 
+      {showListInDrawer ? (
+        <AnimatePresence>
+          {drawerOpen ? (
+            <motion.button
+              key="drawer-scrim"
+              type="button"
+              aria-label="Close sidebar"
+              className="absolute inset-0 z-30 bg-ink/25"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: SLOW_S, ease: EASE }}
+              onClick={() => onDrawerClose?.()}
+            />
+          ) : null}
+          {drawerOpen ? (
+            <motion.div
+              key="drawer-panel"
+              className="chat-rail absolute inset-y-0 left-0 z-40 flex w-[min(100%,300px)] flex-col overflow-hidden rounded-r-2xl"
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ duration: SLOW_S, ease: EASE }}
+            >
+              <div className="h-2 shrink-0" aria-hidden />
+              <div className="relative min-h-0 flex-1">
+                <ConversationList {...listProps} />
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      ) : null}
     </aside>
   );
 }

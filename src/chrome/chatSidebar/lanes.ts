@@ -39,23 +39,3 @@ export function trackIncoming(
     }
   }
 }
-
-/**
- * Agent replies that follow a routed message (by its seq) in that agent's
- * thread, up to your next message there. Empty until the routed message is in
- * the thread.
- */
-export function repliesTo(thread: ChatMessage[], seq: number): ChatMessage[] {
-  const start = thread.findIndex((m) => m.from_user && m.seq === seq);
-  if (start < 0) {
-    return [];
-  }
-  const replies: ChatMessage[] = [];
-  for (const m of thread.slice(start + 1)) {
-    if (m.from_user) {
-      break;
-    }
-    replies.push(m);
-  }
-  return replies;
-}

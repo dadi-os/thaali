@@ -5,7 +5,7 @@ export type RunningMap = Record<string, { reasoning: boolean; conversation: bool
 type Listener = (running: RunningMap) => void;
 
 let running: RunningMap = {};
-let routerBusy = false;
+let dadiBusy = false;
 const listeners = new Set<Listener>();
 
 function emit(): void {
@@ -72,16 +72,16 @@ export function setLaneRunning(
 }
 
 /** True while POST /router is running. */
-export function isRouterBusy(): boolean {
-  return routerBusy;
+export function isDadiBusy(): boolean {
+  return dadiBusy;
 }
 
 /** Set from SSE `router_started` / `router_finished` / `router_failed`. */
-export function setRouterBusy(next: boolean): void {
-  if (routerBusy === next) {
+export function setDadiBusy(next: boolean): void {
+  if (dadiBusy === next) {
     return;
   }
-  routerBusy = next;
+  dadiBusy = next;
   running = { ...running };
   emit();
 }

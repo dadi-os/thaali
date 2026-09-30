@@ -2,7 +2,6 @@ import type { ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import { IconBack, IconButton } from "../shared/components/IconButton";
 import { Tooltip } from "../shared/components/Tooltip";
-import { useTarget } from "../hooks/useTarget";
 
 export type PageHeaderProps = {
   title: string;
@@ -14,28 +13,24 @@ export type PageHeaderProps = {
 /**
  * Shared sub-header for full pages under AppShell. Same back control, type,
  * hint, and padding on every route — keep actions in `trailing`, not stacked
- * under the title. On mobile the shell's header owns navigation, so there is
- * no back control.
+ * under the title.
  */
 export function PageHeader({ title, hint, trailing }: PageHeaderProps) {
   const navigate = useNavigate();
-  const isMobile = useTarget() === "mobile";
 
   return (
     <div className="mb-3 flex shrink-0 items-center gap-3 px-1">
-      {isMobile ? null : (
-        <Tooltip content="Back home">
-          <span className="pointer-events-auto inline-flex">
-            <IconButton
-              label="Back home"
-              size="sm"
-              onClick={() => navigate("/")}
-            >
-              <IconBack />
-            </IconButton>
-          </span>
-        </Tooltip>
-      )}
+      <Tooltip content="Back home">
+        <span className="pointer-events-auto inline-flex">
+          <IconButton
+            label="Back home"
+            size="sm"
+            onClick={() => navigate("/")}
+          >
+            <IconBack />
+          </IconButton>
+        </span>
+      </Tooltip>
       <div className="min-w-0 flex-1">
         <span className="text-[11px] font-medium tracking-[2.5px] text-sage-deep">
           {title}

@@ -41,7 +41,7 @@ export interface FloatingComposerProps {
   onPickFiles: (files: FileList | null) => void;
   onSubmit: (e: FormEvent) => void;
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
-  /** Focus the field once this composer mounts (the router). */
+  /** Focus the field once this composer mounts (Talk to Dadi). */
   autoFocus?: boolean;
   /** Reports the composer's rendered height as it grows or shrinks. */
   onHeight: (px: number) => void;
@@ -111,7 +111,7 @@ export function FloatingComposer({
   }, [autoFocus, textareaRef]);
 
   const attachDisabled = !connected;
-  const status = !connected ? "Not connected to dadiMesh" : null;
+  const status = !connected ? "Connect to message agent" : null;
 
   return (
     <motion.div
@@ -247,7 +247,7 @@ export function FloatingComposer({
             onKeyDown={onKeyDown}
             rows={1}
             disabled={!connected}
-            placeholder={placeholder}
+            placeholder={connected ? placeholder : "Connect to message agent"}
             className={`block max-h-[160px] min-h-[40px] w-full flex-1 resize-none overflow-y-auto bg-transparent px-1 py-2.5 text-[15px] leading-snug outline-none placeholder:text-ink-ghost disabled:cursor-default ${
               thinkingMode ? "text-ink/70" : "text-ink"
             }`}

@@ -1,13 +1,13 @@
 /**
  * Per-conversation composer drafts, kept on this device only (localStorage).
- * Keyed by agent id, or `router` for the router composer. Text only —
+ * Keyed by agent id, or `dadi` for the Talk to Dadi composer. Text only —
  * attachments are object URLs and do not survive a reload.
  */
 
 const PREFIX = "hath.draft.";
 
-/** Draft slot for the router composer. */
-export const ROUTER_DRAFT_KEY = "router";
+/** Draft slot for the Talk to Dadi composer. */
+export const DADI_DRAFT_KEY = "dadi";
 
 /** Saved draft for a conversation; "" when nothing is saved for it. */
 export function loadDraft(key: string): string {

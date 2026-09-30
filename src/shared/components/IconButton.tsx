@@ -260,16 +260,3 @@ export function IconUpdate() {
     </svg>
   );
 }
-
-/** Fork glyph for the router: one input, several owners (24 viewBox; sized by parent). */
-export function IconRouter() {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M4 12h6" />
-      <path d="M10 12c3 0 4-5 7-5h3" />
-      <path d="M10 12c3 0 4 5 7 5h3" />
-      <path d="m18 5 2 2-2 2" />
-      <path d="m18 15 2 2-2 2" />
-    </svg>
-  );
-}
