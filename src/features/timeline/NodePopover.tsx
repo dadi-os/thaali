@@ -7,7 +7,6 @@ import type {
   DeleteNodeResponse,
   EdgeRecord,
   NodeRecord,
-  NodeResponse,
   PatchNodeRequest,
   PlanDetail,
   PlanStatus,
@@ -17,7 +16,7 @@ import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { REVEAL } from "../../shared/lib/ux/motion";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
-import { KIND_TOKEN } from "../memory/graph";
+import { KIND_ORDER, KIND_TOKEN } from "../memory/graph";
 import { SOURCE_LABEL } from "../memory/MemoryPopover";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
 
@@ -94,7 +93,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
   const connections = neighborsQuery.data ? connectionsOf(nodeId, neighborsQuery.data) : [];
   const listed = showAll ? connections : connections.slice(0, CONNECTIONS_SHOWN);
   const folded = connections.length - listed.length;
-  const plan = node?.kind === "plan" ? (node.detail as PlanDetail | null) : null;
+  const plan = node?.kind === "plan" ? (node.detail as PlanDetail) : null;
   const mutationError = patch.error ?? remove.error;
 
   const saveTitle = () => {
@@ -173,7 +172,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {node.occurred_at ? (
               <div className="mb-3 flex items-baseline justify-between gap-3">
-                <span className="text-[13px] text-ink">{whenOf(node)}</span>
+                <span className="text-[13px] text-ink">{whenOf(node.occurred_at, plan ? plan.end_at : null)}</span>
                 <Tooltip content={formatAbsolute(node.occurred_at)}>
                   <span className="shrink-0 text-[12px] text-ink-ghost">{formatRelative(node.occurred_at)}</span>
                 </Tooltip>
@@ -284,7 +283,6 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
 /** Every neighbor of `nodeId` in a seeded `/graph` response, people first, then by title. */
 function connectionsOf(nodeId: string, graph: { nodes: NodeRecord[]; edges: EdgeRecord[] }): Connection[] {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
-  const order = { person: 0, place: 1, plan: 2, memory: 3 } as const;
   return graph.edges
     .flatMap((edge) =>
       edge.src_id === nodeId
@@ -293,13 +291,11 @@ function connectionsOf(nodeId: string, graph: { nodes: NodeRecord[]; edges: Edge
           ? [{ edge, node: byId.get(edge.src_id)!, outgoing: false }]
           : [],
     )
-    .sort((a, b) => order[a.node.kind] - order[b.node.kind] || a.node.title.localeCompare(b.node.title));
+    .sort((a, b) => KIND_ORDER[a.node.kind] - KIND_ORDER[b.node.kind] || a.node.title.localeCompare(b.node.title));
 }
 
-/** When a node is, e.g. "Fri, Oct 3 · 1:00 PM – 2:30 PM"; plans add their end. */
-function whenOf(node: NodeResponse): string {
-  const start = node.occurred_at!;
-  const end = node.kind === "plan" ? (node.detail as PlanDetail | null)?.end_at : null;
+/** When something is, e.g. "Fri, Oct 3 · 1:00 PM – 2:30 PM"; `end` is a plan's end, if any. */
+function whenOf(start: string, end: string | null): string {
   const startDay = formatDayShort(new Date(start));
   if (!end || end === start) {
     return `${startDay} · ${formatTime(start)}`;

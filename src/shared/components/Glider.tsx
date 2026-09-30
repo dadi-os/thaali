@@ -41,7 +41,7 @@ export function Glider<T extends string>({ options, value, onChange, label, size
         const on = value === opt.value;
         return (
           <button
-            key={opt.value || "all"}
+            key={opt.value}
             type="button"
             role="radio"
             aria-checked={on}

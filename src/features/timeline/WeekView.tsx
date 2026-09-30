@@ -10,7 +10,6 @@ import {
   planStartsOn,
   spanOf,
   statusClass,
-  statusOf,
   type PendingAdd,
   type PlanNode,
 } from "./plans";
@@ -200,7 +199,7 @@ function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.98 }}
       onClick={(e) => onOpen(plan.id, e.currentTarget)}
-      className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-hath hover:shadow-[var(--shadow)] ${statusClass(statusOf(plan))}`}
+      className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-hath hover:shadow-[var(--shadow)] ${statusClass(plan.detail.status)}`}
     >
       {planStartsOn(plan, day) ? (
         <span className="mb-0.5 flex items-center gap-1 text-[10px] opacity-70">

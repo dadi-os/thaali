@@ -4,7 +4,7 @@ import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, isSameDay, isSameMonth } from "./dates";
 import { BreathRing, FreshGlow } from "./markers";
-import { memoriesOn, plansOn, statusClass, statusOf, type PlanNode } from "./plans";
+import { memoriesOn, plansOn, statusClass, type PlanNode } from "./plans";
 
 /** Delay per diagonal step as the grid washes in from the top-left. */
 const WAVE_STEP_S = 0.018;
@@ -150,7 +150,7 @@ export function MonthView({
                       initial={{ opacity: 0, x: -3 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: SLOW_S, ease: EASE, delay: delay + 0.08 + j * 0.03 }}
-                      className={`relative truncate rounded-[3px] px-1 py-0.5 text-[9px] leading-tight ${statusClass(statusOf(p))}`}
+                      className={`relative truncate rounded-[3px] px-1 py-0.5 text-[9px] leading-tight ${statusClass(p.detail.status)}`}
                     >
                       {p.title}
                       {fresh.has(p.id) ? <FreshGlow radius="rounded-[3px]" /> : null}

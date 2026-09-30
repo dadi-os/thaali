@@ -1,27 +1,24 @@
 /** Plan and dated-node helpers shared by the timeline views and popovers. */
 
-import type { NodeDetail, NodeRecord, PlanDetail, PlanStatus } from "../../shared/api/types";
+import type { NodeRecord, PlanDetail, PlanStatus } from "../../shared/api/types";
 import type { PopoverAnchor } from "../../shared/components/Popover";
 import { endOfDay, isSameDay, startOfDay } from "./dates";
 
 /** Yaad plan node with its plan detail. */
-export type PlanNode = NodeRecord & { detail: PlanDetail | null };
+export type PlanNode = NodeRecord & { detail: PlanDetail };
 
-/** A dated Yaad node shown on the timeline: a plan, or a memory of something that happened. */
-export type TimelineNode = NodeRecord & { detail: NodeDetail };
-
-/** Narrow a queried node to a plan; null for other kinds. */
+/**
+ * Narrow a queried node to a plan; null for other kinds.
+ * @throws When a plan comes back without its plan detail, which Yaad always stores.
+ */
 export function asPlan(node: NodeRecord & { detail: unknown }): PlanNode | null {
   if (node.kind !== "plan") {
     return null;
   }
-  const detail = node.detail as PlanDetail | null;
-  return { ...node, detail };
-}
-
-/** Plan lifecycle status; a plan stored without detail reads as confirmed. */
-export function statusOf(plan: PlanNode): PlanStatus {
-  return plan.detail?.status ?? "confirmed";
+  if (node.detail === null) {
+    throw new Error(`plan ${node.id} came back without plan detail`);
+  }
+  return { ...node, detail: node.detail as PlanDetail };
 }
 
 /** Plan start and end; a plan without `end_at` is a moment at its start. */
@@ -30,7 +27,7 @@ export function spanOf(plan: PlanNode): { start: Date; end: Date } | null {
     return null;
   }
   const start = new Date(plan.occurred_at);
-  const end = plan.detail?.end_at ? new Date(plan.detail.end_at) : start;
+  const end = plan.detail.end_at ? new Date(plan.detail.end_at) : start;
   return { start, end };
 }
 
@@ -55,14 +52,14 @@ export function planOverlapsDay(plan: PlanNode, day: Date): boolean {
 export function plansOn(plans: PlanNode[], day: Date): PlanNode[] {
   return plans
     .filter((p) => planOverlapsDay(p, day))
-    .sort((a, b) => (a.occurred_at ?? "").localeCompare(b.occurred_at ?? ""));
+    .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
 }
 
 /** Memories that happened on `day`, earliest first. */
 export function memoriesOn(memories: NodeRecord[], day: Date): NodeRecord[] {
   return memories
     .filter((m) => m.occurred_at !== null && isSameDay(new Date(m.occurred_at), day))
-    .sort((a, b) => (a.occurred_at ?? "").localeCompare(b.occurred_at ?? ""));
+    .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
 }
 
 /** Chip classes per status: solid confirmed, dashed tentative, ghosted idea. */

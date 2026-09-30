@@ -15,10 +15,7 @@ import {
   endOfMonth,
   formatDayLong,
   formatMonthTitle,
-  formatTime,
-  formatUntil,
   formatWeekTitle,
-  isSameDay,
   monthGridDays,
   startOfDay,
   startOfMonth,
@@ -27,20 +24,13 @@ import {
   weekDays,
   weekdayLabels,
 } from "./dates";
-import { BreathRing, LiveDot } from "./markers";
 import { MonthView } from "./MonthView";
+import { NextUp } from "./NextUp";
 import { NodePopover } from "./NodePopover";
-import {
-  anchorOf,
-  asPlan,
-  plansOn,
-  planStartsOn,
-  spanOf,
-  statusOf,
-  type PendingAdd,
-  type PlanNode,
-} from "./plans";
+import { anchorOf, asPlan, type PendingAdd, type PlanNode } from "./plans";
 import { QuickAdd } from "./QuickAdd";
+import { RibbonView } from "./RibbonView";
+import { SomedayRail } from "./SomedayRail";
 import { WeekView } from "./WeekView";
 
 export type TimelineView = "week" | "month";
@@ -66,8 +56,6 @@ const TICK_MS = 30_000;
 const FRESH_MS = 4_000;
 /** How long a success notice stays; errors stay until dismissed. */
 const NOTICE_MS = 6_000;
-/** How far ahead the Next up pill looks. */
-const NEXT_WINDOW_DAYS = 14;
 
 /**
  * Page motion: pages slide the way time moved (`1` later, `-1` earlier) and a view
@@ -108,13 +96,13 @@ function describeIngest(result: IngestResponse): string {
 /**
  * Week / month calendar of Yaad plans and memories. Full mode pages with motion, keeps
  * a live now marker and Next up countdown, opens any entry for editing, and quick-adds
- * free text through Yaad ingest. Preview is a compact current-week ribbon.
+ * free text through Yaad ingest. Preview is the compact current-week `RibbonView`.
  */
 export function TimelineCalendar({
   mode,
   view: viewProp,
   onViewChange,
-  className,
+  className = "",
   hideIdeas = mode === "preview",
 }: TimelineCalendarProps) {
   const { state: connection } = useConnection();
@@ -170,7 +158,7 @@ export function TimelineCalendar({
       return nodes
         .map(asPlan)
         .filter((n): n is PlanNode => n !== null)
-        .filter((n) => statusOf(n) !== "idea");
+        .filter((n) => n.detail.status !== "idea");
     },
     enabled: connected,
     refetchInterval: POLL_MS,
@@ -188,38 +176,6 @@ export function TimelineCalendar({
       return nodes;
     },
     enabled: connected && !preview,
-    refetchInterval: POLL_MS,
-  });
-
-  const hour = new Date(now);
-  hour.setMinutes(0, 0, 0);
-  const nextQuery = useQuery({
-    queryKey: ["yaad", "plans", "next", hour.toISOString()],
-    queryFn: async () => {
-      const { nodes } = await yaad.query({
-        kind: "plan",
-        ...toIsoBounds(hour, addDays(hour, NEXT_WINDOW_DAYS)),
-        limit: 200,
-      });
-      return nodes
-        .map(asPlan)
-        .filter((n): n is PlanNode => n !== null)
-        .filter((n) => statusOf(n) !== "idea");
-    },
-    enabled: connected && !preview,
-    refetchInterval: POLL_MS,
-  });
-
-  const ideasQuery = useQuery({
-    queryKey: ["yaad", "plans", "ideas"],
-    queryFn: async () => {
-      const { nodes } = await yaad.query({
-        status: "idea",
-        limit: 50,
-      });
-      return nodes.map(asPlan).filter((n): n is PlanNode => n !== null);
-    },
-    enabled: connected && !hideIdeas,
     refetchInterval: POLL_MS,
   });
 
@@ -260,22 +216,6 @@ export function TimelineCalendar({
   const memories = memoriesQuery.data ?? [];
   const labels = weekdayLabels();
 
-  const next = useMemo(() => {
-    const t = now.getTime();
-    const spans = (nextQuery.data ?? []).flatMap((plan) => {
-      const span = spanOf(plan);
-      return span ? [{ plan, ...span }] : [];
-    });
-    const ongoing = spans.find((s) => s.start.getTime() <= t && t < s.end.getTime());
-    if (ongoing) {
-      return { ...ongoing, ongoing: true };
-    }
-    const upcoming = spans
-      .filter((s) => s.start.getTime() > t)
-      .sort((a, b) => a.start.getTime() - b.start.getTime())[0];
-    return upcoming ? { ...upcoming, ongoing: false } : null;
-  }, [nextQuery.data, now]);
-
   const page = (step: 1 | -1) => {
     setDirection(step);
     if (view === "week" || preview) {
@@ -305,7 +245,7 @@ export function TimelineCalendar({
 
   if (!connected) {
     return (
-      <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
+      <div className={`flex h-full items-center justify-center ${className}`}>
         <p className="text-[13px] text-ink-ghost">Connect to load timeline</p>
       </div>
     );
@@ -313,74 +253,29 @@ export function TimelineCalendar({
 
   if (plansQuery.isError) {
     return (
-      <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
+      <div className={`flex h-full items-center justify-center ${className}`}>
         <p className="text-[13px] text-error">{plansQuery.error.message}</p>
       </div>
     );
   }
 
   if (preview) {
-    const days = weekDays(anchor);
     return (
-      <div className={`flex h-full min-h-0 flex-col px-2 pb-2 pt-1 ${className ?? ""}`}>
-        <div className="flex min-h-0 flex-1">
-          {days.map((day, i) => {
-            const dayPlans = plansOn(plans, day);
-            const isToday = isSameDay(day, today);
-            return (
-              <motion.div
-                key={day.toISOString()}
-                initial={{ opacity: 0, y: 8 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 }}
-                className={`flex min-h-0 min-w-0 flex-1 flex-col px-1.5 pt-1 ${i > 0 ? "border-l border-rule/80" : ""}`}
-              >
-                <span className="mb-1.5 text-center text-[11px] tracking-wide text-ink-ghost">{labels[i]}</span>
-                <div className="mb-2 flex justify-center">
-                  <span
-                    className={`relative flex size-9 items-center justify-center rounded-full text-[13px] ${
-                      isToday ? "bg-ink text-bone" : "text-ink"
-                    }`}
-                  >
-                    {day.getDate()}
-                    {isToday ? <BreathRing /> : null}
-                  </span>
-                </div>
-                <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-hidden">
-                  {dayPlans.slice(0, 5).map((p, j) => {
-                    const span = spanOf(p)!;
-                    const live = span.start <= now && now < span.end;
-                    return (
-                      <motion.div
-                        key={p.id}
-                        initial={{ opacity: 0, y: 4 }}
-                        animate={{ opacity: span.end < now ? 0.55 : 1, y: 0 }}
-                        transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 + 0.08 + j * 0.03 }}
-                        className="min-w-0"
-                      >
-                        {planStartsOn(p, day) ? (
-                          <p className="flex items-center gap-1 text-[10px] text-ink-ghost">
-                            {live ? <LiveDot /> : null}
-                            {formatTime(p.occurred_at!)}
-                          </p>
-                        ) : null}
-                        <p className="truncate text-[11px] leading-snug text-ink">{p.title || "plan"}</p>
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
+      <RibbonView
+        days={weekDays(anchor)}
+        labels={labels}
+        today={today}
+        now={now}
+        plans={plans}
+        className={className}
+      />
     );
   }
 
   const title = view === "week" ? formatWeekTitle(anchor) : formatMonthTitle(anchor);
 
   return (
-    <div className={`flex h-full min-h-0 gap-3 ${className ?? ""}`}>
+    <div className={`flex h-full min-h-0 gap-3 ${className}`}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Glider options={VIEW_OPTIONS} value={view} onChange={setView} label="Timeline view" />
@@ -426,29 +321,7 @@ export function TimelineCalendar({
           </div>
 
           <div className="ml-auto flex min-w-0 items-center gap-2">
-            {nextQuery.isError ? (
-              <span className="truncate text-[12px] text-error">{nextQuery.error.message}</span>
-            ) : next ? (
-              <motion.button
-                key={next.plan.id}
-                type="button"
-                initial={{ opacity: 0, y: -4 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: SLOW_S, ease: EASE }}
-                onClick={(e) => openNode(next.plan.id, e.currentTarget)}
-                className="flex min-w-0 max-w-[320px] items-center gap-2 rounded-full border border-rule bg-bone px-3 py-1 text-[12px] transition-colors duration-slow ease-hath hover:border-sage-line"
-              >
-                {next.ongoing ? (
-                  <LiveDot />
-                ) : (
-                  <span className="text-[10px] font-medium tracking-[1.5px] text-ink-ghost">NEXT</span>
-                )}
-                <span className="min-w-0 truncate text-ink">{next.plan.title}</span>
-                <span className="shrink-0 tabular-nums text-ink-muted">
-                  {next.ongoing ? `until ${formatTime(next.end.toISOString())}` : formatUntil(now, next.start)}
-                </span>
-              </motion.button>
-            ) : null}
+            <NextUp now={now} onOpen={openNode} />
             <button
               type="button"
               onClick={(e) => openComposer(null, e.currentTarget)}
@@ -535,45 +408,7 @@ export function TimelineCalendar({
         </div>
       </div>
 
-      {!hideIdeas ? (
-        <aside className="flex w-[min(200px,28%)] shrink-0 flex-col border-l border-dashed border-sage-line pl-3">
-          <span className="mb-2 text-[11px] font-medium tracking-[2px] text-sage-deep">SOMEDAY</span>
-          {ideasQuery.isError ? (
-            <p className="text-[12px] text-error">{ideasQuery.error.message}</p>
-          ) : ideasQuery.isPending ? (
-            <p className="text-[12px] text-ink-ghost">…</p>
-          ) : ideasQuery.data.length === 0 ? (
-            <p className="text-[12px] text-ink-ghost">No ideas yet</p>
-          ) : (
-            <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
-              <AnimatePresence initial>
-                {ideasQuery.data.map((idea, i) => (
-                  <motion.li
-                    key={idea.id}
-                    layout
-                    initial={{ opacity: 0, y: 4 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -6 }}
-                    transition={{
-                      duration: SLOW_S,
-                      ease: EASE,
-                      delay: Math.min(i * 0.03, 0.2),
-                    }}
-                  >
-                    <button
-                      type="button"
-                      onClick={(e) => openNode(idea.id, e.currentTarget)}
-                      className="w-full rounded-[6px] border border-dashed border-rule px-2 py-1.5 text-left text-[12px] leading-snug text-ink-muted transition-colors duration-slow ease-hath hover:border-sage-line hover:text-ink"
-                    >
-                      {idea.title}
-                    </button>
-                  </motion.li>
-                ))}
-              </AnimatePresence>
-            </ul>
-          )}
-        </aside>
-      ) : null}
+      {!hideIdeas ? <SomedayRail onOpen={openNode} /> : null}
 
       {opened ? (
         <NodePopover

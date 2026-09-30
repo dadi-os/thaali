@@ -59,7 +59,7 @@ export type Connection = {
 };
 
 /** Order connections read in: people, then places, plans, and memories. */
-const KIND_ORDER: Record<NodeKind, number> = { person: 0, place: 1, plan: 2, memory: 3 };
+export const KIND_ORDER: Record<NodeKind, number> = { person: 0, place: 1, plan: 2, memory: 3 };
 
 /** Every neighbor of `nodeId` across `links`, people first, then by title. */
 export function connectionsOf(nodeId: string, links: MemoryLink[]): Connection[] {
