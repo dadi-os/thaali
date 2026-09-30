@@ -117,6 +117,12 @@ On the box: **Preferences → Devices** mints a Nas `POST /provision` setup QR. 
 
 Upgrading from the app when it was named Hath: the bundle ID is now `com.dadi.thaali`, so its app data (credentials) starts empty; add this computer as a device again. The first connect boots out and deletes the old `com.dadi.hath.sysmesh` LaunchDaemon so only one `tailscaled` owns the TUN.
 
+## Window, menus and background
+
+Closing the window hides it; the app keeps running so this device stays online for Hath's `device_*` tools, and the webview is never suspended while hidden (`backgroundThrottling: "disabled"`, macOS 14+). Reopen it from the Dock on macOS, the tray on Windows, or by launching dadi again (single-instance). Quit (Cmd/Ctrl+Q) exits the app; the system `tailscaled` stays connected either way, so `*.dadi` and `ssh os.dadi` keep working. Only Leave mesh (the power button) takes this device off dadi.
+
+macOS and Linux get the dadi menu bar (Edit is macOS-only); Windows, which has no menu bar, gets the notification-area tray.
+
 ## Transport / the dadi network
 
 All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the browser loads `BrowserTransport` (fetch + EventSource, Nas `/health` for ONLINE/OFFLINE). Browser Thaali is for Nas compose on-box UI only — it does not join Headscale.

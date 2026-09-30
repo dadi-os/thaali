@@ -11,7 +11,9 @@
   "app": {
     "windows": [
       {
+        "label": "main",
         "title": "dadi",
+        "backgroundThrottling": "disabled",
         "width": 1280,
         "height": 800,
         "decorations": true,

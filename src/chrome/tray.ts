@@ -1,5 +1,6 @@
 /**
- * Desktop tray + macOS app menu.
+ * Desktop menus: the menu bar on macOS and Linux, a notification-area tray on
+ * Windows (which has no menu bar).
  *
  * The menu tree is installed once. Live labels are written on the MenuItem
  * objects created here — not looked up later with Menu.get, which does not
@@ -102,19 +103,19 @@ async function drainTrayQueue(): Promise<void> {
 async function applyDesktopShell(snapshot: TraySnapshot): Promise<void> {
   const { type } = await import("@tauri-apps/plugin-os");
   const platform = type();
-  const flatTray = platform === "windows" || platform === "linux";
 
   if (!installed) {
-    if (platform === "macos") {
-      const built = await buildMenu(snapshot, true);
+    if (platform === "windows") {
+      const trayBuilt = await buildMenu(snapshot, false, true);
+      trayMenu = trayBuilt.menu;
+      trayLive = trayBuilt.live;
+      await ensureTray(trayMenu);
+    } else {
+      const built = await buildMenu(snapshot, platform === "macos");
       appMenu = built.menu;
       appLive = built.live;
       await appMenu.setAsAppMenu();
     }
-    const trayBuilt = await buildMenu(snapshot, false, flatTray);
-    trayMenu = trayBuilt.menu;
-    trayLive = trayBuilt.live;
-    await ensureTray(trayMenu, platform);
     installed = true;
     lastLiveKey = liveFingerprint(snapshot);
     return;
@@ -134,8 +135,8 @@ async function applyDesktopShell(snapshot: TraySnapshot): Promise<void> {
   }
 }
 
-/** Create or reuse the status-item / notification-area tray. */
-async function ensureTray(menu: Menu, platform: string): Promise<void> {
+/** Create or reuse the Windows notification-area tray. */
+async function ensureTray(menu: Menu): Promise<void> {
   if (!tray) {
     tray = await TrayIcon.getById(TRAY_ID);
   }
@@ -158,7 +159,6 @@ async function ensureTray(menu: Menu, platform: string): Promise<void> {
     tooltip: "Dadi",
     menu,
     showMenuOnLeftClick: true,
-    iconAsTemplate: platform === "macos",
     action: (event) => {
       if (event.type === "DoubleClick") {
         void focusMainWindow();
@@ -282,8 +282,8 @@ function liveFingerprint(snapshot: TraySnapshot): string {
 
 /**
  * Build one menu tree and keep the items that change.
- * `withEdit` is the macOS app menu (adds Edit). Tray omits it.
- * `flat` puts Dadi actions at the tray root (Windows/Linux) so Updates is one click.
+ * `withEdit` is the macOS menu bar (adds Edit). Linux and the tray omit it.
+ * `flat` puts Dadi actions at the Windows tray root so Updates is one click.
  */
 async function buildMenu(
   snapshot: TraySnapshot,
