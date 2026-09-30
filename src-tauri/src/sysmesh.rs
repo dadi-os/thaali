@@ -246,8 +246,14 @@ fn socket_live(socket: &Path) -> bool {
 }
 
 /// Starts `tailscaled` unless it already answers, via its socket or, on Windows,
-/// via LocalAPI status JSON.
+/// via LocalAPI status JSON. On macOS, while the retired LaunchDaemon is still
+/// installed, the install runs first so the retired daemon is replaced even when it answers.
 fn ensure_daemon(bins: &Bins, state_dir: &Path, socket: &Path) -> Result<(), String> {
+    #[cfg(target_os = "macos")]
+    if Path::new(RETIRED_LAUNCHD_PLIST).is_file() {
+        logutil::emit("info", "sysmesh replacing retired LaunchDaemon com.dadi.hath.sysmesh");
+        return install_macos_launchd_daemon(bins, state_dir, socket, &state_dir.join("tailscaled.log"));
+    }
     if socket_live(socket) || daemon_reports_via_cli(bins, socket) {
         return Ok(());
     }
