@@ -1,10 +1,11 @@
-//! Local device primitives for Dimaag hath_* reverse-RPC tools.
+//! Local device primitives for Hath device_* reverse-RPC tools.
 
 use base64::{engine::general_purpose::STANDARD as B64, Engine};
 use serde::Serialize;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// Battery level (0–100) and charging state returned by `device_get_battery`.
 #[derive(Debug, Serialize)]
 pub struct BatteryInfo {
     pub percent: f64,
@@ -26,18 +27,6 @@ pub struct LocationInfo {
 /// Read battery percent and charging state from the host.
 #[tauri::command]
 pub fn device_get_battery() -> Result<BatteryInfo, String> {
-    #[cfg(mobile)]
-    {
-        return Err("capability_unsupported: battery is not readable on mobile".into());
-    }
-    #[cfg(desktop)]
-    {
-        desktop_get_battery()
-    }
-}
-
-#[cfg(desktop)]
-fn desktop_get_battery() -> Result<BatteryInfo, String> {
     let manager = battery::Manager::new().map_err(|e| format!("capability_unsupported: {e}"))?;
     let battery = manager
         .batteries()
@@ -62,7 +51,7 @@ fn desktop_get_battery() -> Result<BatteryInfo, String> {
 /// Read coordinates (and address when available) via the platform location API.
 #[tauri::command]
 pub fn device_get_location() -> Result<LocationInfo, String> {
-    #[cfg(any(target_os = "macos", target_os = "ios"))]
+    #[cfg(target_os = "macos")]
     {
         return apple_get_location();
     }
@@ -70,19 +59,19 @@ pub fn device_get_location() -> Result<LocationInfo, String> {
     {
         return crate::device_location_windows::get_location();
     }
-    #[cfg(not(any(target_os = "macos", target_os = "ios", windows)))]
+    #[cfg(not(any(target_os = "macos", windows)))]
     {
         Err(
-            "capability_unsupported: native location is only implemented on macOS, iOS, and Windows"
+            "capability_unsupported: native location is only implemented on macOS and Windows"
                 .to_string(),
         )
     }
 }
 
-#[cfg(any(target_os = "macos", target_os = "ios"))]
+#[cfg(target_os = "macos")]
 fn apple_get_location() -> Result<LocationInfo, String> {
     unsafe extern "C" {
-        fn hath_device_get_location(
+        fn thaali_device_get_location(
             lat: *mut f64,
             lon: *mut f64,
             accuracy_m: *mut f64,
@@ -101,7 +90,7 @@ fn apple_get_location() -> Result<LocationInfo, String> {
     let mut address_buf = vec![0u8; 512];
     let mut err = vec![0u8; 512];
     let rc = unsafe {
-        hath_device_get_location(
+        thaali_device_get_location(
             &mut lat,
             &mut lon,
             &mut accuracy,

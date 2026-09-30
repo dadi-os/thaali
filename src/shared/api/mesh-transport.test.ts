@@ -11,8 +11,8 @@ vi.mock("@tauri-apps/plugin-http", () => ({
 }));
 
 import { fetch } from "@tauri-apps/plugin-http";
-import { MeshTransport } from "./tsnet-transport";
-import { DIMAAG } from "./constants";
+import { MeshTransport } from "./mesh-transport";
+import { HATH } from "./constants";
 
 const creds = {
   control_url: "http://headscale.dadi",
@@ -100,14 +100,14 @@ describe("MeshTransport.request", () => {
     await transport.connect(creds);
     await expect(
       transport.request({
-        baseUrl: DIMAAG,
+        baseUrl: HATH,
         path: "/agents",
         method: "GET",
       }),
     ).rejects.toThrow(/connect failed/);
 
     expect(vi.mocked(fetch).mock.calls[0]?.[0]).toBe(
-      "http://127.0.0.1:4242/@dimaag.dadi/agents",
+      "http://127.0.0.1:4242/@hath.dadi/agents",
     );
     expect(transport.isActive()).toBe(true);
     expect(transport.connectionState()).toBe("connected");
@@ -131,7 +131,6 @@ describe("MeshTransport tunnel recover", () => {
       }
       if (cmd === "mesh_status") {
         statusCalls += 1;
-        // First two probes offline → recover; later probes healthy.
         return statusCalls <= 2 ? 0 : 2;
       }
       if (cmd === "mesh_load_credentials") {
@@ -189,7 +188,7 @@ describe("MeshTransport tunnel recover", () => {
     await transport.connect(creds);
     await expect(
       transport.request({
-        baseUrl: DIMAAG,
+        baseUrl: HATH,
         path: "/agents",
         method: "GET",
       }),
@@ -222,14 +221,14 @@ describe("MeshTransport tunnel recover", () => {
     vi.mocked(fetch).mockResolvedValue({
       ok: false,
       status: 503,
-      text: async () => "dimaag down",
+      text: async () => "hath down",
     } as Response);
 
     const transport = new MeshTransport();
     await transport.connect(creds);
     await expect(
       transport.request({
-        baseUrl: DIMAAG,
+        baseUrl: HATH,
         path: "/health",
         method: "GET",
       }),
@@ -289,7 +288,7 @@ describe("MeshTransport.stream concurrency", () => {
     await transport.connect(creds);
 
     const stopA = transport.stream({
-      baseUrl: DIMAAG,
+      baseUrl: HATH,
       path: "/events",
       onEvent: () => {},
     });
@@ -298,7 +297,7 @@ describe("MeshTransport.stream concurrency", () => {
     expect(signals[0]?.aborted).toBe(false);
 
     const stopB = transport.stream({
-      baseUrl: DIMAAG,
+      baseUrl: HATH,
       path: "/events",
       onEvent: () => {},
     });

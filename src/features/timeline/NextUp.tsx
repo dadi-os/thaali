@@ -75,7 +75,7 @@ export function NextUp({ now, onOpen }: NextUpProps) {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
       onClick={(e) => onOpen(next.plan.id, e.currentTarget)}
-      className="flex min-w-0 max-w-[320px] items-center gap-2 rounded-full border border-rule bg-bone px-3 py-1 text-[12px] transition-colors duration-slow ease-hath hover:border-sage-line"
+      className="flex min-w-0 max-w-[320px] items-center gap-2 rounded-full border border-rule bg-bone px-3 py-1 text-[12px] transition-colors duration-slow ease-dadi hover:border-sage-line"
     >
       {next.ongoing ? (
         <LiveDot />

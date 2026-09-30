@@ -53,7 +53,7 @@ export function QuickAdd({ open, day, anchor, onClose, onSubmit }: QuickAddProps
             type="button"
             disabled={!trimmed}
             onClick={submit}
-            className="rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath enabled:hover:bg-sage-line/50 disabled:opacity-40"
+            className="rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi enabled:hover:bg-sage-line/50 disabled:opacity-40"
           >
             Add
           </button>

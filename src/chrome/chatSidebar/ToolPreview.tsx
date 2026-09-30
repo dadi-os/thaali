@@ -3,8 +3,8 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { dimaag, isMeshOnline } from "../../shared/api";
-import { useConnection } from "../../hooks/useConnection";
+import { hath, isMeshOnline } from "../../shared/api";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { ActivityPulse } from "./ActivityPulse";
@@ -28,7 +28,7 @@ export function ToolPreview({ agentId, active }: ToolPreviewProps) {
   const logsQuery = useQuery({
     queryKey: ["agent-logs", agentId, "tool-preview"],
     queryFn: async () => {
-      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 48 });
+      const { logs } = await hath.getAgentLogs(agentId, { limit: 48 });
       return logs;
     },
     enabled: connected && active,

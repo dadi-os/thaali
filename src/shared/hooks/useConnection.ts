@@ -1,11 +1,11 @@
 import { useSyncExternalStore } from "react";
-import type { ConnectionState } from "../shared/api/transport";
+import type { ConnectionState } from "../api/transport";
 import {
   connectTransport,
   disconnectTransport,
   getConnectionState,
   subscribeConnection,
-} from "../store/connection";
+} from "../../store/connection";
 
 export function useConnection(): {
   state: ConnectionState;

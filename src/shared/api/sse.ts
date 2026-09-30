@@ -1,6 +1,7 @@
 /**
  * Shared SSE chunk parsing for Transport implementations.
- * Splits on blank lines, extracts `data:` payloads, skips [DONE]/malformed JSON.
+ * Splits on blank lines, extracts `data:` payloads, and skips [DONE]; a malformed
+ * payload throws so the stream fails visibly.
  * Returns the unconsumed trailing buffer fragment.
  */
 export function consumeSseBuffer(
@@ -18,11 +19,8 @@ export function consumeSseBuffer(
     if (!raw || raw === "[DONE]") {
       continue;
     }
-    try {
-      onEvent(JSON.parse(raw) as unknown);
-    } catch {
-      continue;
-    }  }
+    onEvent(JSON.parse(raw) as unknown);
+  }
   return rest;
 }
 

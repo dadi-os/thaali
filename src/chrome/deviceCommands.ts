@@ -1,10 +1,10 @@
-/** Local execution of Dimaag hath_* tools on this Hath client. */
+/** Local execution of Hath device_* tools on this desktop. */
 
-import { isTauriRuntime } from "../api/runtime";
-import { loadCredentials } from "../api/credentials";
-import { openAgent } from "../../store/chat";
+import { isTauriRuntime } from "../shared/api/runtime";
+import { loadCredentials } from "../shared/api/credentials";
+import { openAgent } from "../store/chat";
 
-/** Typed failure returned to Dimaag as a command error. */
+/** Typed failure returned to Hath as a command error. */
 export class DeviceError extends Error {
   readonly type: string;
 
@@ -15,49 +15,49 @@ export class DeviceError extends Error {
   }
 }
 
-/** Hath tools this client can execute locally. */
-export type HathLocalTool =
-  | "hath_get_info"
-  | "hath_get_battery"
-  | "hath_get_location"
-  | "hath_get_network"
-  | "hath_read_clipboard"
-  | "hath_write_clipboard"
-  | "hath_send_file"
-  | "hath_open_chat";
+/** Device tools this desktop can execute locally. */
+export type DeviceLocalTool =
+  | "device_get_info"
+  | "device_get_battery"
+  | "device_get_location"
+  | "device_get_network"
+  | "device_read_clipboard"
+  | "device_write_clipboard"
+  | "device_send_file"
+  | "device_open_chat";
 
-/** Run one hath_* tool against the local device; failures surface as DeviceError. */
-export async function executeHathTool(
-  tool: HathLocalTool,
+/** Run one device_* tool against the local device; failures surface as DeviceError. */
+export async function executeDeviceTool(
+  tool: DeviceLocalTool,
   args: Record<string, unknown>,
 ): Promise<unknown> {
   if (!isTauriRuntime()) {
     throw new DeviceError(
       "capability_unsupported",
-      "Hath remote tools require the Tauri client",
+      "Device tools require the Tauri desktop app",
     );
   }
 
   switch (tool) {
-    case "hath_get_info":
+    case "device_get_info":
       return getInfo();
-    case "hath_get_battery":
+    case "device_get_battery":
       return getBattery();
-    case "hath_get_location":
+    case "device_get_location":
       return getLocation();
-    case "hath_get_network":
+    case "device_get_network":
       return getNetwork();
-    case "hath_read_clipboard":
+    case "device_read_clipboard":
       return readClipboard();
-    case "hath_write_clipboard":
+    case "device_write_clipboard":
       return writeClipboard(requireString(args, "text"));
-    case "hath_send_file":
+    case "device_send_file":
       return sendFile({
         filename: requireString(args, "filename"),
         media_type: requireString(args, "media_type"),
         data: requireString(args, "data"),
       });
-    case "hath_open_chat": {
+    case "device_open_chat": {
       const agentId = requireString(args, "agent_id");
       openAgent(agentId);
       return { opened: agentId };
@@ -219,4 +219,4 @@ function readConnection(): { type: string | null; downlink: number | null } {
 }
 
 /** App version stamped at build time from package.json. */
-export const APP_VERSION = __HATH_APP_VERSION__;
+export const APP_VERSION = __THAALI_APP_VERSION__;

@@ -1,9 +1,9 @@
 import { useEffect, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { dimaag, isMeshOnline } from "../../shared/api";
+import { hath, isMeshOnline } from "../../shared/api";
 import type { AgentRecord } from "../../shared/api/types";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { MarkdownBody } from "../../shared/components/Markdown";
 import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
@@ -26,7 +26,7 @@ export function agentDetailQuery(agentId: string | null) {
       if (!agentId) {
         throw new Error("agentId required");
       }
-      return dimaag.getAgent(agentId);
+      return hath.getAgent(agentId);
     },
   });
 }
@@ -42,7 +42,7 @@ export function agentActivityQuery(agentId: string | null) {
       if (!agentId) {
         throw new Error("agentId required");
       }
-      const { logs } = await dimaag.getAgentLogs(agentId, { limit: 80 });
+      const { logs } = await hath.getAgentLogs(agentId, { limit: 80 });
       return logs;
     },
   });
@@ -179,7 +179,7 @@ export function AgentPopover({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-hath hover:text-ink-muted"
+            className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-dadi hover:text-ink-muted"
           >
             ESC
           </button>

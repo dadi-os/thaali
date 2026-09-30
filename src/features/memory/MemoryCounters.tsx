@@ -3,7 +3,7 @@ import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { isMeshOnline, yaad } from "../../shared/api";
 import type { NodeKind } from "../../shared/api/types";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { countNoun } from "../../shared/lib/ux/plural";

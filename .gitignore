@@ -18,7 +18,6 @@ src-tauri/bin/**/tailscaled
 src-tauri/bin/**/tailscale.exe
 src-tauri/bin/**/tailscaled.exe
 src-tauri/bin/**/wintun.dll
-src-tauri/lib/
 
 # Editor directories and files
 .vscode/*

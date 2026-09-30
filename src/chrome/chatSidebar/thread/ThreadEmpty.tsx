@@ -63,7 +63,7 @@ export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
             key={text}
             type="button"
             onClick={() => onSuggest(text)}
-            className="max-w-full truncate rounded-full border border-sage-line/50 px-3 py-1.5 text-[12.5px] text-ink-muted transition-colors duration-fast ease-hath hover:border-sage-line hover:bg-sage-active/40 hover:text-ink"
+            className="max-w-full truncate rounded-full border border-sage-line/50 px-3 py-1.5 text-[12.5px] text-ink-muted transition-colors duration-fast ease-dadi hover:border-sage-line hover:bg-sage-active/40 hover:text-ink"
           >
             {text}
           </button>

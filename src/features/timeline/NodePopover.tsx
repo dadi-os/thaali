@@ -142,7 +142,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
                 <button
                   type="button"
                   onClick={() => setDraft(node.title)}
-                  className="min-w-0 rounded-[6px] text-left text-[15px] leading-snug font-medium text-ink transition-colors duration-slow ease-hath hover:text-sage-deep"
+                  className="min-w-0 rounded-[6px] text-left text-[15px] leading-snug font-medium text-ink transition-colors duration-slow ease-dadi hover:text-sage-deep"
                   title="Rename"
                 >
                   {node.title}
@@ -151,7 +151,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
               <button
                 type="button"
                 onClick={onClose}
-                className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-hath hover:text-ink-muted"
+                className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-dadi hover:text-ink-muted"
               >
                 ESC
               </button>
@@ -221,7 +221,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
                       <button
                         type="button"
                         onClick={() => onSelect(c.node.id)}
-                        className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors duration-slow ease-hath hover:bg-sage-fill"
+                        className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
                       >
                         <span
                           aria-hidden
@@ -258,7 +258,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
             <button
               type="button"
               onClick={() => navigate(`/memory?focus=${node.id}`)}
-              className="text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:text-ink"
+              className="text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
             >
               Open in Yaad →
             </button>
@@ -267,7 +267,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
               disabled={remove.isPending}
               onClick={() => (confirming ? remove.mutate(node.title) : setConfirming(true))}
               onMouseLeave={() => setConfirming(false)}
-              className={`rounded-[6px] px-2 py-1 text-[12px] transition-colors duration-slow ease-hath ${
+              className={`rounded-[6px] px-2 py-1 text-[12px] transition-colors duration-slow ease-dadi ${
                 confirming ? "bg-error-fill text-error" : "text-ink-faint hover:text-error"
               }`}
             >

@@ -42,13 +42,11 @@ export async function renderBrandedQr(
     return qrCanvas.toDataURL("image/png");
   }
 
-  // Soft bone plate under the mark so modules stay readable
   ctx.fillStyle = BONE;
   const r = 10;
   roundRect(ctx, x, y, box, box, r);
   ctx.fill();
 
-  // Thin sage rim
   ctx.strokeStyle = "rgba(185, 201, 171, 0.9)";
   ctx.lineWidth = 1.5;
   roundRect(ctx, x + 0.75, y + 0.75, box - 1.5, box - 1.5, r - 1);

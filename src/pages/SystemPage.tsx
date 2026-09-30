@@ -17,7 +17,7 @@ export function SystemPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
     >
-      <PageHeader title="SYSTEM" hint="Reachability · mesh · logs" />
+      <PageHeader title="SYSTEM" hint="Reachability · devices · logs" />
 
       <div className="@container min-h-0 flex-1 px-1 pb-1">
         <div className="grid h-full min-h-0 grid-cols-1 gap-4 @min-[720px]:grid-cols-2 @min-[720px]:gap-5">

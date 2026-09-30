@@ -80,7 +80,7 @@ export function ConversationList({
                       key={conv.agent_id}
                       type="button"
                       onClick={() => onOpenAgent(conv.agent_id)}
-                      className={`flex w-full flex-col gap-0.5 rounded-[10px] px-2.5 py-2 text-left transition-colors duration-fast ease-hath ${
+                      className={`flex w-full flex-col gap-0.5 rounded-[10px] px-2.5 py-2 text-left transition-colors duration-fast ease-dadi ${
                         selected
                           ? "bg-(--chat-active)"
                           : "hover:bg-(--chat-hover)"
@@ -110,7 +110,7 @@ export function ConversationList({
           whileHover={dadi.available ? { scale: 1.012 } : undefined}
           whileTap={dadi.available ? { scale: 0.985 } : undefined}
           transition={{ duration: 0.18, ease: EASE }}
-          className={`flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors duration-fast ease-hath disabled:opacity-50 ${
+          className={`flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors duration-fast ease-dadi disabled:opacity-50 ${
             dadi.selected
               ? "bg-(--chat-active)"
               : "hover:bg-(--chat-hover)"

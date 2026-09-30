@@ -132,7 +132,7 @@ function formatPrecise(iso: string): string {
 }
 
 const ACTION_CLASS =
-  "rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-hath hover:bg-sage-fill hover:text-sage-deep";
+  "rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-sage-deep";
 
 export type LogPopoverProps = {
   open: boolean;

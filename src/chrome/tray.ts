@@ -3,7 +3,7 @@
  *
  * The menu tree is installed once. Live labels are written on the MenuItem
  * objects created here — not looked up later with Menu.get, which does not
- * find nested items and left "Mesh offline" / "…" stuck on screen.
+ * find nested items and left "Disconnected from dadi" / "…" stuck on screen.
  *
  * After install, only setText / setEnabled. setAsAppMenu and tray.setMenu
  * dismiss an open macOS menu. Agent rows are appended only when the count
@@ -18,8 +18,8 @@ import {
 } from "@tauri-apps/api/menu";
 import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { dispatchDesktopShell } from "../../store/desktopShell";
-import { isTauriRuntime } from "../api/runtime";
+import { dispatchDesktopShell } from "../store/desktopShell";
+import { isTauriRuntime } from "../shared/api/runtime";
 
 const TRAY_ID = "dadi-tray";
 
@@ -74,16 +74,6 @@ const slotAgentIds: Array<string | null> = Array.from(
   () => null,
 );
 
-/** True on desktop Tauri (not iOS/Android webview shells). */
-export async function isDesktopTrayHost(): Promise<boolean> {
-  if (!isTauriRuntime()) {
-    return false;
-  }
-  const { type } = await import("@tauri-apps/plugin-os");
-  const platform = type();
-  return platform === "macos" || platform === "windows" || platform === "linux";
-}
-
 /**
  * Apply tray / app-menu live state from {@link TraySnapshot}.
  * Installs the static tree once; later calls only mutate held items.
@@ -98,7 +88,7 @@ export async function syncDesktopTray(snapshot: TraySnapshot): Promise<void> {
 }
 
 async function drainTrayQueue(): Promise<void> {
-  if (!(await isDesktopTrayHost())) {
+  if (!isTauriRuntime()) {
     queued = null;
     return;
   }
@@ -183,7 +173,7 @@ async function patchLive(live: LiveItems, snapshot: TraySnapshot): Promise<void>
   await setEnabledIf(live.provision, snapshot.meshConnected);
   await setTextIf(
     live.mesh,
-    snapshot.meshConnected ? "Leave mesh" : "Mesh offline",
+    snapshot.meshConnected ? "Disconnect from dadi" : "Disconnected from dadi",
   );
   await setEnabledIf(live.mesh, snapshot.meshConnected);
   await setTextIf(
@@ -345,7 +335,7 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
   });
   const mesh = await MenuItem.new({
     id: "dadi-mesh",
-    text: snapshot.meshConnected ? "Leave mesh" : "Mesh offline",
+    text: snapshot.meshConnected ? "Disconnect from dadi" : "Disconnected from dadi",
     enabled: snapshot.meshConnected,
     action: () => {
       dispatchDesktopShell({ type: "leave_mesh" });
@@ -484,7 +474,7 @@ function navItem(id: string, text: string, path: string) {
   };
 }
 
-/** Bring the main Hath window forward. */
+/** Bring the main window forward. */
 async function focusMainWindow(): Promise<void> {
   const window = getCurrentWindow();
   await window.unminimize();

@@ -1,7 +1,7 @@
 import { type ReactNode, Suspense } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
-import { useThemeTokens } from "../../hooks/useThemeTokens";
+import { useThemeTokens } from "../hooks/useThemeTokens";
 
 export type GraphSpaceProps = {
   /** When true, enable orbit / zoom / pan. */

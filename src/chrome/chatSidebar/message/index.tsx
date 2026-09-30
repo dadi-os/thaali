@@ -77,7 +77,7 @@ function UserBubble({
           onClick={onRetry}
           aria-label="Retry send"
           title="Retry"
-          className="inline-flex size-7 shrink-0 items-center justify-center text-error transition-opacity duration-slow ease-hath hover:opacity-70"
+          className="inline-flex size-7 shrink-0 items-center justify-center text-error transition-opacity duration-slow ease-dadi hover:opacity-70"
         >
           <IconRetry />
         </button>
@@ -88,7 +88,7 @@ function UserBubble({
           onClick={onCancel}
           aria-label="Remove message"
           title="Remove"
-          className="inline-flex size-7 shrink-0 items-center justify-center text-ink-ghost transition-opacity duration-slow ease-hath hover:text-ink-muted"
+          className="inline-flex size-7 shrink-0 items-center justify-center text-ink-ghost transition-opacity duration-slow ease-dadi hover:text-ink-muted"
         >
           <IconDismiss />
         </button>

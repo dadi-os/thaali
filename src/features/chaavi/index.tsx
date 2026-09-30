@@ -11,7 +11,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { CHAAVI_VAULT, chaavi, isMeshOnline } from "../../shared/api";
 import type {
   ChaaviCreateLogin,
@@ -175,7 +175,7 @@ export function PasswordManager() {
                 setBusyError(null);
                 setEditor({ kind: "create" });
               }}
-              className="rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-2.5 py-1 text-[10px] font-medium tracking-[1.6px] text-sage-deep transition-[border-color,background-color] duration-slow ease-hath hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-40"
+              className="rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-2.5 py-1 text-[10px] font-medium tracking-[1.6px] text-sage-deep transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-40"
             >
               NEW
             </button>
@@ -189,7 +189,7 @@ export function PasswordManager() {
                 onChange={(e) => setQuery(e.target.value)}
                 placeholder="Search name, user, site…"
                 disabled={!vaultReady}
-                className="w-full rounded-[var(--radius)] border border-rule bg-bone/50 px-3 py-2 text-[13px] text-ink outline-none transition-[border-color] duration-slow ease-hath placeholder:text-ink-ghost focus:border-sage disabled:opacity-50"
+                className="w-full rounded-[var(--radius)] border border-rule bg-bone/50 px-3 py-2 text-[13px] text-ink outline-none transition-[border-color] duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage disabled:opacity-50"
               />
             </label>
             <div className="min-h-0 flex-1 overflow-y-auto">
@@ -286,7 +286,7 @@ export function PasswordManager() {
           href={CHAAVI_VAULT}
           target="_blank"
           rel="noreferrer"
-          className="text-[11px] font-medium tracking-[1.4px] text-sage-deep transition-colors duration-slow ease-hath hover:text-sage"
+          className="text-[11px] font-medium tracking-[1.4px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-sage"
         >
           OPEN VAULT
         </a>
@@ -467,7 +467,7 @@ function VaultListBody(props: {
             <button
               type="button"
               onClick={() => onSelect(item.id)}
-              className={`flex w-full flex-col gap-0.5 rounded-[var(--radius)] px-2.5 py-2.5 text-left transition-[background-color,box-shadow] duration-fast ease-hath ${
+              className={`flex w-full flex-col gap-0.5 rounded-[var(--radius)] px-2.5 py-2.5 text-left transition-[background-color,box-shadow] duration-fast ease-dadi ${
                 active
                   ? "bg-sage-active/70 shadow-[var(--shadow)]"
                   : "hover:bg-sage-faint"
@@ -633,7 +633,7 @@ function ItemDetail(props: {
       ) : (
         <p className="text-[13px] leading-relaxed text-ink-muted">
           This {item.kind} is listed for agents and the Bitwarden vault. Login
-          create/edit/delete in Hath covers passwords only.
+          create/edit/delete in dadi covers passwords only.
         </p>
       )}
 
@@ -724,7 +724,7 @@ function ActionButton(props: {
       type="button"
       disabled={props.disabled}
       onClick={props.onClick}
-      className={`rounded-[7px] border border-dashed px-3 py-1.5 text-[10px] font-medium tracking-[1.8px] transition-[border-color,background-color,opacity] duration-slow ease-hath disabled:opacity-40 ${
+      className={`rounded-[7px] border border-dashed px-3 py-1.5 text-[10px] font-medium tracking-[1.8px] transition-[border-color,background-color,opacity] duration-slow ease-dadi disabled:opacity-40 ${
         props.danger
           ? "border-error-line bg-error-fill/40 text-[var(--error)] hover:border-[var(--error)]"
           : "border-sage-line bg-[var(--glass-sheet)] text-sage-deep hover:border-sage hover:bg-sage-active/50"

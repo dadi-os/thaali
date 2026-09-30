@@ -16,7 +16,7 @@ export type DesktopUpdateState = {
   error: string | null;
   /**
    * Menu-driven check: probe for an update and install+relaunch when one
-   * exists. No-op on browser / iOS / unsupported hosts.
+   * exists. No-op in the browser and on unsupported hosts.
    */
   check: () => Promise<void>;
   /** Download, install, and relaunch. No-op when nothing is available. */

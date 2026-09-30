@@ -86,7 +86,7 @@ function ControlButton({
       aria-label={label}
       title={label}
       onClick={onClick}
-      className={`flex w-[46px] items-center justify-center text-ink-muted transition-[background-color,color] duration-fast ease-hath ${
+      className={`flex w-[46px] items-center justify-center text-ink-muted transition-[background-color,color] duration-fast ease-dadi ${
         danger
           ? "hover:bg-[#c45c4a] hover:text-white"
           : "hover:bg-sage-fill hover:text-ink"

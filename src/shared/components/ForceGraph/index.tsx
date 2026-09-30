@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
 import { Billboard, Text } from "@react-three/drei";
 import * as THREE from "three";
-import { useThemeTokens } from "../../../hooks/useThemeTokens";
+import { useThemeTokens } from "../../hooks/useThemeTokens";
 import { focusSet, type ForceGraphFocusScope } from "./focus";
 import { revealSchedule } from "./reveal";
 import type { ForceEdge, ForceLinkResolved, ForceNode, SyncedForceGraph } from "./simulation";

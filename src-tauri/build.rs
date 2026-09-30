@@ -1,29 +1,8 @@
 fn main() {
     let target = std::env::var("TARGET").expect("TARGET");
-    let ios = target.contains("apple-ios");
     let desktop_apple = target.contains("apple-darwin");
     let windows = target.contains("windows");
     let linux = target.contains("linux");
-
-    if ios {
-        let lib_dir = if target.ends_with("-ios-sim") {
-            "ios-sim-arm64"
-        } else {
-            "ios-arm64"
-        };
-        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("lib")
-            .join(lib_dir);
-        if !path.join("libhathnet.a").exists() {
-            panic!(
-                "missing {}/libhathnet.a — run `cd net && ./build.sh {lib_dir}` first",
-                path.display()
-            );
-        }
-        println!("cargo:rerun-if-changed={}", path.join("libhathnet.a").display());
-        println!("cargo:rustc-link-search=native={}", path.display());
-        println!("cargo:rustc-link-lib=static=hathnet");
-    }
 
     if desktop_apple || linux || windows {
         let bin_dir = if desktop_apple {
@@ -77,25 +56,16 @@ fn main() {
         println!("cargo:rustc-link-lib=framework=SystemConfiguration");
     }
 
-    if desktop_apple || ios {
+    if desktop_apple {
         println!("cargo:rustc-link-lib=framework=CoreLocation");
         let loc = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/location.m");
         println!("cargo:rerun-if-changed={}", loc.display());
         let mut build = cc::Build::new();
-        build.file(&loc).flag("-fobjc-arc");
-        if desktop_apple {
-            build.flag("-mmacosx-version-min=11.0");
-        }
-        build.compile("hath_location");
-    }
-
-    if ios {
-        println!("cargo:rustc-link-lib=framework=NetworkExtension");
-        let stub = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
-            .join("dadimesh-extension")
-            .join("dadimesh_vpn_stub.c");
-        println!("cargo:rerun-if-changed={}", stub.display());
-        cc::Build::new().file(&stub).compile("dadimesh_vpn_stub");
+        build
+            .file(&loc)
+            .flag("-fobjc-arc")
+            .flag("-mmacosx-version-min=11.0")
+            .compile("thaali_location");
     }
 
     tauri_build::build()

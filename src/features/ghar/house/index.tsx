@@ -14,7 +14,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { ghar, isMeshOnline } from "../../../shared/api";
 import { GHAR_DEVICES_KEY, GHAR_ROOMS_KEY } from "../../../shared/api/ghar";
 import type { GharDevice, GharRoom } from "../../../shared/api/types";
-import { useConnection } from "../../../hooks/useConnection";
+import { useConnection } from "../../../shared/hooks/useConnection";
 import { IconPlus } from "../../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
 import { SearchField } from "../../../shared/components/SearchField";
@@ -58,7 +58,7 @@ const HOVER_CLOSE_MS = 320;
 const NEW_ROOM_ANCHOR_OFFSET = { x: 28, y: 30 };
 
 const panel =
-  "flex min-h-0 min-w-0 flex-col rounded-[var(--radius)] border border-dashed px-3 py-3 transition-[border-color,background-color,box-shadow] duration-slow ease-hath";
+  "flex min-h-0 min-w-0 flex-col rounded-[var(--radius)] border border-dashed px-3 py-3 transition-[border-color,background-color,box-shadow] duration-slow ease-dadi";
 
 function isSwitchable(device: GharDevice): boolean {
   return device.capabilities.some((cap) => cap.capability === "switchable");
@@ -565,7 +565,7 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
                 ref={roomButtonRef}
                 type="button"
                 onClick={openNewRoom}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-hath hover:border-sage hover:bg-sage-active/50"
+                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50"
               >
                 <span className="flex size-4 shrink-0">
                   <IconPlus />
@@ -709,12 +709,12 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
                 setRoomDraft("");
               }
             }}
-            className="border-b border-sage-line bg-transparent py-1 text-[14px] text-ink outline-none transition-colors duration-slow ease-hath placeholder:text-ink-ghost focus:border-sage"
+            className="border-b border-sage-line bg-transparent py-1 text-[14px] text-ink outline-none transition-colors duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage"
           />
           <button
             type="submit"
             disabled={roomDraft.trim().length === 0 || create.isPending}
-            className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-hath hover:bg-sage disabled:cursor-default disabled:opacity-40"
+            className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:cursor-default disabled:opacity-40"
           >
             {create.isPending ? "Adding…" : "Add room"}
           </button>
@@ -892,7 +892,7 @@ function DeviceTile({
     <div
       aria-busy={pending}
       className={`flex items-center gap-3 rounded-[var(--radius)] border border-dashed px-3 py-2.5 shadow-[var(--shadow)] backdrop-blur-sm ${
-        pending ? "transition-none" : "transition-[border-color,background-color,opacity] duration-200 ease-hath"
+        pending ? "transition-none" : "transition-[border-color,background-color,opacity] duration-200 ease-dadi"
       } ${ghost ? "w-64 cursor-grabbing" : "w-full cursor-grab"} ${
         pending
           ? "border-ink-ghost/50 bg-ink-ghost/20 text-ink-ghost"

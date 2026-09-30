@@ -1,5 +1,5 @@
 /**
- * Hath as Ghar's Bluetooth radio.
+ * This desktop as Ghar's Bluetooth device radio.
  * Ghar long-polls commands; this loop runs them on the local adapter and
  * posts advertisements and notifications back.
  */
@@ -10,13 +10,13 @@ import type { GharClient } from "../../shared/api/ghar";
 import type { GharRadioCommand } from "../../shared/api/types";
 
 /** Lifecycle of one attached radio session. */
-export type HathRadioHandle = {
+export type DeviceRadioHandle = {
   /** Release the session and stop scanning. */
   stop: () => void;
 };
 
 /** Ready and failure signals for the commission sheet. */
-export type HathRadioHooks = {
+export type DeviceRadioHooks = {
   onReady: () => void;
   onError: (message: string) => void;
 };
@@ -30,13 +30,13 @@ type RadioPayload = {
 let pendingStopError: string | null = null;
 
 /**
- * Attach this computer as Ghar's radio and serve commands until {@link HathRadioHandle.stop}.
+ * Attach this computer as Ghar's radio and serve commands until {@link DeviceRadioHandle.stop}.
  * `onReady` fires after the session is open. `onError` fires once, then the loop stops.
  */
-export function startHathRadio(
+export function startDeviceRadio(
   client: GharClient,
-  hooks: HathRadioHooks,
-): HathRadioHandle {
+  hooks: DeviceRadioHooks,
+): DeviceRadioHandle {
   let stopped = false;
   let session: string | null = null;
   const unlistens: UnlistenFn[] = [];

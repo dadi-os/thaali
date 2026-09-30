@@ -27,7 +27,7 @@ export type DevicePopoverProps = {
 };
 
 const field =
-  "w-full border-b border-sage-line bg-transparent text-[15px] text-ink outline-none transition-colors duration-slow ease-hath placeholder:text-ink-ghost hover:border-sage focus:border-sage";
+  "w-full border-b border-sage-line bg-transparent text-[15px] text-ink outline-none transition-colors duration-slow ease-dadi placeholder:text-ink-ghost hover:border-sage focus:border-sage";
 
 const thumb =
   "h-2 w-full cursor-pointer appearance-none rounded-full disabled:cursor-default disabled:opacity-50 [&::-webkit-slider-thumb]:size-3.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:border [&::-webkit-slider-thumb]:border-sage [&::-webkit-slider-thumb]:bg-bone [&::-webkit-slider-thumb]:shadow-[var(--shadow)]";
@@ -175,7 +175,7 @@ export function DevicePopover({
           type="button"
           disabled={locked}
           onClick={onIdentify}
-          className="self-start rounded-full border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 py-1.5 text-[12px] font-medium tracking-[0.12em] text-sage-deep uppercase transition-[border-color,background-color] duration-slow ease-hath hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-50"
+          className="self-start rounded-full border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 py-1.5 text-[12px] font-medium tracking-[0.12em] text-sage-deep uppercase transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-50"
         >
           Identify
         </button>

@@ -1,32 +1,32 @@
 import { useEffect } from "react";
-import { DIMAAG_URL, dimaag, transport, usingTsnet } from "../shared/api";
+import { HATH_URL, hath, transport, usingMesh } from "../shared/api";
 import { loadCredentials } from "../shared/api/credentials";
 import type { ConnectionState } from "../shared/api/transport";
 import {
   APP_VERSION,
   DeviceError,
-  executeHathTool,
-  type HathLocalTool,
-} from "../shared/device/commands";
+  executeDeviceTool,
+  type DeviceLocalTool,
+} from "./deviceCommands";
 import { subscribeConnection } from "../store/connection";
 
 const PRESENCE_INTERVAL_MS = 15_000;
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
 
-const HATH_TOOLS = new Set<string>([
-  "hath_get_info",
-  "hath_get_battery",
-  "hath_get_location",
-  "hath_get_network",
-  "hath_read_clipboard",
-  "hath_write_clipboard",
-  "hath_send_file",
-  "hath_open_chat",
+const DEVICE_TOOLS = new Set<string>([
+  "device_get_info",
+  "device_get_battery",
+  "device_get_location",
+  "device_get_network",
+  "device_read_clipboard",
+  "device_write_clipboard",
+  "device_send_file",
+  "device_open_chat",
 ]);
 
-function isHathCommand(data: unknown): data is {
-  type: "hath_command";
+function isDeviceCommand(data: unknown): data is {
+  type: "device_command";
   command_id: string;
   node_name: string;
   tool: string;
@@ -38,7 +38,7 @@ function isHathCommand(data: unknown): data is {
   }
   const event = data as Record<string, unknown>;
   return (
-    event.type === "hath_command" &&
+    event.type === "device_command" &&
     typeof event.command_id === "string" &&
     typeof event.node_name === "string" &&
     typeof event.tool === "string" &&
@@ -48,12 +48,12 @@ function isHathCommand(data: unknown): data is {
 }
 
 /**
- * Heartbeat + reverse-RPC listener for Dimaag hath_* tools.
+ * Heartbeat + reverse-RPC listener for Hath device_* tools.
  * Only active on Tauri mesh clients with stored credentials.
  */
-export function useHathRemote(): void {
+export function useDeviceRemote(): void {
   useEffect(() => {
-    if (!usingTsnet) {
+    if (!usingMesh) {
       return;
     }
 
@@ -93,7 +93,7 @@ export function useHathRemote(): void {
       if (!nodeName || !platformName || !transport.isActive()) {
         return;
       }
-      await dimaag.postPresence({
+      await hath.postPresence({
         node_name: nodeName,
         platform: platformName,
         app_version: APP_VERSION,
@@ -101,11 +101,11 @@ export function useHathRemote(): void {
     };
 
     const handleCommand = async (data: unknown) => {
-      if (!isHathCommand(data) || !nodeName || data.node_name !== nodeName) {
+      if (!isDeviceCommand(data) || !nodeName || data.node_name !== nodeName) {
         return;
       }
-      if (!HATH_TOOLS.has(data.tool)) {
-        await dimaag.postCommandResult(data.command_id, {
+      if (!DEVICE_TOOLS.has(data.tool)) {
+        await hath.postCommandResult(data.command_id, {
           ok: false,
           error: {
             type: "invalid_request",
@@ -115,11 +115,11 @@ export function useHathRemote(): void {
         return;
       }
       try {
-        const result = await executeHathTool(
-          data.tool as HathLocalTool,
+        const result = await executeDeviceTool(
+          data.tool as DeviceLocalTool,
           data.args,
         );
-        await dimaag.postCommandResult(data.command_id, {
+        await hath.postCommandResult(data.command_id, {
           ok: true,
           result,
         });
@@ -127,7 +127,7 @@ export function useHathRemote(): void {
         const type = err instanceof DeviceError ? err.type : "internal_error";
         const message =
           err instanceof Error ? err.message : "device command failed";
-        await dimaag.postCommandResult(data.command_id, {
+        await hath.postCommandResult(data.command_id, {
           ok: false,
           error: { type, message },
         });
@@ -168,7 +168,7 @@ export function useHathRemote(): void {
         clearPresence();
         presenceTimer = setInterval(() => {
           void sendPresence().catch((err) => {
-            console.error("hath presence failed", err);
+            console.error("device presence failed", err);
           });
         }, PRESENCE_INTERVAL_MS);
       } catch {
@@ -178,7 +178,7 @@ export function useHathRemote(): void {
 
       teardownStream();
       stopStream = transport.stream({
-        baseUrl: DIMAAG_URL,
+        baseUrl: HATH_URL,
         path: "/events",
         onEvent: (data) => {
           void handleCommand(data);

@@ -1,9 +1,9 @@
 import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { DIMAAG_URL, dimaag, transport } from "../shared/api";
-import type { AgentRecord, DimaagEvent } from "../shared/api/types";
-import type { ConnectionState } from "../shared/api/transport";
-import { subscribeConnection } from "../store/connection";
+import { HATH_URL, hath, transport } from "../api";
+import type { AgentRecord, HathEvent } from "../api/types";
+import type { ConnectionState } from "../api/transport";
+import { subscribeConnection } from "../../store/connection";
 import {
   ingestLiveMessage,
   isUserThreadMessage,
@@ -11,9 +11,9 @@ import {
   seedConversations,
   setHistoryState,
   upsertConversation,
-} from "../store/chat";
-import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../store/running";
-import { logLine } from "../shared/lib/platform/log";
+} from "../../store/chat";
+import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../../store/running";
+import { logLine } from "../lib/platform/log";
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
@@ -21,7 +21,7 @@ const MAX_BACKOFF_MS = 30_000;
 /** React Query key for GET /agents. */
 export const AGENTS_QUERY_KEY = ["agents"] as const;
 
-function isDimaagEvent(data: unknown): data is DimaagEvent {
+function isHathEvent(data: unknown): data is HathEvent {
   if (!data || typeof data !== "object") {
     return false;
   }
@@ -48,7 +48,7 @@ function agentNameFromCache(
 }
 
 async function refetchAgents(queryClient: QueryClient): Promise<void> {
-  const { agents } = await dimaag.listAgents();
+  const { agents } = await hath.listAgents();
   seedRunningFromAgents(agents);
   queryClient.setQueryData(AGENTS_QUERY_KEY, agents);
 }
@@ -57,7 +57,7 @@ async function refetchAgents(queryClient: QueryClient): Promise<void> {
 async function hydrateHistory(): Promise<void> {
   setHistoryState("loading");
   try {
-    const { threads } = await dimaag.listThreads();
+    const { threads } = await hath.listThreads();
     seedConversations(threads);
     setHistoryState("ready");
   } catch (err) {
@@ -68,7 +68,7 @@ async function hydrateHistory(): Promise<void> {
 }
 
 /**
- * Subscribe to Dimaag SSE. Reconnects with backoff on drop and refetches
+ * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay).
  * An agent → user message opens that agent's thread.
  */
@@ -99,7 +99,7 @@ export function useEvents(): void {
     };
 
     const handleEvent = (data: unknown) => {
-      if (!isDimaagEvent(data)) {
+      if (!isHathEvent(data)) {
         return;
       }
 
@@ -196,7 +196,7 @@ export function useEvents(): void {
       teardownStream();
       void hydrateHistory();
       stopStream = transport.stream({
-        baseUrl: DIMAAG_URL,
+        baseUrl: HATH_URL,
         path: "/events",
         onEvent: handleEvent,
         onClose: () => {

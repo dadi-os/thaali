@@ -13,7 +13,7 @@ export { NotProvisionedError } from "./errors";
 
 /**
  * Legacy `mesh_start` port when desktop dialed `*.dadi` via the OS resolver.
- * Current desktop returns a local MagicDNS HTTP proxy port (`/@host`, same as iOS).
+ * Current desktop returns a local MagicDNS HTTP proxy port (`/@host`).
  */
 const SYSTEM_MESH_PORT = 0;
 
@@ -25,10 +25,9 @@ const RECOVER_INITIAL_MS = 500;
 const RECOVER_MAX_MS = 15_000;
 
 /**
- * Transport that dials Dimaag/Yaad/Nas through dadiMesh.
+ * Transport that dials Hath/Yaad/Nas through the dadi network.
  *
- * Desktop: system Tailscale TUN + local `/@host` proxy (MagicDNS, not libc).
- * iOS: in-process dialer → `http://127.0.0.1:<port>/@host/...`.
+ * System Tailscale TUN + local `/@host` proxy (MagicDNS, not libc).
  * Join/leave is explicit; after a successful join, tunnel flaps auto-recover
  * with backoff until the user leaves. Recover uses `reconnecting` (not
  * `connecting`) so the power overlay does not cover the shell.
@@ -94,7 +93,7 @@ export class MeshTransport implements Transport {
   }
 
   /**
-   * Start dadiMesh. Pass `override` during first-run provisioning.
+   * Connect to dadi. Pass `override` during first-run provisioning.
    * Onboarding stays up until `mesh_start` succeeds so a failed join does
    * not remount the scan/paste overlay.
    */
@@ -461,6 +460,7 @@ export class MeshTransport implements Transport {
       });
 
       if (!response.ok || !response.body) {
+        logLine("error", `SSE ${urlPath} failed with HTTP ${response.status}`, "sse_stream_failed");
         this.markSuccess();
         closed();
         return;
@@ -482,8 +482,9 @@ export class MeshTransport implements Transport {
       }
 
       closed();
-    } catch {
+    } catch (err) {
       if (!signal.aborted) {
+        logLine("error", `SSE ${urlPath}: ${err instanceof Error ? err.message : String(err)}`, "sse_stream_failed");
         void this.probeHealth();
         onClose?.();
       }

@@ -95,7 +95,7 @@ export function WeekView({
                 type="button"
                 aria-label={`Add to ${formatDayShort(day)}`}
                 onClick={(e) => onAdd(day, e.currentTarget)}
-                className="absolute top-0 right-0 flex size-6 items-center justify-center rounded-full text-sage-deep opacity-0 transition-opacity duration-slow ease-hath group-hover:opacity-100 hover:bg-sage-active focus-visible:opacity-100 [&>svg]:size-3.5"
+                className="absolute top-0 right-0 flex size-6 items-center justify-center rounded-full text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 hover:bg-sage-active focus-visible:opacity-100 [&>svg]:size-3.5"
               >
                 <IconPlus />
               </button>
@@ -154,7 +154,7 @@ export function WeekView({
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: SLOW_S, ease: EASE, delay: base + 0.14 + j * CHIP_STAGGER_S }}
                       onClick={(e) => onOpen(m.id, e.currentTarget)}
-                      className="relative flex items-start gap-1 rounded-[4px] px-1 py-0.5 text-left text-[10.5px] leading-snug text-ink-muted transition-colors duration-slow ease-hath hover:bg-sage-fill hover:text-ink"
+                      className="relative flex items-start gap-1 rounded-[4px] px-1 py-0.5 text-left text-[10.5px] leading-snug text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-ink"
                     >
                       <span aria-hidden className="mt-[5px] size-1 shrink-0 rounded-full bg-ink-faint" />
                       <span className="line-clamp-2">{m.title}</span>
@@ -199,7 +199,7 @@ function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.98 }}
       onClick={(e) => onOpen(plan.id, e.currentTarget)}
-      className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-hath hover:shadow-[var(--shadow)] ${statusClass(plan.detail.status)}`}
+      className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.detail.status)}`}
     >
       {planStartsOn(plan, day) ? (
         <span className="mb-0.5 flex items-center gap-1 text-[10px] opacity-70">

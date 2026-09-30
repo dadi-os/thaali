@@ -1,11 +1,11 @@
 import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { isMeshOnline, nas } from "../../shared/api";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { renderBrandedQr } from "../../shared/lib/qr/brandedQr";
 
 /**
- * Mint a single-use setup code for a new Hath node: name → Nas /provision →
+ * Mint a single-use setup code for a new device: name → Nas /provision →
  * branded QR + pasteable text for the joining device.
  */
 export function ProvisionDevice() {
@@ -136,7 +136,7 @@ function SetupCodeDisplay(props: {
         </div>
       )}
       <p className="text-center text-[13px] text-ink-ghost">
-        Scan with the new Hath, or copy the code.
+        Scan it with the new device, or copy the code.
       </p>
       <button
         type="button"

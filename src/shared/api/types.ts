@@ -2,7 +2,7 @@
 export type Lane = "reasoning" | "conversation";
 
 /**
- * Agent log event kinds from Dimaag. `response` is one model call's output,
+ * Agent log event kinds from Hath. `response` is one model call's output,
  * blocks in order (thinking, text, tool_use), logged before its tools run;
  * `tool_result` carries the tool's name and outcome; `message` a delivery.
  */
@@ -15,7 +15,7 @@ export type MessageAttachment = {
   filename?: string;
 };
 
-/** Response from Dimaag POST /messages. */
+/** Response from Hath POST /messages. */
 export type PostMessageResponse = {
   to_agent_id: string;
   content: string;
@@ -50,12 +50,12 @@ export type RoutedMessage = {
   created_at: string;
 };
 
-/** Response from Dimaag POST /router: every message it sent, in order (may be empty). */
+/** Response from Hath POST /router: every message it sent, in order (may be empty). */
 export type PostRouterResponse = {
   messages: RoutedMessage[];
 };
 
-/** Nas browsers/terminals this agent recently drove. Empty after Dimaag restart. */
+/** Nas browsers/terminals this agent recently drove. Empty after Hath restart. */
 export type AgentSessions = {
   browsers: number[];
   terminals: Array<{ id: string; last_command: string | null }>;
@@ -80,7 +80,7 @@ export type AgentDetail = AgentRecord & {
   tools: Array<{ name: string; description: string; usage: string }>;
 };
 
-/** One agent log row from Dimaag. */
+/** One agent log row from Hath. */
 export type LogRecord = {
   id: string;
   agent_id: string;
@@ -91,14 +91,14 @@ export type LogRecord = {
 };
 
 /** GET /health — process liveness. `started_at` is process identity, not a chat epoch. */
-export type DimaagHealth = {
+export type HathHealth = {
   status: string;
-  /** ISO time this Dimaag process started. */
+  /** ISO time this Hath process started. */
   started_at: string;
 };
 
-/** Dimaag SSE event envelope. */
-export type DimaagEvent =
+/** Hath SSE event envelope. */
+export type HathEvent =
   | {
       type: "message";
       agent_id: string;
@@ -135,7 +135,7 @@ export type DimaagEvent =
       at: string;
     }
   | {
-      type: "hath_command";
+      type: "device_command";
       command_id: string;
       node_name: string;
       tool: string;
@@ -185,7 +185,7 @@ export type NodeRecord = {
   access_count: number;
   last_accessed_at: string | null;
   source: NodeSource;
-  /** Dimaag agent that created the node; null unless source is agent. */
+  /** Hath agent that created the node; null unless source is agent. */
   agent_id: string | null;
   created_at: string;
   updated_at: string;

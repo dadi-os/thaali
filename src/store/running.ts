@@ -14,10 +14,12 @@ function emit(): void {
   }
 }
 
+/** Which lanes are running, per agent. */
 export function getRunning(): RunningMap {
   return running;
 }
 
+/** Listens for running-lane changes; returns the unsubscribe function. */
 export function subscribeRunning(listener: Listener): () => void {
   listeners.add(listener);
   return () => {
@@ -58,6 +60,7 @@ function runningMapsEqual(a: RunningMap, b: RunningMap): boolean {
   return true;
 }
 
+/** Records whether one agent lane is running and notifies listeners. */
 export function setLaneRunning(
   agentId: string,
   lane: Lane,

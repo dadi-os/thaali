@@ -11,12 +11,12 @@ import { createPortal } from "react-dom";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { dimaag, isMeshOnline, nas } from "../../shared/api";
+import { hath, isMeshOnline, nas } from "../../shared/api";
 import type { AgentRecord } from "../../shared/api/types";
-import { useConnection } from "../../hooks/useConnection";
-import { useHoverDetails } from "../../hooks/useHoverDetails";
-import { useThemeTokens } from "../../hooks/useThemeTokens";
-import { AGENTS_QUERY_KEY } from "../../hooks/useEvents";
+import { useConnection } from "../../shared/hooks/useConnection";
+import { useHoverDetails } from "../../shared/hooks/useHoverDetails";
+import { useThemeTokens } from "../../shared/hooks/useThemeTokens";
+import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import {
   ForceGraph,
@@ -112,7 +112,7 @@ export function AgentGraph3D({
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
     queryFn: async () => {
-      const { agents } = await dimaag.listAgents();
+      const { agents } = await hath.listAgents();
       seedRunningFromAgents(agents);
       return agents;
     },
@@ -203,7 +203,7 @@ export function AgentGraph3D({
         <GraphPlaceholder
           tone="offline"
           label="Agents offline"
-          detail={interactive ? "Connect to the mesh to load agents" : undefined}
+          detail={interactive ? "Connect to dadi to load agents" : undefined}
         />
       </div>
     );

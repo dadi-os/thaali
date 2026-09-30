@@ -17,7 +17,7 @@ export type SearchFieldProps = {
  */
 export function SearchField({ value, onChange, placeholder, matches, onPick }: SearchFieldProps) {
   return (
-    <label className="flex h-9 w-80 items-center gap-2 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 shadow-[var(--shadow)] backdrop-blur-[var(--glass-blur)] transition-[border-color,background-color] duration-slow ease-hath focus-within:border-sage focus-within:bg-sage-faint/60 hover:border-sage">
+    <label className="flex h-9 w-80 items-center gap-2 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 shadow-[var(--shadow)] backdrop-blur-[var(--glass-blur)] transition-[border-color,background-color] duration-slow ease-dadi focus-within:border-sage focus-within:bg-sage-faint/60 hover:border-sage">
       <span className="flex size-4 shrink-0 text-ink-ghost">
         <IconSearch />
       </span>
@@ -50,7 +50,7 @@ export function SearchField({ value, onChange, placeholder, matches, onPick }: S
           type="button"
           aria-label="Clear search"
           onClick={() => onChange("")}
-          className="-mr-1 flex size-6 shrink-0 items-center justify-center rounded-full text-ink-ghost transition-colors duration-slow ease-hath hover:bg-sage-active hover:text-sage-deep"
+          className="-mr-1 flex size-6 shrink-0 items-center justify-center rounded-full text-ink-ghost transition-colors duration-slow ease-dadi hover:bg-sage-active hover:text-sage-deep"
         >
           <IconDismiss />
         </button>

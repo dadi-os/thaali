@@ -114,11 +114,7 @@ export class BrowserTransport implements Transport {
       if (!raw || raw === "[DONE]") {
         return;
       }
-      try {
-        opts.onEvent(JSON.parse(raw) as unknown);
-      } catch {
-        // skip malformed payloads; keep the stream open
-      }
+      opts.onEvent(JSON.parse(raw) as unknown);
     };
 
     es.onerror = () => {

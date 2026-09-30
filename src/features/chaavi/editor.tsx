@@ -24,7 +24,7 @@ export type LoginEditorProps = {
 };
 
 const fieldClass =
-  "w-full rounded-[var(--radius)] border border-rule bg-bone/50 px-3 py-2 text-[14px] text-ink outline-none transition-[border-color] duration-slow ease-hath placeholder:text-ink-ghost focus:border-sage disabled:opacity-50";
+  "w-full rounded-[var(--radius)] border border-rule bg-bone/50 px-3 py-2 text-[14px] text-ink outline-none transition-[border-color] duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage disabled:opacity-50";
 
 /**
  * Create / edit login sheet. On edit, an empty password leaves the vault value alone.

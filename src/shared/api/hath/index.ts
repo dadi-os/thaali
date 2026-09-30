@@ -2,7 +2,7 @@ import type { Transport } from "../transport";
 import type {
   AgentDetail,
   AgentRecord,
-  DimaagHealth,
+  HathHealth,
   DurableMessage,
   LogEvent,
   LogRecord,
@@ -13,13 +13,13 @@ import type {
 } from "../types";
 
 /**
- * Dimaag HTTP client — agents, messages, and logs over the given transport.
+ * Hath HTTP client — agents, messages, and logs over the given transport.
  * Paths live here; callers pass only domain args.
  */
-export function createDimaagClient(transport: Transport, baseUrl: string) {
+export function createHathClient(transport: Transport, baseUrl: string) {
   return {
     /** GET /health — process liveness (`started_at` is identity only, not chat epoch). */
-    getHealth(): Promise<DimaagHealth> {
+    getHealth(): Promise<HathHealth> {
       return transport.request({
         baseUrl,
         path: "/health",
@@ -66,7 +66,7 @@ export function createDimaagClient(transport: Transport, baseUrl: string) {
     postRouter(body: {
       content: string;
       attachments?: MessageAttachment[];
-      /** This Hath device, so the router can open the hand-off's chat here. */
+      /** This device, so the router can open the hand-off's chat here. */
       node_name?: string;
     }): Promise<PostRouterResponse> {
       return transport.request({
@@ -119,7 +119,7 @@ export function createDimaagClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** POST /hath/presence — heartbeat for this mesh node. */
+    /** POST /devices/presence — heartbeat for this mesh node. */
     postPresence(body: {
       node_name: string;
       platform: string;
@@ -132,13 +132,13 @@ export function createDimaagClient(transport: Transport, baseUrl: string) {
     }> {
       return transport.request({
         baseUrl,
-        path: "/hath/presence",
+        path: "/devices/presence",
         method: "POST",
         body,
       });
     },
 
-    /** POST /hath/commands/:id/result — complete a reverse-RPC command. */
+    /** POST /devices/commands/:id/result — complete a reverse-RPC command. */
     postCommandResult(
       commandId: string,
       body:
@@ -147,7 +147,7 @@ export function createDimaagClient(transport: Transport, baseUrl: string) {
     ): Promise<{ accepted: true }> {
       return transport.request({
         baseUrl,
-        path: `/hath/commands/${encodeURIComponent(commandId)}/result`,
+        path: `/devices/commands/${encodeURIComponent(commandId)}/result`,
         method: "POST",
         body,
       });
@@ -155,8 +155,8 @@ export function createDimaagClient(transport: Transport, baseUrl: string) {
   };
 }
 
-/** Dimaag client shape returned by {@link createDimaagClient}. */
-export type DimaagClient = ReturnType<typeof createDimaagClient>;
+/** Hath client shape returned by {@link createHathClient}. */
+export type HathClient = ReturnType<typeof createHathClient>;
 
 function toQuery(query?: { event?: LogEvent; limit?: number }): string {
   if (!query) {

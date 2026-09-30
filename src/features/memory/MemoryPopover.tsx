@@ -69,7 +69,7 @@ export function MemoryPopover({
           <button
             type="button"
             onClick={onClose}
-            className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-hath hover:text-ink-muted"
+            className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-dadi hover:text-ink-muted"
           >
             ESC
           </button>
@@ -139,7 +139,7 @@ export function MemoryPopover({
                   <button
                     type="button"
                     onClick={() => onSelect(c.node.id)}
-                    className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors duration-slow ease-hath hover:bg-sage-fill"
+                    className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
                   >
                     <span
                       aria-hidden

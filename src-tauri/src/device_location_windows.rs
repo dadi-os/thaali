@@ -17,7 +17,7 @@ pub fn get_location() -> Result<LocationInfo, String> {
         GeolocationAccessStatus::Allowed => {}
         GeolocationAccessStatus::Denied => {
             return Err(
-                "permission_denied: enable Location for Hath in Windows Settings".into(),
+                "permission_denied: enable Location for dadi in Windows Settings".into(),
             );
         }
         GeolocationAccessStatus::Unspecified => {
@@ -34,7 +34,6 @@ pub fn get_location() -> Result<LocationInfo, String> {
         .SetDesiredAccuracy(PositionAccuracy::Default)
         .map_err(|e| format!("internal_error: set accuracy: {e}"))?;
 
-    // 20s timeout (TimeSpan is 100ns units).
     let timeout = TimeSpan {
         Duration: 20i64 * 10_000_000,
     };

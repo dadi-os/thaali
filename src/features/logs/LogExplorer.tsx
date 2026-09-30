@@ -3,8 +3,8 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { isMeshOnline, nas } from "../../shared/api";
 import type { NasLogEntry, NasLogLevel } from "../../shared/api/nas";
-import { useConnection } from "../../hooks/useConnection";
-import { useHoverDetails, type DetailsAnchor } from "../../hooks/useHoverDetails";
+import { useConnection } from "../../shared/hooks/useConnection";
+import { useHoverDetails, type DetailsAnchor } from "../../shared/hooks/useHoverDetails";
 import { Glider } from "../../shared/components/Glider";
 import { IconDismiss, IconSearch } from "../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -25,6 +25,7 @@ export function rangeBounds(preset: RangePreset): { from: string; to: string } {
   return { from: from.toISOString(), to: to.toISOString() };
 }
 
+/** A log timestamp in the viewer's locale, to the second. */
 export function formatLogTime(iso: string): string {
   const d = new Date(iso);
   return new Intl.DateTimeFormat(undefined, {
@@ -94,7 +95,9 @@ function humanizeProviderBlob(text: string): {
       if (nested) {
         return { message: nested, code };
       }
-    } catch {}
+    } catch (err) {
+      if (!(err instanceof SyntaxError)) throw err;
+    }
   }
 
   const stripped = text.replace(/^Error code:\s*\d+\s*-\s*/i, "").trim();
@@ -115,8 +118,8 @@ export function errorCardCopy(entry: NasLogEntry): ErrorCardCopy {
         error?: string;
       };
       blob = parsed.err?.message ?? parsed.error ?? null;
-    } catch {
-      blob = null;
+    } catch (err) {
+      if (!(err instanceof SyntaxError)) throw err;
     }
   }
 
@@ -253,14 +256,14 @@ function ServicePicker({ services, loading, error, selected, onToggle, onClear }
         aria-expanded={open}
         disabled={loading}
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-8 max-w-[160px] items-center gap-1.5 rounded-[7px] border border-dashed px-2.5 text-[11px] tracking-wide transition-colors duration-slow ease-hath disabled:opacity-60 ${
+        className={`flex h-8 max-w-[160px] items-center gap-1.5 rounded-[7px] border border-dashed px-2.5 text-[11px] tracking-wide transition-colors duration-slow ease-dadi disabled:opacity-60 ${
           selected.size > 0 || open
             ? "border-sage bg-sage-active text-sage-deep"
             : "border-sage-line text-ink-muted hover:border-sage"
         }`}
       >
         <span className="min-w-0 truncate">{summary}</span>
-        <svg viewBox="0 0 10 10" aria-hidden className={`size-2.5 shrink-0 transition-transform duration-slow ease-hath ${open ? "rotate-180" : ""}`}>
+        <svg viewBox="0 0 10 10" aria-hidden className={`size-2.5 shrink-0 transition-transform duration-slow ease-dadi ${open ? "rotate-180" : ""}`}>
           <path d="M2 3.5l3 3 3-3" fill="none" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       </button>
@@ -299,10 +302,10 @@ function ServiceOption({ label, on, onClick }: { label: string; on: boolean; onC
       role="option"
       aria-selected={on}
       onClick={onClick}
-      className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[12px] text-ink transition-colors duration-slow ease-hath hover:bg-sage-fill"
+      className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1.5 text-left text-[12px] text-ink transition-colors duration-slow ease-dadi hover:bg-sage-fill"
     >
       <span
-        className={`flex size-3.5 shrink-0 items-center justify-center rounded-[4px] border transition-colors duration-slow ease-hath ${
+        className={`flex size-3.5 shrink-0 items-center justify-center rounded-[4px] border transition-colors duration-slow ease-dadi ${
           on ? "border-sage bg-sage text-bone" : "border-sage-line"
         }`}
       >
@@ -481,7 +484,7 @@ export function LogExplorer({ className }: LogExplorerProps) {
   return (
     <div className={`flex h-full min-h-0 flex-col gap-2 ${className ?? ""}`}>
       <div className="flex flex-wrap items-center gap-1.5">
-        <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-[7px] border border-dashed border-sage-line bg-bone pr-1 pl-2.5 transition-colors duration-slow ease-hath focus-within:border-sage hover:border-sage">
+        <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-[7px] border border-dashed border-sage-line bg-bone pr-1 pl-2.5 transition-colors duration-slow ease-dadi focus-within:border-sage hover:border-sage">
           <span className="flex size-3.5 shrink-0 text-ink-ghost [&_svg]:size-3.5">
             <IconSearch />
           </span>
@@ -505,7 +508,7 @@ export function LogExplorer({ className }: LogExplorerProps) {
               type="button"
               aria-label="Clear filter"
               onClick={() => setQDraft("")}
-              className="flex size-5 shrink-0 items-center justify-center rounded-full text-ink-ghost transition-colors duration-slow ease-hath hover:bg-sage-active hover:text-sage-deep [&_svg]:size-3"
+              className="flex size-5 shrink-0 items-center justify-center rounded-full text-ink-ghost transition-colors duration-slow ease-dadi hover:bg-sage-active hover:text-sage-deep [&_svg]:size-3"
             >
               <IconDismiss />
             </button>
@@ -573,7 +576,7 @@ export function LogExplorer({ className }: LogExplorerProps) {
                         pinRow(key, e.currentTarget);
                       }
                     }}
-                    className={`relative flex cursor-default items-center gap-2.5 border-b border-rule/60 py-[5px] pr-3 pl-3 outline-none transition-colors duration-slow ease-hath last:border-b-0 focus-visible:bg-sage-fill ${
+                    className={`relative flex cursor-default items-center gap-2.5 border-b border-rule/60 py-[5px] pr-3 pl-3 outline-none transition-colors duration-slow ease-dadi last:border-b-0 focus-visible:bg-sage-fill ${
                       active
                         ? "bg-sage-active"
                         : isError

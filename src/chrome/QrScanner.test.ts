@@ -1,17 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cameraFailureMessage, qrVideoConstraint } from "./QrScanner";
-
-describe("qrVideoConstraint", () => {
-  it("does not demand a rear camera on desktop", () => {
-    expect(qrVideoConstraint("desktop")).toBe(true);
-  });
-
-  it("prefers the rear camera on mobile", () => {
-    expect(qrVideoConstraint("mobile")).toEqual({
-      facingMode: { ideal: "environment" },
-    });
-  });
-});
+import { cameraFailureMessage } from "./QrScanner";
 
 describe("cameraFailureMessage", () => {
   it("distinguishes permission, missing camera, and in-use failures", () => {

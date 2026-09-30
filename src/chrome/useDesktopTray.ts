@@ -1,16 +1,15 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { dimaag, isMeshOnline } from "../shared/api";
-import { useConnection } from "./useConnection";
+import { hath, isMeshOnline } from "../shared/api";
+import { useConnection } from "../shared/hooks/useConnection";
 import { useDesktopUpdate } from "./useDesktopUpdate";
-import { AGENTS_QUERY_KEY } from "./useEvents";
-import { useTarget } from "./useTarget";
+import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
 import {
   syncDesktopTray,
   type TrayListState,
   type TraySnapshot,
-} from "../shared/desktop/tray";
+} from "./tray";
 import { logLine } from "../shared/lib/platform/log";
 import { openAgent } from "../store/chat";
 import { subscribeDesktopShell } from "../store/desktopShell";
@@ -42,7 +41,7 @@ function trayListState<T>(query: {
 }
 
 /**
- * Own the desktop tray + macOS app menu. No-op on browser / mobile.
+ * Own the desktop tray + macOS app menu. No-op in the browser.
  * Routes tray actions into navigation, mesh, and updates.
  * Polls agents in the background; the menu tree stays installed and is patched
  * in place so an open Agents submenu is not dismissed.
@@ -51,7 +50,6 @@ export function useDesktopTray(opts: {
   /** Open the provision client modal. */
   onProvision: () => void;
 }): void {
-  const target = useTarget();
   const navigate = useNavigate();
   const { state, disconnect } = useConnection();
   const update = useDesktopUpdate();
@@ -69,21 +67,17 @@ export function useDesktopTray(opts: {
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
     queryFn: async () => {
-      const { agents } = await dimaag.listAgents();
+      const { agents } = await hath.listAgents();
       seedRunningFromAgents(agents);
       return agents;
     },
-    enabled: target === "desktop" && online,
+    enabled: online,
     refetchInterval: TRAY_AGENTS_MS,
   });
 
   useEffect(() => subscribeRunning(setRunning), []);
 
   useEffect(() => {
-    if (target !== "desktop") {
-      return;
-    }
-
     return subscribeDesktopShell((action) => {
       switch (action.type) {
         case "show_window":
@@ -115,13 +109,9 @@ export function useDesktopTray(opts: {
         }
       }
     });
-  }, [target, navigate, onProvision, checkUpdate, leaveMesh, update]);
+  }, [navigate, onProvision, checkUpdate, leaveMesh, update]);
 
   useEffect(() => {
-    if (target !== "desktop") {
-      return;
-    }
-
     const list = trayListState(agentsQuery);
     const agents: TraySnapshot["agents"] =
       list.status === "ready"
@@ -150,7 +140,6 @@ export function useDesktopTray(opts: {
       );
     });
   }, [
-    target,
     online,
     update.installing,
     agentsQuery.data,

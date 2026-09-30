@@ -22,7 +22,7 @@ export default defineConfig(() => ({
   plugins: [react(), tailwindcss()],
   clearScreen: false,
   define: {
-    __HATH_APP_VERSION__: JSON.stringify(packageJson.version),
+    __THAALI_APP_VERSION__: JSON.stringify(packageJson.version),
   },
   test: {
     environment: "node",
@@ -45,11 +45,10 @@ export default defineConfig(() => ({
         },
       }
     : {
-        // Plain web / nas compose: Vite behind Caddy at http://hath.dadi (port 80).
         host: "0.0.0.0",
         port: 8080,
         strictPort: true,
-        allowedHosts: ["hath.dadi"],
+        allowedHosts: ["thaali.dadi"],
         hmr: {
           clientPort: 80,
         },

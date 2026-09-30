@@ -46,7 +46,7 @@ export function Glider<T extends string>({ options, value, onChange, label, size
             role="radio"
             aria-checked={on}
             onClick={() => onChange(opt.value)}
-            className={`relative z-10 tracking-wide transition-colors duration-slow ease-hath ${
+            className={`relative z-10 tracking-wide transition-colors duration-slow ease-dadi ${
               size === "sm" ? "min-w-[2.1rem] px-1.5 text-[10.5px]" : "min-w-[2.6rem] px-2 text-[11px]"
             } ${on ? "text-sage-deep" : "text-ink-ghost hover:text-ink-muted"}`}
           >

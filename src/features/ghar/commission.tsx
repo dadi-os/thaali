@@ -11,16 +11,16 @@ import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
 import { isTauriRuntime } from "../../shared/api/runtime";
 import type { GharCommissionJob } from "../../shared/api/types";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { IconPlus } from "../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { startHathRadio } from "./radio";
+import { startDeviceRadio } from "./radio";
 
 type RadioMode = "network" | "nearby";
 type PairPhase = "plus" | "code" | "link";
 
 const field =
-  "rounded-[var(--radius)] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 py-2.5 text-ink outline-none transition-[border-color,background-color] duration-slow ease-hath placeholder:text-ink-ghost hover:border-sage focus:border-sage disabled:cursor-default disabled:opacity-50";
+  "rounded-[var(--radius)] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 py-2.5 text-ink outline-none transition-[border-color,background-color] duration-slow ease-dadi placeholder:text-ink-ghost hover:border-sage focus:border-sage disabled:cursor-default disabled:opacity-50";
 
 /** Human label for a room. The seeded room is the unplaced pile. */
 export function roomTitle(name: string): string {
@@ -81,7 +81,7 @@ export function UnplacedCommission() {
     }
     if (!isTauriRuntime()) {
       setRadioReady(false);
-      setRadioError("Bluetooth commissioning needs the Hath app on this computer.");
+      setRadioError("Bluetooth commissioning needs the dadi desktop app on this computer.");
       return;
     }
     if (!connected) {
@@ -91,7 +91,7 @@ export function UnplacedCommission() {
     }
     setRadioReady(false);
     setRadioError(null);
-    const handle = startHathRadio(ghar, {
+    const handle = startDeviceRadio(ghar, {
       onReady: () => {
         setRadioReady(true);
         setRadioError(null);
@@ -198,7 +198,7 @@ export function UnplacedCommission() {
             exit={{ opacity: 0, scale: 0.92 }}
             transition={{ duration: SLOW_S, ease: EASE }}
             onClick={() => setPhase("code")}
-            className="flex w-full items-center justify-center py-3.5 text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-active/50 [&_svg]:size-5"
+            className="flex w-full items-center justify-center py-3.5 text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-active/50 [&_svg]:size-5"
           >
             <IconPlus />
           </motion.button>
@@ -288,7 +288,7 @@ export function UnplacedCommission() {
             <button
               type="submit"
               disabled={!canSubmit}
-              className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-hath hover:bg-sage disabled:cursor-default disabled:opacity-40"
+              className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:cursor-default disabled:opacity-40"
             >
               Pair
             </button>
@@ -426,7 +426,7 @@ function RadioGlider({
             aria-checked={on}
             disabled={disabled}
             onClick={() => onChange(mode)}
-            className={`relative z-10 px-2.5 py-1.5 text-[12px] tracking-wide transition-colors duration-slow ease-hath ${
+            className={`relative z-10 px-2.5 py-1.5 text-[12px] tracking-wide transition-colors duration-slow ease-dadi ${
               on ? "text-sage-deep" : "text-ink-ghost hover:text-ink-muted"
             } disabled:cursor-default`}
           >

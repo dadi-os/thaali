@@ -55,7 +55,7 @@ export function SomedayRail({ onOpen }: SomedayRailProps) {
                 <button
                   type="button"
                   onClick={(e) => onOpen(idea.id, e.currentTarget)}
-                  className="w-full rounded-[6px] border border-dashed border-rule px-2 py-1.5 text-left text-[12px] leading-snug text-ink-muted transition-colors duration-slow ease-hath hover:border-sage-line hover:text-ink"
+                  className="w-full rounded-[6px] border border-dashed border-rule px-2 py-1.5 text-left text-[12px] leading-snug text-ink-muted transition-colors duration-slow ease-dadi hover:border-sage-line hover:text-ink"
                 >
                   {idea.title}
                 </button>

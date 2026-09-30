@@ -2,7 +2,7 @@
 
 export const NEAR_BOTTOM_PX = 80;
 export const TEXTAREA_MAX_PX = 160;
-/** Dimaag GET /agents/:id/messages max when opening a thread. */
+/** Hath GET /agents/:id/messages max when opening a thread. */
 export const HISTORY_LOG_LIMIT = 200;
 /** Breathing room between the last message and the top of the composer. */
 export const COMPOSER_GAP = 16;

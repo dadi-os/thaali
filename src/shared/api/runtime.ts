@@ -1,5 +1,5 @@
 /**
- * True when running inside a Tauri webview (desktop or mobile shell).
+ * True when running inside the Tauri desktop webview.
  * Does not import `@tauri-apps/*` — safe to evaluate in a plain browser.
  */
 export function isTauriRuntime(): boolean {
@@ -14,9 +14,9 @@ export function isTauriRuntime(): boolean {
 }
 
 /** Which Transport implementation {@link createTransport} will construct. */
-export type TransportKind = "tsnet" | "browser";
+export type TransportKind = "mesh" | "browser";
 
 /** Sync selection used by tests and boot. */
 export function selectTransportKind(): TransportKind {
-  return isTauriRuntime() ? "tsnet" : "browser";
+  return isTauriRuntime() ? "mesh" : "browser";
 }

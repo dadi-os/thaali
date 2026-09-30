@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { isMeshOnline, yaad } from "../../shared/api";
 import type { IngestResponse } from "../../shared/api/types";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { Glider } from "../../shared/components/Glider";
 import { IconPlus } from "../../shared/components/IconButton";
 import type { PopoverAnchor } from "../../shared/components/Popover";
@@ -283,7 +283,7 @@ export function TimelineCalendar({
             <button
               type="button"
               onClick={() => page(-1)}
-              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-active/40"
+              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-active/40"
               aria-label="Previous"
             >
               ‹
@@ -291,14 +291,14 @@ export function TimelineCalendar({
             <button
               type="button"
               onClick={goToday}
-              className="rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-hath hover:bg-sage-active/40"
+              className="rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-active/40"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => page(1)}
-              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-active/40"
+              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-active/40"
               aria-label="Next"
             >
               ›
@@ -325,7 +325,7 @@ export function TimelineCalendar({
             <button
               type="button"
               onClick={(e) => openComposer(null, e.currentTarget)}
-              className="flex shrink-0 items-center gap-1 rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-hath hover:bg-sage-line/50 [&>svg]:size-3.5"
+              className="flex shrink-0 items-center gap-1 rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/50 [&>svg]:size-3.5"
             >
               <IconPlus />
               Add

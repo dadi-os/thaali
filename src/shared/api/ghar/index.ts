@@ -13,7 +13,7 @@ export const GHAR_DEVICES_KEY = ["ghar", "devices"] as const;
 export const GHAR_ROOMS_KEY = ["ghar", "rooms"] as const;
 
 /**
- * Ghar HTTP client — rooms, devices, commissioning, and the Hath radio bridge.
+ * Ghar HTTP client — rooms, devices, commissioning, and the device radio bridge.
  * Paths live here; callers pass only domain args.
  */
 export function createGharClient(transport: Transport, baseUrl: string) {

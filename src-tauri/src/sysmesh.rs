@@ -1,14 +1,12 @@
 //! Desktop system mesh via Headscale-compatible `tailscaled` (TUN + MagicDNS).
 //!
-//! iOS keeps the in-process tsnet dialer; desktop joins the mesh the same way
-//! the Nas host does (`tailscale up --login-server …`) so Terminal can reach
-//! `os.dadi` and other MagicDNS names.
+//! Thaali joins the mesh the same way the Nas host does
+//! (`tailscale up --login-server …`) so Terminal can reach `os.dadi` and other
+//! MagicDNS names.
 //!
-//! On macOS, `tailscaled` runs as LaunchDaemon `com.dadi.hath.sysmesh` with
-//! KeepAlive so it outlives Hath quits, osascript teardown, and Wi‑Fi flaps.
+//! On macOS, `tailscaled` runs as LaunchDaemon `com.dadi.thaali.sysmesh` with
+//! KeepAlive so it outlives Thaali quits, osascript teardown, and Wi‑Fi flaps.
 //! Leave mesh only runs `tailscale down` — the daemon stays loaded.
-
-#![cfg(not(target_os = "ios"))]
 
 use crate::logutil;
 
@@ -27,10 +25,19 @@ const DAEMON_WAIT: Duration = Duration::from_secs(20);
 const MAGIC_DNS_RESOLVER_INSTALL: &str = "/bin/mkdir -p /etc/resolver && /usr/bin/printf 'nameserver 100.100.100.100\\n' > /etc/resolver/dadi && /usr/bin/dscacheutil -flushcache; /usr/bin/killall -HUP mDNSResponder 2>/dev/null; true";
 
 #[cfg(target_os = "macos")]
-const SYSMESH_LAUNCHD_LABEL: &str = "com.dadi.hath.sysmesh";
+const SYSMESH_LAUNCHD_LABEL: &str = "com.dadi.thaali.sysmesh";
 
 #[cfg(target_os = "macos")]
-const SYSMESH_LAUNCHD_PLIST: &str = "/Library/LaunchDaemons/com.dadi.hath.sysmesh.plist";
+const SYSMESH_LAUNCHD_PLIST: &str = "/Library/LaunchDaemons/com.dadi.thaali.sysmesh.plist";
+
+/// LaunchDaemon label from before the desktop app was renamed Thaali. Install
+/// boots it out and deletes its plist so two `tailscaled` never share the TUN.
+#[cfg(target_os = "macos")]
+const RETIRED_LAUNCHD_LABEL: &str = "com.dadi.hath.sysmesh";
+
+/// Plist path of [`RETIRED_LAUNCHD_LABEL`].
+#[cfg(target_os = "macos")]
+const RETIRED_LAUNCHD_PLIST: &str = "/Library/LaunchDaemons/com.dadi.hath.sysmesh.plist";
 
 struct Bins {
     tailscale: PathBuf,
@@ -90,7 +97,7 @@ pub fn stop(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
-/// `2` connected / `0` disconnected (matches dadimesh_status shape).
+/// `2` connected / `0` disconnected (matches mesh_status shape).
 pub fn status(app: &AppHandle) -> u8 {
     let Ok(state_dir) = sysmesh_dir(app) else {
         return 0;
@@ -216,6 +223,8 @@ fn socket_cli_args(socket: &Path) -> Vec<String> {
     vec!["--socket".into(), socket.to_string_lossy().into_owned()]
 }
 
+/// True when the LocalAPI socket accepts a connection. Always false on Windows,
+/// where named pipe readiness is probed via `tailscale status` in `ensure_daemon`.
 fn socket_live(socket: &Path) -> bool {
     #[cfg(unix)]
     {
@@ -231,14 +240,14 @@ fn socket_live(socket: &Path) -> bool {
     }
     #[cfg(windows)]
     {
-        // Named pipe readiness is probed via `tailscale status` in ensure_daemon.
         let _ = socket;
         false
     }
 }
 
+/// Starts `tailscaled` unless it already answers, via its socket or, on Windows,
+/// via LocalAPI status JSON.
 fn ensure_daemon(bins: &Bins, state_dir: &Path, socket: &Path) -> Result<(), String> {
-    // Windows has no Unix socket probe; LocalAPI JSON is the readiness signal.
     if socket_live(socket) || daemon_reports_via_cli(bins, socket) {
         return Ok(());
     }
@@ -340,7 +349,7 @@ fn spawn_daemon_process(
     Ok(())
 }
 
-/// Starts `tailscaled` under LaunchDaemon KeepAlive (survives Hath + shell exit).
+/// Starts `tailscaled` under LaunchDaemon KeepAlive (survives Thaali + shell exit).
 #[cfg(target_os = "macos")]
 fn start_daemon_macos(
     bins: &Bins,
@@ -373,12 +382,12 @@ fn start_daemon_macos(
 }
 
 /// Wait for an already-installed LaunchDaemon to bring the socket back (no password).
+/// KeepAlive restarts a crashed job on its own, so it gets a few seconds before a kickstart.
 #[cfg(target_os = "macos")]
 fn try_launchd_revive(socket: &Path) -> bool {
     if !Path::new(SYSMESH_LAUNCHD_PLIST).is_file() {
         return false;
     }
-    // KeepAlive restarts crashed jobs on its own; give it a moment.
     if wait_socket_live(socket, Duration::from_secs(6)) {
         return true;
     }
@@ -392,6 +401,7 @@ fn try_launchd_revive(socket: &Path) -> bool {
 }
 
 /// One-time (or repair) admin install: stable binary + LaunchDaemon + resolver.
+/// launchd owns the daemon, not osascript, so quitting Thaali cannot SIGTERM it.
 #[cfg(target_os = "macos")]
 fn install_macos_launchd_daemon(
     bins: &Bins,
@@ -409,15 +419,14 @@ fn install_macos_launchd_daemon(
 
     logutil::emit(
         "info",
-        "sysmesh requesting admin to install LaunchDaemon com.dadi.hath.sysmesh",
+        "sysmesh requesting admin to install LaunchDaemon com.dadi.thaali.sysmesh",
     );
 
-    // Copy a stable binary under statedir, install the plist, bootstrap + kickstart.
-    // launchd owns the process — not osascript — so Hath quit cannot SIGTERM it.
     let script = format!(
         "/bin/mkdir -p {bindir} && \
 /bin/cp -f {src} {daemon} && /bin/chmod 755 {daemon} && \
 /bin/cp -f {staged} {plist} && /bin/chmod 644 {plist} && \
+/bin/launchctl bootout system/{retired} 2>/dev/null; /bin/rm -f {retired_plist}; \
 /bin/launchctl bootout system/{label} 2>/dev/null; \
 /bin/launchctl bootstrap system {plist} && \
 /bin/launchctl enable system/{label} && \
@@ -429,6 +438,8 @@ fn install_macos_launchd_daemon(
         staged = sh_single_quote(&staged.to_string_lossy()),
         plist = sh_single_quote(SYSMESH_LAUNCHD_PLIST),
         label = SYSMESH_LAUNCHD_LABEL,
+        retired = RETIRED_LAUNCHD_LABEL,
+        retired_plist = sh_single_quote(RETIRED_LAUNCHD_PLIST),
         socket = sh_single_quote(&socket.to_string_lossy()),
         resolver = resolver_bit,
     );
@@ -454,7 +465,6 @@ fn install_macos_launchd_daemon(
                 .args(["666", &socket.to_string_lossy()])
                 .status();
             if socket_live(socket) {
-                // Do not leave osascript hanging — wait briefly for a clean exit.
                 let _ = child.try_wait();
                 return Ok(());
             }
@@ -470,14 +480,15 @@ fn install_macos_launchd_daemon(
                     None => String::new(),
                 };
                 return Err(format!(
-                    "admin approval required to install the dadiMesh LaunchDaemon: {err}"
+                    "admin approval required to install the dadi network daemon: {err}"
                 ));
             }
             Ok(Some(_)) => {
                 if wait_socket_live(socket, Duration::from_secs(5)) {
                     return Ok(());
                 }
-                let log = fs::read_to_string(log_path).unwrap_or_default();
+                let log = fs::read_to_string(log_path)
+                    .map_err(|e| format!("LaunchDaemon installed but tailscaled socket never came up; read {}: {e}", log_path.display()))?;
                 return Err(format!(
                     "LaunchDaemon installed but tailscaled socket never came up — {}",
                     log.trim()
@@ -503,7 +514,7 @@ fn stage_sysmesh_launchd_plist(
     socket: &Path,
     log_path: &Path,
 ) -> Result<PathBuf, String> {
-    let staged = std::env::temp_dir().join("com.dadi.hath.sysmesh.plist");
+    let staged = std::env::temp_dir().join("com.dadi.thaali.sysmesh.plist");
     let xml = format!(
         r#"<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -583,7 +594,6 @@ fn start_daemon_linux(
         }
     }
 
-    // nohup + redirect so the elevated shell exit cannot take the daemon with it.
     let script = format!(
         "mkdir -p {statedir} && rm -f {socket} && nohup {tailscaled} --statedir={statedir} --socket={socket} --verbose=1 >{log} 2>&1 </dev/null & echo $! >{pidfile}; sleep 1; chmod 666 {socket} 2>/dev/null; true",
         statedir = sh_single_quote(&state_dir.to_string_lossy()),
@@ -621,7 +631,7 @@ fn start_daemon_linux(
         }
     }
     Err(format!(
-        "admin / CAP_NET_ADMIN required to create the dadiMesh TUN ({last_err})"
+        "admin / CAP_NET_ADMIN required to create the dadi network interface ({last_err})"
     ))
 }
 
@@ -687,7 +697,7 @@ fn start_daemon_windows(
     if !output.status.success() {
         let err = String::from_utf8_lossy(&output.stderr);
         return Err(format!(
-            "admin approval required to create the dadiMesh TUN (Wintun): {err}"
+            "admin approval required to create the dadi network interface (Wintun): {err}"
         ));
     }
 
@@ -759,9 +769,11 @@ fn wait_until_running(bins: &Bins, socket: &Path) -> Result<(), String> {
         }
         thread::sleep(Duration::from_millis(400));
     }
-    Err("dadiMesh join timed out. Check the setup code or network.".into())
+    Err("Connecting to dadi timed out. Check the setup code or network.".into())
 }
 
+/// True when `tailscale status --json` reports BackendState Running. The exit code is
+/// ignored: it is often non-zero before the backend is running.
 fn backend_running(bins: &Bins, socket: &Path) -> bool {
     let mut args = socket_cli_args(socket);
     args.extend(["status".into(), "--json".into()]);
@@ -771,7 +783,6 @@ fn backend_running(bins: &Bins, socket: &Path) -> bool {
         return false;
     };
     let body = String::from_utf8_lossy(&output.stdout);
-    // Exit code is often non-zero before Running; trust JSON BackendState only.
     body.contains("\"BackendState\":\"Running\"")
         || body.contains("\"BackendState\": \"Running\"")
 }
@@ -800,10 +811,12 @@ fn ensure_magic_dns_resolver() -> Result<(), String> {
 /// Trust the mesh CA so Bitwarden can use https://chaavi.dadi.
 ///
 /// Prefers `ca_pem` from saved credentials; otherwise fetches `GET /ca` from nas.dadi.
+/// A failed or cancelled install is logged and does not fail the join, since the
+/// recover loop would otherwise re-prompt forever.
 fn ensure_mesh_ca(app: &AppHandle) -> Result<(), String> {
-    let pem = match load_ca_pem(app) {
-        Some(p) if p.contains("BEGIN CERTIFICATE") => p,
-        _ => match fetch_ca_pem_from_nas() {
+    let pem = match load_ca_pem(app)? {
+        Some(p) => p,
+        None => match fetch_ca_pem_from_nas() {
             Ok(p) => p,
             Err(e) => {
                 logutil::emit("warn", format!("sysmesh mesh CA unavailable: {e}"));
@@ -814,21 +827,20 @@ fn ensure_mesh_ca(app: &AppHandle) -> Result<(), String> {
     let ca_path = sysmesh_dir(app)?.join("mesh-ca.crt");
     fs::write(&ca_path, pem.as_bytes()).map_err(|e| format!("write mesh CA: {e}"))?;
     if let Err(e) = install_mesh_ca(&ca_path) {
-        // Do not fail join — recover loops would re-prompt forever on cancel.
         logutil::emit("warn", format!("sysmesh mesh CA install deferred: {e}"));
     }
     Ok(())
 }
 
-fn load_ca_pem(app: &AppHandle) -> Option<String> {
-    let path = app.path().app_data_dir().ok()?.join("credentials.json");
-    let raw = fs::read_to_string(path).ok()?;
-    let creds: crate::net::Credentials = serde_json::from_str(raw.trim()).ok()?;
-    creds.ca_pem.filter(|p| p.contains("BEGIN CERTIFICATE"))
+/// The mesh CA PEM saved with this device's credentials, if any.
+fn load_ca_pem(app: &AppHandle) -> Result<Option<String>, String> {
+    Ok(crate::net::mesh_load_credentials(app.clone())?
+        .and_then(|creds| creds.ca_pem)
+        .filter(|p| p.contains("BEGIN CERTIFICATE")))
 }
 
+/// Fetches the mesh CA from `http://nas.dadi/ca`; needs the MagicDNS resolver installed.
 fn fetch_ca_pem_from_nas() -> Result<String, String> {
-    // After MagicDNS resolver install, nas.dadi resolves on the mesh.
     let output = Command::new("curl")
         .args(["-fsS", "-m", "5", "http://nas.dadi/ca"])
         .output()
@@ -846,6 +858,8 @@ fn fetch_ca_pem_from_nas() -> Result<String, String> {
     Ok(body)
 }
 
+/// Trusts the mesh CA system-wide and stamps the PEM beside it, since the Keychain
+/// lookup can lag and recover or rejoin must not prompt again.
 fn install_mesh_ca(ca_path: &Path) -> Result<(), String> {
     #[cfg(target_os = "macos")]
     {
@@ -853,8 +867,7 @@ fn install_mesh_ca(ca_path: &Path) -> Result<(), String> {
             return Ok(());
         }
         if macos_mesh_ca_trusted(ca_path) {
-            let _ = record_mesh_ca_install(ca_path);
-            return Ok(());
+            return record_mesh_ca_install(ca_path);
         }
         logutil::emit("info", "sysmesh installing mesh CA for https://chaavi.dadi");
         let path = ca_path.to_string_lossy().replace('\'', "'\\''");
@@ -862,7 +875,6 @@ fn install_mesh_ca(ca_path: &Path) -> Result<(), String> {
             "/usr/bin/security add-trusted-cert -d -r trustRoot -k /Library/Keychains/System.keychain '{path}'"
         );
         run_osascript_admin(&script)?;
-        // Keychain lookup can lag; stamp the PEM so recover/rejoin does not re-prompt.
         record_mesh_ca_install(ca_path)?;
         Ok(())
     }

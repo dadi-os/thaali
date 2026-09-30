@@ -1,7 +1,5 @@
 import jsQR from "jsqr";
 import { useEffect, useRef, useState } from "react";
-import { useTarget } from "../hooks/useTarget";
-import type { Target } from "../target";
 
 type QrScannerProps = {
   /** Called once with the decoded QR payload. */
@@ -11,18 +9,6 @@ type QrScannerProps = {
   /** Fill the parent instead of a fixed max-width card. */
   fill?: boolean;
 };
-
-/**
- * Video constraint for the onboarding QR camera.
- * Mobile prefers the rear camera. Desktop must not demand `environment` —
- * Macs have no back camera, and that constraint blocks the webcam and Continuity Camera.
- */
-export function qrVideoConstraint(target: Target): MediaTrackConstraints | true {
-  if (target === "mobile") {
-    return { facingMode: { ideal: "environment" } };
-  }
-  return true;
-}
 
 /** User-facing copy for a getUserMedia failure. */
 export function cameraFailureMessage(err: unknown): string {
@@ -45,7 +31,6 @@ export function cameraFailureMessage(err: unknown): string {
  * Stops the MediaStream on unmount / cancel / success.
  */
 export function QrScanner({ onDecode, onCancel, fill }: QrScannerProps) {
-  const target = useTarget();
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const onDecodeRef = useRef(onDecode);
@@ -119,7 +104,7 @@ export function QrScanner({ onDecode, onCancel, fill }: QrScannerProps) {
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           audio: false,
-          video: qrVideoConstraint(target),
+          video: true,
         });
         if (cancelled) {
           stop();
@@ -148,7 +133,7 @@ export function QrScanner({ onDecode, onCancel, fill }: QrScannerProps) {
       cancelled = true;
       stop();
     };
-  }, [attempt, target]);
+  }, [attempt]);
 
   /** Retry getUserMedia after a camera failure. */
   const retry = () => {

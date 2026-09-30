@@ -2,7 +2,7 @@ import { useState } from "react";
 import { motion } from "motion/react";
 import { clearCredentials } from "../shared/api/credentials";
 import { transport } from "../shared/api";
-import { useConnection } from "../hooks/useConnection";
+import { useConnection } from "../shared/hooks/useConnection";
 import { IconPower } from "../shared/components/IconButton";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
@@ -24,7 +24,7 @@ function asPrepare(t: unknown): ProvisioningPrepare | null {
 }
 
 /**
- * Frosted full-screen power control shown when provisioned but dadiMesh is down.
+ * Frosted full-screen power control shown when provisioned but disconnected from dadi.
  * Tap joins the mesh; leave is handled from chrome while connected.
  */
 export function MeshPowerOverlay() {
@@ -75,7 +75,7 @@ export function MeshPowerOverlay() {
       animate={{ opacity: 1 }}
       transition={{ duration: SLOW_S, ease: EASE }}
       role="dialog"
-      aria-label="Join dadiMesh"
+      aria-label="Connect to dadi"
     >
       <button
         type="button"
@@ -84,7 +84,7 @@ export function MeshPowerOverlay() {
         }}
         disabled={busy}
         className="group relative flex h-28 w-28 items-center justify-center rounded-full border border-sage-line/80 bg-bone/40 shadow-[var(--shadow-deep)] backdrop-blur-md transition hover:border-sage hover:bg-sage-fill/30 disabled:opacity-70 dark:bg-[#2a2e28]/50"
-        aria-label={busy ? "Connecting to dadiMesh" : "Join dadiMesh"}
+        aria-label={busy ? "Connecting to dadi" : "Connect to dadi"}
       >
         {busy ? (
           <span
@@ -98,12 +98,12 @@ export function MeshPowerOverlay() {
         )}
       </button>
       <p className="mt-6 text-[12px] font-medium tracking-[2.5px] text-sage-deep">
-        {busy ? "JOINING…" : "DADIMESH"}
+        {busy ? "CONNECTING…" : "DADI"}
       </p>
       <p className="mt-2 max-w-xs text-center text-[13px] text-ink-muted">
         {busy
           ? "Joining the mesh (TUN + MagicDNS)…"
-          : "Tap to join dadiMesh system-wide."}
+          : "Tap to connect to dadi system-wide."}
       </p>
       {error ? (
         <div className="mt-3 flex max-w-sm flex-col items-center gap-2">

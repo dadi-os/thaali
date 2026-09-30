@@ -1,6 +1,6 @@
 import type { MessageAttachment } from "../../api/types";
 
-/** Match Dwar/Dimaag image.describe max. */
+/** Match Dwar/Hath image.describe max. */
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 /** Max files per outbound message. */
 export const MAX_ATTACHMENTS = 8;

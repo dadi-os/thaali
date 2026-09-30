@@ -12,8 +12,8 @@ export function isMeshOnline(state: ConnectionState): boolean {
 
 /**
  * Wire abstraction for domain clients.
- * `baseUrl` is the mesh host (e.g. `http://dimaag.dadi`); `path` is the route.
- * Implementations may proxy through a local tsnet listener.
+ * `baseUrl` is the mesh host (e.g. `http://hath.dadi`); `path` is the route.
+ * Implementations may proxy through the local mesh `/@host` listener.
  */
 export interface Transport {
   request<T>(opts: {

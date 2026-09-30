@@ -14,7 +14,6 @@ struct RadioAddress {
     address: String,
 }
 
-#[cfg(not(any(target_os = "android", target_os = "ios")))]
 mod desk {
     use super::{RadioAddress, RadioBytes};
     use crate::logutil;
@@ -40,7 +39,7 @@ mod desk {
         stop_notify: HashMap<String, watch::Sender<bool>>,
     }
 
-    /// Local Bluetooth adapter used while this Hath is Ghar's radio.
+    /// Local Bluetooth adapter used while this Thaali is Ghar's radio.
     pub struct RadioState {
         inner: Mutex<RadioInner>,
     }
@@ -391,70 +390,6 @@ mod desk {
             .disconnect()
             .await
             .map_err(|err| format!("radio_unavailable: {err}"))
-    }
-}
-
-#[cfg(any(target_os = "android", target_os = "ios"))]
-mod desk {
-    use tauri::AppHandle;
-    use tauri::State;
-
-    /// No Bluetooth bridge on this target.
-    pub struct RadioState;
-
-    impl Default for RadioState {
-        fn default() -> Self {
-            Self
-        }
-    }
-
-    /// Reject a radio command on a target with no Bluetooth bridge.
-    fn unavailable() -> Result<(), String> {
-        Err("radio_unavailable: bluetooth commissioning runs on the desktop app".to_string())
-    }
-
-    /// Start reporting Matter advertisements.
-    #[tauri::command]
-    pub async fn radio_start_scan(_app: AppHandle, _state: State<'_, RadioState>) -> Result<(), String> {
-        unavailable()
-    }
-
-    /// Stop reporting advertisements.
-    #[tauri::command]
-    pub async fn radio_stop_scan(_state: State<'_, RadioState>) -> Result<(), String> {
-        unavailable()
-    }
-
-    /// Connect and discover GATT.
-    #[tauri::command]
-    pub async fn radio_connect(_state: State<'_, RadioState>, _address: String) -> Result<(), String> {
-        unavailable()
-    }
-
-    /// Write one BTP fragment.
-    #[tauri::command]
-    pub async fn radio_write(
-        _state: State<'_, RadioState>,
-        _address: String,
-        _value_b64: String,
-    ) -> Result<(), String> {
-        unavailable()
-    }
-
-    /// Subscribe to notifications.
-    #[tauri::command]
-    pub async fn radio_subscribe(
-        _app: AppHandle,
-        _state: State<'_, RadioState>,
-        _address: String,
-    ) -> Result<(), String> {
-        unavailable()
-    }
-
-    /// Drop the GATT connection.
-    #[tauri::command]
-    pub async fn radio_disconnect(_state: State<'_, RadioState>, _address: String) -> Result<(), String> {
-        unavailable()
     }
 }
 

@@ -6,7 +6,7 @@ on:
     branches: [main]
 
 concurrency:
-  group: hath-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  group: thaali-ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -14,11 +14,6 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v6
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: net/go.mod
-          cache-dependency-path: net/go.sum
 
       - uses: actions/setup-node@v7
         with:
@@ -42,7 +37,7 @@ jobs:
       - uses: actions/checkout@v6
 
       - name: Build production image
-        run: docker build --target production -t hath-prod .
+        run: docker build --target production -t thaali-prod .
 
   publish:
     needs: container
@@ -71,8 +66,8 @@ jobs:
           target: production
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/hath:latest
-            ghcr.io/${{ github.repository_owner }}/hath:${{ github.sha }}
+            ghcr.io/${{ github.repository_owner }}/thaali:latest
+            ghcr.io/${{ github.repository_owner }}/thaali:${{ github.sha }}
 
   release-desktop:
     needs: ci
@@ -88,28 +83,28 @@ jobs:
             rust_targets: ""
             build_args: "--bundles appimage"
             installer_glob: "src-tauri/target/release/bundle/appimage/*.AppImage"
-            installer_name: hath-linux-x86_64.AppImage
+            installer_name: thaali-linux-x86_64.AppImage
             updater_glob: "src-tauri/target/release/bundle/appimage/*.AppImage.sig"
-            updater_name: hath-linux-x86_64.AppImage.sig
+            updater_name: thaali-linux-x86_64.AppImage.sig
             updater_bundle: ""
           - os: macos-latest
             net_target: darwin-arm64
             rust_targets: aarch64-apple-darwin
             build_args: "--bundles app,dmg --target aarch64-apple-darwin"
             installer_glob: "src-tauri/target/aarch64-apple-darwin/release/bundle/dmg/*.dmg"
-            installer_name: hath-macos-aarch64.dmg
+            installer_name: thaali-macos-aarch64.dmg
             updater_glob: "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz.sig"
-            updater_name: hath-macos-aarch64.app.tar.gz.sig
+            updater_name: thaali-macos-aarch64.app.tar.gz.sig
             updater_bundle: "src-tauri/target/aarch64-apple-darwin/release/bundle/macos/*.app.tar.gz"
-            updater_bundle_name: hath-macos-aarch64.app.tar.gz
+            updater_bundle_name: thaali-macos-aarch64.app.tar.gz
           - os: windows-latest
             net_target: windows-amd64
             rust_targets: ""
             build_args: "--bundles nsis"
             installer_glob: "src-tauri/target/release/bundle/nsis/*setup.exe"
-            installer_name: hath-windows-x86_64-setup.exe
+            installer_name: thaali-windows-x86_64-setup.exe
             updater_glob: "src-tauri/target/release/bundle/nsis/*setup.exe.sig"
-            updater_name: hath-windows-x86_64-setup.exe.sig
+            updater_name: thaali-windows-x86_64-setup.exe.sig
             updater_bundle: ""
     runs-on: ${{ matrix.os }}
     steps:
@@ -117,8 +112,8 @@ jobs:
 
       - uses: actions/setup-go@v7
         with:
-          go-version-file: net/go.mod
-          cache-dependency-path: net/go.sum
+          go-version: "1.24"
+          cache: false
 
       - uses: actions/setup-node@v7
         with:
@@ -264,8 +259,8 @@ jobs:
       - name: Upload to GitHub Release
         uses: softprops/action-gh-release@v3
         with:
-          tag_name: hath-${{ github.sha }}
-          name: Hath ${{ github.sha }}
+          tag_name: thaali-${{ github.sha }}
+          name: Thaali ${{ github.sha }}
           make_latest: true
           overwrite_files: true
           files: release-assets/*
@@ -297,7 +292,7 @@ jobs:
       - name: Build and upload latest.json
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TAG: hath-${{ github.sha }}
+          TAG: thaali-${{ github.sha }}
           VERSION: 0.0.${{ github.run_number }}
           REPO: ${{ github.repository }}
         run: |
@@ -312,16 +307,16 @@ jobs:
           sigs = pathlib.Path("updater-sigs")
           catalog = {
               "linux-x86_64": (
-                  f"{base}/hath-linux-x86_64.AppImage",
-                  "hath-linux-x86_64.AppImage.sig",
+                  f"{base}/thaali-linux-x86_64.AppImage",
+                  "thaali-linux-x86_64.AppImage.sig",
               ),
               "darwin-aarch64": (
-                  f"{base}/hath-macos-aarch64.app.tar.gz",
-                  "hath-macos-aarch64.app.tar.gz.sig",
+                  f"{base}/thaali-macos-aarch64.app.tar.gz",
+                  "thaali-macos-aarch64.app.tar.gz.sig",
               ),
               "windows-x86_64": (
-                  f"{base}/hath-windows-x86_64-setup.exe",
-                  "hath-windows-x86_64-setup.exe.sig",
+                  f"{base}/thaali-windows-x86_64-setup.exe",
+                  "thaali-windows-x86_64-setup.exe.sig",
               ),
           }
           platforms = {}
@@ -339,7 +334,7 @@ jobs:
               sys.exit(1)
           manifest = {
               "version": version,
-              "notes": f"Hath {version}",
+              "notes": f"dadi {version}",
               "platforms": platforms,
           }
           out = pathlib.Path("latest.json")
@@ -347,135 +342,3 @@ jobs:
           print(out.read_text())
           PY
           gh release upload "$TAG" latest.json --repo "$REPO" --clobber
-
-  release-ios:
-    needs: ci
-    if: github.ref == 'refs/heads/main'
-    runs-on: macos-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/checkout@v6
-
-      - uses: actions/setup-go@v7
-        with:
-          go-version-file: net/go.mod
-          cache-dependency-path: net/go.sum
-
-      - uses: actions/setup-node@v7
-        with:
-          node-version: 22
-          cache: npm
-
-      - uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-ios
-
-      - name: Build tsnet archive (iOS dialer)
-        run: cd net && ./build.sh ios-arm64
-
-      - name: npm ci
-        run: npm ci
-
-      - name: Require iOS signing secrets
-        env:
-          APPLE_IOS_CERTIFICATE: ${{ secrets.APPLE_IOS_CERTIFICATE }}
-          APPLE_IOS_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_IOS_CERTIFICATE_PASSWORD }}
-          APPLE_IOS_PROVISIONING_PROFILE: ${{ secrets.APPLE_IOS_PROVISIONING_PROFILE }}
-          APPLE_IOS_SIGNING_IDENTITY: ${{ secrets.APPLE_IOS_SIGNING_IDENTITY }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          missing=0
-          for v in APPLE_IOS_CERTIFICATE APPLE_IOS_CERTIFICATE_PASSWORD \
-                   APPLE_IOS_PROVISIONING_PROFILE APPLE_IOS_SIGNING_IDENTITY APPLE_TEAM_ID; do
-            eval "val=\${$v:-}"
-            if [ -z "$val" ]; then
-              echo "::error::Missing secret $v (base64 .p12 / profile / identity / team)."
-              missing=1
-            fi
-          done
-          if [ "$missing" -ne 0 ]; then
-            exit 1
-          fi
-
-      - name: Init iOS Xcode project
-        run: npm run tauri ios init -- --ci
-
-      # Plain HTTP to *.dadi on the mesh; iOS ATS blocks it without this.
-      - name: Allow local/mesh HTTP in Info.plist
-        run: |
-          set -euo pipefail
-          for plist in $(find src-tauri/gen/apple -name 'Info.plist'); do
-            /usr/libexec/PlistBuddy -c "Delete :NSAppTransportSecurity" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity dict" "$plist"
-            /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsArbitraryLoads bool true" "$plist"
-            /usr/libexec/PlistBuddy -c "Add :NSAppTransportSecurity:NSAllowsLocalNetworking bool true" "$plist"
-            /usr/libexec/PlistBuddy -c "Delete :ITSAppUsesNonExemptEncryption" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :ITSAppUsesNonExemptEncryption bool false" "$plist"
-            /usr/libexec/PlistBuddy -c "Delete :NSCameraUsageDescription" "$plist" 2>/dev/null || true
-            /usr/libexec/PlistBuddy -c "Add :NSCameraUsageDescription string Scan a Dadi setup QR to join the mesh." "$plist"
-            echo "patched $plist"
-          done
-
-      - name: Build iOS IPA for TestFlight
-        env:
-          APPLE_IOS_CERTIFICATE: ${{ secrets.APPLE_IOS_CERTIFICATE }}
-          APPLE_IOS_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_IOS_CERTIFICATE_PASSWORD }}
-          APPLE_IOS_PROVISIONING_PROFILE: ${{ secrets.APPLE_IOS_PROVISIONING_PROFILE }}
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_IOS_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_IOS_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_IOS_SIGNING_IDENTITY }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-        run: |
-          set -euo pipefail
-          CERT_PATH="$RUNNER_TEMP/ios-dist.p12"
-          PROFILE_PATH="$RUNNER_TEMP/hath.mobileprovision"
-          KEYCHAIN_PATH="$RUNNER_TEMP/hath-ios.keychain-db"
-          KEYCHAIN_PASSWORD="$(openssl rand -base64 32)"
-          echo -n "$APPLE_IOS_CERTIFICATE" | base64 --decode > "$CERT_PATH"
-          echo -n "$APPLE_IOS_PROVISIONING_PROFILE" | base64 --decode > "$PROFILE_PATH"
-          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
-          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          security import "$CERT_PATH" -P "$APPLE_IOS_CERTIFICATE_PASSWORD" \
-            -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
-          security list-keychain -d user -s "$KEYCHAIN_PATH"
-          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
-          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
-          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print UUID' /dev/stdin <<< "$(security cms -D -i "$PROFILE_PATH")")
-          cp "$PROFILE_PATH" "$HOME/Library/MobileDevice/Provisioning Profiles/${PROFILE_UUID}.mobileprovision"
-          npm run tauri ios build -- \
-            --ci \
-            --export-method release-testing \
-            --build-number "${{ github.run_number }}"
-
-      - name: Upload to TestFlight
-        env:
-          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
-          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
-          APPLE_API_PRIVATE_KEY: ${{ secrets.APPLE_API_PRIVATE_KEY }}
-        run: |
-          set -euo pipefail
-          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' | head -1)
-          KEY_DIR="$HOME/private_keys"
-          mkdir -p "$KEY_DIR"
-          printf '%s' "$APPLE_API_PRIVATE_KEY" > "$KEY_DIR/AuthKey_${APPLE_API_KEY_ID}.p8"
-          xcrun altool --upload-app --type ios --file "$IPA" \
-            --apiKey "$APPLE_API_KEY_ID" --apiIssuer "$APPLE_API_ISSUER"
-
-      - name: Stage IPA
-        run: |
-          set -euo pipefail
-          mkdir -p dist
-          IPA=$(find src-tauri/gen/apple/build -name '*.ipa' | head -1)
-          cp "$IPA" dist/hath-ios.ipa
-
-      - name: Attach IPA to GitHub Release
-        uses: softprops/action-gh-release@v3
-        with:
-          tag_name: hath-${{ github.sha }}
-          name: Hath ${{ github.sha }}
-          make_latest: true
-          overwrite_files: true
-          files: dist/hath-ios.ipa

@@ -64,7 +64,7 @@ import {
 import { consumeSseBuffer, joinUrl } from "./shared/api/sse";
 import { createChaaviClient } from "./shared/api/chaavi";
 import { createNasClient } from "./shared/api/nas";
-import { YAAD, DIMAAG, NAS, CHAAVI, CHAAVI_VAULT, GHAR } from "./shared/api/constants";
+import { YAAD, HATH, NAS, CHAAVI, CHAAVI_VAULT, GHAR } from "./shared/api/constants";
 import type { Transport } from "./shared/api/transport";
 import type { AgentRecord } from "./shared/api/types";
 
@@ -790,19 +790,19 @@ describe("sse helpers", () => {
     expect(rest).toBe('data: {"type":"x"');
   });
 
-  it("skips malformed JSON without breaking the stream", () => {
+  it("throws on a malformed payload instead of skipping it", () => {
     const events: unknown[] = [];
-    const rest = consumeSseBuffer(
-      'data: not-json\n\ndata: {"ok":true}\n\n',
-      (data: unknown) => events.push(data),
-    );
+    expect(() =>
+      consumeSseBuffer('data: {"ok":true}\n\ndata: not-json\n\n', (data: unknown) =>
+        events.push(data),
+      ),
+    ).toThrow(SyntaxError);
     expect(events).toEqual([{ ok: true }]);
-    expect(rest).toBe("");
   });
 
   it("joins urls", () => {
-    expect(joinUrl("http://dimaag.dadi/", "/events")).toBe(
-      "http://dimaag.dadi/events",
+    expect(joinUrl("http://hath.dadi/", "/events")).toBe(
+      "http://hath.dadi/events",
     );
   });
 });
@@ -810,7 +810,7 @@ describe("sse helpers", () => {
 describe("mesh constants", () => {
   it("are fixed .dadi names without env fallbacks", () => {
     expect(YAAD).toBe("http://yaad.dadi");
-    expect(DIMAAG).toBe("http://dimaag.dadi");
+    expect(HATH).toBe("http://hath.dadi");
     expect(NAS).toBe("http://nas.dadi");
     expect(CHAAVI).toBe("http://chaavi.dadi");
     expect(CHAAVI_VAULT).toBe("https://chaavi.dadi");
@@ -1057,11 +1057,6 @@ describe("runtime outside Tauri", () => {
     expect(selectTransportKind()).toBe("browser");
   });
 
-  it("detectTarget returns desktop", async () => {
-    const { detectTarget } = await import("./target");
-    expect(detectTarget()).toBe("desktop");
-  });
-
   it("detectDesktopOs is null outside Tauri", async () => {
     const { detectDesktopOs } = await import("./target");
     expect(detectDesktopOs()).toBeNull();
@@ -1072,14 +1067,14 @@ describe("transport selection", () => {
   it("initApi wires BrowserTransport outside Tauri", async () => {
     const api = await import("./shared/api");
     await api.initApi();
-    expect(api.usingTsnet).toBe(false);
+    expect(api.usingMesh).toBe(false);
     expect(api.selectTransportKind()).toBe("browser");
     expect(api.transport.connectionState()).toBe("disconnected");
     expect(typeof api.chaavi.getHealth).toBe("function");
     expect(typeof api.ghar.listDevices).toBe("function");
   });
 
-  it("selects tsnet when Tauri globals are present", async () => {
+  it("selects the mesh transport when Tauri globals are present", async () => {
     const g = globalThis as typeof globalThis & { isTauri?: boolean };
     g.isTauri = true;
     try {
@@ -1087,7 +1082,7 @@ describe("transport selection", () => {
         "./shared/api/runtime"
       );
       expect(isTauriRuntime()).toBe(true);
-      expect(selectTransportKind()).toBe("tsnet");
+      expect(selectTransportKind()).toBe("mesh");
     } finally {
       delete g.isTauri;
     }

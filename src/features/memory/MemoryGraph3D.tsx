@@ -3,9 +3,9 @@ import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, yaad } from "../../shared/api";
 import type { NodeKind } from "../../shared/api/types";
-import { useConnection } from "../../hooks/useConnection";
-import { useHoverDetails } from "../../hooks/useHoverDetails";
-import { useThemeTokens } from "../../hooks/useThemeTokens";
+import { useConnection } from "../../shared/hooks/useConnection";
+import { useHoverDetails } from "../../shared/hooks/useHoverDetails";
+import { useThemeTokens } from "../../shared/hooks/useThemeTokens";
 import { ForceGraph, syncForceSimulation } from "../../shared/components/ForceGraph";
 import { GraphPlaceholder } from "../../shared/components/GraphPlaceholder";
 import { GraphSpace } from "../../shared/components/GraphSpace";
@@ -110,7 +110,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
   if (!connected) {
     return (
       <div className={`h-full ${className ?? ""}`}>
-        <GraphPlaceholder tone="offline" label="Yaad is offline" detail="Connect to the mesh to load memory" />
+        <GraphPlaceholder tone="offline" label="Yaad is offline" detail="Connect to dadi to load memory" />
       </div>
     );
   }

@@ -15,7 +15,7 @@ export function logLine(
   const payload: Record<string, string> = {
     time: new Date().toISOString(),
     level,
-    service: "hath",
+    service: "thaali",
     msg,
   };
   if (code) {

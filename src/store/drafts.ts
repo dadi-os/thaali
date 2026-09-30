@@ -4,7 +4,7 @@
  * attachments are object URLs and do not survive a reload.
  */
 
-const PREFIX = "hath.draft.";
+const PREFIX = "thaali.draft.";
 
 /** Draft slot for the Talk to Dadi composer. */
 export const DADI_DRAFT_KEY = "dadi";

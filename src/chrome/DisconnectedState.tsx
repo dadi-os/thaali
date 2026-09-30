@@ -7,7 +7,7 @@ import {
 } from "../shared/api/credentials";
 import { transport } from "../shared/api";
 import { isTauriRuntime } from "../shared/api/runtime";
-import { useNeedsProvisioning } from "../hooks/useNeedsProvisioning";
+import { useNeedsProvisioning } from "./useNeedsProvisioning";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 import { QrScanner } from "./QrScanner";
 
@@ -30,7 +30,7 @@ function asMeshJoin(t: unknown): MeshJoinTransport | null {
 }
 
 /**
- * First-launch overlay: scan or paste a provision code, then join dadiMesh.
+ * First-launch overlay: scan or paste a provision code, then connect to dadi.
  * Same frost plane as the provisioned-disconnected power overlay.
  */
 export function DisconnectedState() {
@@ -127,7 +127,7 @@ export function DisconnectedState() {
       transition={{ duration: SLOW_S, ease: EASE }}
       role="dialog"
       aria-modal="true"
-      aria-label="Join dadiMesh"
+      aria-label="Connect to dadi"
     >
       <motion.div
         className="flex h-[min(32rem,calc(100dvh-6rem))] w-full max-w-sm flex-col items-center"
@@ -137,7 +137,7 @@ export function DisconnectedState() {
       >
         <div className="mb-4 flex flex-col items-center gap-1.5">
           <span className="text-[11px] font-medium tracking-[2.5px] text-sage-deep">
-            JOIN DADIMESH
+            CONNECT TO DADI
           </span>
           <p className="max-w-xs text-center text-[13px] leading-relaxed text-ink-muted">
             Scan or paste the setup code from the box.
@@ -160,7 +160,7 @@ export function DisconnectedState() {
                   aria-hidden
                 />
                 <p className="text-[12px] font-medium tracking-[2px] text-sage-deep">
-                  CONFIGURING DADIMESH…
+                  CONNECTING TO DADI…
                 </p>
               </motion.div>
             ) : panelKey === "camera" ? (

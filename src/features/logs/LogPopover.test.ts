@@ -7,7 +7,7 @@ describe("logDetail", () => {
       time: "2026-09-29T12:00:00Z",
       level: "info",
       msg: "turn done",
-      service: "dimaag",
+      service: "hath",
       v: 1,
       agentId: "a1",
       req: { method: "POST", url: "/dadi", headers: { host: "nas" } },

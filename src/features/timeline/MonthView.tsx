@@ -90,7 +90,7 @@ export function MonthView({
                   ? { background: `color-mix(in srgb, var(--sage) ${tint}%, transparent)` }
                   : undefined
               }
-              className={`group relative flex min-h-[72px] cursor-pointer flex-col rounded-[6px] border border-dashed px-1 py-1 text-left transition-[border-color,box-shadow] duration-slow ease-hath hover:border-sage hover:shadow-[var(--shadow)] ${
+              className={`group relative flex min-h-[72px] cursor-pointer flex-col rounded-[6px] border border-dashed px-1 py-1 text-left transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage hover:shadow-[var(--shadow)] ${
                 isToday
                   ? "border-sage bg-sage-faint/70"
                   : inMonth
@@ -131,7 +131,7 @@ export function MonthView({
                     e.stopPropagation();
                     onAdd(day, e.currentTarget);
                   }}
-                  className="ml-auto flex size-5 items-center justify-center rounded-full text-sage-deep opacity-0 transition-opacity duration-slow ease-hath group-hover:opacity-100 hover:bg-sage-active focus-visible:opacity-100 [&>svg]:size-3"
+                  className="ml-auto flex size-5 items-center justify-center rounded-full text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 hover:bg-sage-active focus-visible:opacity-100 [&>svg]:size-3"
                 >
                   <IconPlus />
                 </button>

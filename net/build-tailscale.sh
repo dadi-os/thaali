@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Build Tailscale CLI binaries (tailscale + tailscaled) into src-tauri/bin/<target>/.
-# Used by desktop sysmesh (TUN + MagicDNS). Pin matches hathnet's go.mod when possible.
+# Used by desktop sysmesh (TUN + MagicDNS).
 # Windows also fetches wintun.dll (required next to tailscaled.exe for the TUN).
 #
 # Usage:
@@ -15,16 +15,15 @@ cd "$(dirname "$0")"
 
 ROOT="$(cd .. && pwd)"
 BIN_ROOT="$ROOT/src-tauri/bin"
-# Keep in sync with net/go.mod tailscale.com version when bumping.
 TS_VER="${TS_VER:-v1.82.0}"
 WINTUN_VER="${WINTUN_VER:-0.14.1}"
 
 resolve_mod() {
   local mod
-  mod="$(go env GOPATH)/pkg/mod/tailscale.com@${TS_VER}"
-  if [[ ! -d "$mod" ]]; then
-    go get "tailscale.com@${TS_VER}"
-    mod="$(go env GOPATH)/pkg/mod/tailscale.com@${TS_VER}"
+  mod="$(go mod download -json "tailscale.com@${TS_VER}" | sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p')"
+  if [[ -z "$mod" ]]; then
+    echo "go mod download tailscale.com@${TS_VER} returned no module dir" >&2
+    exit 1
   fi
   # Go module cache may be read-only; build from a writable copy.
   local tmp

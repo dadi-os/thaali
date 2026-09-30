@@ -118,7 +118,7 @@ export function FloatingComposer({
       ref={rootRef}
       className="pointer-events-none absolute inset-x-0 bottom-0 z-20"
       style={{
-        paddingBottom: "max(0.65rem, env(safe-area-inset-bottom))",
+        paddingBottom: "0.65rem",
       }}
       initial={{ opacity: 0 }}
       animate={{
@@ -137,7 +137,7 @@ export function FloatingComposer({
         ) : null}
         <form
           onSubmit={onSubmit}
-          className={`composer-glass pointer-events-auto flex flex-col gap-2 px-2 py-2 transition-[opacity,box-shadow] duration-slow ease-hath ${
+          className={`composer-glass pointer-events-auto flex flex-col gap-2 px-2 py-2 transition-[opacity,box-shadow] duration-slow ease-dadi ${
             workingMode && !thinkingMode ? "composer-glass--live" : ""
           } ${thinkingMode ? "composer-glass--thinking" : ""} ${
             connected ? "" : "opacity-70"
@@ -260,7 +260,7 @@ export function FloatingComposer({
             disabled={!canSubmit}
             whileTap={canSubmit ? { scale: 0.94 } : undefined}
             transition={{ duration: 0.2, ease: EASE }}
-            className={`mb-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors duration-slow ease-hath [&_svg]:size-[17px] ${
+            className={`mb-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors duration-slow ease-dadi [&_svg]:size-[17px] ${
               canSubmit
                 ? "bg-[var(--ink)] text-[var(--bone)] hover:opacity-90"
                 : "bg-transparent text-[var(--ink-muted)]"

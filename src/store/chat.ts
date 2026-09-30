@@ -190,7 +190,7 @@ export function setHistoryState(
 
 /**
  * On mesh disconnect: drop optimistic/pending/queued only.
- * Durable history stays — messages survive Dimaag restart.
+ * Durable history stays — messages survive Hath restart.
  */
 export function clearLiveChat(): void {
   const threads: Record<string, ChatMessage[]> = {};
@@ -261,7 +261,7 @@ export function appendMessage(agentId: string, msg: ChatMessage): void {
   emit();
 }
 
-/** Local bubble text before Dimaag patches image descriptions into content. */
+/** Local bubble text before Hath patches image descriptions into content. */
 export function formatOutboundContent(
   text: string,
   attachments?: MessageAttachment[],

@@ -50,7 +50,7 @@ pub fn emit_with(level: &str, msg: &str, code: Option<&str>) {
     let mut obj = Map::new();
     obj.insert("time".into(), Value::String(rfc3339_now()));
     obj.insert("level".into(), Value::String(level.to_string()));
-    obj.insert("service".into(), Value::String("hath".into()));
+    obj.insert("service".into(), Value::String("thaali".into()));
     obj.insert("msg".into(), Value::String(msg.to_string()));
     if let Some(code) = code {
         obj.insert("code".into(), Value::String(code.to_string()));
@@ -59,13 +59,13 @@ pub fn emit_with(level: &str, msg: &str, code: Option<&str>) {
 
     println!("{line}");
 
-    if let Ok(path) = std::env::var("HATH_LOG_FILE") {
-        let _guard = LOG_LOCK.lock().expect("hath log lock");
+    if let Ok(path) = std::env::var("THAALI_LOG_FILE") {
+        let _guard = LOG_LOCK.lock().expect("thaali log lock");
         let mut file = OpenOptions::new()
             .create(true)
             .append(true)
             .open(&path)
-            .unwrap_or_else(|e| panic!("open HATH_LOG_FILE {path}: {e}"));
-        writeln!(file, "{line}").unwrap_or_else(|e| panic!("write HATH_LOG_FILE {path}: {e}"));
+            .unwrap_or_else(|e| panic!("open THAALI_LOG_FILE {path}: {e}"));
+        writeln!(file, "{line}").unwrap_or_else(|e| panic!("write THAALI_LOG_FILE {path}: {e}"));
     }
 }

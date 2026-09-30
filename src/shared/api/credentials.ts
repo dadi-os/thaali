@@ -35,7 +35,7 @@ export async function clearCredentials(): Promise<void> {
 
 /**
  * Decode a base64 provisioning bundle into credentials.
- * Quiet failure message for paste/decode problems — auth failures surface later from Go.
+ * Paste and decode problems throw `BundleDecodeError`; auth failures surface when the mesh joins.
  */
 export function decodeProvisioningBundle(raw: string): Credentials {
   const trimmed = raw.trim();

@@ -1,10 +1,8 @@
 //! Local HTTP proxy that dials `*.dadi` via Tailscale MagicDNS (`100.100.100.100`).
 //!
-//! Hath's system `tailscaled` does not install an OS resolver, and macOS
+//! Thaali's system `tailscaled` does not install an OS resolver, and macOS
 //! `/etc/hosts` (Compose) maps those names to `127.0.0.1`. The frontend uses
 //! `/@host/path` so the Host header stays the service name for Caddy.
-
-#![cfg(not(target_os = "ios"))]
 
 use std::io::{Read, Write};
 use std::net::{
@@ -120,7 +118,7 @@ fn open_upstream(client: &mut TcpStream) -> Result<TcpStream, String> {
     let (method, target, rest_headers) = parse_request_line(header)?;
     let (host, path) = split_mesh_target(target)?;
 
-    let content_len = content_length(rest_headers);
+    let content_len = content_length(rest_headers)?;
     let mut body = leftover;
     if content_len > body.len() {
         let mut extra = vec![0u8; content_len - body.len()];
@@ -201,7 +199,7 @@ fn parse_request_line(header: &str) -> Result<(&str, &str, &str), String> {
     Ok((method, target, rest))
 }
 
-/// Maps `/@dimaag.dadi/agents` (optional query) to host + path.
+/// Maps `/@hath.dadi/agents` (optional query) to host + path.
 pub fn split_mesh_target(target: &str) -> Result<(String, String), String> {
     let (path, query) = target
         .split_once('?')
@@ -224,16 +222,20 @@ pub fn split_mesh_target(target: &str) -> Result<(String, String), String> {
     Ok((host.to_string(), path))
 }
 
-fn content_length(headers: &str) -> usize {
+/// Content-Length of a request, 0 when the header is absent; a malformed value is an error.
+fn content_length(headers: &str) -> Result<usize, String> {
     for line in headers.split("\r\n") {
         let Some((name, value)) = line.split_once(':') else {
             continue;
         };
         if name.eq_ignore_ascii_case("content-length") {
-            return value.trim().parse().unwrap_or(0);
+            return value
+                .trim()
+                .parse()
+                .map_err(|_| format!("mesh proxy: invalid Content-Length {}", value.trim()));
         }
     }
-    0
+    Ok(0)
 }
 
 fn rewrite_headers(headers: &str, host: &str) -> String {
@@ -381,8 +383,8 @@ mod tests {
 
     #[test]
     fn split_mesh_target_strips_at_prefix() {
-        let (host, path) = split_mesh_target("/@dimaag.dadi/events").unwrap();
-        assert_eq!(host, "dimaag.dadi");
+        let (host, path) = split_mesh_target("/@hath.dadi/events").unwrap();
+        assert_eq!(host, "hath.dadi");
         assert_eq!(path, "/events");
     }
 

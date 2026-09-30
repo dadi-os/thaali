@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { isMeshOnline, nas } from "../../shared/api";
 import type { NasStatus } from "../../shared/api/nas";
 import { ErrorLogCards } from "../logs/LogExplorer";
-import { useConnection } from "../../hooks/useConnection";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { useElementSize } from "./useElementSize";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -17,11 +17,11 @@ export type SystemMapProps = {
 const SERVICE_ORDER = [
   "dwar",
   "yaad",
-  "dimaag",
+  "hath",
   "ghar",
   "chaavi",
   "nas",
-  "hath",
+  "thaali",
 ] as const;
 
 /** Density breakpoints for the System widget body. */
@@ -404,7 +404,7 @@ function SystemPreview({
           {clientsPending ? (
             <p className="text-[12px] text-ink-ghost">Loading…</p>
           ) : mesh.length === 0 ? (
-            <p className="text-[12px] text-ink-ghost">None on the mesh</p>
+            <p className="text-[12px] text-ink-ghost">None connected</p>
           ) : (
             <div className="flex flex-wrap gap-1.5">
               {mesh.map((c) => (
@@ -490,7 +490,7 @@ function SystemPreview({
         {clientsPending ? (
           <p className="text-[13px] text-ink-ghost">Loading…</p>
         ) : mesh.length === 0 ? (
-          <p className="text-[13px] text-ink-ghost">None on the mesh</p>
+          <p className="text-[13px] text-ink-ghost">None connected</p>
         ) : (
           <ul className="flex flex-col gap-1.5">
             {mesh.map((c) => (
@@ -612,7 +612,7 @@ function ResourceMeters({ rows }: { rows: ResourceRow[] }) {
           {row.pct != null ? (
             <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-rule">
               <div
-                className="h-full rounded-full bg-sage transition-[width] duration-slow ease-hath"
+                className="h-full rounded-full bg-sage transition-[width] duration-slow ease-dadi"
                 style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
               />
             </div>
