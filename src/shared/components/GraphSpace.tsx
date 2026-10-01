@@ -1,6 +1,7 @@
-import { type ReactNode, Suspense } from "react";
+import { type ReactNode, Suspense, useEffect, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import * as THREE from "three";
 import { useThemeTokens } from "../hooks/useThemeTokens";
 
 export type GraphSpaceProps = {
@@ -23,6 +24,11 @@ export type GraphSpaceProps = {
  * fog in the page's `--bone` color (so the far side fades into the page in either
  * theme), lights, and orbit controls when interactive. Children own camera framing
  * and set the fog range each frame.
+ *
+ * Unmount shrinks the canvas to 1x1 so WebKit frees its full-window antialiased drawing
+ * buffers right away: R3F only force-loses the context, a lost WebKit context keeps its
+ * buffers until the canvas is garbage-collected, and every page entrance remounts this.
+ * It waits for the canvas to leave the DOM, so StrictMode's simulated unmount keeps it.
  */
 export function GraphSpace({
   interactive,
@@ -34,6 +40,16 @@ export function GraphSpace({
   onBackgroundClick,
 }: GraphSpaceProps) {
   const { "--bone": bone } = useThemeTokens(["--bone"]);
+  const glRef = useRef<THREE.WebGLRenderer>(null);
+  useEffect(
+    () => () => {
+      const gl = glRef.current;
+      if (gl && !gl.domElement.isConnected) {
+        gl.setSize(1, 1, false);
+      }
+    },
+    [],
+  );
   const rootClass = [
     "relative h-full min-h-0 w-full",
     interactive || pickable ? "" : "pointer-events-none",
@@ -55,6 +71,9 @@ export function GraphSpace({
         }}
         style={{ background: "transparent" }}
         onPointerMissed={onBackgroundClick}
+        onCreated={({ gl }) => {
+          glRef.current = gl;
+        }}
       >
         <fog attach="fog" args={[bone, 80, 520]} />
         <ambientLight intensity={0.72} />
