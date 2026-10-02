@@ -9,7 +9,7 @@ import { LANE_LABEL } from "../../../shared/lib/ux/lanes";
 import { EASE, REVEAL, SLOW_S } from "../../../shared/lib/ux/motion";
 import { countNoun } from "../../../shared/lib/ux/plural";
 import { formatAbsolute, formatRelative } from "../../../shared/lib/ux/time";
-import { formatToolSignature } from "../../../chrome/chatSidebar/toolStatus";
+import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
 import { Step } from "./blocks";
 import { buildActivity, type ActivityStep, type ActivityWake } from "./wakes";
 

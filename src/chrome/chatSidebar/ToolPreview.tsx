@@ -8,7 +8,8 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { ActivityPulse } from "./ActivityPulse";
-import { findActiveTool, formatToolSignature } from "./toolStatus";
+import { formatToolSignature } from "../../shared/lib/content/toolSignature";
+import { findActiveTool } from "./toolStatus";
 
 export type ToolPreviewProps = {
   agentId: string;

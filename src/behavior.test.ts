@@ -10,11 +10,8 @@ import {
   partitionByQueued,
   trackIncoming,
 } from "./chrome/chatSidebar/lanes";
-import {
-  findActiveTool,
-  formatToolSignature,
-  laneChipLabel,
-} from "./chrome/chatSidebar/toolStatus";
+import { findActiveTool, laneChipLabel } from "./chrome/chatSidebar/toolStatus";
+import { formatToolSignature } from "./shared/lib/content/toolSignature";
 import {
   addOptimistic,
   clearLiveChat,

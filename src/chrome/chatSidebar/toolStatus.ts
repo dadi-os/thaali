@@ -76,44 +76,6 @@ export function findActiveTool(logs: LogRecord[]): ActiveTool | null {
   return null;
 }
 
-function prettyArg(value: unknown, max = 22): string {
-  if (value === null) {
-    return "null";
-  }
-  if (typeof value === "boolean" || typeof value === "number") {
-    return String(value);
-  }
-  if (typeof value === "string") {
-    const trimmed = value.replace(/\s+/g, " ").trim();
-    if (trimmed.length <= max) {
-      return JSON.stringify(trimmed);
-    }
-    return JSON.stringify(`${trimmed.slice(0, max - 1)}…`);
-  }
-  return "…";
-}
-
-/**
- * Compact `name(key: val, …)` signature for the thread tool preview.
- */
-export function formatToolSignature(
-  name: string,
-  input: Record<string, unknown>,
-  maxLen = 64,
-): string {
-  const keys = Object.keys(input);
-  if (keys.length === 0) {
-    return `${name}()`;
-  }
-  const shown = keys.slice(0, 3).map((key) => `${key}: ${prettyArg(input[key])}`);
-  const more = keys.length > 3 ? ", …" : "";
-  const raw = `${name}(${shown.join(", ")}${more})`;
-  if (raw.length <= maxLen) {
-    return raw;
-  }
-  return `${raw.slice(0, maxLen - 1)}…`;
-}
-
 /** Lane chip copy from conversation / reasoning occupancy. */
 export type LaneChipLabel =
   | (typeof LANE_LABEL)[keyof typeof LANE_LABEL]

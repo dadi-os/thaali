@@ -3,7 +3,7 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { MarkdownBody } from "../../../shared/components/Markdown";
 import { LANE_LABEL } from "../../../shared/lib/ux/lanes";
-import { formatToolSignature } from "../../../chrome/chatSidebar/toolStatus";
+import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
 import type { ActivityStep, ActivityTool, MessageStep, Thought, TurnStep } from "./wakes";
 
 /** A tool parameter as display text: strings as-is, anything structured as indented JSON. */
@@ -17,11 +17,7 @@ function prettyValue(value: unknown): string {
   if (typeof value === "number" || typeof value === "boolean") {
     return String(value);
   }
-  try {
-    return JSON.stringify(value, null, 2);
-  } catch {
-    return String(value);
-  }
+  return JSON.stringify(value, null, 2);
 }
 
 /** A tool result indented for reading when it is JSON; any other text as logged. */

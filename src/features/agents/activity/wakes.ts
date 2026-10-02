@@ -99,6 +99,7 @@ export type ActivityWake = {
   errorCount: number;
 };
 
+/** `value` as a plain object, or null for anything else (arrays included). */
 function asRecord(value: unknown): Record<string, unknown> | null {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return null;
@@ -126,14 +127,11 @@ function resultsById(logs: LogRecord[]): Map<string, ToolOutcome> {
     if (log.event !== "tool_result") {
       continue;
     }
-    const id = log.payload.tool_use_id;
-    if (typeof id !== "string") {
+    const { tool_use_id: id, content } = log.payload;
+    if (typeof id !== "string" || typeof content !== "string") {
       continue;
     }
-    results.set(id, {
-      content: typeof log.payload.content === "string" ? log.payload.content : "",
-      isError: log.payload.is_error === true,
-    });
+    results.set(id, { content, isError: log.payload.is_error === true });
   }
   return results;
 }
@@ -158,6 +156,10 @@ type ParsedTurn = {
   ends: boolean;
 };
 
+/**
+ * Split one `response` row into its thought, the text and tool calls it shows, and every
+ * tool it called; malformed blocks are skipped.
+ */
 function parseTurn(log: LogRecord, results: Map<string, ToolOutcome>): ParsedTurn {
   const content = Array.isArray(log.payload.content) ? log.payload.content : [];
   const thoughts: string[] = [];
@@ -217,6 +219,7 @@ function parseTurn(log: LogRecord, results: Map<string, ToolOutcome>): ParsedTur
   };
 }
 
+/** One `message` row as a step, or null when its direction or content is malformed. */
 function parseMessage(log: LogRecord): MessageStep | null {
   const { direction, content } = log.payload;
   if ((direction !== "receive" && direction !== "send") || typeof content !== "string") {
