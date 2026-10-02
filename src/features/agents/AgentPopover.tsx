@@ -10,6 +10,7 @@ import { Tooltip } from "../../shared/components/Tooltip";
 import { getRunning } from "../../store/running";
 import { AgentActivity } from "./activity";
 import { BrowserFrame } from "./BrowserFrame";
+import { ScheduleSection } from "./ScheduleSection";
 import { REVEAL } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
@@ -69,7 +70,9 @@ export type AgentPopoverProps = {
 /**
  * Agent detail panel. Uses shared Popover for positioning / dismiss. It holds its first
  * open until detail and activity have loaded (at most SETTLE_MS), so it appears at full
- * size instead of growing; content that arrives later eases in.
+ * size instead of growing; content that arrives later eases in. While a scheduled message
+ * is being edited the panel ignores the pointer leaving it, so a draft is not lost; ESC
+ * and outside clicks still close it.
  */
 export function AgentPopover({
   open,
@@ -87,6 +90,7 @@ export function AgentPopover({
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const [promptOpen, setPromptOpen] = useState(false);
+  const [editingSchedule, setEditingSchedule] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lanes = agentId ? runningMap[agentId] : undefined;
   const busy = lanes !== undefined && (lanes.reasoning || lanes.conversation);
@@ -175,7 +179,7 @@ export function AgentPopover({
       style={{ maxHeight: "min(86vh, 760px)" }}
       widthPx={460}
       contentKey={agentId}
-      hover={hover}
+      hover={editingSchedule ? { onInside: hover.onInside, onOutside: () => {} } : hover}
     >
       <header className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
         <div className="flex items-baseline justify-between gap-3">
@@ -248,6 +252,12 @@ export function AgentPopover({
             </>
           ) : null}
         </section>
+
+        <ScheduleSection
+          agentId={agentId}
+          enabled={connected && open}
+          onEditingChange={setEditingSchedule}
+        />
 
         {detailQuery.isError && (
           <p className="mb-4 text-[13px] text-ink-muted">

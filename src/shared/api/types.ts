@@ -80,6 +80,28 @@ export type AgentDetail = AgentRecord & {
   tools: Array<{ name: string; description: string; usage: string }>;
 };
 
+/** A message Hath delivers from one agent to another at `run_at`, optionally repeating. */
+export type ScheduledMessage = {
+  id: string;
+  from_agent_id: string;
+  to_agent_id: string;
+  content: string;
+  /** Next delivery, ISO. */
+  run_at: string;
+  /** Repeat interval; null delivers once. */
+  interval_minutes: number | null;
+  created_at: string;
+};
+
+/** PATCH /schedules/:id — any of the fields to change. */
+export type PatchScheduleRequest = {
+  /** ISO with offset, in the future. */
+  run_at?: string;
+  /** Null makes it one-shot. */
+  interval_minutes?: number | null;
+  content?: string;
+};
+
 /** One agent log row from Hath. */
 export type LogRecord = {
   id: string;

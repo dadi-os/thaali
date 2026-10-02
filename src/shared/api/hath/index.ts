@@ -7,13 +7,15 @@ import type {
   LogEvent,
   LogRecord,
   MessageAttachment,
+  PatchScheduleRequest,
   PostRouterResponse,
   PostMessageResponse,
+  ScheduledMessage,
   ThreadSummary,
 } from "../types";
 
 /**
- * Hath HTTP client — agents, messages, and logs over the given transport.
+ * Hath HTTP client — agents, messages, schedules, and logs over the given transport.
  * Paths live here; callers pass only domain args.
  */
 export function createHathClient(transport: Transport, baseUrl: string) {
@@ -102,6 +104,34 @@ export function createHathClient(transport: Transport, baseUrl: string) {
         baseUrl,
         path: `/agents/${id}/logs${toQuery(query)}`,
         method: "GET",
+      });
+    },
+
+    /** GET /agents/:id/schedules — schedules the agent sends or receives, next run first. */
+    listSchedules(agentId: string): Promise<{ schedules: ScheduledMessage[] }> {
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/schedules`,
+        method: "GET",
+      });
+    },
+
+    /** PATCH /schedules/:id — hand edit of its time, repeat, or message. */
+    patchSchedule(id: string, body: PatchScheduleRequest): Promise<ScheduledMessage> {
+      return transport.request({
+        baseUrl,
+        path: `/schedules/${id}`,
+        method: "PATCH",
+        body,
+      });
+    },
+
+    /** DELETE /schedules/:id — cancel it. */
+    cancelSchedule(id: string): Promise<{ cancelled: true; schedule_id: string }> {
+      return transport.request({
+        baseUrl,
+        path: `/schedules/${id}`,
+        method: "DELETE",
       });
     },
 
