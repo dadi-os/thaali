@@ -4894,7 +4894,6 @@ dependencies = [
  "battery",
  "btleplug",
  "cc",
- "dirs 6.0.0",
  "futures-util",
  "serde",
  "serde_json",

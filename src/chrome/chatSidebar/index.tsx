@@ -18,8 +18,7 @@ import {
 } from "../../features/agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
-import { isMeshOnline, usingMesh } from "../../shared/api";
-import { loadCredentials } from "../../shared/api/credentials";
+import { isMeshOnline } from "../../shared/api";
 import {
   addOptimistic,
   clearLiveChat,
@@ -471,12 +470,10 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
       textareaRef.current?.focus();
     });
     try {
-      const credentials = usingMesh ? await loadCredentials() : null;
       const res = await hath.postRouter({
         content: trimmed,
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
-        node_name: credentials?.node_name,
       });
       clearDraftAttachments();
       void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });

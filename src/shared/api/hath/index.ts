@@ -66,8 +66,6 @@ export function createHathClient(transport: Transport, baseUrl: string) {
     postRouter(body: {
       content: string;
       attachments?: MessageAttachment[];
-      /** This device, so the router can open the hand-off's chat here. */
-      node_name?: string;
     }): Promise<PostRouterResponse> {
       return transport.request({
         baseUrl,

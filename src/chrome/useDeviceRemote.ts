@@ -19,10 +19,6 @@ const DEVICE_TOOLS = new Set<string>([
   "device_get_battery",
   "device_get_location",
   "device_get_network",
-  "device_read_clipboard",
-  "device_write_clipboard",
-  "device_send_file",
-  "device_open_chat",
 ]);
 
 function isDeviceCommand(data: unknown): data is {
@@ -115,10 +111,7 @@ export function useDeviceRemote(): void {
         return;
       }
       try {
-        const result = await executeDeviceTool(
-          data.tool as DeviceLocalTool,
-          data.args,
-        );
+        const result = await executeDeviceTool(data.tool as DeviceLocalTool);
         await hath.postCommandResult(data.command_id, {
           ok: true,
           result,

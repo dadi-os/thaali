@@ -2,7 +2,6 @@
 
 import { isTauriRuntime } from "../shared/api/runtime";
 import { loadCredentials } from "../shared/api/credentials";
-import { openAgent } from "../store/chat";
 
 /** Typed failure returned to Hath as a command error. */
 export class DeviceError extends Error {
@@ -20,17 +19,10 @@ export type DeviceLocalTool =
   | "device_get_info"
   | "device_get_battery"
   | "device_get_location"
-  | "device_get_network"
-  | "device_read_clipboard"
-  | "device_write_clipboard"
-  | "device_send_file"
-  | "device_open_chat";
+  | "device_get_network";
 
 /** Run one device_* tool against the local device; failures surface as DeviceError. */
-export async function executeDeviceTool(
-  tool: DeviceLocalTool,
-  args: Record<string, unknown>,
-): Promise<unknown> {
+export async function executeDeviceTool(tool: DeviceLocalTool): Promise<unknown> {
   if (!isTauriRuntime()) {
     throw new DeviceError(
       "capability_unsupported",
@@ -47,21 +39,6 @@ export async function executeDeviceTool(
       return getLocation();
     case "device_get_network":
       return getNetwork();
-    case "device_read_clipboard":
-      return readClipboard();
-    case "device_write_clipboard":
-      return writeClipboard(requireString(args, "text"));
-    case "device_send_file":
-      return sendFile({
-        filename: requireString(args, "filename"),
-        media_type: requireString(args, "media_type"),
-        data: requireString(args, "data"),
-      });
-    case "device_open_chat": {
-      const agentId = requireString(args, "agent_id");
-      openAgent(agentId);
-      return { opened: agentId };
-    }
     default: {
       const _exhaustive: never = tool;
       throw new DeviceError("invalid_request", `unknown tool ${_exhaustive}`);
@@ -136,51 +113,6 @@ async function getNetwork(): Promise<Record<string, unknown>> {
     downlink_mbps: connection.downlink,
     ssid: null,
   };
-}
-
-async function readClipboard(): Promise<{ text: string }> {
-  const { readText } = await import("@tauri-apps/plugin-clipboard-manager");
-  try {
-    const text = await readText();
-    return { text };
-  } catch (err) {
-    throw new DeviceError("permission_denied", errMessage(err));
-  }
-}
-
-async function writeClipboard(text: string): Promise<{ written: true }> {
-  const { writeText } = await import("@tauri-apps/plugin-clipboard-manager");
-  try {
-    await writeText(text);
-    return { written: true };
-  } catch (err) {
-    throw new DeviceError("permission_denied", errMessage(err));
-  }
-}
-
-async function sendFile(args: {
-  filename: string;
-  media_type: string;
-  data: string;
-}): Promise<{ path: string; media_type: string }> {
-  const { invoke } = await import("@tauri-apps/api/core");
-  try {
-    const path = await invoke<string>("device_write_download", {
-      filename: args.filename,
-      data: args.data,
-    });
-    return { path, media_type: args.media_type };
-  } catch (err) {
-    throw mapInvokeError(err);
-  }
-}
-
-function requireString(args: Record<string, unknown>, key: string): string {
-  const value = args[key];
-  if (typeof value !== "string") {
-    throw new DeviceError("invalid_request", `${key} must be a string`);
-  }
-  return value;
 }
 
 function mapInvokeError(err: unknown): DeviceError {
