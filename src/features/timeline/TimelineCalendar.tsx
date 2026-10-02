@@ -96,7 +96,9 @@ function describeIngest(result: IngestResponse): string {
 /**
  * Week / month calendar of Yaad plans and memories. Full mode pages with motion, keeps
  * a live now marker and Next up countdown, opens any entry for editing, and quick-adds
- * free text through Yaad ingest. Preview is the compact current-week `RibbonView`.
+ * free text through Yaad ingest. Preview is the compact current-week `RibbonView`, whose
+ * plans open the same detail popover in place; the popover's events stay out of the
+ * surrounding tile, which opens the full timeline.
  */
 export function TimelineCalendar({
   mode,
@@ -261,14 +263,29 @@ export function TimelineCalendar({
 
   if (preview) {
     return (
-      <RibbonView
-        days={weekDays(anchor)}
-        labels={labels}
-        today={today}
-        now={now}
-        plans={plans}
-        className={className}
-      />
+      <>
+        <RibbonView
+          days={weekDays(anchor)}
+          labels={labels}
+          today={today}
+          now={now}
+          plans={plans}
+          onOpen={openNode}
+          className={className}
+        />
+        {opened ? (
+          <div className="contents" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            <NodePopover
+              open={opened.open}
+              nodeId={opened.id}
+              anchor={opened.anchor}
+              onClose={closeNode}
+              onSelect={(id) => setOpened((o) => (o ? { ...o, id } : o))}
+              onDeleted={closeNode}
+            />
+          </div>
+        ) : null}
+      </>
     );
   }
 

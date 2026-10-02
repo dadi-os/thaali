@@ -6,7 +6,7 @@ import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { addDays, formatTime, formatUntil, toIsoBounds } from "./dates";
 import { LiveDot } from "./markers";
-import { asPlan, spanOf, type PlanNode } from "./plans";
+import { asPlan, isMultiDay, spanOf, type PlanNode } from "./plans";
 
 /** How far ahead the pill looks for the next plan. */
 const WINDOW_DAYS = 14;
@@ -20,7 +20,8 @@ export type NextUpProps = {
 
 /**
  * Header pill for what is happening now ("until 3:00 PM", with a live pulse) or else
- * the next plan and a countdown to it. Renders nothing when no plan falls in the next
+ * the next plan and a countdown to it. A multi-day plan never counts as happening now,
+ * so a week-long window does not hide what is next; its bar on the calendar shows it. Renders nothing when no plan falls in the next
  * two weeks.
  */
 export function NextUp({ now, onOpen }: NextUpProps) {
@@ -51,7 +52,7 @@ export function NextUp({ now, onOpen }: NextUpProps) {
       const span = spanOf(plan);
       return span ? [{ plan, ...span }] : [];
     });
-    const ongoing = spans.find((s) => s.start.getTime() <= t && t < s.end.getTime());
+    const ongoing = spans.find((s) => !isMultiDay(s.plan) && s.start.getTime() <= t && t < s.end.getTime());
     if (ongoing) {
       return { ...ongoing, ongoing: true };
     }

@@ -4,7 +4,7 @@ import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, isSameDay, isSameMonth } from "./dates";
 import { BreathRing, FreshGlow } from "./markers";
-import { memoriesOn, plansOn, statusClass, type PlanNode } from "./plans";
+import { isMultiDay, memoriesOn, plansOn, planStartsOn, spanOf, statusClass, type PlanNode } from "./plans";
 
 /** Delay per diagonal step as the grid washes in from the top-left. */
 const WAVE_STEP_S = 0.018;
@@ -34,8 +34,9 @@ export type MonthViewProps = {
 
 /**
  * Month grid of day squares that wash in diagonally. Busier days are tinted deeper,
- * memories show as dots, today breathes, and a square opens its week or, from its +,
- * a quick-add for that day.
+ * memories show as dots, multi-day plans lead each square with squared-off ends where
+ * they carry on, today breathes, and a square opens its week or, from its +, a
+ * quick-add for that day.
  */
 export function MonthView({
   days,
@@ -63,7 +64,7 @@ export function MonthView({
           const inMonth = isSameMonth(day, anchor);
           const isToday = isSameDay(day, today);
           const isPast = day < today;
-          const dayPlans = plansOn(plans, day);
+          const dayPlans = plansOn(plans, day).sort((a, b) => Number(isMultiDay(b)) - Number(isMultiDay(a)));
           const dayMemories = memoriesOn(memories, day);
           const delay = (Math.floor(i / 7) + (i % 7)) * WAVE_STEP_S;
           const tint = Math.min(4 + dayPlans.length * 5, 22);
@@ -150,7 +151,7 @@ export function MonthView({
                       initial={{ opacity: 0, x: -3 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ duration: SLOW_S, ease: EASE, delay: delay + 0.08 + j * 0.03 }}
-                      className={`relative truncate rounded-[3px] px-1 py-0.5 text-[9px] leading-tight ${statusClass(p.detail.status)}`}
+                      className={`relative truncate rounded-[3px] px-1 py-0.5 text-[9px] leading-tight ${statusClass(p.detail.status)} ${multiDayEdges(p, day)}`}
                     >
                       {p.title}
                       {fresh.has(p.id) ? <FreshGlow radius="rounded-[3px]" /> : null}
@@ -167,4 +168,14 @@ export function MonthView({
       </div>
     </div>
   );
+}
+
+/** Squares off a multi-day pill's left end on days after its first and its right end before its last. */
+function multiDayEdges(plan: PlanNode, day: Date): string {
+  if (!isMultiDay(plan)) {
+    return "";
+  }
+  const continuesBefore = planStartsOn(plan, day) ? "" : "rounded-l-none";
+  const continuesAfter = isSameDay(spanOf(plan)!.end, day) ? "" : "rounded-r-none";
+  return `${continuesBefore} ${continuesAfter}`;
 }

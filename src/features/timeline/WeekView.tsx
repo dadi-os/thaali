@@ -5,14 +5,17 @@ import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
 import { BreathRing, FreshGlow, LiveDot } from "./markers";
 import {
+  isMultiDay,
   memoriesOn,
   plansOn,
   planStartsOn,
+  spanLanes,
   spanOf,
   statusClass,
   type PendingAdd,
   type PlanNode,
 } from "./plans";
+import { SpanLaneCell } from "./SpanLaneCell";
 
 /** Delay between neighboring columns as a week arrives. */
 const COLUMN_STAGGER_S = 0.04;
@@ -40,9 +43,10 @@ export type WeekViewProps = {
 };
 
 /**
- * Seven day columns of plan chips. Columns cascade in, chips settle after them, today
- * breathes and carries a now marker between what happened and what is next, and each
- * column offers a + to add to that day.
+ * Seven day columns of plan chips. Multi-day plans run as bars across the columns under
+ * the dates. Columns cascade in, chips settle after them, today breathes and carries a
+ * now marker between what happened and what is next, and each column offers a + to add
+ * to that day.
  */
 export function WeekView({
   days,
@@ -57,10 +61,11 @@ export function WeekView({
   onOpen,
   onAdd,
 }: WeekViewProps) {
+  const lanes = spanLanes(plans, days);
   return (
     <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
       {days.map((day, i) => {
-        const dayPlans = plansOn(plans, day);
+        const dayPlans = plansOn(plans, day).filter((p) => !isMultiDay(p));
         const dayMemories = memoriesOn(memories, day);
         const isToday = isSameDay(day, today);
         const isPast = day < today;
@@ -100,6 +105,22 @@ export function WeekView({
                 <IconPlus />
               </button>
             </div>
+
+            {lanes.length > 0 ? (
+              <div className="mb-1.5 flex flex-col gap-0.5">
+                {lanes.map((lane, r) => (
+                  <SpanLaneCell
+                    key={r}
+                    lane={lane}
+                    day={day}
+                    first={i === 0}
+                    now={now}
+                    delay={base + 0.06}
+                    onOpen={onOpen}
+                  />
+                ))}
+              </div>
+            ) : null}
 
             <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
               {loading ? (

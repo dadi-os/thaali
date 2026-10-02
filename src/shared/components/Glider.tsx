@@ -32,8 +32,8 @@ export function Glider<T extends string>({ options, value, onChange, label, size
         className="absolute inset-y-0.5 rounded-full bg-bone shadow-[var(--shadow)] ring-1 ring-sage-line/80"
         initial={false}
         animate={{
-          left: `calc(${index} * 100% / ${n} + 2px)`,
-          width: `calc(100% / ${n} - 4px)`,
+          left: `calc(2px + ${index} * (100% - 4px) / ${n})`,
+          width: `calc((100% - 4px) / ${n})`,
         }}
         transition={{ duration: SLOW_S, ease: EASE }}
       />

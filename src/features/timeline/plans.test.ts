@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../shared/api/types";
 import { formatUntil } from "./dates";
-import { asPlan, memoriesOn, plansOn, spanOf } from "./plans";
+import { asPlan, isMultiDay, memoriesOn, plansOn, spanLanes, spanOf } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -74,5 +74,34 @@ describe("formatUntil", () => {
 
   it("switches to calendar days a day or more out", () => {
     expect(formatUntil(now, new Date(2026, 9, 6, 8, 0))).toMatch(/3 days/);
+  });
+});
+
+describe("isMultiDay", () => {
+  it("is false for a moment and for a plan that ends the day it starts", () => {
+    expect(isMultiDay(plan("a", new Date(2026, 9, 2, 9), null))).toBe(false);
+    expect(isMultiDay(plan("b", new Date(2026, 9, 2, 9), new Date(2026, 9, 2, 23, 59)))).toBe(false);
+  });
+
+  it("is true once the plan runs past midnight", () => {
+    expect(isMultiDay(plan("c", new Date(2026, 9, 2, 22), new Date(2026, 9, 3, 1)))).toBe(true);
+  });
+});
+
+describe("spanLanes", () => {
+  const week = Array.from({ length: 7 }, (_, i) => new Date(2026, 8, 28 + i));
+
+  it("stacks overlapping multi-day plans and shares a lane between ones on different days", () => {
+    const window = plan("window", new Date(2026, 8, 28, 9), new Date(2026, 9, 1, 17));
+    const trip = plan("trip", new Date(2026, 8, 30, 8), new Date(2026, 9, 2, 20));
+    const weekend = plan("weekend", new Date(2026, 9, 3, 10), new Date(2026, 9, 4, 18));
+    const lunch = plan("lunch", new Date(2026, 8, 29, 12), new Date(2026, 8, 29, 13));
+    const lanes = spanLanes([weekend, lunch, trip, window], week);
+    expect(lanes.map((lane) => lane.map((p) => p.id))).toEqual([["window", "weekend"], ["trip"]]);
+  });
+
+  it("leaves out multi-day plans that do not touch the shown days", () => {
+    const later = plan("later", new Date(2026, 9, 10, 9), new Date(2026, 9, 12, 9));
+    expect(spanLanes([later], week)).toEqual([]);
   });
 });

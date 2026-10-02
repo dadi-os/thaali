@@ -48,6 +48,34 @@ export function planOverlapsDay(plan: PlanNode, day: Date): boolean {
   return span.start.getTime() <= endOfDay(day).getTime() && span.end.getTime() >= startOfDay(day).getTime();
 }
 
+/** True when the plan runs past the end of the day it starts on. */
+export function isMultiDay(plan: PlanNode): boolean {
+  const span = spanOf(plan);
+  return span !== null && span.end.getTime() > endOfDay(span.start).getTime();
+}
+
+/**
+ * Multi-day plans touching `days`, stacked into lanes, earliest first: plans in one lane
+ * share no shown day, so each lane draws as one row of bars.
+ */
+export function spanLanes(plans: PlanNode[], days: Date[]): PlanNode[][] {
+  const shownDays = (plan: PlanNode) => days.filter((day) => planOverlapsDay(plan, day));
+  const lanes: PlanNode[][] = [];
+  const multi = plans
+    .filter((p) => isMultiDay(p) && shownDays(p).length > 0)
+    .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
+  for (const plan of multi) {
+    const mine = shownDays(plan);
+    const lane = lanes.find((l) => l.every((other) => !mine.some((day) => planOverlapsDay(other, day))));
+    if (lane) {
+      lane.push(plan);
+    } else {
+      lanes.push([plan]);
+    }
+  }
+  return lanes;
+}
+
 /** Plans on `day`, earliest first. */
 export function plansOn(plans: PlanNode[], day: Date): PlanNode[] {
   return plans

@@ -80,6 +80,22 @@ body {
   animation: breath var(--breath) var(--ease) infinite;
 }
 
+/* Outward pulse for live markers, in CSS so motion layout projection on a parent cannot distort it. */
+@keyframes pulse-out {
+  from {
+    transform: scale(1);
+    opacity: var(--pulse-from, 0.55);
+  }
+  to {
+    transform: scale(var(--pulse-scale, 2.6));
+    opacity: 0;
+  }
+}
+
+.animate-pulse-out {
+  animation: pulse-out var(--breath) ease-out infinite;
+}
+
 /* ── Chat markdown ────────────────────────────────────────────── */
 
 .chat-md {
