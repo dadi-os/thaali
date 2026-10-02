@@ -1,4 +1,4 @@
-import { useEffect, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { hath, isMeshOnline } from "../../shared/api";
@@ -8,7 +8,7 @@ import { MarkdownBody } from "../../shared/components/Markdown";
 import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { getRunning } from "../../store/running";
-import { AgentActivity } from "./AgentActivity";
+import { AgentActivity } from "./activity";
 import { BrowserFrame } from "./BrowserFrame";
 import { REVEAL } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -33,7 +33,8 @@ export function agentDetailQuery(agentId: string | null) {
 
 /**
  * Recent logs, shown as activity and read for "last active" (the last log, not
- * agents.updated_at, which only moves on modify_agent). Shared with the graph's prefetch.
+ * agents.updated_at, which only moves on modify_agent). Shared with the graph's prefetch;
+ * lane SSE events invalidate it under `["agent-logs", agentId]`.
  */
 export function agentActivityQuery(agentId: string | null) {
   return queryOptions({
@@ -86,6 +87,9 @@ export function AgentPopover({
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const [promptOpen, setPromptOpen] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const lanes = agentId ? runningMap[agentId] : undefined;
+  const busy = lanes !== undefined && (lanes.reasoning || lanes.conversation);
 
   const detailQuery = useQuery({
     ...agentDetailQuery(agentId),
@@ -95,7 +99,7 @@ export function AgentPopover({
   const activityQuery = useQuery({
     ...agentActivityQuery(agentId),
     enabled: connected && !!agentId && open,
-    refetchInterval: POLL_MS,
+    refetchInterval: busy ? POLL_MS : false,
   });
 
   useEffect(() => {
@@ -211,7 +215,7 @@ export function AgentPopover({
         </div>
       ) : null}
 
-      <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
         <section className="mb-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
           <span className="text-ink-ghost">Created</span>
           <Tooltip content={createdAt ? formatAbsolute(createdAt) : "—"}>
@@ -312,7 +316,12 @@ export function AgentPopover({
           ) : null}
         </AnimatePresence>
 
-        <AgentActivity logs={activityQuery} />
+        <AgentActivity
+          key={agentId}
+          logs={activityQuery}
+          running={running}
+          scrollRef={scrollRef}
+        />
       </div>
     </Popover>
   );

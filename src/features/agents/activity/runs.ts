@@ -1,6 +1,6 @@
-/** Shape durable agent logs into model turns for the agent popover's activity feed. */
+/** Shape durable agent logs into model turns, and turns into lane runs, for the agent popover's activity feed. */
 
-import type { Lane, LogRecord } from "../../shared/api/types";
+import type { Lane, LogRecord } from "../../../shared/api/types";
 
 /** A tool call's logged result. */
 export type ToolOutcome = { content: string; isError: boolean };
@@ -26,6 +26,22 @@ export type ActivityTurn = {
   lane: Lane;
   at: string;
   blocks: ActivityBlock[];
+};
+
+/** Consecutive model turns on one lane: one stretch of thinking or working. */
+export type ActivityRun = {
+  /** The oldest turn's key, so the run keeps its identity while newer turns land on top. */
+  key: string;
+  lane: Lane;
+  /** The newest turn's time. */
+  at: string;
+  /** The oldest turn's time. */
+  startedAt: string;
+  /** Newest first, like the feed. */
+  turns: ActivityTurn[];
+  toolCount: number;
+  /** Tool calls whose logged result is an error. */
+  errorCount: number;
 };
 
 function asRecord(value: unknown): Record<string, unknown> | null {
@@ -119,4 +135,44 @@ export function buildActivity(logs: LogRecord[]): ActivityTurn[] {
     turns.push({ key: log.id, lane: log.lane, at: log.created_at, blocks });
   }
   return turns.sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+}
+
+/**
+ * buildRuns groups newest-first turns into runs of consecutive turns on the same lane.
+ * Both lanes can run at once, so an interleaved stretch splits into alternating runs;
+ * filter the turns to one lane first to see that lane as whole runs.
+ */
+export function buildRuns(turns: ActivityTurn[]): ActivityRun[] {
+  const runs: ActivityRun[] = [];
+  for (const turn of turns) {
+    let toolCount = 0;
+    let errorCount = 0;
+    for (const block of turn.blocks) {
+      if (block.kind === "tool") {
+        toolCount += 1;
+        if (block.result?.isError) {
+          errorCount += 1;
+        }
+      }
+    }
+    const current = runs[runs.length - 1];
+    if (current && current.lane === turn.lane) {
+      current.key = turn.key;
+      current.startedAt = turn.at;
+      current.turns.push(turn);
+      current.toolCount += toolCount;
+      current.errorCount += errorCount;
+      continue;
+    }
+    runs.push({
+      key: turn.key,
+      lane: turn.lane,
+      at: turn.at,
+      startedAt: turn.at,
+      turns: [turn],
+      toolCount,
+      errorCount,
+    });
+  }
+  return runs;
 }

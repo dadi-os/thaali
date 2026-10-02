@@ -1,6 +1,7 @@
 /** Resolve the in-flight tool from durable agent logs for the chat tool preview. */
 
 import type { LogRecord } from "../../shared/api/types";
+import { LANE_LABEL } from "../../shared/lib/ux/lanes";
 
 /** Tool turn-exit name — not shown as a live tool preview. */
 const YIELD = "yield";
@@ -114,7 +115,9 @@ export function formatToolSignature(
 }
 
 /** Lane chip copy from conversation / reasoning occupancy. */
-export type LaneChipLabel = "thinking" | "working" | "thinking + working";
+export type LaneChipLabel =
+  | (typeof LANE_LABEL)[keyof typeof LANE_LABEL]
+  | `${typeof LANE_LABEL.conversation} + ${typeof LANE_LABEL.reasoning}`;
 
 /** Lane chip copy from conversation / reasoning occupancy. */
 export function laneChipLabel(
@@ -122,13 +125,13 @@ export function laneChipLabel(
   reasoning: boolean,
 ): LaneChipLabel | null {
   if (conversation && reasoning) {
-    return "thinking + working";
+    return `${LANE_LABEL.conversation} + ${LANE_LABEL.reasoning}`;
   }
   if (conversation) {
-    return "thinking";
+    return LANE_LABEL.conversation;
   }
   if (reasoning) {
-    return "working";
+    return LANE_LABEL.reasoning;
   }
   return null;
 }

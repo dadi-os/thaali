@@ -142,13 +142,9 @@ export function useEvents(): void {
         return;
       }
 
-      if (data.type === "lane_finished") {
+      if (data.type === "lane_finished" || data.type === "lane_failed") {
         setLaneRunning(data.agent_id, data.lane, false);
-        return;
-      }
-
-      if (data.type === "lane_failed") {
-        setLaneRunning(data.agent_id, data.lane, false);
+        void queryClient.invalidateQueries({ queryKey: ["agent-logs", data.agent_id] });
         return;
       }
 

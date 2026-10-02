@@ -6,6 +6,7 @@ import {
   forceSimulation,
 } from "d3-force-3d";
 import type { AgentRecord } from "../../shared/api/types";
+import { LANE_LABEL } from "../../shared/lib/ux/lanes";
 import type {
   ForceGraphSimulation,
   ForceLinkDatum,
@@ -147,13 +148,13 @@ export function statusLabel(
   }
   if (isLiveVisual(visual)) {
     if (running.reasoning && running.conversation) {
-      return "In flight · thinking + working";
+      return `In flight · ${LANE_LABEL.conversation} + ${LANE_LABEL.reasoning}`;
     }
     if (running.reasoning) {
-      return "In flight · working";
+      return `In flight · ${LANE_LABEL.reasoning}`;
     }
     if (running.conversation) {
-      return "In flight · thinking";
+      return `In flight · ${LANE_LABEL.conversation}`;
     }
     return "In flight";
   }

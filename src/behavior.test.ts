@@ -30,7 +30,7 @@ import {
   upsertConversation,
 } from "./store/chat";
 import type { ChatMessage } from "./store/chat";
-import type { DurableMessage, GharDevice, LogRecord } from "./shared/api/types";
+import type { DurableMessage, GharDevice, Lane, LogRecord } from "./shared/api/types";
 import { searchHouse } from "./features/ghar/house/search";
 import {
   agentGraph,
@@ -48,7 +48,7 @@ import {
   type MemoryLink,
 } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/ForceGraph";
-import { buildActivity } from "./features/agents/activity";
+import { buildActivity, buildRuns } from "./features/agents/activity/runs";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
 import {
   hasRememberedSessions,
@@ -1209,6 +1209,44 @@ describe("buildActivity", () => {
     expect(turns.map((turn) => turn.key)).toEqual(["c", "a"]);
     expect(turns[0]!.lane).toBe("conversation");
     expect(turns[0]!.blocks[0]!.kind).toBe("redacted");
+  });
+});
+
+describe("buildRuns", () => {
+  const turn = (key: string, lane: Lane, at: string, tools: Array<boolean | null>) => ({
+    key,
+    lane,
+    at,
+    blocks: tools.map((isError, index) => ({
+      kind: "tool" as const,
+      key: `${key}:${index}`,
+      id: `${key}-t${index}`,
+      name: "browser_click",
+      input: {},
+      result: isError === null ? null : { content: "", isError },
+    })),
+  });
+
+  it("groups consecutive same-lane turns, keyed by their oldest turn, with tool and error counts", () => {
+    const runs = buildRuns([
+      turn("w3", "reasoning", "2026-01-01T00:00:05Z", [null]),
+      turn("w2", "reasoning", "2026-01-01T00:00:04Z", [true, false]),
+      turn("t1", "conversation", "2026-01-01T00:00:03Z", []),
+      turn("w1", "reasoning", "2026-01-01T00:00:01Z", [false]),
+    ]);
+
+    expect(runs.map((run) => [run.key, run.lane])).toEqual([
+      ["w2", "reasoning"],
+      ["t1", "conversation"],
+      ["w1", "reasoning"],
+    ]);
+    expect(runs[0]).toMatchObject({
+      at: "2026-01-01T00:00:05Z",
+      startedAt: "2026-01-01T00:00:04Z",
+      toolCount: 3,
+      errorCount: 1,
+    });
+    expect(runs[0]!.turns.map((t) => t.key)).toEqual(["w3", "w2"]);
   });
 });
 
