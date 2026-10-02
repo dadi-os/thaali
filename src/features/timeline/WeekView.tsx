@@ -10,6 +10,7 @@ import {
   plansOn,
   planStartsOn,
   spanLanes,
+  startLabel,
   spanOf,
   statusClass,
   type PendingAdd,
@@ -207,7 +208,7 @@ type PlanChipProps = {
 function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
   const span = spanOf(plan)!;
   const t = now.getTime();
-  const ongoing = span.start.getTime() <= t && t < span.end.getTime();
+  const ongoing = !plan.detail.all_day && span.start.getTime() <= t && t < span.end.getTime();
   const past = span.end.getTime() < t;
   return (
     <motion.button
@@ -225,7 +226,7 @@ function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
       {planStartsOn(plan, day) ? (
         <span className="mb-0.5 flex items-center gap-1 text-[10px] opacity-70">
           {ongoing ? <LiveDot /> : null}
-          {formatTime(plan.occurred_at!)}
+          {startLabel(plan)}
         </span>
       ) : null}
       <span className="line-clamp-3">{plan.title}</span>

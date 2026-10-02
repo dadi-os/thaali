@@ -20,8 +20,9 @@ export type NextUpProps = {
 
 /**
  * Header pill for what is happening now ("until 3:00 PM", with a live pulse) or else
- * the next plan and a countdown to it. A multi-day plan never counts as happening now,
- * so a week-long window does not hide what is next; its bar on the calendar shows it. Renders nothing when no plan falls in the next
+ * the next plan and a countdown to it. A multi-day or all-day plan never counts as
+ * happening now, so a week-long window or a deadline due today does not hide what is
+ * next; the calendar shows them. Renders nothing when no plan falls in the next
  * two weeks.
  */
 export function NextUp({ now, onOpen }: NextUpProps) {
@@ -52,7 +53,9 @@ export function NextUp({ now, onOpen }: NextUpProps) {
       const span = spanOf(plan);
       return span ? [{ plan, ...span }] : [];
     });
-    const ongoing = spans.find((s) => !isMultiDay(s.plan) && s.start.getTime() <= t && t < s.end.getTime());
+    const ongoing = spans.find(
+      (s) => !isMultiDay(s.plan) && !s.plan.detail.all_day && s.start.getTime() <= t && t < s.end.getTime(),
+    );
     if (ongoing) {
       return { ...ongoing, ongoing: true };
     }

@@ -2,7 +2,7 @@
 
 import type { NodeRecord, PlanDetail, PlanStatus } from "../../shared/api/types";
 import type { PopoverAnchor } from "../../shared/components/Popover";
-import { endOfDay, isSameDay, startOfDay } from "./dates";
+import { endOfDay, formatTime, isSameDay, startOfDay } from "./dates";
 
 /** Yaad plan node with its plan detail. */
 export type PlanNode = NodeRecord & { detail: PlanDetail };
@@ -21,14 +21,25 @@ export function asPlan(node: NodeRecord & { detail: unknown }): PlanNode | null 
   return { ...node, detail: node.detail as PlanDetail };
 }
 
-/** Plan start and end; a plan without `end_at` is a moment at its start. */
+/**
+ * Plan start and end; a plan without `end_at` is a moment at its start. An all-day plan
+ * covers its whole first day through the end of its last.
+ */
 export function spanOf(plan: PlanNode): { start: Date; end: Date } | null {
   if (!plan.occurred_at) {
     return null;
   }
   const start = new Date(plan.occurred_at);
   const end = plan.detail.end_at ? new Date(plan.detail.end_at) : start;
+  if (plan.detail.all_day) {
+    return { start: startOfDay(start), end: endOfDay(end) };
+  }
   return { start, end };
+}
+
+/** What a chip shows on the plan's first day: its start time, or "All day". */
+export function startLabel(plan: PlanNode): string {
+  return plan.detail.all_day ? "All day" : formatTime(plan.occurred_at!);
 }
 
 /** True when the plan starts on `day`, where its chip shows the start time. */

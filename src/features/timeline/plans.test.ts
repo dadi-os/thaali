@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../shared/api/types";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, memoriesOn, plansOn, spanLanes, spanOf } from "./plans";
+import { asPlan, isMultiDay, memoriesOn, plansOn, spanLanes, spanOf, startLabel } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -21,9 +21,10 @@ function node(over: Partial<NodeRecord>): NodeRecord {
   };
 }
 
-function plan(id: string, start: Date, end: Date | null) {
+function plan(id: string, start: Date, end: Date | null, allDay = false) {
   const detail: PlanDetail = {
     end_at: end ? end.toISOString() : null,
+    all_day: allDay,
     status: "confirmed",
     recurrence: null,
     series_id: null,
@@ -103,5 +104,22 @@ describe("spanLanes", () => {
   it("leaves out multi-day plans that do not touch the shown days", () => {
     const later = plan("later", new Date(2026, 9, 10, 9), new Date(2026, 9, 12, 9));
     expect(spanLanes([later], week)).toEqual([]);
+  });
+});
+
+describe("all-day plans", () => {
+  it("span their whole days and read as all day", () => {
+    const drop = plan("drop", new Date(2026, 9, 19), null, true);
+    expect(spanOf(drop)).toEqual({ start: new Date(2026, 9, 19), end: new Date(2026, 9, 19, 23, 59, 59, 999) });
+    expect(isMultiDay(drop)).toBe(false);
+    expect(startLabel(drop)).toBe("All day");
+    expect(startLabel(plan("quiz", new Date(2026, 9, 1, 13, 40), null))).not.toBe("All day");
+  });
+
+  it("a span of all-day dates is multi-day and lands in a lane", () => {
+    const week = Array.from({ length: 7 }, (_, i) => new Date(2026, 8, 28 + i));
+    const window = plan("window", new Date(2026, 8, 30), new Date(2026, 9, 2), true);
+    expect(isMultiDay(window)).toBe(true);
+    expect(spanLanes([window], week).map((lane) => lane.map((p) => p.id))).toEqual([["window"]]);
   });
 });

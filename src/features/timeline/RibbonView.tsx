@@ -1,8 +1,8 @@
 import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { formatTime, isSameDay } from "./dates";
+import { isSameDay } from "./dates";
 import { BreathRing, LiveDot } from "./markers";
-import { isMultiDay, plansOn, planStartsOn, spanLanes, spanOf, type PlanNode } from "./plans";
+import { isMultiDay, plansOn, planStartsOn, spanLanes, spanOf, startLabel, type PlanNode } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
 export type RibbonViewProps = {
@@ -69,7 +69,7 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
               <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
                 {dayPlans.map((p, j) => {
                   const span = spanOf(p)!;
-                  const live = span.start <= now && now < span.end;
+                  const live = !p.detail.all_day && span.start <= now && now < span.end;
                   return (
                     <motion.button
                       key={p.id}
@@ -86,7 +86,7 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
                       {planStartsOn(p, day) ? (
                         <p className="flex items-center gap-1 text-[10px] text-ink-ghost">
                           {live ? <LiveDot /> : null}
-                          {formatTime(p.occurred_at!)}
+                          {startLabel(p)}
                         </p>
                       ) : null}
                       <p className="truncate text-[11px] leading-snug text-ink">{p.title}</p>

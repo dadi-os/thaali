@@ -181,6 +181,8 @@ export type PersonDetail = {
 /** Plan-kind detail payload. */
 export type PlanDetail = {
   end_at: string | null;
+  /** Date without a time of day: occurred_at and end_at sit at local midnight of their dates. */
+  all_day: boolean;
   status: PlanStatus;
   recurrence: string | null;
   series_id: string | null;
@@ -234,7 +236,10 @@ export type NodeHistoryRecord = {
   old_value: string | null;
   new_value: string | null;
   changed_at: string;
+  /** Who made this change, which may differ from who created the node. */
   source: NodeSource;
+  /** Hath agent that made this change; null unless source is agent. */
+  agent_id: string | null;
 };
 
 /** POST /query body. */

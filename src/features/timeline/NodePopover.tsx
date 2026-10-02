@@ -172,7 +172,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {node.occurred_at ? (
               <div className="mb-3 flex items-baseline justify-between gap-3">
-                <span className="text-[13px] text-ink">{whenOf(node.occurred_at, plan ? plan.end_at : null)}</span>
+                <span className="text-[13px] text-ink">{whenOf(node.occurred_at, plan ? plan.end_at : null, plan?.all_day === true)}</span>
                 <Tooltip content={formatAbsolute(node.occurred_at)}>
                   <span className="shrink-0 text-[12px] text-ink-ghost">{formatRelative(node.occurred_at)}</span>
                 </Tooltip>
@@ -294,9 +294,14 @@ function connectionsOf(nodeId: string, graph: { nodes: NodeRecord[]; edges: Edge
     .sort((a, b) => KIND_ORDER[a.node.kind] - KIND_ORDER[b.node.kind] || a.node.title.localeCompare(b.node.title));
 }
 
-/** When something is, e.g. "Fri, Oct 3 · 1:00 PM – 2:30 PM"; `end` is a plan's end, if any. */
-function whenOf(start: string, end: string | null): string {
+/** When something is, e.g. "Fri, Oct 3 · 1:00 PM – 2:30 PM", or "Mon, Oct 19 · All day"; `end` is a plan's end, if any. */
+function whenOf(start: string, end: string | null, allDay: boolean): string {
   const startDay = formatDayShort(new Date(start));
+  if (allDay) {
+    return !end || isSameDay(new Date(start), new Date(end))
+      ? `${startDay} · All day`
+      : `${startDay} – ${formatDayShort(new Date(end))} · All day`;
+  }
   if (!end || end === start) {
     return `${startDay} · ${formatTime(start)}`;
   }
