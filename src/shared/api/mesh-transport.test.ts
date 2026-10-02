@@ -12,7 +12,7 @@ vi.mock("@tauri-apps/plugin-http", () => ({
 
 import { fetch } from "@tauri-apps/plugin-http";
 import { MeshTransport } from "./mesh-transport";
-import { HATH } from "./constants";
+import { HATH, NAS } from "./constants";
 
 const creds = {
   control_url: "http://headscale.dadi",
@@ -112,6 +112,37 @@ describe("MeshTransport.request", () => {
     expect(transport.isActive()).toBe(true);
     expect(transport.connectionState()).toBe("connected");
     await transport.disconnect();
+  });
+});
+
+describe("MeshTransport.mediaUrl", () => {
+  beforeEach(() => {
+    invoke.mockReset();
+  });
+
+  it("hands the webview the /@host proxy URL only while connected", async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "mesh_start") {
+        return 4242;
+      }
+      if (cmd === "mesh_status") {
+        return 2;
+      }
+      if (cmd === "mesh_stop") {
+        return;
+      }
+      throw new Error(`unexpected invoke ${cmd}`);
+    });
+
+    const transport = new MeshTransport();
+    const opts = { baseUrl: NAS, path: "/browsers/10/stream" };
+    expect(() => transport.mediaUrl(opts)).toThrow(/Not connected/);
+
+    await transport.connect(creds);
+    expect(transport.mediaUrl(opts)).toBe("http://127.0.0.1:4242/@nas.dadi/browsers/10/stream");
+
+    await transport.disconnect();
+    expect(() => transport.mediaUrl(opts)).toThrow(/Not connected/);
   });
 });
 

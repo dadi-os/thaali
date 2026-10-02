@@ -39,6 +39,13 @@ export interface Transport {
     onClose?: () => void;
   }): () => void;
 
+  /**
+   * Absolute URL the webview loads itself (`<img src>`), for long-lived media such as
+   * Nas's MJPEG browser stream that `request` cannot hand over as one response.
+   * @throws When not connected, like `request`.
+   */
+  mediaUrl(opts: { baseUrl: string; path: string }): string;
+
   /** True after connect() until disconnect() — drives event-stream reconnect. */
   isActive(): boolean;
   connectionState(): ConnectionState;

@@ -125,7 +125,7 @@ macOS and Linux get the dadi menu bar (Edit is macOS-only); Windows, which has n
 
 ## Transport / the dadi network
 
-All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the browser loads `BrowserTransport` (fetch + EventSource, Nas `/health` for ONLINE/OFFLINE). Browser Thaali is for Nas compose on-box UI only — it does not join Headscale.
+All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the browser loads `BrowserTransport` (fetch + EventSource, Nas `/health` for ONLINE/OFFLINE). Long-lived media the webview loads itself, such as Nas's MJPEG browser stream in an `<img>`, takes its URL from `Transport.mediaUrl` (the `/@host` proxy under Tauri). Browser Thaali is for Nas compose on-box UI only — it does not join Headscale.
 
 Lifecycle (Tauri):
 

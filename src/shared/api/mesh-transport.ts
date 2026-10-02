@@ -211,6 +211,13 @@ export class MeshTransport implements Transport {
     return JSON.parse(text) as T;
   }
 
+  mediaUrl(opts: { baseUrl: string; path: string }): string {
+    if (this.port === null || !this.active) {
+      throw new Error("Not connected");
+    }
+    return this.meshUrl(opts.baseUrl, opts.path);
+  }
+
   stream(opts: {
     baseUrl: string;
     path: string;

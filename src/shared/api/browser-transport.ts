@@ -95,6 +95,13 @@ export class BrowserTransport implements Transport {
     return JSON.parse(text) as T;
   }
 
+  mediaUrl(opts: { baseUrl: string; path: string }): string {
+    if (!this.active) {
+      throw new Error("Not connected");
+    }
+    return joinUrl(opts.baseUrl, opts.path);
+  }
+
   stream(opts: {
     baseUrl: string;
     path: string;
