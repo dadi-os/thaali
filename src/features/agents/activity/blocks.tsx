@@ -1,9 +1,10 @@
-/** Rendering for the blocks of one model turn in the agent popover's activity feed. */
+/** Rendering for the steps of a wake in the agent popover's activity feed. */
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
-import { InlineMarkdown, MarkdownBody } from "../../../shared/components/Markdown";
+import { MarkdownBody } from "../../../shared/components/Markdown";
+import { LANE_LABEL } from "../../../shared/lib/ux/lanes";
 import { formatToolSignature } from "../../../chrome/chatSidebar/toolStatus";
-import type { ActivityBlock } from "./runs";
+import type { ActivityStep, ActivityTool, MessageStep, Thought, TurnStep } from "./wakes";
 
 /** A tool parameter as display text: strings as-is, anything structured as indented JSON. */
 function prettyValue(value: unknown): string {
@@ -34,32 +35,6 @@ function prettyResult(content: string): string {
   } catch {
     return content;
   }
-}
-
-/**
- * Yield's tool_result is just `{"yielded":true}` — redundant next to the
- * tool name. Hide empty / trivial success payloads for yield only.
- */
-function isRedundantYieldResult(content: string): boolean {
-  const trimmed = content.trim();
-  if (!trimmed) {
-    return true;
-  }
-  try {
-    const parsed: unknown = JSON.parse(trimmed);
-    if (
-      parsed &&
-      typeof parsed === "object" &&
-      !Array.isArray(parsed) &&
-      Object.keys(parsed).length === 1 &&
-      (parsed as { yielded?: unknown }).yielded === true
-    ) {
-      return true;
-    }
-  } catch {
-    return false;
-  }
-  return false;
 }
 
 type ClampProps = {
@@ -123,32 +98,31 @@ function Clamp({ children, maxEm, className = "" }: ClampProps) {
   );
 }
 
-/** Model thinking: a muted one-line preview, expanding to the full thought. */
-function ThoughtBlock({ text }: { text: string }) {
+/**
+ * The thinking behind a model call as one quiet italic line, its gist; clicking it opens
+ * the whole thought beneath.
+ */
+function ThoughtLine({ thought }: { thought: Thought }) {
   const [open, setOpen] = useState(false);
   return (
     <div>
       <button
         type="button"
-        className="flex w-full items-baseline gap-1.5 text-left"
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
+        title={open ? "Hide thought" : "Show thought"}
+        className={`block w-full text-left text-[11px] italic leading-snug text-ink-ghost transition-colors duration-slow ease-dadi hover:text-ink-faint ${
+          open ? "" : "truncate"
+        }`}
       >
-        <span className="shrink-0 text-[10px] tracking-wide text-ink-ghost">
-          {open ? "▾" : "▸"} thought
-        </span>
-        {open ? null : (
-          <span className="min-w-0 flex-1 truncate text-[11px] italic leading-snug text-ink-ghost">
-            <InlineMarkdown content={text} />
-          </span>
-        )}
+        {thought.gist}
       </button>
       {open ? (
         <Clamp
-          maxEm={14}
-          className="mt-1 border-l border-rule pl-2.5 text-[11px] italic leading-snug text-ink-ghost"
+          maxEm={16}
+          className="mt-1 mb-0.5 border-l border-rule pl-2.5 text-[11px] italic leading-snug text-ink-ghost"
         >
-          <MarkdownBody content={text} compact />
+          <MarkdownBody content={thought.text} compact />
         </Clamp>
       ) : null}
     </div>
@@ -183,9 +157,9 @@ function ParamList({ input }: { input: Record<string, unknown> }) {
   );
 }
 
-type ToolBlockProps = {
-  block: Extract<ActivityBlock, { kind: "tool" }>;
-  /** True while this tool's run is live, so a missing result reads as running rather than lost. */
+type ToolRowProps = {
+  tool: ActivityTool;
+  /** True while the tool's wake is live, so a missing result reads as running rather than lost. */
   live: boolean;
 };
 
@@ -193,14 +167,10 @@ type ToolBlockProps = {
  * A tool call as its wrapping `name(args)` signature with its status, expanding to the
  * full parameters and result.
  */
-function ToolBlock({ block, live }: ToolBlockProps) {
+function ToolRow({ tool, live }: ToolRowProps) {
   const [open, setOpen] = useState(false);
-  const result = block.result;
-  const signature = formatToolSignature(block.name, block.input);
-  const showResult =
-    result !== null &&
-    result.content.trim() !== "" &&
-    !(block.name === "yield" && !result.isError && isRedundantYieldResult(result.content));
+  const result = tool.result;
+  const signature = formatToolSignature(tool.name, tool.input);
 
   return (
     <div>
@@ -215,8 +185,8 @@ function ToolBlock({ block, live }: ToolBlockProps) {
             result?.isError ? "text-ink-muted line-through decoration-ink-ghost/60" : "text-ink"
           }`}
         >
-          {block.name}
-          <span className="text-ink-ghost">{signature.slice(block.name.length)}</span>
+          {tool.name}
+          <span className="text-ink-ghost">{signature.slice(tool.name.length)}</span>
         </span>
         {result === null ? (
           live ? (
@@ -232,9 +202,9 @@ function ToolBlock({ block, live }: ToolBlockProps) {
         ) : null}
       </button>
       {open ? (
-        <div className="mt-1.5 flex flex-col gap-1.5 border-l border-rule pl-2.5">
-          <ParamList input={block.input} />
-          {showResult ? (
+        <div className="mt-1.5 mb-1 flex flex-col gap-1.5 border-l border-rule pl-2.5">
+          <ParamList input={tool.input} />
+          {result !== null && result.content.trim() !== "" ? (
             <Clamp
               maxEm={10}
               className={`font-mono text-[11px] leading-snug whitespace-pre-wrap [overflow-wrap:anywhere] ${
@@ -250,26 +220,67 @@ function ToolBlock({ block, live }: ToolBlockProps) {
   );
 }
 
-export type TurnBlockProps = {
-  block: ActivityBlock;
-  /** True while the block's run is live. */
+/**
+ * A received message as a filled bubble, a sent one as an outlined bubble, and the
+ * runtime's report of a dead reasoning lane in the error tone.
+ */
+function MessageBubble({ step }: { step: MessageStep }) {
+  const peer = step.peer ?? "you";
+  const label = step.direction === "receive" ? `from ${peer}` : `to ${peer}`;
+  const tone = step.laneFailure
+    ? "border border-error-line bg-error-fill"
+    : step.direction === "receive"
+      ? "bg-sage-fill"
+      : "border border-sage-line/70";
+  return (
+    <div className={`rounded-[8px] px-2.5 py-1.5 ${tone}`}>
+      <p
+        className={`mb-0.5 text-[10px] tracking-wide ${
+          step.laneFailure ? "text-error" : "text-ink-ghost"
+        }`}
+      >
+        {step.laneFailure
+          ? `${LANE_LABEL.reasoning} failed · ${label}`
+          : step.scheduled
+            ? `scheduled · ${label}`
+            : label}
+      </p>
+      <Clamp maxEm={4.5} className="text-[12px] leading-snug text-ink">
+        <MarkdownBody content={step.content} compact />
+      </Clamp>
+    </div>
+  );
+}
+
+/** A model call: its thought line, then what it wrote and the tools it called, in order. */
+function TurnBody({ step, live }: { step: TurnStep; live: boolean }) {
+  return (
+    <div className="flex flex-col gap-1">
+      {step.thought ? <ThoughtLine thought={step.thought} /> : null}
+      {step.parts.map((part) =>
+        part.kind === "text" ? (
+          <Clamp key={part.key} maxEm={5} className="text-[12px] leading-snug text-ink-muted">
+            <MarkdownBody content={part.text} compact />
+          </Clamp>
+        ) : (
+          <ToolRow key={part.key} tool={part.tool} live={live} />
+        ),
+      )}
+    </div>
+  );
+}
+
+export type StepProps = {
+  step: ActivityStep;
+  /** True while the step's wake is live. */
   live: boolean;
 };
 
-/** Render one block of a model turn by kind. */
-export function TurnBlock({ block, live }: TurnBlockProps) {
-  switch (block.kind) {
-    case "thinking":
-      return <ThoughtBlock text={block.text} />;
-    case "redacted":
-      return <p className="text-[10px] tracking-wide text-ink-ghost">▸ thought · redacted</p>;
-    case "text":
-      return (
-        <Clamp maxEm={5} className="text-[12px] leading-snug text-ink-muted">
-          <MarkdownBody content={block.text} compact />
-        </Clamp>
-      );
-    case "tool":
-      return <ToolBlock block={block} live={live} />;
-  }
+/** One timeline entry of a wake, by kind. */
+export function Step({ step, live }: StepProps) {
+  return step.kind === "message" ? (
+    <MessageBubble step={step} />
+  ) : (
+    <TurnBody step={step} live={live} />
+  );
 }

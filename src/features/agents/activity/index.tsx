@@ -10,13 +10,20 @@ import { EASE, REVEAL, SLOW_S } from "../../../shared/lib/ux/motion";
 import { countNoun } from "../../../shared/lib/ux/plural";
 import { formatAbsolute, formatRelative } from "../../../shared/lib/ux/time";
 import { formatToolSignature } from "../../../chrome/chatSidebar/toolStatus";
-import { TurnBlock } from "./blocks";
-import { buildActivity, buildRuns, type ActivityRun } from "./runs";
+import { Step } from "./blocks";
+import { buildActivity, type ActivityStep, type ActivityWake } from "./wakes";
 
-/** Runs shown at first, and added per "show older". */
-const RUN_PAGE = 6;
+/** Wakes shown at first, and added per "show older". */
+const WAKE_PAGE = 5;
 
-/** Which lanes the feed shows. */
+/**
+ * A long wake shows its opening steps (what set it off) and its latest ones, with the
+ * middle folded behind a "show N earlier steps" row.
+ */
+const STEP_HEAD = 2;
+const STEP_TAIL = 8;
+
+/** Which lanes' steps the feed shows. */
 type LaneFilter = Lane | "all";
 
 const FILTER_OPTIONS: Array<{ value: LaneFilter; label: string }> = [
@@ -25,62 +32,77 @@ const FILTER_OPTIONS: Array<{ value: LaneFilter; label: string }> = [
   { value: "reasoning", label: LANE_LABEL.reasoning },
 ];
 
-/** The newest thing a run wrote or called, as the one line of its collapsed row. */
-function runPreview(run: ActivityRun): { kind: "text" | "tool"; text: string } | null {
-  for (const turn of run.turns) {
-    for (let i = turn.blocks.length - 1; i >= 0; i -= 1) {
-      const block = turn.blocks[i];
-      if (block.kind === "text") {
-        return { kind: "text", text: block.text };
-      }
-      if (block.kind === "tool") {
-        return { kind: "tool", text: formatToolSignature(block.name, block.input) };
-      }
-    }
+/** A lane's mark on the timeline rail: a filled dot for thinking, a ring for working. */
+const LANE_DOT: Record<Lane, string> = {
+  conversation: "bg-sage",
+  reasoning: "bg-bone ring-1 ring-inset ring-sage-deep/60",
+};
+
+/** How long a wake ran, at the coarsest unit that still says something. */
+function formatSpan(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
   }
-  return null;
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-type RunRowProps = {
-  run: ActivityRun;
-  /** True for the lane's newest run while that lane is running. */
+/** What set a wake off: who messaged, or which lanes started on their own. */
+function wakeTitle(wake: ActivityWake): string {
+  const first = wake.steps[0];
+  if (first.kind === "message" && first.direction === "receive") {
+    const from = `from ${first.peer ?? "you"}`;
+    return first.scheduled ? `scheduled ${from}` : from;
+  }
+  return wake.lanes.map((lane) => LANE_LABEL[lane]).join(" + ");
+}
+
+/** The wake's opening step as one line for its collapsed row. */
+function wakePreview(step: ActivityStep): { mono: boolean; text: string } | null {
+  if (step.kind === "message") {
+    return { mono: false, text: step.content };
+  }
+  const part = step.parts[0];
+  return part.kind === "text"
+    ? { mono: false, text: part.text }
+    : { mono: true, text: formatToolSignature(part.tool.name, part.tool.input) };
+}
+
+type WakeRowProps = {
+  wake: ActivityWake;
+  /** The steps to show, after the lane filter and any held-back new steps. */
+  steps: ActivityStep[];
+  /** True for the newest wake while one of the agent's lanes is running. */
   live: boolean;
   open: boolean;
   onToggle: () => void;
 };
 
 /**
- * One lane run on its rail: solid for thinking, dashed for working. The header names the
- * lane with its tool count, failures and time; open, it lists the run's turns newest
- * first, and closed, the newest thing the run wrote or called.
+ * One wake: what set it off, which lanes worked, its tool calls, failures and span.
+ * Open, its steps run oldest first down a rail whose dots mark each step's lane, naming
+ * the lane wherever it changes; closed, its opening step stands in as one line.
  */
-function RunRow({ run, live, open, onToggle }: RunRowProps) {
-  const working = run.lane === "reasoning";
-  const preview = open ? null : runPreview(run);
-  const span =
-    run.startedAt === run.at
-      ? formatAbsolute(run.at)
-      : `${formatAbsolute(run.startedAt)} – ${formatAbsolute(run.at)}`;
+function WakeRow({ wake, steps, live, open, onToggle }: WakeRowProps) {
+  const [unfolded, setUnfolded] = useState(false);
+  const folded =
+    unfolded || steps.length <= STEP_HEAD + STEP_TAIL + 1 ? 0 : steps.length - STEP_HEAD - STEP_TAIL;
+  const rows: Array<ActivityStep | "fold"> =
+    folded > 0 ? [...steps.slice(0, STEP_HEAD), "fold", ...steps.slice(-STEP_TAIL)] : steps;
+  const preview = open ? null : wakePreview(steps[0]);
+  const span = Date.parse(wake.at) - Date.parse(wake.startedAt);
+  const meta = [
+    wake.toolCount > 0 ? `${wake.toolCount} ${countNoun(wake.toolCount, "tool call")}` : null,
+    span >= 1000 ? formatSpan(span) : null,
+  ].filter((part) => part !== null);
 
   return (
     <motion.li {...REVEAL} className="overflow-hidden">
-      <div className="relative pb-3.5 pl-4">
-        <span
-          aria-hidden
-          className={`absolute top-3.5 bottom-1.5 left-[3px] border-l ${
-            working ? "border-dashed border-sage-deep/40" : "border-sage/70"
-          }`}
-        />
-        <span
-          aria-hidden
-          className={`absolute top-[5px] left-0 size-[7px] rounded-full ${
-            working
-              ? `ring-1 ring-inset ${live ? "ring-sage-deep" : "ring-sage-deep/55"}`
-              : live
-                ? "bg-sage-deep"
-                : "bg-sage"
-          } ${live ? "animate-breath" : ""}`}
-        />
+      <div className="border-b border-rule/50 py-2.5">
         <div className="flex items-baseline gap-2">
           <button
             type="button"
@@ -88,35 +110,84 @@ function RunRow({ run, live, open, onToggle }: RunRowProps) {
             aria-expanded={open}
             className="flex min-w-0 flex-1 items-baseline gap-2 text-left"
           >
-            <span className="text-[12px] font-medium text-ink">{LANE_LABEL[run.lane]}</span>
-            {run.toolCount > 0 ? (
-              <span className="text-[11px] text-ink-ghost">
-                {run.toolCount} {countNoun(run.toolCount, "tool call")}
-              </span>
-            ) : null}
-            {run.errorCount > 0 ? (
-              <span className="text-[11px] text-error">{run.errorCount} failed</span>
-            ) : null}
+            <span aria-hidden className="flex shrink-0 gap-0.5 self-center">
+              {wake.lanes.map((lane) => (
+                <span
+                  key={lane}
+                  className={`inline-block size-[7px] rounded-full ${LANE_DOT[lane]} ${
+                    live ? "animate-breath" : ""
+                  }`}
+                />
+              ))}
+            </span>
+            <span className="truncate text-[12px] font-medium text-ink">{wakeTitle(wake)}</span>
+            <span className="shrink-0 text-[11px] text-ink-ghost">
+              {meta.join(" · ")}
+              {wake.errorCount > 0 ? (
+                <span className="text-error">
+                  {meta.length > 0 ? " · " : ""}
+                  {wake.errorCount} failed
+                </span>
+              ) : null}
+            </span>
           </button>
-          <Tooltip content={span}>
+          <Tooltip
+            content={
+              span >= 1000
+                ? `${formatAbsolute(wake.startedAt)} – ${formatAbsolute(wake.at)}`
+                : formatAbsolute(wake.at)
+            }
+          >
             <span className={`shrink-0 text-[10px] ${live ? "text-sage-deep" : "text-ink-ghost"}`}>
-              {live ? "now" : formatRelative(run.at)}
+              {live ? "now" : formatRelative(wake.at)}
             </span>
           </Tooltip>
         </div>
+
         <AnimatePresence initial={false}>
           {open ? (
-            <motion.ol key="turns" {...REVEAL} className="overflow-hidden">
+            <motion.ol
+              key="steps"
+              {...REVEAL}
+              className="relative overflow-hidden before:absolute before:top-2 before:bottom-3 before:left-[3px] before:border-l before:border-rule"
+            >
               <AnimatePresence initial={false}>
-                {run.turns.map((turn) => (
-                  <motion.li key={turn.key} {...REVEAL} className="overflow-hidden">
-                    <div className="flex flex-col gap-1.5 pt-2">
-                      {turn.blocks.map((block) => (
-                        <TurnBlock key={block.key} block={block} live={live} />
-                      ))}
-                    </div>
-                  </motion.li>
-                ))}
+                {rows.map((row, index) => {
+                  if (row === "fold") {
+                    return (
+                      <motion.li key="fold" {...REVEAL} className="overflow-hidden">
+                        <button
+                          type="button"
+                          onClick={() => setUnfolded(true)}
+                          className="relative block pt-2 pl-4 text-[11px] text-sage-deep"
+                        >
+                          <span
+                            aria-hidden
+                            className="absolute top-[13px] left-[1px] size-[5px] rounded-full bg-rule"
+                          />
+                          show {folded} earlier {countNoun(folded, "step")}
+                        </button>
+                      </motion.li>
+                    );
+                  }
+                  const previous = rows[index - 1];
+                  return (
+                    <motion.li key={row.key} {...REVEAL} className="overflow-hidden">
+                      <div className="relative pt-2 pl-4">
+                        <span
+                          aria-hidden
+                          className={`absolute top-[13px] left-0 size-[7px] rounded-full ${LANE_DOT[row.lane]}`}
+                        />
+                        {previous === undefined || previous === "fold" || previous.lane !== row.lane ? (
+                          <p className="mb-0.5 text-[10px] tracking-wide text-ink-ghost">
+                            {LANE_LABEL[row.lane]}
+                          </p>
+                        ) : null}
+                        <Step step={row} live={live} />
+                      </div>
+                    </motion.li>
+                  );
+                })}
               </AnimatePresence>
             </motion.ol>
           ) : preview ? (
@@ -129,10 +200,10 @@ function RunRow({ run, live, open, onToggle }: RunRowProps) {
             >
               <span
                 className={`mt-0.5 block truncate leading-snug text-ink-muted ${
-                  preview.kind === "tool" ? "font-mono text-[11px]" : "text-[12px]"
+                  preview.mono ? "font-mono text-[11px]" : "text-[12px]"
                 }`}
               >
-                {preview.kind === "text" ? <InlineMarkdown content={preview.text} /> : preview.text}
+                {preview.mono ? preview.text : <InlineMarkdown content={preview.text} />}
               </span>
             </motion.button>
           ) : null}
@@ -145,31 +216,32 @@ function RunRow({ run, live, open, onToggle }: RunRowProps) {
 export type AgentActivityProps = {
   /** The agent's recent logs, newest first; the popover owns and refreshes this query. */
   logs: UseQueryResult<LogRecord[], Error>;
-  /** Which of the agent's lanes are running now; marks each lane's newest run live. */
+  /** Which of the agent's lanes are running now; marks the newest wake live. */
   running: Record<Lane, boolean>;
-  /** The popover's scroll area: the header sticks to it, and new turns wait while it is scrolled past the feed's top. */
+  /** The popover's scroll area: the header sticks to it, and new steps wait while it is scrolled past the feed's top. */
   scrollRef: RefObject<HTMLDivElement | null>;
 };
 
 /**
- * Recent agent activity from durable logs, grouped into lane runs (thinking or working)
- * that open to each model call's thought, text and tool calls. The header filters by
- * lane and stays pinned while scrolling. New turns ease in on top; while the reader is
+ * Recent agent activity from durable logs, as wakes: each stretch of work from the
+ * message (or cold start) that set it off until both lanes yielded, its messages and
+ * model calls in order with each call's thought, text and tool calls. The header filters
+ * by lane and stays pinned while scrolling. New steps ease in; while the reader is
  * scrolled into the feed they wait behind an "↑ N new" pill instead of shifting the page.
  */
 export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActivityProps) {
-  const turns = useMemo(
+  const wakes = useMemo(
     () => (logsQuery.data ? buildActivity(logsQuery.data) : []),
     [logsQuery.data],
   );
   const [filter, setFilter] = useState<LaneFilter>("all");
-  const [limit, setLimit] = useState(RUN_PAGE);
-  const [openRuns, setOpenRuns] = useState<Record<string, boolean>>({});
+  const [limit, setLimit] = useState(WAKE_PAGE);
+  const [openWakes, setOpenWakes] = useState<Record<string, boolean>>({});
   const sentinelRef = useRef<HTMLDivElement>(null);
   const [away, setAway] = useState(false);
   const [held, setHeld] = useState<Set<string> | null>(null);
   if (away && held === null) {
-    setHeld(new Set(turns.map((turn) => turn.key)));
+    setHeld(new Set(wakes.flatMap((wake) => wake.steps.map((step) => step.key))));
   }
   if (!away && held !== null) {
     setHeld(null);
@@ -194,20 +266,27 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
     return () => observer.disconnect();
   }, [scrollRef]);
 
-  const shown = held ? turns.filter((turn) => held.has(turn.key)) : turns;
-  const newCount = turns.length - shown.length;
-  const runs = buildRuns(
-    filter === "all" ? shown : shown.filter((turn) => turn.lane === filter),
-  );
-  const liveKeys = new Set<string>();
-  for (const lane of ["conversation", "reasoning"] as const) {
-    const newest = running[lane] ? runs.find((run) => run.lane === lane) : undefined;
-    if (newest) {
-      liveKeys.add(newest.key);
+  const liveKey =
+    wakes.length > 0 && (running.conversation || running.reasoning) ? wakes[0].key : null;
+  let newCount = 0;
+  const shown: Array<{ wake: ActivityWake; steps: ActivityStep[] }> = [];
+  for (const wake of wakes) {
+    const steps = wake.steps.filter((step) => {
+      if (filter !== "all" && step.lane !== filter) {
+        return false;
+      }
+      if (held && !held.has(step.key)) {
+        newCount += 1;
+        return false;
+      }
+      return true;
+    });
+    if (steps.length > 0) {
+      shown.push({ wake, steps });
     }
   }
-  const visible = runs.slice(0, limit);
-  const older = runs.length - visible.length;
+  const visible = shown.slice(0, limit);
+  const older = shown.length - visible.length;
 
   return (
     <section>
@@ -235,7 +314,7 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
             value={filter}
             onChange={(next) => {
               setFilter(next);
-              setLimit(RUN_PAGE);
+              setLimit(WAKE_PAGE);
             }}
             label="Lane"
             size="sm"
@@ -258,39 +337,40 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
             Could not load activity: {logsQuery.error.message}
           </motion.p>
         ) : null}
-        {logsQuery.isSuccess && runs.length === 0 ? (
+        {logsQuery.isSuccess && shown.length === 0 ? (
           <motion.p key="empty" {...REVEAL} className="overflow-hidden py-1 text-[13px] text-ink-muted">
             {filter === "all" ? "No recent activity." : `No recent ${LANE_LABEL[filter]}.`}
           </motion.p>
         ) : null}
       </AnimatePresence>
 
-      <ol className="flex flex-col pt-1.5">
+      <ol className="flex flex-col">
         <AnimatePresence initial={false}>
-          {visible.map((run, index) => {
-            const live = liveKeys.has(run.key);
-            const open = openRuns[run.key] ?? (index === 0 || live);
+          {visible.map(({ wake, steps }, index) => {
+            const live = wake.key === liveKey;
+            const open = openWakes[wake.key] ?? (index === 0 || live);
             return (
-              <RunRow
-                key={run.key}
-                run={run}
+              <WakeRow
+                key={wake.key}
+                wake={wake}
+                steps={steps}
                 live={live}
                 open={open}
-                onToggle={() => setOpenRuns((prev) => ({ ...prev, [run.key]: !open }))}
+                onToggle={() => setOpenWakes((prev) => ({ ...prev, [wake.key]: !open }))}
               />
             );
           })}
         </AnimatePresence>
       </ol>
-      {older > 0 || limit > RUN_PAGE ? (
-        <div className="flex gap-3 pl-4 text-[11px] text-sage-deep">
+      {older > 0 || limit > WAKE_PAGE ? (
+        <div className="flex gap-3 pt-2 text-[11px] text-sage-deep">
           {older > 0 ? (
-            <button type="button" onClick={() => setLimit((n) => n + RUN_PAGE)}>
-              show {Math.min(older, RUN_PAGE)} older
+            <button type="button" onClick={() => setLimit((n) => n + WAKE_PAGE)}>
+              show {Math.min(older, WAKE_PAGE)} older
             </button>
           ) : null}
-          {limit > RUN_PAGE ? (
-            <button type="button" onClick={() => setLimit(RUN_PAGE)}>
+          {limit > WAKE_PAGE ? (
+            <button type="button" onClick={() => setLimit(WAKE_PAGE)}>
               show fewer
             </button>
           ) : null}

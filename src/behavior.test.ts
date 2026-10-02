@@ -48,7 +48,7 @@ import {
   type MemoryLink,
 } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/ForceGraph";
-import { buildActivity, buildRuns } from "./features/agents/activity/runs";
+import { buildActivity, thoughtGist } from "./features/agents/activity/wakes";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
 import {
   hasRememberedSessions,
@@ -1162,91 +1162,112 @@ describe("searchHouse", () => {
 });
 
 describe("buildActivity", () => {
-  const log = (partial: Partial<LogRecord> & Pick<LogRecord, "id" | "event" | "payload" | "created_at">): LogRecord => ({
-    agent_id: "browser-worker",
-    lane: "reasoning",
-    ...partial,
+  const log = (
+    partial: Partial<LogRecord> & Pick<LogRecord, "id" | "event" | "payload" | "created_at">,
+  ): LogRecord => ({ agent_id: "coding-manager", lane: "conversation", ...partial });
+  const at = (seconds: number) => new Date(Date.UTC(2026, 9, 2, 17, 40, 0) + seconds * 1000).toISOString();
+  const response = (id: string, lane: Lane, seconds: number, content: unknown[], stop = "tool_use") =>
+    log({ id, lane, event: "response", payload: { content, stop_reason: stop }, created_at: at(seconds) });
+  const result = (id: string, lane: Lane, seconds: number, toolUseId: string, name: string, isError = false) =>
+    log({ id, lane, event: "tool_result", payload: { tool_use_id: toolUseId, name, content: "ok", is_error: isError }, created_at: at(seconds) });
+  const message = (id: string, seconds: number, payload: Record<string, unknown>) =>
+    log({ id, event: "message", payload: { content: "hi", ...payload }, created_at: at(seconds) });
+  const tool = (id: string, name: string, input: Record<string, unknown> = {}) => ({ type: "tool_use", id, name, input });
+
+  it("keeps a wake's interleaved lanes in one timeline, hiding yield and delivered dispatches", () => {
+    const logs = [
+      message("m-in", 0, { direction: "receive", from_agent_id: null }),
+      response("c1", "conversation", 1, [{ type: "thinking", thinking: "Okay.\n\n**Steering Reasoning**\n\nIt should close t5." }, tool("s1", "steer_reasoning")]),
+      result("c1r", "conversation", 1.1, "s1", "steer_reasoning"),
+      response("r1", "reasoning", 2, [{ type: "thinking", thinking: "Close the terminal." }, tool("t1", "terminal_close", { terminal_id: "t5" })]),
+      result("r1r", "reasoning", 2.1, "t1", "terminal_close", true),
+      response("c2", "conversation", 3, [{ type: "thinking", thinking: "Reply." }, tool("d1", "dispatch_message"), tool("y1", "yield")]),
+      message("m-out", 3.1, { direction: "send", to_agent_id: null }),
+      result("c2r", "conversation", 3.2, "d1", "dispatch_message"),
+      result("c2y", "conversation", 3.3, "y1", "yield"),
+      response("r2", "reasoning", 4, [{ type: "text", text: "Done." }, tool("y2", "yield")]),
+    ].reverse();
+
+    const wakes = buildActivity(logs);
+
+    expect(wakes).toHaveLength(1);
+    const [wake] = wakes;
+    expect(wake!.key).toBe("m-in");
+    expect(wake!.lanes).toEqual(["conversation", "reasoning"]);
+    expect(wake!.toolCount).toBe(3);
+    expect(wake!.errorCount).toBe(1);
+    expect(wake!.steps.map((step) => step.key)).toEqual(["m-in", "c1", "r1", "m-out", "r2"]);
+    const [, steer, close] = wake!.steps;
+    expect(steer).toMatchObject({ kind: "turn", lane: "conversation", thought: { gist: "Steering Reasoning" } });
+    expect(close).toMatchObject({ kind: "turn", lane: "reasoning", thought: { gist: "Close the terminal." } });
+    expect(close!.kind === "turn" && close!.parts[0]).toMatchObject({
+      kind: "tool",
+      tool: { name: "terminal_close", result: { isError: true } },
+    });
   });
 
-  it("keeps a model turn's thinking, text and tool calls in order, paired with results", () => {
-    const turns = buildActivity([
-      log({
-        id: "res-1",
-        event: "tool_result",
-        payload: { tool_use_id: "t1", name: "browser_screenshot", content: "a page", is_error: false },
-        created_at: "2026-01-01T00:00:02Z",
-      }),
-      log({
-        id: "resp-1",
-        event: "response",
-        payload: {
-          content: [
-            { type: "thinking", thinking: "tree came back empty", signature: "s" },
-            { type: "text", text: "Accessibility tree appears empty, taking a screenshot instead." },
-            { type: "tool_use", id: "t1", name: "browser_screenshot", input: { scope: "page" } },
-            { type: "tool_use", id: "t2", name: "browser_click", input: {} },
-          ],
-        },
-        created_at: "2026-01-01T00:00:01Z",
-      }),
-    ]);
+  it("starts a new wake when a message or call arrives after both lanes stopped, or after a long gap", () => {
+    const logs = [
+      message("a", 0, { direction: "receive", from_agent_id: "browser-manager" }),
+      response("a1", "conversation", 1, [{ type: "text", text: "on it" }], "end_turn"),
+      response("b1", "reasoning", 30, [tool("b1t", "terminal_list")]),
+      message("c", 40, { direction: "receive", from_agent_id: "career-manager", schedule_id: "s-1" }),
+      response("d1", "reasoning", 40 + 11 * 60, [{ type: "text", text: "later" }]),
+    ].reverse();
 
-    expect(turns).toHaveLength(1);
-    expect(turns[0]!.blocks.map((block) => block.kind)).toEqual(["thinking", "text", "tool", "tool"]);
-    const [, , screenshot, click] = turns[0]!.blocks;
-    expect(screenshot).toMatchObject({ name: "browser_screenshot", result: { content: "a page", isError: false } });
-    expect(click).toMatchObject({ name: "browser_click", result: null });
+    const wakes = buildActivity(logs);
+
+    expect(wakes.map((wake) => wake.key)).toEqual(["d1", "b1", "a"]);
+    expect(wakes[1]!.steps.map((step) => step.key)).toEqual(["b1", "c"]);
+    expect(wakes[1]!.steps[1]).toMatchObject({ kind: "message", peer: "career-manager", scheduled: true });
   });
 
-  it("orders turns newest first and drops turns with nothing to show", () => {
-    const turns = buildActivity([
-      log({ id: "a", event: "response", payload: { content: [{ type: "text", text: "first" }] }, created_at: "2026-01-01T00:00:01Z" }),
-      log({ id: "b", event: "response", payload: { content: [{ type: "text", text: "  " }] }, created_at: "2026-01-01T00:00:02Z" }),
-      log({ id: "c", event: "response", payload: { content: [{ type: "redacted_thinking", data: "x" }] }, created_at: "2026-01-01T00:00:03Z", lane: "conversation" }),
-      log({ id: "d", event: "message", payload: { content: "hi" }, created_at: "2026-01-01T00:00:04Z" }),
+  it("keeps the lane a handoff wakes in the wake that handed off", () => {
+    const logs = [
+      message("in", 0, { direction: "receive", from_agent_id: "cse-431-specialist" }),
+      response("c1", "conversation", 1, [tool("s1", "steer_reasoning", { instruction: "spawn it" }), tool("y1", "yield")]),
+      result("c1r", "conversation", 1.1, "s1", "steer_reasoning"),
+      response("r1", "reasoning", 8, [tool("l1", "list_tools")]),
+    ].reverse();
+
+    expect(buildActivity(logs).map((wake) => wake.steps.map((step) => step.key))).toEqual([["in", "c1", "r1"]]);
+  });
+
+  it("starts a new wake when a steered lane failed instead of running", () => {
+    const logs = [
+      message("ask", 0, { direction: "receive", from_agent_id: null }),
+      response("c1", "conversation", 1, [tool("s1", "steer_reasoning"), tool("y1", "yield")]),
+      result("c1r", "conversation", 1.1, "s1", "steer_reasoning"),
+      message("dead", 3, {
+        direction: "send",
+        to_agent_id: null,
+        content: "[runtime] My reasoning lane failed and this wake stopped before finishing: credit balance too low.",
+      }),
+      message("again", 60, { direction: "receive", from_agent_id: null }),
+    ].reverse();
+
+    const wakes = buildActivity(logs);
+
+    expect(wakes.map((wake) => wake.key)).toEqual(["again", "ask"]);
+    expect(wakes[1]!.steps[2]).toMatchObject({ key: "dead", laneFailure: true });
+  });
+
+  it("drops calls that only yield and wakes with nothing left to show", () => {
+    const wakes = buildActivity([
+      response("y", "conversation", 0, [{ type: "thinking", thinking: "nothing to do" }, tool("y1", "yield")]),
     ]);
 
-    expect(turns.map((turn) => turn.key)).toEqual(["c", "a"]);
-    expect(turns[0]!.lane).toBe("conversation");
-    expect(turns[0]!.blocks[0]!.kind).toBe("redacted");
+    expect(wakes).toEqual([]);
   });
 });
 
-describe("buildRuns", () => {
-  const turn = (key: string, lane: Lane, at: string, tools: Array<boolean | null>) => ({
-    key,
-    lane,
-    at,
-    blocks: tools.map((isError, index) => ({
-      kind: "tool" as const,
-      key: `${key}:${index}`,
-      id: `${key}-t${index}`,
-      name: "browser_click",
-      input: {},
-      result: isError === null ? null : { content: "", isError },
-    })),
+describe("thoughtGist", () => {
+  it("takes a summary's bold heading over its filler opening", () => {
+    expect(thoughtGist("Okay, here's my take.\n\n**Message Handling Complete**\n\nAll sent.")).toBe("Message Handling Complete");
   });
 
-  it("groups consecutive same-lane turns, keyed by their oldest turn, with tool and error counts", () => {
-    const runs = buildRuns([
-      turn("w3", "reasoning", "2026-01-01T00:00:05Z", [null]),
-      turn("w2", "reasoning", "2026-01-01T00:00:04Z", [true, false]),
-      turn("t1", "conversation", "2026-01-01T00:00:03Z", []),
-      turn("w1", "reasoning", "2026-01-01T00:00:01Z", [false]),
-    ]);
-
-    expect(runs.map((run) => [run.key, run.lane])).toEqual([
-      ["w2", "reasoning"],
-      ["t1", "conversation"],
-      ["w1", "reasoning"],
-    ]);
-    expect(runs[0]).toMatchObject({
-      at: "2026-01-01T00:00:05Z",
-      startedAt: "2026-01-01T00:00:04Z",
-      toolCount: 3,
-      errorCount: 1,
-    });
-    expect(runs[0]!.turns.map((t) => t.key)).toEqual(["w3", "w2"]);
+  it("takes plain thinking's first line", () => {
+    expect(thoughtGist("Let me check the terminal list.\nThen report.")).toBe("Let me check the terminal list.");
   });
 });
 
