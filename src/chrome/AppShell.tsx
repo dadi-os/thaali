@@ -8,6 +8,7 @@ import { MeshPowerOverlay } from "./MeshPowerOverlay";
 import { ProvisionOverlay } from "./ProvisionOverlay";
 import { bootstrapMesh } from "../store/connection";
 import { useConnection } from "../shared/hooks/useConnection";
+import { useAttention } from "./useAttention";
 import { useDesktopTray } from "./useDesktopTray";
 import { useEvents } from "../shared/hooks/useEvents";
 import { useDeviceRemote } from "./useDeviceRemote";
@@ -28,6 +29,7 @@ export function AppShell() {
   const needsProvisioning = useNeedsProvisioning();
 
   useEvents();
+  useAttention();
   useDeviceRemote();
   useDesktopTray({
     onProvision: () => {

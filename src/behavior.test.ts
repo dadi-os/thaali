@@ -20,13 +20,18 @@ import {
   hydrateThreadMessages,
   ingestLiveMessage,
   isUserThreadMessage,
+  holdAgentMessage,
+  dismissNudge,
   messageKey,
+  openAgent,
+  openList,
   resetChatStore,
   seedConversations,
   threadAgentId,
   upsertConversation,
 } from "./store/chat";
 import type { ChatMessage } from "./store/chat";
+import { IDLE_MS, readingMs, shouldSwitchChat, type Attention } from "./store/attention";
 import type { DurableMessage, GharDevice, Lane, LogRecord } from "./shared/api/types";
 import { searchHouse } from "./features/ghar/house/search";
 import {
@@ -433,6 +438,51 @@ describe("user-thread history", () => {
     expect(getChatState().conversations[0]!.agent_name).toBe("Planner");
     expect(getChatState().conversations[0]!.last_message).toBe("later");
     resetChatStore();
+  });
+});
+
+describe("chat switching on agent replies", () => {
+  const idle: Attention = { focused: true, sinceInputMs: IDLE_MS, composing: false, reading: false };
+  const list = { kind: "list" } as const;
+
+  it("switches only once you are idle and done reading", () => {
+    expect(shouldSwitchChat(list, idle)).toBe(true);
+    expect(shouldSwitchChat(list, { ...idle, sinceInputMs: IDLE_MS - 1 })).toBe(false);
+    expect(shouldSwitchChat({ kind: "agent", agentId: "a" }, { ...idle, reading: true })).toBe(false);
+  });
+
+  it("never moves you while a draft is going, even away from the window", () => {
+    expect(shouldSwitchChat(list, { ...idle, composing: true })).toBe(false);
+    expect(shouldSwitchChat(list, { ...idle, composing: true, focused: false })).toBe(false);
+  });
+
+  it("switches while you are away or waiting on a Talk to Dadi hand-off", () => {
+    expect(shouldSwitchChat(list, { ...idle, focused: false, sinceInputMs: 0, reading: true })).toBe(true);
+    expect(shouldSwitchChat({ kind: "dadi" }, { ...idle, sinceInputMs: 0 })).toBe(true);
+  });
+
+  it("gives longer replies longer to read, within bounds", () => {
+    expect(readingMs("ok")).toBe(4_000);
+    expect(readingMs(Array(40).fill("word").join(" "))).toBe(10_000);
+    expect(readingMs(Array(1000).fill("word").join(" "))).toBe(45_000);
+  });
+
+  it("holds messages as unread until their chat opens", () => {
+    resetChatStore();
+    holdAgentMessage("a");
+    holdAgentMessage("a");
+    holdAgentMessage("b");
+    expect(getChatState().unread).toEqual({ a: 2, b: 1 });
+    expect(getChatState().nudge).toBe("b");
+    dismissNudge();
+    expect(getChatState().nudge).toBeNull();
+    expect(getChatState().unread.b).toBe(1);
+    openAgent("a");
+    expect(getChatState().unread).toEqual({ b: 1 });
+    holdAgentMessage("b");
+    openList();
+    expect(getChatState().nudge).toBeNull();
+    expect(getChatState().unread.b).toBe(2);
   });
 });
 

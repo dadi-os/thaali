@@ -378,6 +378,20 @@
   border-color: color-mix(in srgb, var(--sage) 36%, transparent);
 }
 
+/* Chat pane header: the name as a glass bubble that opens its details. */
+.pane-bubble {
+  border: 1px solid color-mix(in srgb, var(--sage-line) 48%, transparent);
+  background: color-mix(in srgb, var(--bone) 58%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 1px 2px rgb(92 107 82 / 0.06);
+}
+
+.pane-bubble--open {
+  border-color: color-mix(in srgb, var(--sage) 46%, transparent);
+  background: var(--sage-active);
+}
+
 .lane-chip {
   border: 1px solid color-mix(in srgb, var(--sage-line) 48%, transparent);
   background: color-mix(in srgb, var(--bone) 72%, transparent);
@@ -419,6 +433,42 @@
   flex-shrink: 0;
   border-radius: 999px;
   background: var(--sage);
+}
+
+/* Live terminal: dark in both themes, as terminals read. */
+.terminal-screen {
+  background: #1b1e19;
+  color: #d6dccd;
+}
+
+.terminal-screen__prompt {
+  color: #a8b89a;
+}
+
+.terminal-screen__command {
+  color: #eef1e6;
+}
+
+.terminal-screen__dim {
+  color: #7a8072;
+}
+
+.terminal-screen__error {
+  color: #d39a8e;
+}
+
+/* Expanded host view: the whole window frosts behind a glass sheet. */
+.host-modal {
+  background: rgb(27 30 25 / 0.22);
+  -webkit-backdrop-filter: blur(22px) saturate(1.1);
+  backdrop-filter: blur(22px) saturate(1.1);
+}
+
+.host-modal__sheet {
+  border-radius: 20px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--glass-sheet) 86%, transparent);
+  box-shadow: var(--shadow-deep);
 }
 
 /* Thread under a host pin: messages dissolve as they scroll up beneath it. */

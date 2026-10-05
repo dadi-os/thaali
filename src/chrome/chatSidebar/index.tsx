@@ -10,19 +10,22 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { useNavigate } from "react-router-dom";
 import { hath, nas } from "../../shared/api";
 import { HostPin } from "./HostPin";
 import {
   pickLiveBrowser,
   pickLiveTerminal,
 } from "../../features/agents/sessions";
+import { AgentPopover } from "../../features/agents/AgentPopover";
+import type { PopoverAnchor } from "../../shared/components/Popover";
+import { setComposing } from "../../store/attention";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
 import {
   addOptimistic,
   clearLiveChat,
+  dismissNudge,
   formatOutboundContent,
   getChatState,
   hydrateThreadMessages,
@@ -66,13 +69,11 @@ import {
   THREAD_REFRESH_MS,
 } from "./constants";
 import { DadiHome, type DadiRouting } from "./DadiHome";
-import { formatRelative } from "./format";
-import { LaneMark } from "./LaneChip";
 import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
+import { NewMessageBubble } from "./NewMessageBubble";
 import { PaneHeader } from "./PaneHeader";
 import { ThreadView } from "./thread";
-import { laneChipLabel } from "./toolStatus";
 import { useActiveTool } from "./useActiveTool";
 
 export interface ChatSidebarProps {
@@ -88,7 +89,6 @@ export interface ChatSidebarProps {
  */
 export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const chat = useSyncExternalStore(subscribeChat, getChatState, getChatState);
@@ -118,6 +118,9 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   /** Measured floating composer height; the thread pads by it so text clears it. */
   const [composerHeight, setComposerHeight] = useState(0);
   const refreshThreadRef = useRef<(() => void) | null>(null);
+  /** Where the open agent's details popover anchors, relative to the rail: its right edge, level with the name bubble; null while closed. */
+  const [detailsAnchor, setDetailsAnchor] = useState<PopoverAnchor | null>(null);
+  const asideRef = useRef<HTMLElement>(null);
 
   const dadiBusy = isDadiBusy();
 
@@ -227,6 +230,14 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, TEXTAREA_MAX_PX)}px`;
   }, [draft, chat.open]);
+
+  useEffect(() => {
+    setComposing(draft.trim().length > 0 || draftAttachments.length > 0);
+  }, [draft, draftAttachments.length]);
+
+  useEffect(() => {
+    setDetailsAnchor(null);
+  }, [chat.open]);
 
   const draftAttachmentsRef = useRef(draftAttachments);
   draftAttachmentsRef.current = draftAttachments;
@@ -584,6 +595,10 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     viewingThread && (liveBrowserId !== null || liveTerminal !== null);
 
   const showComposer = viewingThread || viewingDadi;
+  const nudgeConversation =
+    chat.nudge !== null && chat.nudge !== openAgentId
+      ? chat.conversations.find((c) => c.agent_id === chat.nudge)
+      : undefined;
 
   const paneKey = viewingThread
     ? `agent:${openAgentId ?? ""}`
@@ -605,6 +620,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     historyStatus: chat.historyStatus,
     historyError: chat.historyError,
     running,
+    unread: chat.unread,
     onOpenAgent: openAgent,
     onDismissKeyboard: dismissKeyboard,
     dadi: {
@@ -618,6 +634,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
 
   return (
     <aside
+      ref={asideRef}
       className={`chat-rail relative flex h-full min-h-0 flex-col overflow-hidden ${className ?? ""}`}
       data-agent-id={openAgentId ?? undefined}
       data-session-key={sessionKey}
@@ -638,23 +655,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
 
             {paneKey === "dadi" ? (
               <>
-                <PaneHeader
-                  onBack={backToList}
-                  glyph="દ"
-                  gujarati
-                  live={dadiBusy}
-                  title="Dadi"
-                  status={
-                    dadiBusy ? (
-                      <>
-                        <LaneMark conversation reasoning={false} />
-                        <span className="text-sage-text">routing</span>
-                      </>
-                    ) : (
-                      "Hands your message to the right agent"
-                    )
-                  }
-                />
+                <PaneHeader onBack={backToList} title="દાદી" gujarati />
                 <div className="relative min-h-0 flex-1">
                   <DadiHome
                     composerPad={composerPad}
@@ -669,33 +670,16 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
               <>
                 <PaneHeader
                   onBack={backToList}
-                  glyph={agentName.charAt(0).toUpperCase()}
-                  live={laneBusy}
                   title={agentName}
-                  status={
-                    laneBusy ? (
-                      <>
-                        <LaneMark conversation={conversationBusy} reasoning={reasoningBusy} />
-                        <span className="text-sage-text">
-                          {laneChipLabel(conversationBusy, reasoningBusy)}
-                        </span>
-                      </>
-                    ) : openAgentRecord?.active === false ? (
-                      "Inactive"
-                    ) : openConversation ? (
-                      `Last message ${formatRelative(openConversation.last_at)}`
-                    ) : (
-                      "Idle"
-                    )
-                  }
-                  link={
-                    openAgentRecord?.active && openAgentId
-                      ? {
-                          label: "Show in Hath",
-                          onOpen: () => navigate("/agents", { state: { focusAgent: openAgentId } }),
-                        }
-                      : undefined
-                  }
+                  detailsOpen={detailsAnchor !== null}
+                  onOpenDetails={(box) => {
+                    const rail = asideRef.current!.getBoundingClientRect();
+                    setDetailsAnchor(
+                      detailsAnchor
+                        ? null
+                        : { x: rail.width, y: box.top - rail.top + box.height / 2, radius: 0 },
+                    );
+                  }}
                 />
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   {showHostPin ? (
@@ -778,7 +762,36 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
             />
           ) : null}
         </AnimatePresence>
+
+        <NewMessageBubble
+          from={
+            nudgeConversation && paneKey !== "list"
+              ? {
+                  agentId: nudgeConversation.agent_id,
+                  name: nudgeConversation.agent_name,
+                  count: chat.unread[nudgeConversation.agent_id]!,
+                }
+              : null
+          }
+          onOpen={openAgent}
+          onDismiss={dismissNudge}
+        />
       </div>
+
+      {openAgentId ? (
+        <AgentPopover
+          open={detailsAnchor !== null}
+          agentId={openAgentId}
+          agentsById={new Map((agentsQuery.data ?? []).map((a) => [a.id, a]))}
+          runningMap={running}
+          anchor={detailsAnchor}
+          containerRef={asideRef}
+          browserId={liveBrowserId}
+          terminal={liveTerminal}
+          onClose={() => setDetailsAnchor(null)}
+          onSelectParent={openAgent}
+        />
+      ) : null}
     </aside>
   );
 }

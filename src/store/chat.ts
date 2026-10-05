@@ -54,6 +54,10 @@ type ChatState = {
   open: ChatOpen;
   historyStatus: HistoryStatus;
   historyError: string | null;
+  /** Agent messages to you that arrived while you were busy, per agent; cleared when its chat opens. */
+  unread: Record<string, number>;
+  /** Agent whose held message the new-message bubble offers; null when there is none. */
+  nudge: string | null;
 };
 
 type Listener = (state: ChatState) => void;
@@ -64,6 +68,8 @@ let state: ChatState = {
   open: { kind: "list" },
   historyStatus: "idle",
   historyError: null,
+  unread: {},
+  nudge: null,
 };
 const listeners = new Set<Listener>();
 let nextTempSeq = -1;
@@ -149,21 +155,47 @@ export function subscribeChat(listener: Listener): () => void {
   };
 }
 
-/** Show the conversation list. */
+/** Show the conversation list; its unread marks take over from the new-message bubble. */
 export function openList(): void {
   if (state.open.kind === "list") {
     return;
   }
-  state = { ...state, open: { kind: "list" } };
+  state = { ...state, open: { kind: "list" }, nudge: null };
   emit();
 }
 
-/** Open a user-thread for the given agent. */
+/** Open a user-thread for the given agent, clearing its unread count and any bubble for it. */
 export function openAgent(agentId: string): void {
-  if (state.open.kind === "agent" && state.open.agentId === agentId) {
+  const here = state.open.kind === "agent" && state.open.agentId === agentId;
+  if (here && state.unread[agentId] === undefined && state.nudge !== agentId) {
     return;
   }
-  state = { ...state, open: { kind: "agent", agentId } };
+  const { [agentId]: _read, ...unread } = state.unread;
+  state = {
+    ...state,
+    open: here ? state.open : { kind: "agent", agentId },
+    unread,
+    nudge: state.nudge === agentId ? null : state.nudge,
+  };
+  emit();
+}
+
+/** Count an agent's message to you as unread and offer it in the new-message bubble. */
+export function holdAgentMessage(agentId: string): void {
+  state = {
+    ...state,
+    unread: { ...state.unread, [agentId]: (state.unread[agentId] ?? 0) + 1 },
+    nudge: agentId,
+  };
+  emit();
+}
+
+/** Put the new-message bubble away; the chat stays unread in the list. */
+export function dismissNudge(): void {
+  if (state.nudge === null) {
+    return;
+  }
+  state = { ...state, nudge: null };
   emit();
 }
 
@@ -217,6 +249,8 @@ export function resetChatStore(): void {
     open: { kind: "list" },
     historyStatus: "idle",
     historyError: null,
+    unread: {},
+    nudge: null,
   };
   emit();
 }

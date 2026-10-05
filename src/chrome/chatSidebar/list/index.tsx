@@ -18,6 +18,8 @@ export interface ConversationListProps {
   historyError: string | null;
   /** Lanes running per agent; busy chats rise into a Working group with a live status line. */
   running: RunningMap;
+  /** Messages to you held while you were busy, per agent; those rows read bold with a count. */
+  unread: Record<string, number>;
   onOpenAgent: (agentId: string) => void;
   onDismissKeyboard: () => void;
   /** Pinned Talk to Dadi control — the sole new-chat entry. */
@@ -41,6 +43,7 @@ export function ConversationList({
   historyStatus,
   historyError,
   running,
+  unread,
   onOpenAgent,
   onDismissKeyboard,
   dadi,
@@ -93,6 +96,7 @@ export function ConversationList({
                   const conversation = lanes?.conversation === true;
                   const reasoning = lanes?.reasoning === true;
                   const lane = laneChipLabel(conversation, reasoning);
+                  const held = unread[conv.agent_id];
                   return (
                     <button
                       key={conv.agent_id}
@@ -110,7 +114,9 @@ export function ConversationList({
                         className="size-7 text-[12px]"
                       />
                       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="truncate text-[13.5px] font-medium text-ink">
+                        <span
+                          className={`truncate text-[13.5px] text-ink ${held ? "font-semibold" : "font-medium"}`}
+                        >
                           {conv.agent_name}
                         </span>
                         {lane ? (
@@ -119,12 +125,20 @@ export function ConversationList({
                             {lane}
                           </span>
                         ) : (
-                          <span className="truncate text-[12px] text-ink-ghost">
+                          <span className={`truncate text-[12px] ${held ? "text-ink-muted" : "text-ink-ghost"}`}>
                             {conv.from_user ? "You: " : ""}
                             <InlineMarkdown content={conv.last_message} />
                           </span>
                         )}
                       </span>
+                      {held ? (
+                        <span
+                          aria-label={`${held} unread`}
+                          className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-sage-deep px-1.5 text-[10.5px] font-semibold text-bone"
+                        >
+                          {held}
+                        </span>
+                      ) : null}
                     </button>
                   );
                 })}

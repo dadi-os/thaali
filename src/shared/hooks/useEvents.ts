@@ -7,11 +7,11 @@ import { subscribeConnection } from "../../store/connection";
 import {
   ingestLiveMessage,
   isUserThreadMessage,
-  openAgent,
   seedConversations,
   setHistoryState,
   upsertConversation,
 } from "../../store/chat";
+import { deliverAgentMessage } from "../../store/attention";
 import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../../store/running";
 import { logLine } from "../lib/platform/log";
 import { notifyAgentMessage } from "../lib/platform/notify";
@@ -71,8 +71,9 @@ async function hydrateHistory(): Promise<void> {
 /**
  * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay).
- * An agent → user message opens that agent's thread and, while the window is
- * hidden or unfocused, raises a native notification.
+ * An agent → user message goes through `deliverAgentMessage` (open its chat if you are
+ * idle, else hold it as unread) and, while the window is hidden or unfocused, raises a
+ * native notification.
  */
 export function useEvents(): void {
   const queryClient = useQueryClient();
@@ -124,7 +125,7 @@ export function useEvents(): void {
           from_user: data.from_agent_id === null,
         });
         if (data.from_agent_id !== null) {
-          openAgent(data.agent_id);
+          deliverAgentMessage(data.agent_id, data.content, Date.now());
           notifyAgentMessage(agentNameFromCache(queryClient, data.agent_id), data.content).catch(
             (err: unknown) => {
               logLine("error", err instanceof Error ? err.message : String(err), "notification_failed");

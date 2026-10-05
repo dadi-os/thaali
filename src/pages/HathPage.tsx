@@ -6,17 +6,17 @@ import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
 /** Router state that arrives with a focused agent, set by the home tile. */
-type AgentsPageState = { focusAgent: string } | null;
+type HathPageState = { focusAgent: string } | null;
 
 /**
  * Hath page: the full-canvas forest of active agents as a live 3D graph: orbit, zoom, hover details, click to chat.
  * Blow-up entrance remounts when arriving from home (or elsewhere), focused on the
  * agent picked there, if any.
  */
-export function AgentsPage() {
+export function HathPage() {
   const location = useLocation();
-  const entranceKey = `agents:${location.key}`;
-  const state = location.state as AgentsPageState;
+  const entranceKey = `hath:${location.key}`;
+  const state = location.state as HathPageState;
   const focusOnEntry = state === null ? null : state.focusAgent;
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
 

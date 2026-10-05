@@ -8,9 +8,9 @@ import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 /**
  * Yaad page: the knowledge network as a live 3D force graph.
  */
-export function MemoryPage() {
+export function YaadPage() {
   const location = useLocation();
-  const entranceKey = `memory:${location.key}`;
+  const entranceKey = `yaad:${location.key}`;
   const [params] = useSearchParams();
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
 

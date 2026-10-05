@@ -375,10 +375,10 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
 
   const openAgents = await MenuItem.new({
     id: "agents-page",
-    text: "Open Agents…",
+    text: "Open Hath…",
     action: () => {
       void focusMainWindow();
-      dispatchDesktopShell({ type: "navigate", path: "/agents" });
+      dispatchDesktopShell({ type: "navigate", path: "/hath" });
     },
   });
   const agentsStatus = await MenuItem.new({
@@ -453,9 +453,9 @@ function viewSubmenu() {
     id: "menu-view",
     text: "View",
     items: [
-      navItem("view-agents", "Agents…", "/agents"),
+      navItem("view-agents", "Hath…", "/hath"),
       navItem("view-system", "System…", "/system"),
-      navItem("view-memory", "Memory…", "/memory"),
+      navItem("view-memory", "Yaad…", "/yaad"),
       navItem("view-timeline", "Timeline…", "/timeline"),
       navItem("view-chaavi", "Chaavi…", "/chaavi"),
       navItem("view-ghar", "Ghar…", "/ghar"),

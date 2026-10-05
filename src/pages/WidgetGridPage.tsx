@@ -40,15 +40,15 @@ export function WidgetGridPage() {
         title="HATH"
         role="link"
         tabIndex={0}
-        onClick={open("/agents")}
-        onKeyDown={onActivate("/agents")}
+        onClick={open("/hath")}
+        onKeyDown={onActivate("/hath")}
         className={`${tile} md:col-span-2 md:row-span-2 md:col-start-1 md:row-start-1`}
       >
         <AgentGraph3D
           entranceKey="home-agents"
           interactive={false}
           focusOnEntry={null}
-          onPick={(agentId) => navigate("/agents", { state: { focusAgent: agentId } })}
+          onPick={(agentId) => navigate("/hath", { state: { focusAgent: agentId } })}
           toolbar={null}
         />
       </WidgetFrame>
@@ -57,8 +57,8 @@ export function WidgetGridPage() {
         title="YAAD"
         role="link"
         tabIndex={0}
-        onClick={open("/memory")}
-        onKeyDown={onActivate("/memory")}
+        onClick={open("/yaad")}
+        onKeyDown={onActivate("/yaad")}
         className={`${tile} md:col-span-2 md:col-start-1 md:row-start-3`}
       >
         <MemoryCounters />

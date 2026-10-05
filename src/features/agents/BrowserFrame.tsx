@@ -6,8 +6,8 @@ export type BrowserFrameProps = {
   /** Nas browser id whose virtual display to stream. */
   browserId: number;
   className?: string;
-  /** `peek` thumbnail, `rail` sidebar pin, `detail` the agent panel. */
-  variant: "peek" | "rail" | "detail";
+  /** `peek` thumbnail, `rail` sidebar pin, `detail` the agent panel, `full` fills its parent uncropped (the expanded view). */
+  variant: "peek" | "rail" | "detail" | "full";
 };
 
 /** Subscribe to the webview hiding or showing (window closed to the menu bar, minimised). */
@@ -39,7 +39,9 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
       ? "h-[96px] w-[170px]"
       : variant === "detail"
         ? "h-[228px] w-full"
-        : "aspect-[16/10] w-full";
+        : variant === "full"
+          ? "h-full w-full"
+          : "aspect-[16/10] w-full";
   const chrome =
     variant === "peek"
       ? "rounded-[var(--radius)] border border-dashed border-sage-line bg-bone/80"
@@ -54,7 +56,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
         <img
           src={nas.browserStreamUrl(browserId)}
           alt={`Browser ${browserId}`}
-          className="absolute inset-0 h-full w-full object-cover object-top"
+          className={`absolute inset-0 h-full w-full ${variant === "full" ? "object-contain" : "object-cover object-top"}`}
           draggable={false}
           onError={() => setFailedId(browserId)}
         />

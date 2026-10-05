@@ -31,7 +31,7 @@ export type MemoryGraph3DProps = {
   /** Extra classes on the root element. */
   className?: string;
   /**
-   * Node to focus on arrival (`/memory?focus=<id>`, e.g. from the timeline). Its
+   * Node to focus on arrival (`/yaad?focus=<id>`, e.g. from the timeline). Its
    * neighborhood is loaded even when it is not among the most-used nodes.
    */
   focusNodeId: string | null;

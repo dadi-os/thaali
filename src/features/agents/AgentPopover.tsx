@@ -63,8 +63,8 @@ export type AgentPopoverProps = {
   terminal: { id: string; last_command: string | null } | null;
   onClose: () => void;
   onSelectParent: (id: string) => void;
-  /** Hover zone that keeps the panel open while the pointer is on the node or the panel. */
-  hover: PopoverHover;
+  /** Hover zone that keeps the panel open while the pointer is on the node or the panel; absent when it opens on click. */
+  hover?: PopoverHover;
 };
 
 /**
@@ -179,7 +179,7 @@ export function AgentPopover({
       style={{ maxHeight: "min(86vh, 760px)" }}
       widthPx={460}
       contentKey={agentId}
-      hover={editingSchedule ? { onInside: hover.onInside, onOutside: () => {} } : hover}
+      hover={editingSchedule && hover ? { onInside: hover.onInside, onOutside: () => {} } : hover}
     >
       <header className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
         <div className="flex items-baseline justify-between gap-3">

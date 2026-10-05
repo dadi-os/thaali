@@ -1,13 +1,13 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./chrome/AppShell";
-import { AgentsPage } from "./pages/AgentsPage";
 import { ChaaviPage } from "./pages/ChaaviPage";
 import { GharPage } from "./pages/GharPage";
-import { MemoryPage } from "./pages/MemoryPage";
+import { HathPage } from "./pages/HathPage";
 import { SystemPage } from "./pages/SystemPage";
 import { TimelinePage } from "./pages/TimelinePage";
 import { WidgetGridPage } from "./pages/WidgetGridPage";
+import { YaadPage } from "./pages/YaadPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -25,8 +25,8 @@ export default function App() {
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<WidgetGridPage />} />
-            <Route path="agents" element={<AgentsPage />} />
-            <Route path="memory" element={<MemoryPage />} />
+            <Route path="hath" element={<HathPage />} />
+            <Route path="yaad" element={<YaadPage />} />
             <Route path="timeline" element={<TimelinePage />} />
             <Route path="calendar" element={<Navigate to="/timeline" replace />} />
             <Route path="system" element={<SystemPage />} />

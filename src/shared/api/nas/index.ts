@@ -232,6 +232,15 @@ export function createNasClient(transport: Transport, baseUrl: string) {
         method: "GET",
       });
     },
+
+    /** GET /terminals/:id/capture — the last `lines` lines of the pane as plain text. */
+    captureTerminal(id: string, lines: number): Promise<{ output: string }> {
+      return transport.request({
+        baseUrl,
+        path: `/terminals/${encodeURIComponent(id)}/capture?lines=${lines}`,
+        method: "GET",
+      });
+    },
   };
 }
 

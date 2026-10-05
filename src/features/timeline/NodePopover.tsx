@@ -257,7 +257,7 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
           <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-rule/60 px-4 py-2.5">
             <button
               type="button"
-              onClick={() => navigate(`/memory?focus=${node.id}`)}
+              onClick={() => navigate(`/yaad?focus=${node.id}`)}
               className="text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
             >
               Open in Yaad →
