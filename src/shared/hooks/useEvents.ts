@@ -14,6 +14,7 @@ import {
 } from "../../store/chat";
 import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../../store/running";
 import { logLine } from "../lib/platform/log";
+import { notifyAgentMessage } from "../lib/platform/notify";
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
@@ -70,7 +71,8 @@ async function hydrateHistory(): Promise<void> {
 /**
  * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay).
- * An agent → user message opens that agent's thread.
+ * An agent → user message opens that agent's thread and, while the window is
+ * hidden or unfocused, raises a native notification.
  */
 export function useEvents(): void {
   const queryClient = useQueryClient();
@@ -123,6 +125,11 @@ export function useEvents(): void {
         });
         if (data.from_agent_id !== null) {
           openAgent(data.agent_id);
+          notifyAgentMessage(agentNameFromCache(queryClient, data.agent_id), data.content).catch(
+            (err: unknown) => {
+              logLine("error", err instanceof Error ? err.message : String(err), "notification_failed");
+            },
+          );
         }
         return;
       }

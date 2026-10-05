@@ -9,7 +9,7 @@ import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 type AgentsPageState = { focusAgent: string } | null;
 
 /**
- * Full-canvas agent forest as a live 3D graph: orbit, zoom, hover details, click to chat.
+ * Hath page: the full-canvas forest of active agents as a live 3D graph: orbit, zoom, hover details, click to chat.
  * Blow-up entrance remounts when arriving from home (or elsewhere), focused on the
  * agent picked there, if any.
  */
@@ -37,7 +37,7 @@ export function AgentsPage() {
       </div>
       <div className="pointer-events-none relative z-10">
         <PageHeader
-          title="AGENTS"
+          title="HATH"
           hint="Drag to orbit · scroll to zoom · hover for details · click to open in chat"
           trailing={<div ref={setToolbar} className="flex items-center gap-2" />}
         />

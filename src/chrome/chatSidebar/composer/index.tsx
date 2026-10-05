@@ -19,7 +19,7 @@ import {
 import type { DraftAttachment } from "../../../shared/lib/content/attachments";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import { TEXTAREA_MAX_PX } from "../constants";
-import { LaneChip, type LaneChipLabel } from "../LaneChip";
+import { LaneChip, type LaneChipProps } from "../LaneChip";
 
 export interface FloatingComposerProps {
   connected: boolean;
@@ -31,8 +31,8 @@ export interface FloatingComposerProps {
   thinkingMode: boolean;
   /** Reasoning only (working); conversation free — send is live. */
   workingMode: boolean;
-  /** Floating lane chip above the field; null when idle. */
-  laneLabel: LaneChipLabel | null;
+  /** Lanes and tool for the floating chip above the field; it hides while both lanes are idle. */
+  lanes: LaneChipProps;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   cameraInputRef: RefObject<HTMLInputElement | null>;
@@ -58,7 +58,7 @@ export function FloatingComposer({
   canSubmit,
   thinkingMode,
   workingMode,
-  laneLabel,
+  lanes,
   textareaRef,
   fileInputRef,
   cameraInputRef,
@@ -129,7 +129,7 @@ export function FloatingComposer({
     >
       <div className="composer-fade" aria-hidden />
       <div className="relative z-10 px-3">
-        <LaneChip label={laneLabel} />
+        <LaneChip {...lanes} />
         {status ? (
           <p className="pointer-events-none mb-1.5 px-1 text-center text-[11px] text-ink-ghost">
             {status}

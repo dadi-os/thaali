@@ -91,7 +91,8 @@ function LiveHalo({ radius, color }: { radius: number; color: string }) {
 }
 
 /**
- * Agent forest as a live 3D force graph: top-level threads spread over an inner
+ * Active agent forest as a live 3D force graph (inactive agents are left out, and a
+ * sub-agent of an inactive parent becomes a root): top-level threads spread over an inner
  * shell, sub-agents settle on outer shells toward their parent, and a newly spawned
  * sub-agent grows out of its parent. Used full-page and as the home tile.
  */
@@ -134,7 +135,7 @@ export function AgentGraph3D({
     refetchInterval: POLL_MS,
   });
 
-  const agents = agentsQuery.data;
+  const agents = useMemo(() => agentsQuery.data?.filter((a) => a.active), [agentsQuery.data]);
   const agentsById = useMemo(() => {
     const map = new Map<string, AgentRecord>();
     for (const a of agents ?? []) {
@@ -202,7 +203,7 @@ export function AgentGraph3D({
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder
           tone="offline"
-          label="Agents offline"
+          label="Hath is offline"
           detail={interactive ? "Connect to dadi to load agents" : undefined}
         />
       </div>
@@ -212,7 +213,7 @@ export function AgentGraph3D({
   if (agentsQuery.isError) {
     return (
       <div className={`h-full ${className ?? ""}`}>
-        <GraphPlaceholder tone="error" label="Could not load agents" detail={agentsQuery.error.message} />
+        <GraphPlaceholder tone="error" label="Could not load Hath" detail={agentsQuery.error.message} />
       </div>
     );
   }
@@ -222,7 +223,7 @@ export function AgentGraph3D({
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder
           tone="loading"
-          label="Loading agents"
+          label="Loading Hath"
           detail={interactive ? "Tracing threads and sub-agents" : undefined}
         />
       </div>
@@ -234,8 +235,8 @@ export function AgentGraph3D({
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder
           tone="empty"
-          label="No agents yet"
-          detail={interactive ? "Agents appear here as soon as Dadi starts one" : undefined}
+          label="No active agents"
+          detail={interactive ? "Agents appear here while they are active" : undefined}
         />
       </div>
     );

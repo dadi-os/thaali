@@ -2,8 +2,12 @@ import { motion } from "motion/react";
 import { InlineMarkdown } from "../../../shared/components/Markdown";
 import { EASE } from "../../../shared/lib/ux/motion";
 import type { Conversation, HistoryStatus } from "../../../store/chat";
+import type { RunningMap } from "../../../store/running";
 import { ActivityPulse } from "../ActivityPulse";
+import { Avatar } from "../Avatar";
 import { groupConversations } from "../format";
+import { LaneMark } from "../LaneChip";
+import { laneChipLabel } from "../toolStatus";
 
 export interface ConversationListProps {
   /** Thread-agent conversations (excludes Dadi). */
@@ -12,6 +16,8 @@ export interface ConversationListProps {
   selectedAgentId: string | null;
   historyStatus: HistoryStatus;
   historyError: string | null;
+  /** Lanes running per agent; busy chats rise into a Working group with a live status line. */
+  running: RunningMap;
   onOpenAgent: (agentId: string) => void;
   onDismissKeyboard: () => void;
   /** Pinned Talk to Dadi control — the sole new-chat entry. */
@@ -25,7 +31,8 @@ export interface ConversationListProps {
 }
 
 /**
- * Conversation list pane. Enter/exit motion is owned by the sidebar stage —
+ * Conversation list pane: chats whose agent is thinking or working sit in a Working
+ * group on top, the rest group by day. Enter/exit motion is owned by the sidebar stage —
  * rows stay static so a parent transform can fall away as one surface.
  */
 export function ConversationList({
@@ -33,11 +40,18 @@ export function ConversationList({
   selectedAgentId,
   historyStatus,
   historyError,
+  running,
   onOpenAgent,
   onDismissKeyboard,
   dadi,
 }: ConversationListProps) {
-  const groups = groupConversations(conversations);
+  const busy = (agentId: string) =>
+    running[agentId]?.conversation === true || running[agentId]?.reasoning === true;
+  const working = conversations.filter((c) => busy(c.agent_id));
+  const groups = [
+    ...(working.length > 0 ? [{ bucket: "Working", items: working }] : []),
+    ...groupConversations(conversations.filter((c) => !busy(c.agent_id))),
+  ];
   const loading = historyStatus === "loading" && conversations.length === 0;
   const failed = historyStatus === "error" && conversations.length === 0;
 
@@ -75,24 +89,42 @@ export function ConversationList({
                 </p>
                 {group.items.map((conv) => {
                   const selected = conv.agent_id === selectedAgentId;
+                  const lanes = running[conv.agent_id];
+                  const conversation = lanes?.conversation === true;
+                  const reasoning = lanes?.reasoning === true;
+                  const lane = laneChipLabel(conversation, reasoning);
                   return (
                     <button
                       key={conv.agent_id}
                       type="button"
                       onClick={() => onOpenAgent(conv.agent_id)}
-                      className={`flex w-full flex-col gap-0.5 rounded-[10px] px-2.5 py-2 text-left transition-colors duration-fast ease-dadi ${
+                      className={`flex w-full items-center gap-2.5 rounded-[12px] px-2 py-2 text-left transition-colors duration-fast ease-dadi ${
                         selected
                           ? "bg-(--chat-active)"
                           : "hover:bg-(--chat-hover)"
                       }`}
                     >
-                      <span className="truncate text-[13.5px] font-medium text-ink">
-                        {conv.agent_name}
+                      <Avatar
+                        glyph={conv.agent_name.charAt(0).toUpperCase()}
+                        live={lane !== null}
+                        className="size-7 text-[12px]"
+                      />
+                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                        <span className="truncate text-[13.5px] font-medium text-ink">
+                          {conv.agent_name}
+                        </span>
+                        {lane ? (
+                          <span className="flex min-w-0 items-center gap-1.5 text-[12px] text-sage-text">
+                            <LaneMark conversation={conversation} reasoning={reasoning} />
+                            {lane}
+                          </span>
+                        ) : (
+                          <span className="truncate text-[12px] text-ink-ghost">
+                            {conv.from_user ? "You: " : ""}
+                            <InlineMarkdown content={conv.last_message} />
+                          </span>
+                        )}
                       </span>
-                      <p className="truncate text-[12px] text-ink-ghost">
-                        {conv.from_user ? "You: " : ""}
-                        <InlineMarkdown content={conv.last_message} />
-                      </p>
                     </button>
                   );
                 })}
@@ -116,22 +148,26 @@ export function ConversationList({
               : "hover:bg-(--chat-hover)"
           }`}
         >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-sage-fill font-gujarati text-[15px] leading-none text-sage-deep">
-            દ
-          </span>
+          <Avatar glyph="દ" gujarati live={dadi.busy} className="size-8 text-[15px]" />
           <span className="min-w-0 flex-1">
             <span className="block text-[13.5px] font-medium text-ink">
               Talk to Dadi
             </span>
-            <span className="block truncate text-[12px] text-ink-ghost">
-              {dadi.preview ? (
-                <InlineMarkdown content={dadi.preview} />
-              ) : (
-                "Start something new"
-              )}
-            </span>
+            {dadi.busy ? (
+              <span className="flex items-center gap-1.5 text-[12px] text-sage-text">
+                <LaneMark conversation reasoning={false} />
+                routing
+              </span>
+            ) : (
+              <span className="block truncate text-[12px] text-ink-ghost">
+                {dadi.preview ? (
+                  <InlineMarkdown content={dadi.preview} />
+                ) : (
+                  "Start something new"
+                )}
+              </span>
+            )}
           </span>
-          {dadi.busy ? <ActivityPulse /> : null}
         </motion.button>
       </div>
     </div>

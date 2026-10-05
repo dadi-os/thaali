@@ -1,9 +1,9 @@
-/** Three-dot pulse for list loading and busy tool-preview while no tool yet. */
+/** Three-dot pulse for list loading and an agent thinking toward a reply. */
 
 import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 
-/** Compact bounce dots used while loading or when a lane is busy with no tool yet. */
+/** Compact bounce dots used while loading, or in a thread while its agent is thinking (never while it only works). */
 export function ActivityPulse() {
   return (
     <motion.div

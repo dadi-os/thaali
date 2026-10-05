@@ -10,6 +10,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate } from "react-router-dom";
 import { hath, nas } from "../../shared/api";
 import { HostPin } from "./HostPin";
 import {
@@ -53,8 +54,7 @@ import {
   toMessageAttachments,
   type DraftAttachment,
 } from "../../shared/lib/content/attachments";
-import { IconBack } from "../../shared/components/IconButton";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { logLine } from "../../shared/lib/platform/log";
 import { FloatingComposer } from "./composer";
@@ -66,10 +66,14 @@ import {
   THREAD_REFRESH_MS,
 } from "./constants";
 import { DadiHome, type DadiRouting } from "./DadiHome";
+import { formatRelative } from "./format";
+import { LaneMark } from "./LaneChip";
 import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
+import { PaneHeader } from "./PaneHeader";
 import { ThreadView } from "./thread";
 import { laneChipLabel } from "./toolStatus";
+import { useActiveTool } from "./useActiveTool";
 
 export interface ChatSidebarProps {
   /** Bumps when chat opens; scrolls the thread to the bottom. */
@@ -84,6 +88,7 @@ export interface ChatSidebarProps {
  */
 export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const chat = useSyncExternalStore(subscribeChat, getChatState, getChatState);
@@ -532,11 +537,10 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     openDadi();
   };
 
-  const headerTitle = viewingThread
-    ? (openConversation?.agent_name ??
-      agentsQuery.data?.find((a) => a.id === openAgentId)?.name ??
-      "Chat")
-    : "Dadi";
+  const agentName =
+    openConversation?.agent_name ??
+    agentsQuery.data?.find((a) => a.id === openAgentId)?.name ??
+    "Chat";
 
   const placeholder = !connected
     ? "Connect to message Dadi"
@@ -557,7 +561,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   );
 
   const laneBusy = conversationBusy || reasoningBusy;
-  const laneLabel = laneChipLabel(conversationBusy, reasoningBusy);
+  const activeTool = useActiveTool(openAgentId, viewingThread && laneBusy);
 
   const openAgentRecord = openAgentId
     ? agentsQuery.data?.find((a) => a.id === openAgentId)
@@ -600,6 +604,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     selectedAgentId: openAgentId,
     historyStatus: chat.historyStatus,
     historyError: chat.historyError,
+    running,
     onOpenAgent: openAgent,
     onDismissKeyboard: dismissKeyboard,
     dadi: {
@@ -633,34 +638,23 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
 
             {paneKey === "dadi" ? (
               <>
-                <div className="relative z-10 flex h-12 shrink-0 items-center gap-2 border-b border-(--chat-edge) px-3">
-                  <motion.button
-                    type="button"
-                    onClick={backToList}
-                    aria-label="Back to conversations"
-                    whileHover={{ x: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ duration: 0.2, ease: EASE }}
-                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors duration-fast ease-dadi hover:bg-sage-active/50 hover:text-ink [&_svg]:size-3.5"
-                  >
-                    <IconBack />
-                  </motion.button>
-                  <motion.span
-                    className="min-w-0 truncate text-[14px] font-medium text-ink"
-                    animate={
-                      reasoningBusy || conversationBusy
-                        ? { opacity: [0.55, 1, 0.55] }
-                        : { opacity: 1 }
-                    }
-                    transition={
-                      reasoningBusy || conversationBusy
-                        ? { duration: 2.2, repeat: Infinity, ease: EASE }
-                        : { duration: SLOW_S, ease: EASE }
-                    }
-                  >
-                    {headerTitle}
-                  </motion.span>
-                </div>
+                <PaneHeader
+                  onBack={backToList}
+                  glyph="દ"
+                  gujarati
+                  live={dadiBusy}
+                  title="Dadi"
+                  status={
+                    dadiBusy ? (
+                      <>
+                        <LaneMark conversation reasoning={false} />
+                        <span className="text-sage-text">routing</span>
+                      </>
+                    ) : (
+                      "Hands your message to the right agent"
+                    )
+                  }
+                />
                 <div className="relative min-h-0 flex-1">
                   <DadiHome
                     composerPad={composerPad}
@@ -673,34 +667,36 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
 
             {viewingThread ? (
               <>
-                <div className="relative z-10 flex h-12 shrink-0 items-center gap-2 border-b border-(--chat-edge) px-3">
-                  <motion.button
-                    type="button"
-                    onClick={backToList}
-                    aria-label="Back to conversations"
-                    whileHover={{ x: -2 }}
-                    whileTap={{ scale: 0.97 }}
-                    transition={{ duration: 0.2, ease: EASE }}
-                    className="inline-flex size-7 shrink-0 items-center justify-center rounded-full text-ink-muted transition-colors duration-fast ease-dadi hover:bg-sage-active/50 hover:text-ink [&_svg]:size-3.5"
-                  >
-                    <IconBack />
-                  </motion.button>
-                  <motion.span
-                    className="min-w-0 truncate text-[14px] font-medium text-ink"
-                    animate={
-                      reasoningBusy || conversationBusy
-                        ? { opacity: [0.55, 1, 0.55] }
-                        : { opacity: 1 }
-                    }
-                    transition={
-                      reasoningBusy || conversationBusy
-                        ? { duration: 2.2, repeat: Infinity, ease: EASE }
-                        : { duration: SLOW_S, ease: EASE }
-                    }
-                  >
-                    {headerTitle}
-                  </motion.span>
-                </div>
+                <PaneHeader
+                  onBack={backToList}
+                  glyph={agentName.charAt(0).toUpperCase()}
+                  live={laneBusy}
+                  title={agentName}
+                  status={
+                    laneBusy ? (
+                      <>
+                        <LaneMark conversation={conversationBusy} reasoning={reasoningBusy} />
+                        <span className="text-sage-text">
+                          {laneChipLabel(conversationBusy, reasoningBusy)}
+                        </span>
+                      </>
+                    ) : openAgentRecord?.active === false ? (
+                      "Inactive"
+                    ) : openConversation ? (
+                      `Last message ${formatRelative(openConversation.last_at)}`
+                    ) : (
+                      "Idle"
+                    )
+                  }
+                  link={
+                    openAgentRecord?.active && openAgentId
+                      ? {
+                          label: "Show in Hath",
+                          onOpen: () => navigate("/agents", { state: { focusAgent: openAgentId } }),
+                        }
+                      : undefined
+                  }
+                />
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   {showHostPin ? (
                     <HostPin browserId={liveBrowserId} terminal={liveTerminal} />
@@ -715,8 +711,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                       fadeTop={showHostPin}
                       settledMessages={settledMessages}
                       queuedMessages={queuedMessages}
-                      agentId={openAgentId}
-                      laneBusy={laneBusy}
+                      thinking={conversationBusy}
                       onRetry={(msg) => {
                         void sendThread(
                           openAgentId,
@@ -731,7 +726,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                           scrollToBottom("auto");
                         }
                       }}
-                      agentName={headerTitle}
+                      agentName={agentName}
                       agent={openAgentRecord}
                       load={
                         threadLoad?.agentId === openAgentId ? threadLoad : null
@@ -764,7 +759,12 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
               canSubmit={canSubmit}
               thinkingMode={conversationBusy}
               workingMode={reasoningBusy && !conversationBusy}
-              laneLabel={laneLabel}
+              lanes={{
+                conversation: conversationBusy,
+                reasoning: reasoningBusy,
+                tool: activeTool.signature,
+                toolError: activeTool.error,
+              }}
               textareaRef={textareaRef}
               fileInputRef={fileInputRef}
               cameraInputRef={cameraInputRef}

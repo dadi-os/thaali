@@ -4,7 +4,7 @@ import type { AgentRecord } from "../../../shared/api/types";
 import { messageKey, type ChatMessage } from "../../../store/chat";
 import { trackIncoming } from "../lanes";
 import { MessageBubble } from "../message";
-import { ToolPreview } from "../ToolPreview";
+import { ActivityPulse } from "../ActivityPulse";
 import { ThreadEmpty } from "./ThreadEmpty";
 
 export interface ThreadViewProps {
@@ -17,10 +17,8 @@ export interface ThreadViewProps {
   fadeTop: boolean;
   settledMessages: ChatMessage[];
   queuedMessages: ChatMessage[];
-  /** Open agent id for live tool-preview log polls. */
-  agentId: string;
-  /** Either lane busy — show tool preview or ellipses. */
-  laneBusy: boolean;
+  /** Conversation lane busy: the agent is thinking toward a reply, shown as ellipses. */
+  thinking: boolean;
   onRetry: (msg: ChatMessage) => void;
   onCancel: (seq: number) => void;
   /** Keep the thread pinned while agent typewriter content grows. */
@@ -38,7 +36,7 @@ export interface ThreadViewProps {
   onSuggest: (text: string) => void;
 }
 
-/** Open thread scroll pane: settled messages, queued sends, tool preview. */
+/** Open thread scroll pane: settled messages, queued sends, and ellipses while the agent thinks. */
 export function ThreadView({
   scrollRef,
   onScroll,
@@ -47,8 +45,7 @@ export function ThreadView({
   fadeTop,
   settledMessages,
   queuedMessages,
-  agentId,
-  laneBusy,
+  thinking,
   onRetry,
   onCancel,
   onRevealTick,
@@ -77,7 +74,7 @@ export function ThreadView({
   }, [scrollRef]);
 
   const isEmpty =
-    settledMessages.length === 0 && queuedMessages.length === 0 && !laneBusy;
+    settledMessages.length === 0 && queuedMessages.length === 0 && !thinking;
 
   return (
     <div className="absolute inset-0">
@@ -131,7 +128,9 @@ export function ThreadView({
               />
             ))}
           </AnimatePresence>
-          <ToolPreview agentId={agentId} active={laneBusy} />
+          <AnimatePresence initial={false}>
+            {thinking ? <ActivityPulse key="thinking" /> : null}
+          </AnimatePresence>
         </div>
       </div>
     </div>
