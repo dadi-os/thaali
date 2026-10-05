@@ -5,8 +5,10 @@ import { EASE } from "../../shared/lib/ux/motion";
 export type PaneHeaderProps = {
   /** Back to the conversation list. */
   onBack: () => void;
-  /** Name in the bubble. */
-  title: string;
+  /** Name in the bubble; null while it loads, which shows a breathing empty bubble. */
+  title: string | null;
+  /** Why the name could not be loaded, shown in the bubble in place of it. */
+  error?: string | null;
   /** Set the name in the Gujarati face, as Dadi's દાદી is. */
   gujarati?: boolean;
   /**
@@ -20,8 +22,15 @@ export type PaneHeaderProps = {
 };
 
 /** Top of an open pane: back on the left and the chat's name as a centered glass bubble. */
-export function PaneHeader({ onBack, title, gujarati = false, onOpenDetails, detailsOpen = false }: PaneHeaderProps) {
-  const bubble = `pane-bubble min-w-0 max-w-full truncate rounded-full px-3.5 py-1 leading-tight text-ink ${
+export function PaneHeader({
+  onBack,
+  title,
+  error = null,
+  gujarati = false,
+  onOpenDetails,
+  detailsOpen = false,
+}: PaneHeaderProps) {
+  const bubble = `pane-bubble min-w-0 max-w-full truncate rounded-full px-3.5 py-1 leading-tight ${
     gujarati ? "font-gujarati text-[16px]" : "text-[13.5px] font-medium"
   }`;
   return (
@@ -38,7 +47,13 @@ export function PaneHeader({ onBack, title, gujarati = false, onOpenDetails, det
         <IconBack />
       </motion.button>
       <div className="flex min-w-0 justify-center">
-        {onOpenDetails ? (
+        {error !== null ? (
+          <span role="alert" title={error} className={`${bubble} text-error`}>
+            {error}
+          </span>
+        ) : title === null ? (
+          <span aria-label="Loading" className={`${bubble} animate-breath h-[26px] w-24`} />
+        ) : onOpenDetails ? (
           <motion.button
             type="button"
             onMouseDown={(e) => {
@@ -51,14 +66,14 @@ export function PaneHeader({ onBack, title, gujarati = false, onOpenDetails, det
             aria-label={`${title} details`}
             whileTap={{ scale: 0.97 }}
             transition={{ duration: 0.2, ease: EASE }}
-            className={`${bubble} transition-colors duration-fast ease-dadi hover:bg-(--chat-hover) ${
+            className={`${bubble} text-ink transition-colors duration-fast ease-dadi hover:bg-(--chat-hover) ${
               detailsOpen ? "pane-bubble--open" : ""
             }`}
           >
             {title}
           </motion.button>
         ) : (
-          <span className={bubble}>{title}</span>
+          <span className={`${bubble} text-ink`}>{title}</span>
         )}
       </div>
     </div>

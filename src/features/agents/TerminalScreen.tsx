@@ -15,6 +15,7 @@ export type TerminalScreenProps = {
   command: string | null;
   /** `rail` is the compact sidebar pin; `full` fills its parent and scrolls (the expanded view). */
   variant: "rail" | "full";
+  /** Extra classes on the screen, e.g. its radius or height. */
   className?: string;
 };
 

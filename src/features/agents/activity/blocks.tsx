@@ -267,6 +267,7 @@ function TurnBody({ step, live }: { step: TurnStep; live: boolean }) {
 }
 
 export type StepProps = {
+  /** One turn or message in a wake, drawn on the rail. */
   step: ActivityStep;
   /** True while the step's wake is live. */
   live: boolean;

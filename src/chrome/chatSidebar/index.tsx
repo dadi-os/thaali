@@ -8,9 +8,10 @@ import {
   type FormEvent,
   type KeyboardEvent,
 } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { hath, nas } from "../../shared/api";
+import type { AgentRecord } from "../../shared/api/types";
 import { HostPin } from "./HostPin";
 import {
   pickLiveBrowser,
@@ -68,6 +69,7 @@ import {
   TEXTAREA_MAX_PX,
   THREAD_REFRESH_MS,
 } from "./constants";
+import { ActivityPulse } from "./ActivityPulse";
 import { DadiHome, type DadiRouting } from "./DadiHome";
 import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
@@ -75,6 +77,36 @@ import { NewMessageBubble } from "./NewMessageBubble";
 import { PaneHeader } from "./PaneHeader";
 import { ThreadView } from "./thread";
 import { useActiveTool } from "./useActiveTool";
+
+/** What the open thread can show of its agent, from GET /agents, the one source of its name and record. */
+type OpenAgent =
+  | { kind: "loading" }
+  | { kind: "error"; message: string }
+  | { kind: "ready"; agent: AgentRecord; agents: AgentRecord[] };
+
+/**
+ * Resolve the open thread's agent from the agents query: the query's real error, still
+ * loading, or the record (an id the list does not hold is an error, not a blank name).
+ * Null when no thread is open.
+ */
+function resolveOpenAgent(
+  agentId: string | null,
+  query: UseQueryResult<AgentRecord[]>,
+): OpenAgent | null {
+  if (agentId === null) {
+    return null;
+  }
+  if (query.isError) {
+    return { kind: "error", message: query.error.message };
+  }
+  if (!query.data) {
+    return { kind: "loading" };
+  }
+  const agent = query.data.find((a) => a.id === agentId);
+  return agent
+    ? { kind: "ready", agent, agents: query.data }
+    : { kind: "error", message: `Hath has no agent ${agentId}` };
+}
 
 export interface ChatSidebarProps {
   /** Bumps when chat opens; scrolls the thread to the bottom. */
@@ -160,9 +192,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     chat.open.kind === "agent" ? chat.open.agentId : null;
   const viewingDadi = chat.open.kind === "dadi";
   const viewingThread = chat.open.kind === "agent";
-  const openConversation = chat.conversations.find(
-    (c) => c.agent_id === openAgentId,
-  );
   const threadMessages = openAgentId
     ? (chat.threads[openAgentId] ?? [])
     : [];
@@ -548,11 +577,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     openDadi();
   };
 
-  const agentName =
-    openConversation?.agent_name ??
-    agentsQuery.data?.find((a) => a.id === openAgentId)?.name ??
-    "Chat";
-
   const placeholder = !connected
     ? "Connect to message Dadi"
     : viewingDadi
@@ -574,9 +598,8 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   const laneBusy = conversationBusy || reasoningBusy;
   const activeTool = useActiveTool(openAgentId, viewingThread && laneBusy);
 
-  const openAgentRecord = openAgentId
-    ? agentsQuery.data?.find((a) => a.id === openAgentId)
-    : undefined;
+  const openAgentView = resolveOpenAgent(openAgentId, agentsQuery);
+  const openAgentRecord = openAgentView?.kind === "ready" ? openAgentView.agent : undefined;
   const liveBrowserId =
     openAgentRecord && browsersQuery.isSuccess
       ? pickLiveBrowser(
@@ -670,7 +693,8 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
               <>
                 <PaneHeader
                   onBack={backToList}
-                  title={agentName}
+                  title={openAgentRecord ? openAgentRecord.name : null}
+                  error={openAgentView?.kind === "error" ? openAgentView.message : null}
                   detailsOpen={detailsAnchor !== null}
                   onOpenDetails={(box) => {
                     const rail = asideRef.current!.getBoundingClientRect();
@@ -686,7 +710,24 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                     <HostPin browserId={liveBrowserId} terminal={liveTerminal} />
                   ) : null}
                   <div className="relative min-h-0 flex-1">
-                    {openAgentId ? (
+                    {openAgentView?.kind === "error" ? (
+                      <p
+                        role="alert"
+                        className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] leading-relaxed text-error"
+                        style={{ paddingBottom: composerPad }}
+                      >
+                        Couldn't load this agent. {openAgentView.message}
+                      </p>
+                    ) : null}
+                    {openAgentView?.kind === "loading" ? (
+                      <div
+                        className="absolute inset-0 flex items-center justify-center"
+                        style={{ paddingBottom: composerPad }}
+                      >
+                        <ActivityPulse />
+                      </div>
+                    ) : null}
+                    {openAgentId && openAgentRecord ? (
                     <ThreadView
                       scrollRef={scrollRef}
                       onScroll={onScroll}
@@ -710,7 +751,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                           scrollToBottom("auto");
                         }
                       }}
-                      agentName={agentName}
+                      agentName={openAgentRecord.name}
                       agent={openAgentRecord}
                       load={
                         threadLoad?.agentId === openAgentId ? threadLoad : null
@@ -778,11 +819,11 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
         />
       </div>
 
-      {openAgentId ? (
+      {openAgentView?.kind === "ready" ? (
         <AgentPopover
           open={detailsAnchor !== null}
-          agentId={openAgentId}
-          agentsById={new Map((agentsQuery.data ?? []).map((a) => [a.id, a]))}
+          agentId={openAgentView.agent.id}
+          agentsById={new Map(openAgentView.agents.map((a) => [a.id, a]))}
           runningMap={running}
           anchor={detailsAnchor}
           containerRef={asideRef}

@@ -46,6 +46,7 @@ function toLocalInput(iso: string): string {
 }
 
 export type ScheduleSectionProps = {
+  /** Agent whose schedules, sent or received, the section lists. */
   agentId: string;
   /** Fetch only while the popover is open and the mesh is up. */
   enabled: boolean;

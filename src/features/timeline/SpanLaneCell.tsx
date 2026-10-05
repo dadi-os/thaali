@@ -14,6 +14,7 @@ export type SpanLaneCellProps = {
   now: Date;
   /** Entrance delay so bars settle with their column. */
   delay: number;
+  /** A bar was clicked: open its plan's popover anchored to the bar element. */
   onOpen: (nodeId: string, el: Element) => void;
 };
 
