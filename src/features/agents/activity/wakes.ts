@@ -8,16 +8,17 @@
 import type { Lane, LogRecord } from "../../../types/hath";
 
 /**
- * Longest quiet stretch inside one wake. Only reasoning failures are logged, so a lane
- * that died any other way never reads as idle; a gap this long ends its wake regardless.
+ * Longest quiet stretch inside one wake. Lane failures and restarts are logged as
+ * runtime reports, but a gap this long ends a wake regardless of how it stopped.
  */
 const WAKE_GAP_MS = 10 * 60_000;
 
 /**
- * How Hath's reportReasoningFailure (hath `src/runtime/engine.ts`) opens the message it
- * sends when an agent's reasoning lane dies: the only logged sign of a lane failure.
+ * How every message Hath sends on an agent's behalf opens: a lane that died
+ * (`reportLaneFailure`, hath `src/runtime/engine.ts`) or a wake a restart cut short
+ * (hath `src/runtime/recovery.ts`). It is the only logged sign either happened.
  */
-const REASONING_FAILED_PREFIX = "[runtime] My reasoning lane failed";
+const RUNTIME_REPORT_PREFIX = "[runtime] ";
 
 /**
  * Tools that hand work to the other lane, which then runs once the caller stops:
@@ -75,8 +76,8 @@ export type MessageStep = {
   peer: string | null;
   /** True when Hath's scheduler delivered it. */
   scheduled: boolean;
-  /** True for the runtime's report that this agent's reasoning lane died. */
-  laneFailure: boolean;
+  /** True for the runtime's report that this agent's wake stopped: a lane died or a restart cut it short. */
+  wakeStopped: boolean;
   content: string;
 };
 
@@ -234,7 +235,7 @@ function parseMessage(log: LogRecord): MessageStep | null {
     direction,
     peer: typeof peer === "string" ? peer : null,
     scheduled: typeof log.payload.schedule_id === "string",
-    laneFailure: direction === "send" && content.startsWith(REASONING_FAILED_PREFIX),
+    wakeStopped: direction === "send" && content.startsWith(RUNTIME_REPORT_PREFIX),
     content,
   };
 }
@@ -293,8 +294,10 @@ export function buildActivity(logs: LogRecord[]): ActivityWake[] {
       if (log.payload.direction === "receive") {
         busy.conversation = true;
       }
-      if (step?.laneFailure) {
+      if (step?.wakeStopped) {
+        busy.conversation = false;
         busy.reasoning = false;
+        pending.conversation = false;
         pending.reasoning = false;
       }
       continue;

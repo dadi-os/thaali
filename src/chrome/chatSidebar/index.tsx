@@ -616,7 +616,8 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   const showHostPin =
     viewingThread && (liveBrowserId !== null || liveTerminal !== null);
 
-  const showComposer = viewingThread || viewingDadi;
+  const showComposer =
+    viewingDadi || (openAgentView?.kind === "ready" && openAgentView.agent.active);
   const nudgeConversation =
     chat.nudge !== null && chat.nudge !== openAgentId
       ? chat.conversations.find((c) => c.agent_id === chat.nudge)

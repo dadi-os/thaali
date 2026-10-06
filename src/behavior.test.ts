@@ -463,7 +463,7 @@ describe("agent tree", () => {
     expect(visualState(planner, { reasoning: true, conversation: true })).toBe(
       "both",
     );
-    expect(visualState({ ...planner, active: false }, undefined)).toBe("dormant");
+    expect(visualState({ ...planner, active: false }, undefined)).toBe("retired");
   });
 
   it("labels live fills and treats them as in-flight", () => {
@@ -471,7 +471,7 @@ describe("agent tree", () => {
     expect(isLiveVisual("conversation")).toBe(true);
     expect(isLiveVisual("both")).toBe(true);
     expect(isLiveVisual("idle")).toBe(false);
-    expect(isLiveVisual("dormant")).toBe(false);
+    expect(isLiveVisual("retired")).toBe(false);
     expect(
       statusLabel("reasoning", { reasoning: true, conversation: false }),
     ).toMatch(/working/);
@@ -1230,7 +1230,7 @@ describe("buildActivity", () => {
     const wakes = buildActivity(logs);
 
     expect(wakes.map((wake) => wake.key)).toEqual(["again", "ask"]);
-    expect(wakes[1]!.steps[2]).toMatchObject({ key: "dead", laneFailure: true });
+    expect(wakes[1]!.steps[2]).toMatchObject({ key: "dead", wakeStopped: true });
   });
 
   it("drops calls that only yield and wakes with nothing left to show", () => {

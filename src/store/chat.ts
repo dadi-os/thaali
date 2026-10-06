@@ -287,6 +287,15 @@ export function upsertConversation(conv: Conversation): void {
   emit();
 }
 
+/** Drop a retired agent's conversation from the list; its history stays loadable by id. */
+export function removeConversation(agentId: string): void {
+  state = {
+    ...state,
+    conversations: state.conversations.filter((c) => c.agent_id !== agentId),
+  };
+  emit();
+}
+
 /** Append if this live/optimistic seq is new; no-op on duplicate confirmed seq. */
 export function appendMessage(agentId: string, msg: ChatMessage): void {
   const current = threadOf(agentId);

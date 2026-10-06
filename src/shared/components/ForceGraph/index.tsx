@@ -76,7 +76,7 @@ export type ForceGraphNodeLook = {
   opacity: number;
   /** Resting self-glow; hover and focus add to it. */
   emissiveIntensity: number;
-  /** Draw the sphere as a wire cage (used for dormant agents). */
+  /** Draw the sphere as a wire cage (used for retired agents). */
   wireframe: boolean;
 };
 

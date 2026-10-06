@@ -27,7 +27,7 @@ export type AgentSimulation = ForceGraphSimulation<AgentGraphNode, AgentEdge>;
 
 /** Visual lane for an agent node — fill weight encodes reasoning vs conversation. */
 export type NodeVisual =
-  | "dormant"
+  | "retired"
   | "idle"
   | "reasoning"
   | "conversation"
@@ -77,10 +77,10 @@ export function shellRadius(depth: number): number {
   return ROOT_SHELL + depth * SHELL_STEP;
 }
 
-/** Sphere radius: roots read larger, dormant agents recede. */
-export function agentRadius(depth: number, dormant: boolean): number {
+/** Sphere radius: roots read larger, retired agents recede. */
+export function agentRadius(depth: number, retired: boolean): number {
   const base = depth === 0 ? 4.2 : 3.1;
-  return dormant ? base * 0.75 : base;
+  return retired ? base * 0.75 : base;
 }
 
 /**
@@ -114,7 +114,7 @@ export function visualState(
   running: { reasoning: boolean; conversation: boolean } | undefined,
 ): NodeVisual {
   if (!agent.active) {
-    return "dormant";
+    return "retired";
   }
   const lanes = running ?? agent.running;
   if (lanes.reasoning && lanes.conversation) {
@@ -143,8 +143,8 @@ export function statusLabel(
   visual: NodeVisual,
   running: { reasoning: boolean; conversation: boolean },
 ): string {
-  if (visual === "dormant") {
-    return "Inactive";
+  if (visual === "retired") {
+    return "Retired";
   }
   if (isLiveVisual(visual)) {
     if (running.reasoning && running.conversation) {

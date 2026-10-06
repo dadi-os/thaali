@@ -7,6 +7,7 @@ import { subscribeConnection } from "../../store/connection";
 import {
   ingestLiveMessage,
   isUserThreadMessage,
+  removeConversation,
   seedConversations,
   setHistoryState,
   upsertConversation,
@@ -156,6 +157,9 @@ export function useEvents(): void {
         return;
       }
 
+      if (data.type === "agent_modified" && !data.active) {
+        removeConversation(data.agent_id);
+      }
       if (data.type === "agent_spawned" || data.type === "agent_modified") {
         void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
         void queryClient.invalidateQueries({

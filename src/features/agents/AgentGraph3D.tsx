@@ -64,7 +64,7 @@ export type AgentGraph3DProps = {
 
 /** Resting surface for each agent lane. */
 function agentLook(theme: AgentTheme, visual: NodeVisual): ForceGraphNodeLook {
-  if (visual === "dormant") {
+  if (visual === "retired") {
     return { color: theme["--ink-faint"], opacity: 0.8, emissiveIntensity: 0, wireframe: true };
   }
   if (visual === "idle") {

@@ -2,7 +2,6 @@
 
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { MarkdownBody } from "../../../shared/components/Markdown";
-import { LANE_LABEL } from "../../../shared/lib/ux/lanes";
 import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
 import type { ActivityStep, ActivityTool, MessageStep, Thought, TurnStep } from "./wakes";
 
@@ -218,12 +217,12 @@ function ToolRow({ tool, live }: ToolRowProps) {
 
 /**
  * A received message as a filled bubble, a sent one as an outlined bubble, and the
- * runtime's report of a dead reasoning lane in the error tone.
+ * runtime's report of a stopped wake (a dead lane or a restart) in the error tone.
  */
 function MessageBubble({ step }: { step: MessageStep }) {
   const peer = step.peer ?? "you";
   const label = step.direction === "receive" ? `from ${peer}` : `to ${peer}`;
-  const tone = step.laneFailure
+  const tone = step.wakeStopped
     ? "border border-error-line bg-error-fill"
     : step.direction === "receive"
       ? "bg-sage-fill"
@@ -232,11 +231,11 @@ function MessageBubble({ step }: { step: MessageStep }) {
     <div className={`rounded-[8px] px-2.5 py-1.5 ${tone}`}>
       <p
         className={`mb-0.5 text-[10px] tracking-wide ${
-          step.laneFailure ? "text-error" : "text-ink-ghost"
+          step.wakeStopped ? "text-error" : "text-ink-ghost"
         }`}
       >
-        {step.laneFailure
-          ? `${LANE_LABEL.reasoning} failed · ${label}`
+        {step.wakeStopped
+          ? `wake stopped · ${label}`
           : step.scheduled
             ? `scheduled · ${label}`
             : label}
