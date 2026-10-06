@@ -12,6 +12,7 @@ concurrency:
 jobs:
   ci:
     runs-on: ubuntu-22.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -33,6 +34,7 @@ jobs:
 
   container:
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v6
 
@@ -43,6 +45,7 @@ jobs:
     needs: container
     if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     permissions:
       contents: read
       packages: write
@@ -107,6 +110,7 @@ jobs:
             updater_name: thaali-windows-x86_64-setup.exe.sig
             updater_bundle: ""
     runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v6
 
@@ -279,6 +283,7 @@ jobs:
       github.ref == 'refs/heads/main' &&
       contains(fromJSON('["success","failure"]'), needs.release-desktop.result)
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     permissions:
       contents: write
     steps:
