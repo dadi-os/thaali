@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../types/yaad";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, memoriesOn, plansOn, spanLanes, spanOf, startLabel } from "./plans";
+import { asPlan, isMultiDay, memoriesOn, occurrenceOf, plansOn, spanLanes, spanOf, startLabel } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -39,6 +39,18 @@ describe("asPlan", () => {
 
   it("throws when a plan has no plan detail", () => {
     expect(() => asPlan({ ...node({ id: "p1" }), detail: null })).toThrow("p1");
+  });
+});
+
+describe("occurrenceOf", () => {
+  it("returns a recurring plan's own occurrence and nothing for a stored plan", () => {
+    const stored = plan("p1", new Date("2026-10-09T14:20:00.000Z"), new Date("2026-10-09T15:10:00.000Z"));
+    expect(occurrenceOf(stored)).toBeUndefined();
+    const occurrence = { ...stored, detail: { ...stored.detail, series_id: "p1", recurrence: "FREQ=WEEKLY;BYDAY=FR" } };
+    expect(occurrenceOf(occurrence)).toEqual({
+      occurred_at: "2026-10-09T14:20:00.000Z",
+      end_at: "2026-10-09T15:10:00.000Z",
+    });
   });
 });
 

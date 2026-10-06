@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { isSameDay } from "./dates";
 import { BreathRing, LiveDot } from "./markers";
-import { isMultiDay, plansOn, planStartsOn, spanLanes, spanOf, startLabel, type PlanNode } from "./plans";
+import { isMultiDay, occurrenceOf, plansOn, planStartsOn, spanLanes, spanOf, startLabel, type PlanNode, type PlanOccurrence } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
 export type RibbonViewProps = {
@@ -14,7 +14,7 @@ export type RibbonViewProps = {
   now: Date;
   plans: PlanNode[];
   /** A plan was clicked: open it beside `el` without leaving the tile. */
-  onOpen: (nodeId: string, el: Element) => void;
+  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
   className?: string;
 };
 
@@ -79,7 +79,7 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
                       transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 + 0.08 + j * 0.03 }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpen(p.id, e.currentTarget);
+                        onOpen(p.id, e.currentTarget, occurrenceOf(p));
                       }}
                       className="-mx-1 min-w-0 shrink-0 rounded-[4px] px-1 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
                     >

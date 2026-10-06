@@ -14,7 +14,9 @@ import {
   spanOf,
   statusClass,
   type PendingAdd,
+  occurrenceOf,
   type PlanNode,
+  type PlanOccurrence,
 } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
@@ -39,7 +41,7 @@ export type WeekViewProps = {
   fresh: Set<string>;
   /** Quick-adds Yaad is still filing, drawn as ghost chips on their day. */
   pending: PendingAdd[];
-  onOpen: (nodeId: string, el: Element) => void;
+  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
   onAdd: (day: Date, el: Element) => void;
 };
 
@@ -201,7 +203,7 @@ type PlanChipProps = {
   fresh: boolean;
   /** Entrance delay so chips settle after their column. */
   delay: number;
-  onOpen: (nodeId: string, el: Element) => void;
+  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
 };
 
 /** One plan: lifts on hover, fades once it has passed, pulses while it is happening. */
@@ -220,7 +222,7 @@ function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.98 }}
-      onClick={(e) => onOpen(plan.id, e.currentTarget)}
+      onClick={(e) => onOpen(plan.id, e.currentTarget, occurrenceOf(plan))}
       className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.detail.status)}`}
     >
       {planStartsOn(plan, day) ? (

@@ -6,7 +6,7 @@ import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { addDays, formatTime, formatUntil, toIsoBounds } from "./dates";
 import { LiveDot } from "./markers";
-import { asPlan, isMultiDay, spanOf, type PlanNode } from "./plans";
+import { asPlan, isMultiDay, occurrenceOf, spanOf, type PlanNode, type PlanOccurrence } from "./plans";
 
 /** How far ahead the pill looks for the next plan. */
 const WINDOW_DAYS = 14;
@@ -15,7 +15,7 @@ export type NextUpProps = {
   /** Ticking clock: drives the countdown and when a plan turns ongoing. */
   now: Date;
   /** The pill was clicked: open its plan beside `el`. */
-  onOpen: (nodeId: string, el: Element) => void;
+  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
 };
 
 /**
@@ -78,7 +78,7 @@ export function NextUp({ now, onOpen }: NextUpProps) {
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
-      onClick={(e) => onOpen(next.plan.id, e.currentTarget)}
+      onClick={(e) => onOpen(next.plan.id, e.currentTarget, occurrenceOf(next.plan))}
       className="flex min-w-0 max-w-[320px] items-center gap-2 rounded-full border border-rule bg-bone px-3 py-1 text-[12px] transition-colors duration-slow ease-dadi hover:border-sage-line"
     >
       {next.ongoing ? (

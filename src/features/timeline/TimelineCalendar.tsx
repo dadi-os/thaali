@@ -27,7 +27,7 @@ import {
 import { MonthView } from "./MonthView";
 import { NextUp } from "./NextUp";
 import { NodePopover } from "./NodePopover";
-import { anchorOf, asPlan, type PendingAdd, type PlanNode } from "./plans";
+import { anchorOf, asPlan, type PendingAdd, type PlanNode, type PlanOccurrence } from "./plans";
 import { QuickAdd } from "./QuickAdd";
 import { RibbonView } from "./RibbonView";
 import { SomedayRail } from "./SomedayRail";
@@ -126,7 +126,12 @@ export function TimelineCalendar({
   const today = startOfDay(now);
   const [anchor, setAnchor] = useState(() => startOfDay(new Date()));
   const [direction, setDirection] = useState(0);
-  const [opened, setOpened] = useState<{ id: string; anchor: PopoverAnchor; open: boolean } | null>(null);
+  const [opened, setOpened] = useState<{
+    id: string;
+    anchor: PopoverAnchor;
+    open: boolean;
+    occurrence?: PlanOccurrence;
+  } | null>(null);
   const [composer, setComposer] = useState<{
     key: string;
     day: Date | null;
@@ -235,9 +240,9 @@ export function TimelineCalendar({
   const closeNode = () => setOpened((o) => (o ? { ...o, open: false } : o));
   const closeComposer = () => setComposer((c) => (c ? { ...c, open: false } : c));
 
-  const openNode = (id: string, el: Element) => {
+  const openNode = (id: string, el: Element, occurrence?: PlanOccurrence) => {
     closeComposer();
-    setOpened({ id, anchor: anchorOf(el), open: true });
+    setOpened({ id, anchor: anchorOf(el), open: true, ...(occurrence ? { occurrence } : {}) });
   };
 
   const openComposer = (day: Date | null, el: Element) => {
@@ -278,9 +283,10 @@ export function TimelineCalendar({
             <NodePopover
               open={opened.open}
               nodeId={opened.id}
+              {...(opened.occurrence ? { occurrence: opened.occurrence } : {})}
               anchor={opened.anchor}
               onClose={closeNode}
-              onSelect={(id) => setOpened((o) => (o ? { ...o, id } : o))}
+              onSelect={(id) => setOpened((o) => (o ? { id, anchor: o.anchor, open: o.open } : o))}
               onDeleted={closeNode}
             />
           </div>
@@ -431,9 +437,10 @@ export function TimelineCalendar({
         <NodePopover
           open={opened.open}
           nodeId={opened.id}
+          {...(opened.occurrence ? { occurrence: opened.occurrence } : {})}
           anchor={opened.anchor}
           onClose={closeNode}
-          onSelect={(id) => setOpened((o) => (o ? { ...o, id } : o))}
+          onSelect={(id) => setOpened((o) => (o ? { id, anchor: o.anchor, open: o.open } : o))}
           onDeleted={(result, deletedTitle) => {
             closeNode();
             const swept = result.orphans.length;

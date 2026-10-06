@@ -7,6 +7,16 @@ import { endOfDay, formatTime, isSameDay, startOfDay } from "./dates";
 /** Yaad plan node with its plan detail. */
 export type PlanNode = NodeRecord & { detail: PlanDetail };
 
+/** When one occurrence of a recurring plan happens; Yaad stores only the series' first. */
+export type PlanOccurrence = { occurred_at: string; end_at: string | null };
+
+/** The occurrence a queried plan stands for, or undefined for a plan stored on its own. */
+export function occurrenceOf(plan: PlanNode): PlanOccurrence | undefined {
+  return plan.detail.series_id && plan.occurred_at
+    ? { occurred_at: plan.occurred_at, end_at: plan.detail.end_at }
+    : undefined;
+}
+
 /**
  * Narrow a queried node to a plan; null for other kinds.
  * @throws When a plan comes back without its plan detail, which Yaad always stores.

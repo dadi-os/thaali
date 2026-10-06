@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { isSameDay } from "./dates";
-import { planOverlapsDay, planStartsOn, spanOf, statusClass, type PlanNode } from "./plans";
+import { occurrenceOf, planOverlapsDay, planStartsOn, spanOf, statusClass, type PlanNode, type PlanOccurrence } from "./plans";
 
 export type SpanLaneCellProps = {
   /** Multi-day plans sharing this lane; at most one touches `day`. */
@@ -15,7 +15,7 @@ export type SpanLaneCellProps = {
   /** Entrance delay so bars settle with their column. */
   delay: number;
   /** A bar was clicked: open its plan's popover anchored to the bar element. */
-  onOpen: (nodeId: string, el: Element) => void;
+  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
 };
 
 /**
@@ -40,7 +40,7 @@ export function SpanLaneCell({ lane, day, first, now, delay, onOpen }: SpanLaneC
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       onClick={(e) => {
         e.stopPropagation();
-        onOpen(plan.id, e.currentTarget);
+        onOpen(plan.id, e.currentTarget, occurrenceOf(plan));
       }}
       className={`flex h-5 min-w-0 items-center px-1.5 text-left text-[10px] leading-none ${statusClass(plan.detail.status)} ${
         starts ? "rounded-l-[6px]" : "-ml-[7px] rounded-l-none border-l-0"

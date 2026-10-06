@@ -19,6 +19,7 @@ import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
 import { KIND_ORDER, KIND_TOKEN } from "../memory/graph";
 import { SOURCE_LABEL } from "../memory/MemoryPopover";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
+import type { PlanOccurrence } from "./plans";
 
 const STATUS_OPTIONS: Array<{ value: PlanStatus; label: string }> = [
   { value: "idea", label: "Idea" },
@@ -33,6 +34,8 @@ export type NodePopoverProps = {
   open: boolean;
   /** Node the panel shows; kept while it animates away; changing it glides to the new content. */
   nodeId: string;
+  /** The clicked occurrence of a recurring plan, shown instead of the series' first date. */
+  occurrence?: PlanOccurrence;
   anchor: PopoverAnchor;
   onClose: () => void;
   /** A connection was clicked: show that node instead. */
@@ -49,7 +52,7 @@ type Connection = { edge: EdgeRecord; node: NodeRecord; outgoing: boolean };
  * connections, with in-place title and status edits, delete, and a jump to the node
  * in the Yaad graph.
  */
-export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted }: NodePopoverProps) {
+export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelect, onDeleted }: NodePopoverProps) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const [draft, setDraft] = useState<string | null>(null);
@@ -94,6 +97,8 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
   const listed = showAll ? connections : connections.slice(0, CONNECTIONS_SHOWN);
   const folded = connections.length - listed.length;
   const plan = node?.kind === "plan" ? (node.detail as PlanDetail) : null;
+  const shownAt = occurrence ? occurrence.occurred_at : node?.occurred_at;
+  const shownEnd = occurrence ? occurrence.end_at : plan ? plan.end_at : null;
   const mutationError = patch.error ?? remove.error;
 
   const saveTitle = () => {
@@ -170,11 +175,11 @@ export function NodePopover({ open, nodeId, anchor, onClose, onSelect, onDeleted
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-            {node.occurred_at ? (
+            {shownAt ? (
               <div className="mb-3 flex items-baseline justify-between gap-3">
-                <span className="text-[13px] text-ink">{whenOf(node.occurred_at, plan ? plan.end_at : null, plan?.all_day === true)}</span>
-                <Tooltip content={formatAbsolute(node.occurred_at)}>
-                  <span className="shrink-0 text-[12px] text-ink-ghost">{formatRelative(node.occurred_at)}</span>
+                <span className="text-[13px] text-ink">{whenOf(shownAt, shownEnd, plan?.all_day === true)}</span>
+                <Tooltip content={formatAbsolute(shownAt)}>
+                  <span className="shrink-0 text-[12px] text-ink-ghost">{formatRelative(shownAt)}</span>
                 </Tooltip>
               </div>
             ) : null}
