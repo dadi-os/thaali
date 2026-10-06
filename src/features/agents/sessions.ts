@@ -1,4 +1,4 @@
-import type { AgentSessions } from "../../shared/api/types";
+import type { AgentSessions } from "../../types/hath";
 
 /** Live Nas browser row used to filter remembered session ids. */
 export type LiveBrowser = { id: number };

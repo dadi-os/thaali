@@ -1,6 +1,6 @@
 /** Plan and dated-node helpers shared by the timeline views and popovers. */
 
-import type { NodeRecord, PlanDetail, PlanStatus } from "../../shared/api/types";
+import type { NodeRecord, PlanDetail, PlanStatus } from "../../types/yaad";
 import type { PopoverAnchor } from "../../shared/components/Popover";
 import { endOfDay, formatTime, isSameDay, startOfDay } from "./dates";
 

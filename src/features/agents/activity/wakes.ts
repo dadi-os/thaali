@@ -5,7 +5,7 @@
  * order they happened.
  */
 
-import type { Lane, LogRecord } from "../../../shared/api/types";
+import type { Lane, LogRecord } from "../../../types/hath";
 
 /**
  * Longest quiet stretch inside one wake. Only reasoning failures are logged, so a lane

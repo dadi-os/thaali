@@ -10,7 +10,7 @@ import type {
   PatchNodeRequest,
   PlanDetail,
   PlanStatus,
-} from "../../shared/api/types";
+} from "../../types/yaad";
 import { Glider } from "../../shared/components/Glider";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";

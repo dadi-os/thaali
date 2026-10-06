@@ -1,13 +1,13 @@
 import { motion } from "motion/react";
-import { InlineMarkdown } from "../../../shared/components/Markdown";
-import { EASE } from "../../../shared/lib/ux/motion";
-import type { Conversation, HistoryStatus } from "../../../store/chat";
-import type { RunningMap } from "../../../store/running";
-import { ActivityPulse } from "../ActivityPulse";
-import { Avatar } from "../Avatar";
-import { groupConversations } from "../format";
-import { LaneMark } from "../LaneChip";
-import { laneChipLabel } from "../toolStatus";
+import { InlineMarkdown } from "../../shared/components/Markdown";
+import { EASE } from "../../shared/lib/ux/motion";
+import type { Conversation, HistoryStatus } from "../../store/chat";
+import type { RunningMap } from "../../store/running";
+import { ActivityPulse } from "./ActivityPulse";
+import { Avatar } from "./Avatar";
+import { groupConversations } from "./format";
+import { LaneMark } from "./LaneChip";
+import { laneChipLabel } from "./toolStatus";
 
 export interface ConversationListProps {
   /** Thread-agent conversations (excludes Dadi). */

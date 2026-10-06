@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import type { AgentRecord } from "../../../shared/api/types";
+import type { AgentRecord } from "../../../types/hath";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import { formatRelative } from "../format";
 

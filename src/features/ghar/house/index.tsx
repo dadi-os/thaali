@@ -13,7 +13,7 @@ import { createPortal } from "react-dom";
 import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { ghar, isMeshOnline } from "../../../shared/api";
 import { GHAR_DEVICES_KEY, GHAR_ROOMS_KEY } from "../../../shared/api/ghar";
-import type { GharDevice, GharRoom } from "../../../shared/api/types";
+import type { GharDevice, GharRoom } from "../../../types/ghar";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { IconPlus } from "../../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";

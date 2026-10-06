@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { HATH_URL, hath, transport } from "../api";
-import type { AgentRecord, HathEvent } from "../api/types";
+import type { AgentRecord, HathEvent } from "../../types/hath";
 import type { ConnectionState } from "../api/transport";
 import { subscribeConnection } from "../../store/connection";
 import {
@@ -169,10 +169,12 @@ export function useEvents(): void {
       }
     };
 
-    const scheduleReconnect = (gen: number) => {
+    /** Log why the stream dropped with the backoff, then reopen after it (doubling up to MAX_BACKOFF_MS). */
+    const scheduleReconnect = (gen: number, code: string, reason: string) => {
       clearTimer();
       const delay = backoff;
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+      logLine("warn", `${reason}; retrying in ${delay}ms`, code);
       timer = setTimeout(() => {
         if (gen !== generation || !transport.isActive()) {
           return;
@@ -192,8 +194,8 @@ export function useEvents(): void {
           return;
         }
         backoff = INITIAL_BACKOFF_MS;
-      } catch {
-        scheduleReconnect(gen);
+      } catch (err: unknown) {
+        scheduleReconnect(gen, "events_open_failed", err instanceof Error ? err.message : String(err));
         return;
       }
 
@@ -208,7 +210,7 @@ export function useEvents(): void {
             return;
           }
           teardownStream();
-          scheduleReconnect(gen);
+          scheduleReconnect(gen, "events_stream_closed", "event stream closed");
         },
       });
 

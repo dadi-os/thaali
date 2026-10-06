@@ -1,4 +1,4 @@
-import type { DurableMessage, MessageAttachment, ThreadSummary } from "../shared/api/types";
+import type { DurableMessage, MessageAttachment, ThreadSummary } from "../types/hath";
 
 export type { MessageAttachment };
 
@@ -15,6 +15,8 @@ export type ChatMessage = {
   pending?: boolean;
   /** Send failed; eligible for retry or dismiss. */
   failed?: boolean;
+  /** The real error from the failed send, shown on the bubble; cleared on retry. */
+  sendError?: string;
   /**
    * Waiting locally because the conversation lane is busy. Not POSTed yet — can cancel.
    * Rendered after settled messages as a draft (reasoning-busy does not queue).
@@ -382,12 +384,12 @@ export function resolveOptimistic(
   emit();
 }
 
-/** Mark an optimistic message as failed (eligible for retry/dismiss). */
-export function markFailed(agentId: string, tempSeq: number): void {
+/** Mark an optimistic message as failed with the send's real error (eligible for retry/dismiss). */
+export function markFailed(agentId: string, tempSeq: number, sendError: string): void {
   setThread(
     agentId,
     threadOf(agentId).map((m) =>
-      m.seq === tempSeq ? { ...m, pending: false, failed: true } : m,
+      m.seq === tempSeq ? { ...m, pending: false, failed: true, sendError } : m,
     ),
   );
   emit();
@@ -408,7 +410,7 @@ export function markPending(agentId: string, tempSeq: number): void {
     agentId,
     threadOf(agentId).map((m) =>
       m.seq === tempSeq
-        ? { ...m, pending: true, failed: false, queued: undefined }
+        ? { ...m, pending: true, failed: false, sendError: undefined, queued: undefined }
         : m,
     ),
   );

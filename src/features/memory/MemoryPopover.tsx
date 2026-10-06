@@ -1,5 +1,5 @@
 import { useEffect, useState, type RefObject } from "react";
-import type { NodeSource } from "../../shared/api/types";
+import type { NodeSource } from "../../types/yaad";
 import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type RefObject, type UIEvent } from "react";
 import { AnimatePresence } from "motion/react";
-import type { AgentRecord } from "../../../shared/api/types";
+import type { AgentRecord } from "../../../types/hath";
 import { messageKey, type ChatMessage } from "../../../store/chat";
 import { trackIncoming } from "../lanes";
 import { MessageBubble } from "../message";

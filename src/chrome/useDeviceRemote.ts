@@ -9,6 +9,7 @@ import {
   type DeviceLocalTool,
 } from "./deviceCommands";
 import { subscribeConnection } from "../store/connection";
+import { logLine } from "../shared/lib/platform/log";
 
 const PRESENCE_INTERVAL_MS = 15_000;
 const INITIAL_BACKOFF_MS = 1000;
@@ -118,8 +119,7 @@ export function useDeviceRemote(): void {
         });
       } catch (err) {
         const type = err instanceof DeviceError ? err.type : "internal_error";
-        const message =
-          err instanceof Error ? err.message : "device command failed";
+        const message = err instanceof Error ? err.message : String(err);
         await hath.postCommandResult(data.command_id, {
           ok: false,
           error: { type, message },
@@ -127,10 +127,12 @@ export function useDeviceRemote(): void {
       }
     };
 
-    const scheduleReconnect = (gen: number) => {
+    /** Log why the stream dropped with the backoff, then reopen after it (doubling up to MAX_BACKOFF_MS). */
+    const scheduleReconnect = (gen: number, code: string, reason: string) => {
       clearTimer();
       const delay = backoff;
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
+      logLine("warn", `${reason}; retrying in ${delay}ms`, code);
       timer = setTimeout(() => {
         if (gen !== generation || !transport.isActive()) {
           return;
@@ -147,7 +149,7 @@ export function useDeviceRemote(): void {
       try {
         const credentials = await loadCredentials();
         if (!credentials) {
-          scheduleReconnect(gen);
+          scheduleReconnect(gen, "device_credentials_missing", "no stored mesh credentials");
           return;
         }
         nodeName = credentials.node_name;
@@ -160,12 +162,12 @@ export function useDeviceRemote(): void {
         backoff = INITIAL_BACKOFF_MS;
         clearPresence();
         presenceTimer = setInterval(() => {
-          void sendPresence().catch((err) => {
-            console.error("device presence failed", err);
+          void sendPresence().catch((err: unknown) => {
+            logLine("error", err instanceof Error ? err.message : String(err), "device_presence_failed");
           });
         }, PRESENCE_INTERVAL_MS);
-      } catch {
-        scheduleReconnect(gen);
+      } catch (err: unknown) {
+        scheduleReconnect(gen, "device_remote_open_failed", err instanceof Error ? err.message : String(err));
         return;
       }
 
@@ -181,7 +183,7 @@ export function useDeviceRemote(): void {
             return;
           }
           teardownStream();
-          scheduleReconnect(gen);
+          scheduleReconnect(gen, "device_stream_closed", "event stream closed");
         },
       });
 

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { NodeRecord, PlanDetail } from "../../shared/api/types";
+import type { NodeRecord, PlanDetail } from "../../types/yaad";
 import { formatUntil } from "./dates";
 import { asPlan, isMultiDay, memoriesOn, plansOn, spanLanes, spanOf, startLabel } from "./plans";
 

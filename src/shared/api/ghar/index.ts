@@ -4,7 +4,7 @@ import type {
   GharDevice,
   GharRadioCommand,
   GharRoom,
-} from "../types";
+} from "../../../types/ghar";
 
 /** React Query key for GET /devices. Shared by the home widget and the Ghar page. */
 export const GHAR_DEVICES_KEY = ["ghar", "devices"] as const;

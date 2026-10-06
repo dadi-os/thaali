@@ -12,7 +12,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { hath, isMeshOnline, nas } from "../../shared/api";
-import type { AgentRecord } from "../../shared/api/types";
+import type { AgentRecord } from "../../types/hath";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useHoverDetails } from "../../shared/hooks/useHoverDetails";
 import { useThemeTokens } from "../../shared/hooks/useThemeTokens";

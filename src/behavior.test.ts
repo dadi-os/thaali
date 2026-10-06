@@ -32,7 +32,8 @@ import {
 } from "./store/chat";
 import type { ChatMessage } from "./store/chat";
 import { IDLE_MS, readingMs, shouldSwitchChat, type Attention } from "./store/attention";
-import type { DurableMessage, GharDevice, Lane, LogRecord } from "./shared/api/types";
+import type { GharDevice } from "./types/ghar";
+import type { DurableMessage, Lane, LogRecord } from "./types/hath";
 import { searchHouse } from "./features/ghar/house/search";
 import {
   agentGraph,
@@ -68,7 +69,7 @@ import { createChaaviClient } from "./shared/api/chaavi";
 import { createNasClient } from "./shared/api/nas";
 import { YAAD, HATH, NAS, CHAAVI, CHAAVI_VAULT, GHAR } from "./shared/api/constants";
 import type { Transport } from "./shared/api/transport";
-import type { AgentRecord } from "./shared/api/types";
+import type { AgentRecord } from "./types/hath";
 
 describe("formatRelative", () => {
   it("formats minutes ago", () => {

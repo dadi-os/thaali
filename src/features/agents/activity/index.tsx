@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { UseQueryResult } from "@tanstack/react-query";
-import type { Lane, LogRecord } from "../../../shared/api/types";
+import type { Lane, LogRecord } from "../../../types/hath";
 import { Glider } from "../../../shared/components/Glider";
 import { InlineMarkdown } from "../../../shared/components/Markdown";
 import { Tooltip } from "../../../shared/components/Tooltip";

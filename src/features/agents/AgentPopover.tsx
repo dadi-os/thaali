@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
 import { hath, isMeshOnline } from "../../shared/api";
-import type { AgentRecord } from "../../shared/api/types";
+import type { AgentRecord } from "../../types/hath";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { MarkdownBody } from "../../shared/components/Markdown";
 import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";

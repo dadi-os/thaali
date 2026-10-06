@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } fro
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, yaad } from "../../shared/api";
-import type { NodeKind } from "../../shared/api/types";
+import type { NodeKind } from "../../types/yaad";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useHoverDetails } from "../../shared/hooks/useHoverDetails";
 import { useThemeTokens } from "../../shared/hooks/useThemeTokens";

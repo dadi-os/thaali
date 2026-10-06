@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { isMeshOnline, yaad } from "../../shared/api";
-import type { IngestResponse } from "../../shared/api/types";
+import type { IngestResponse } from "../../types/yaad";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { Glider } from "../../shared/components/Glider";
 import { IconPlus } from "../../shared/components/IconButton";

@@ -6,7 +6,7 @@ import type {
   ChaaviItemKind,
   ChaaviLoginCredential,
   ChaaviUpdateLogin,
-} from "../types";
+} from "../../../types/chaavi";
 
 /** Optional filters for Chaavi GET /v1/items. */
 export type ChaaviItemsQuery = {

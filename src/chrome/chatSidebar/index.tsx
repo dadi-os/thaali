@@ -11,7 +11,7 @@ import {
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { hath, nas } from "../../shared/api";
-import type { AgentRecord } from "../../shared/api/types";
+import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
 import {
   pickLiveBrowser,
@@ -413,8 +413,10 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
           attachments && attachments.length > 0 ? attachments : undefined,
       });
       resolveOptimistic(toId, tempSeq, res.seq, res.content);
-    } catch {
-      markFailed(toId, tempSeq);
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      markFailed(toId, tempSeq, message);
+      logLine("error", message, "thread_send_failed");
     }
   };
 

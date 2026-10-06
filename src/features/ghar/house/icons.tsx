@@ -3,7 +3,7 @@
  * 18×18, 1.5px stroke, currentColor — the same line as the home icon.
  */
 
-import type { GharCapabilityName } from "../../../shared/api/types";
+import type { GharCapabilityName } from "../../../types/ghar";
 
 /** Which drawing a device gets. Lights share the lamp. */
 export type DeviceGlyphKind = "lamp" | "lock" | "sensor" | "thermostat" | "speaker";

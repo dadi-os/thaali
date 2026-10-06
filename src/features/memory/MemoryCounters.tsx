@@ -2,7 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { isMeshOnline, yaad } from "../../shared/api";
-import type { NodeKind } from "../../shared/api/types";
+import type { NodeKind } from "../../types/yaad";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";

@@ -12,7 +12,7 @@ import type {
   QueryResponse,
   RecallRequest,
   RecallResponse,
-} from "../types";
+} from "../../../types/yaad";
 
 /**
  * Yaad HTTP client — memory query, recall, node history, ingest, and hand edits.

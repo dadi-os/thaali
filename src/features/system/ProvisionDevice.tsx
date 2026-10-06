@@ -2,7 +2,7 @@ import { useMutation } from "@tanstack/react-query";
 import { useEffect, useState, type FormEvent } from "react";
 import { isMeshOnline, nas } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { renderBrandedQr } from "../../shared/lib/qr/brandedQr";
+import { renderBrandedQr } from "../../shared/lib/content/brandedQr";
 
 /**
  * Mint a single-use setup code for a new device: name → Nas /provision →

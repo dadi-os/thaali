@@ -1,4 +1,4 @@
-import type { AgentRecord, Lane } from "../shared/api/types";
+import type { AgentRecord, Lane } from "../types/hath";
 
 export type RunningMap = Record<string, { reasoning: boolean; conversation: boolean }>;
 

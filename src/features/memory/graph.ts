@@ -7,7 +7,7 @@ import {
   forceY,
   forceZ,
 } from "d3-force-3d";
-import type { EdgeRecord, NodeKind, NodeRecord } from "../../shared/api/types";
+import type { EdgeRecord, NodeKind, NodeRecord } from "../../types/yaad";
 import type {
   ForceGraphSimulation,
   ForceLinkDatum,

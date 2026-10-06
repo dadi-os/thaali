@@ -17,7 +17,7 @@ import type {
   ChaaviCreateLogin,
   ChaaviItem,
   ChaaviUpdateLogin,
-} from "../../shared/api/types";
+} from "../../types/chaavi";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { copyText } from "./copy";

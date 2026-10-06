@@ -12,7 +12,7 @@ import type {
   PostMessageResponse,
   ScheduledMessage,
   ThreadSummary,
-} from "../types";
+} from "../../../types/hath";
 
 /**
  * Hath HTTP client — agents, messages, schedules, and logs over the given transport.

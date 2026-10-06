@@ -4,7 +4,7 @@
  */
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import type { GharDevice } from "../../../shared/api/types";
+import type { GharDevice } from "../../../types/ghar";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
 
 export type DevicePopoverProps = {

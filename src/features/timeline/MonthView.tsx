@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import type { NodeRecord } from "../../shared/api/types";
+import type { NodeRecord } from "../../types/yaad";
 import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, isSameDay, isSameMonth } from "./dates";

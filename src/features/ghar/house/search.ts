@@ -1,4 +1,4 @@
-import type { GharDevice } from "../../../shared/api/types";
+import type { GharDevice } from "../../../types/ghar";
 import { roomTitle } from "../commission";
 
 /** A room panel on the Ghar page. */

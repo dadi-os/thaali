@@ -5,7 +5,7 @@ import {
   forceRadial,
   forceSimulation,
 } from "d3-force-3d";
-import type { AgentRecord } from "../../shared/api/types";
+import type { AgentRecord } from "../../types/hath";
 import { LANE_LABEL } from "../../shared/lib/ux/lanes";
 import type {
   ForceGraphSimulation,

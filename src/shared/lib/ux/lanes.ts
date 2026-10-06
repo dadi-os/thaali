@@ -1,4 +1,4 @@
-import type { Lane } from "../../api/types";
+import type { Lane } from "../../../types/hath";
 
 /**
  * What the UI calls each lane, everywhere a lane is named: the conversation lane is the

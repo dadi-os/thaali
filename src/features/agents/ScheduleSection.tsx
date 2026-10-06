@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { hath } from "../../shared/api";
-import type { PatchScheduleRequest, ScheduledMessage } from "../../shared/api/types";
+import type { PatchScheduleRequest, ScheduledMessage } from "../../types/hath";
 import { Glider } from "../../shared/components/Glider";
 import { REVEAL } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";

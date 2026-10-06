@@ -1,6 +1,6 @@
 /** Resolve the in-flight tool from durable agent logs for the chat tool preview. */
 
-import type { LogRecord } from "../../shared/api/types";
+import type { LogRecord } from "../../types/hath";
 import { LANE_LABEL } from "../../shared/lib/ux/lanes";
 
 /** Tool turn-exit name — not shown as a live tool preview. */

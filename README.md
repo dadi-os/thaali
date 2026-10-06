@@ -23,7 +23,7 @@ thaali/
       memory/              graph forces + connections, 3D network, node popover
     chrome/                AppShell, Header, chatSidebar/, shell hooks (tray, updater, device commands, provisioning)
       chatSidebar/         portable unit (index = construction site)
-        list/ thread/ composer/ message/
+        thread/ message/ list.tsx composer.tsx
         format.ts lanes.ts constants.ts ActivityPulse.tsx
     shared/
       api/                 transport + domain clients (hath/, yaad/, nas/)
@@ -32,15 +32,16 @@ thaali/
         browser-transport.ts  fetch + EventSource (web / nas compose)
         mesh-transport.ts     MeshTransport / the dadi network (Tauri; dynamic import)
         runtime.ts         isTauriRuntime / transport kind
-        sse.ts / credentials.ts / types.ts
+        sse.ts / credentials.ts
         hath/ yaad/ nas/ chaavi/ ghar/ portable client modules
       lib/
         platform/          logging helpers
-        content/           attachments
+        content/           attachments, branded QR
         ux/                motion (incl. REVEAL preset), poll intervals, time formatting
       components/          IconButton, Popover/ (index + hover zone), ForceGraph/, Tooltip, WidgetFrame
       hooks/               useConnection, useEvents, useHoverDetails, useThemeTokens
     store/                 chat, connection, drafts, running, desktopShell
+    types/                 API contracts per service (hath, yaad, chaavi, ghar) + d3-force-3d.d.ts
     styles/
   src-tauri/               Rust shell + logutil
   net/                     Tailscale CLI build for the desktop mesh

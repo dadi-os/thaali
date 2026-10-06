@@ -7,7 +7,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen, type UnlistenFn } from "@tauri-apps/api/event";
 import type { GharClient } from "../../shared/api/ghar";
-import type { GharRadioCommand } from "../../shared/api/types";
+import type { GharRadioCommand } from "../../types/ghar";
 
 /** Lifecycle of one attached radio session. */
 export type DeviceRadioHandle = {

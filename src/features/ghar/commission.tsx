@@ -10,7 +10,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
 import { isTauriRuntime } from "../../shared/api/runtime";
-import type { GharCommissionJob } from "../../shared/api/types";
+import type { GharCommissionJob } from "../../types/ghar";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { IconPlus } from "../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -50,7 +50,7 @@ function jobLine(job: GharCommissionJob): string {
     case "succeeded":
       return "Landed in Unplaced";
     case "failed":
-      return job.error ?? "Commissioning failed";
+      return job.error;
   }
 }
 

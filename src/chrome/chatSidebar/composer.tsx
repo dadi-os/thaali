@@ -15,11 +15,11 @@ import {
   IconDismiss,
   IconPlus,
   IconSend,
-} from "../../../shared/components/IconButton";
-import type { DraftAttachment } from "../../../shared/lib/content/attachments";
-import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
-import { TEXTAREA_MAX_PX } from "../constants";
-import { LaneChip, type LaneChipProps } from "../LaneChip";
+} from "../../shared/components/IconButton";
+import type { DraftAttachment } from "../../shared/lib/content/attachments";
+import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { TEXTAREA_MAX_PX } from "./constants";
+import { LaneChip, type LaneChipProps } from "./LaneChip";
 
 export interface FloatingComposerProps {
   connected: boolean;

@@ -1,4 +1,4 @@
-import type { MessageAttachment } from "../../api/types";
+import type { MessageAttachment } from "../../../types/hath";
 
 /** Match Dwar/Hath image.describe max. */
 export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
