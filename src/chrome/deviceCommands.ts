@@ -116,7 +116,7 @@ async function getNetwork(): Promise<Record<string, unknown>> {
 }
 
 function mapInvokeError(err: unknown): DeviceError {
-  const message = errMessage(err);
+  const message = err instanceof Error ? err.message : String(err);
   const match = /^(capability_unsupported|permission_denied|invalid_request|internal_error):\s*(.*)$/.exec(
     message,
   );
@@ -124,16 +124,6 @@ function mapInvokeError(err: unknown): DeviceError {
     return new DeviceError(match[1], match[2] || message);
   }
   return new DeviceError("internal_error", message);
-}
-
-function errMessage(err: unknown): string {
-  if (err instanceof Error) {
-    return err.message;
-  }
-  if (typeof err === "string") {
-    return err;
-  }
-  return "device command failed";
 }
 
 function readConnection(): { type: string | null; downlink: number | null } {
