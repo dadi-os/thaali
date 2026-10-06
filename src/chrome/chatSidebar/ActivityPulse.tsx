@@ -1,9 +1,9 @@
-/** Three-dot pulse for list loading and an agent thinking toward a reply. */
+/** Three-dot pulse for loading states in the chat sidebar. */
 
 import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 
-/** Compact bounce dots used while loading, or in a thread while its agent is thinking (never while it only works). */
+/** Compact bounce dots shown while the conversation list or an open agent loads. */
 export function ActivityPulse() {
   return (
     <motion.div

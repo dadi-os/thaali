@@ -6,8 +6,7 @@ import type { RunningMap } from "../../store/running";
 import { ActivityPulse } from "./ActivityPulse";
 import { Avatar } from "./Avatar";
 import { groupConversations } from "./format";
-import { LaneMark } from "./LaneChip";
-import { laneChipLabel } from "./toolStatus";
+import { LaneMark, laneChipLabel } from "./LaneChip";
 
 export interface ConversationListProps {
   /** Thread-agent conversations (excludes Dadi). */

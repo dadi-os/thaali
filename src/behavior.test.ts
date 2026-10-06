@@ -10,7 +10,7 @@ import {
   partitionByQueued,
   trackIncoming,
 } from "./chrome/chatSidebar/lanes";
-import { findActiveTool, laneChipLabel } from "./chrome/chatSidebar/toolStatus";
+import { laneChipLabel } from "./chrome/chatSidebar/LaneChip";
 import { formatToolSignature } from "./shared/lib/content/toolSignature";
 import {
   addOptimistic,
@@ -143,13 +143,7 @@ describe("chatSidebar lanes", () => {
   });
 });
 
-describe("toolStatus", () => {
-  const baseLog = {
-    agent_id: "a1",
-    lane: "conversation" as const,
-    created_at: "2026-01-01T00:00:00Z",
-  };
-
+describe("lane chip and tool signature", () => {
   it("maps lane occupancy to chip labels", () => {
     expect(laneChipLabel(false, false)).toBeNull();
     expect(laneChipLabel(true, false)).toBe("thinking");
@@ -162,67 +156,6 @@ describe("toolStatus", () => {
       formatToolSignature("browser_navigate", { url: "https://x.test/path" }),
     ).toBe('browser_navigate(url: "https://x.test/path")');
     expect(formatToolSignature("noop", {})).toBe("noop()");
-  });
-
-  it("picks the first unfinished tool_use from responses", () => {
-    const logs: LogRecord[] = [
-      {
-        ...baseLog,
-        id: "r1",
-        event: "tool_result",
-        payload: { tool_use_id: "t1", content: "ok", is_error: false },
-        created_at: "2026-01-01T00:00:02Z",
-      },
-      {
-        ...baseLog,
-        id: "th1",
-        event: "response",
-        payload: {
-          content: [
-            {
-              type: "tool_use",
-              id: "t1",
-              name: "read_file",
-              input: { path: "a.ts" },
-            },
-            {
-              type: "tool_use",
-              id: "t2",
-              name: "write_file",
-              input: { path: "b.ts" },
-            },
-          ],
-        },
-        created_at: "2026-01-01T00:00:01Z",
-      },
-    ];
-    expect(findActiveTool(logs)).toEqual({
-      id: "t2",
-      name: "write_file",
-      input: { path: "b.ts" },
-    });
-  });
-
-  it("skips yield and returns null when every tool has a result", () => {
-    const logs: LogRecord[] = [
-      {
-        ...baseLog,
-        id: "r1",
-        event: "tool_result",
-        payload: { tool_use_id: "t1", content: "{}", is_error: false },
-        created_at: "2026-01-01T00:00:02Z",
-      },
-      {
-        ...baseLog,
-        id: "th1",
-        event: "response",
-        payload: {
-          content: [{ type: "tool_use", id: "t1", name: "yield", input: {} }],
-        },
-        created_at: "2026-01-01T00:00:01Z",
-      },
-    ];
-    expect(findActiveTool(logs)).toBeNull();
   });
 });
 

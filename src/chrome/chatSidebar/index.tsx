@@ -76,7 +76,6 @@ import { ConversationList } from "./list";
 import { NewMessageBubble } from "./NewMessageBubble";
 import { PaneHeader } from "./PaneHeader";
 import { ThreadView } from "./thread";
-import { useActiveTool } from "./useActiveTool";
 
 /** What the open thread can show of its agent, from GET /agents, the one source of its name and record. */
 type OpenAgent =
@@ -597,8 +596,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     threadMessages,
   );
 
-  const laneBusy = conversationBusy || reasoningBusy;
-  const activeTool = useActiveTool(openAgentId, viewingThread && laneBusy);
 
   const openAgentView = resolveOpenAgent(openAgentId, agentsQuery);
   const openAgentRecord = openAgentView?.kind === "ready" ? openAgentView.agent : undefined;
@@ -738,7 +735,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                       fadeTop={showHostPin}
                       settledMessages={settledMessages}
                       queuedMessages={queuedMessages}
-                      thinking={conversationBusy}
                       onRetry={(msg) => {
                         void sendThread(
                           openAgentId,
@@ -786,12 +782,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
               canSubmit={canSubmit}
               thinkingMode={conversationBusy}
               workingMode={reasoningBusy && !conversationBusy}
-              lanes={{
-                conversation: conversationBusy,
-                reasoning: reasoningBusy,
-                tool: activeTool.signature,
-                toolError: activeTool.error,
-              }}
+              lanes={{ conversation: conversationBusy, reasoning: reasoningBusy }}
               textareaRef={textareaRef}
               fileInputRef={fileInputRef}
               cameraInputRef={cameraInputRef}
