@@ -1,37 +1,36 @@
-import { memo, useEffect } from "react";
+import { memo } from "react";
 import { motion } from "motion/react";
 import {
   IconDismiss,
   IconRetry,
 } from "../../../shared/components/IconButton";
+import { CopyButton } from "../../../shared/components/CopyButton";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
+import { formatAbsolute } from "../../../shared/lib/ux/time";
 import type { ChatMessage } from "../../../store/chat";
 import { MarkdownBody } from "../../../shared/components/Markdown";
-import { useRevealText } from "./useRevealText";
+import { formatMessageTime } from "../format";
 
 export interface MessageBubbleProps {
   /** Message to render (user or agent). */
   message: ChatMessage;
   /**
    * Row appeared after this thread view opened.
-   * Enter motion + typewriter only apply here — reopen is static.
+   * Only these enter with motion (an agent reply wipes in); reopening a thread is static.
    */
   live?: boolean;
   /** Retry a failed user send. */
   onRetry?: () => void;
   /** Remove a failed or queued user message. */
   onCancel?: () => void;
-  /** Fired as agent typewriter content grows (for stick-to-bottom). */
-  onRevealTick?: () => void;
 }
 
-/** Single chat row — quiet user pill or agent markdown with typewriter reveal. */
+/** Single chat row — quiet user pill or agent markdown, each with its time and a copy button. */
 export function MessageBubble({
   message,
   live = false,
   onRetry,
   onCancel,
-  onRevealTick,
 }: MessageBubbleProps) {
   if (message.from_user) {
     return (
@@ -47,13 +46,44 @@ export function MessageBubble({
     <AgentBubble
       message={message}
       live={live}
-      onRevealTick={onRevealTick}
     />
   );
 }
 
+type MessageMetaProps = {
+  /** The message the line describes. */
+  message: ChatMessage;
+  /** Copy button label, e.g. "Copy message" or "Copy response". */
+  copyLabel: string;
+  /** Side of the thread the line sits on. */
+  align: "start" | "end";
+};
+
+/**
+ * Quiet line under a bubble: when it was sent (the full date on hover) and a copy button
+ * that shows while the pointer is on the message.
+ */
+function MessageMeta({ message, copyLabel, align }: MessageMetaProps) {
+  return (
+    <div
+      className={`flex items-center gap-0.5 px-1 text-[11px] text-ink-ghost ${
+        align === "end" ? "flex-row-reverse" : ""
+      }`}
+    >
+      <time dateTime={message.at} title={formatAbsolute(message.at)}>
+        {formatMessageTime(message.at)}
+      </time>
+      <CopyButton
+        text={message.content}
+        label={copyLabel}
+        className="opacity-0 transition-opacity duration-fast ease-dadi group-hover/msg:opacity-100 focus-within:opacity-100"
+      />
+    </div>
+  );
+}
+
 const userRowClass = (queued: boolean, failed: boolean) =>
-  `flex justify-end gap-1.5 ${queued || failed ? "items-center" : "items-end"}`;
+  `group/msg flex justify-end gap-1.5 ${queued || failed ? "items-center" : "items-end"}`;
 
 /** Right-aligned user pill with optional retry / cancel for failed or queued sends. */
 function UserBubble({
@@ -108,6 +138,7 @@ function UserBubble({
         {message.sendError ? (
           <p className="px-1 text-[12px] leading-snug text-error">{message.sendError}</p>
         ) : null}
+        <MessageMeta message={message} copyLabel="Copy message" align="end" />
       </div>
     </>
   );
@@ -132,55 +163,41 @@ function UserBubble({
   );
 }
 
+/** Entrance for a reply that arrives while its thread is open: finished markdown that wipes in top to bottom as it fades, rises and unblurs. */
+const ARRIVE = {
+  initial: { opacity: 0, y: 8, filter: "blur(5px)", clipPath: "inset(0% 0% 100% 0%)" },
+  animate: { opacity: 1, y: 0, filter: "blur(0px)", clipPath: "inset(0% 0% 0% 0%)" },
+  transition: { duration: 0.62, ease: EASE },
+} as const;
+
 /**
- * Left-aligned agent row. While revealing, paint plain text so we never
- * reparse broken markdown each frame; settle into memoized MarkdownBody.
+ * Left-aligned agent row: the reply as rendered markdown from the first frame, with its
+ * time and a copy button under it. A reply that arrives live enters with ARRIVE instead
+ * of typing out, so markdown never snaps in after plain text.
  */
-function AgentBubble({
-  message,
-  live,
-  onRevealTick,
-}: {
-  message: ChatMessage;
-  live: boolean;
-  onRevealTick?: () => void;
-}) {
-  const { visible, done } = useRevealText(message.seq, message.content, live);
-
-  useEffect(() => {
-    if (!done) {
-      onRevealTick?.();
-    }
-  }, [visible, done, onRevealTick]);
-
-  const inner = done ? (
-    <SettledMarkdown content={message.content} />
-  ) : (
-    <p className="chat-md m-0 whitespace-pre-wrap">
-      {visible}
-      <span
-        className="ml-0.5 inline-block h-[1.05em] w-[2px] translate-y-[2px] animate-pulse bg-sage/65 align-middle"
-        aria-hidden
-      />
-    </p>
+function AgentBubble({ message, live }: { message: ChatMessage; live: boolean }) {
+  const className =
+    "group/msg flex max-w-[min(96%,40rem)] flex-col gap-1 text-[14.5px] leading-[1.65] text-ink [overflow-anchor:none]";
+  const body = (
+    <>
+      <SettledMarkdown content={message.content} />
+      <MessageMeta message={message} copyLabel="Copy response" align="start" />
+    </>
   );
 
-  const className =
-    "max-w-[min(96%,40rem)] text-[14.5px] leading-[1.65] text-ink [overflow-anchor:none]";
-
   if (!live) {
-    return <div className={className}>{inner}</div>;
+    return <div className={className}>{body}</div>;
   }
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
+      initial={ARRIVE.initial}
+      animate={ARRIVE.animate}
       exit={{ opacity: 0 }}
-      transition={{ duration: SLOW_S, ease: EASE }}
+      transition={ARRIVE.transition}
       className={className}
     >
-      {inner}
+      {body}
     </motion.div>
   );
 }

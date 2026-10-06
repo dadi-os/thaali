@@ -266,6 +266,30 @@ export function seedConversations(threads: ThreadSummary[]): void {
   emit();
 }
 
+/**
+ * Merge a fresh GET /threads into the list. Hath decides which conversations exist; for
+ * each, whichever of its summary or ours is newer wins, so a refresh catches previews a
+ * dropped SSE event missed without undoing one SSE just delivered.
+ */
+export function mergeConversations(threads: ThreadSummary[]): void {
+  const ours = new Map(state.conversations.map((c) => [c.agent_id, c]));
+  const next = threads.map((t) => {
+    const mine = ours.get(t.agent_id);
+    return mine && mine.last_at > t.last_at ? mine : { ...t };
+  });
+  const changed =
+    next.length !== state.conversations.length ||
+    next.some((c) => {
+      const mine = ours.get(c.agent_id);
+      return !mine || mine.last_at !== c.last_at || mine.last_message !== c.last_message || mine.agent_name !== c.agent_name;
+    });
+  if (!changed) {
+    return;
+  }
+  state = { ...state, conversations: sortConversations(next) };
+  emit();
+}
+
 /** Insert or refresh a conversation summary if `last_at` is newer than what we have. */
 export function upsertConversation(conv: Conversation): void {
   const existing = state.conversations.find((c) => c.agent_id === conv.agent_id);

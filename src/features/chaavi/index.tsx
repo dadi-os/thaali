@@ -20,7 +20,7 @@ import type {
 } from "../../types/chaavi";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
-import { copyText } from "./copy";
+import { copyText } from "../../shared/lib/platform/clipboard";
 import { LoginEditor } from "./editor";
 
 const ITEMS_KEY = ["chaavi", "items"] as const;

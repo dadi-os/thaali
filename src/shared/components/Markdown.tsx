@@ -1,7 +1,9 @@
 import type { ReactNode } from "react";
+import type { ElementContent } from "hast";
 import type { Components } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { CopyButton } from "./CopyButton";
 
 export interface MarkdownBodyProps {
   /** Markdown source to render. */
@@ -11,7 +13,8 @@ export interface MarkdownBodyProps {
 }
 
 /**
- * Markdown body — GFM prose with Cursor-style link chips (favicon + domain).
+ * Markdown body — GFM prose with Cursor-style link chips (favicon + domain), and a copy
+ * button on every code block.
  */
 export function MarkdownBody({ content, compact = false }: MarkdownBodyProps) {
   return (
@@ -30,7 +33,26 @@ const components: Components = {
     }
     return <LinkChip href={href}>{children}</LinkChip>;
   },
+  pre({ node, children }) {
+    return (
+      <div className="chat-md__code group/code relative">
+        <pre>{children}</pre>
+        <CopyButton
+          text={hastText(node!.children).replace(/\n$/, "")}
+          label="Copy code"
+          className="absolute top-1.5 right-1.5 opacity-0 transition-opacity duration-fast ease-dadi group-hover/code:opacity-100 focus-within:opacity-100"
+        />
+      </div>
+    );
+  },
 };
+
+/** Plain text of parsed markdown nodes and everything under them, e.g. a code block's source. */
+function hastText(nodes: ElementContent[]): string {
+  return nodes
+    .map((n) => (n.type === "text" ? n.value : n.type === "element" ? hastText(n.children) : ""))
+    .join("");
+}
 
 /** Longest source an inline preview parses; anything past it could never fit on one line. */
 const INLINE_MAX = 1200;

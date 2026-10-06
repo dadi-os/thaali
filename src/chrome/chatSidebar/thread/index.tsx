@@ -18,8 +18,6 @@ export interface ThreadViewProps {
   queuedMessages: ChatMessage[];
   onRetry: (msg: ChatMessage) => void;
   onCancel: (seq: number) => void;
-  /** Keep the thread pinned while agent typewriter content grows. */
-  onRevealTick?: () => void;
   /** Display name of the open agent, for the empty state. */
   agentName: string;
   /** Open agent's record once loaded; adds spawn time to the empty state. */
@@ -44,7 +42,6 @@ export function ThreadView({
   queuedMessages,
   onRetry,
   onCancel,
-  onRevealTick,
   agentName,
   agent,
   load,
@@ -110,7 +107,6 @@ export function ThreadView({
                 onCancel={
                   msg.failed ? () => onCancel(msg.seq) : undefined
                 }
-                onRevealTick={msg.from_user ? undefined : onRevealTick}
               />
             ))}
           </AnimatePresence>

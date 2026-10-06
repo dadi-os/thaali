@@ -71,3 +71,66 @@ export function formatRelative(
   }
   return rtf.format(Math.round(diffHour / 24), "day");
 }
+
+/** Whole calendar days from `at`'s local day to `now`'s (0 today, 1 yesterday). */
+function daysAgo(at: Date, now: Date): number {
+  const start = (d: Date) => new Date(d.getFullYear(), d.getMonth(), d.getDate()).getTime();
+  return Math.round((start(now) - start(at)) / 86_400_000);
+}
+
+/**
+ * When a message was sent, for the line under its bubble: "3:42 PM" today,
+ * "Yesterday 3:42 PM", "Oct 5, 3:42 PM" this year, else "Oct 5, 2025, 3:42 PM".
+ */
+export function formatMessageTime(
+  /** ISO-8601 timestamp. */
+  iso: string,
+  /** Reference instant in ms since epoch. */
+  now = Date.now(),
+): string {
+  const at = new Date(iso);
+  const reference = new Date(now);
+  const time = at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  const days = daysAgo(at, reference);
+  if (days === 0) {
+    return time;
+  }
+  if (days === 1) {
+    return `Yesterday ${time}`;
+  }
+  const sameYear = at.getFullYear() === reference.getFullYear();
+  return `${at.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(sameYear ? {} : { year: "numeric" }),
+  })}, ${time}`;
+}
+
+/**
+ * A conversation's last activity, for the right edge of its list row: the time today,
+ * "Yesterday", the weekday within a week, else "Oct 5" (with the year when it differs).
+ */
+export function formatListTime(
+  /** ISO-8601 timestamp. */
+  iso: string,
+  /** Reference instant in ms since epoch. */
+  now = Date.now(),
+): string {
+  const at = new Date(iso);
+  const reference = new Date(now);
+  const days = daysAgo(at, reference);
+  if (days === 0) {
+    return at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  }
+  if (days === 1) {
+    return "Yesterday";
+  }
+  if (days < 7) {
+    return at.toLocaleDateString("en-US", { weekday: "short" });
+  }
+  return at.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    ...(at.getFullYear() === reference.getFullYear() ? {} : { year: "numeric" }),
+  });
+}

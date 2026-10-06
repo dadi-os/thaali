@@ -3,6 +3,8 @@ import { focusSet } from "./shared/components/ForceGraph/focus";
 import { inHoverZone } from "./shared/components/Popover/zone";
 import {
   conversationBucket,
+  formatListTime,
+  formatMessageTime,
   formatRelative,
   groupConversations,
 } from "./chrome/chatSidebar/format";
@@ -22,6 +24,7 @@ import {
   isUserThreadMessage,
   holdAgentMessage,
   dismissNudge,
+  mergeConversations,
   messageKey,
   openAgent,
   openList,
@@ -156,6 +159,52 @@ describe("lane chip and tool signature", () => {
       formatToolSignature("browser_navigate", { url: "https://x.test/path" }),
     ).toBe('browser_navigate(url: "https://x.test/path")');
     expect(formatToolSignature("noop", {})).toBe("noop()");
+  });
+});
+
+describe("chat timestamps", () => {
+  const now = new Date(2026, 9, 6, 15, 0, 0).getTime();
+  const at = (y: number, m: number, d: number, h: number, min: number) =>
+    new Date(y, m, d, h, min).toISOString();
+
+  it("dates a message by how long ago it was sent", () => {
+    expect(formatMessageTime(at(2026, 9, 6, 9, 5), now)).toBe("9:05 AM");
+    expect(formatMessageTime(at(2026, 9, 5, 21, 30), now)).toBe("Yesterday 9:30 PM");
+    expect(formatMessageTime(at(2026, 8, 2, 13, 0), now)).toBe("Sep 2, 1:00 PM");
+    expect(formatMessageTime(at(2025, 11, 31, 8, 0), now)).toBe("Dec 31, 2025, 8:00 AM");
+  });
+
+  it("dates a list row by its last activity", () => {
+    expect(formatListTime(at(2026, 9, 6, 14, 2), now)).toBe("2:02 PM");
+    expect(formatListTime(at(2026, 9, 5, 8, 0), now)).toBe("Yesterday");
+    expect(formatListTime(at(2026, 9, 2, 8, 0), now)).toBe("Fri");
+    expect(formatListTime(at(2026, 8, 20, 8, 0), now)).toBe("Sep 20");
+    expect(formatListTime(at(2025, 8, 20, 8, 0), now)).toBe("Sep 20, 2025");
+  });
+});
+
+describe("conversation list refresh", () => {
+  const row = (agent_id: string, last_at: string, last_message: string) => ({
+    agent_id,
+    agent_name: agent_id.toUpperCase(),
+    last_message,
+    last_at,
+    from_user: false,
+  });
+
+  it("takes newer previews from Hath, keeps newer local ones, and follows Hath's membership", () => {
+    resetChatStore();
+    seedConversations([
+      row("a", "2026-10-06T10:00:00.000Z", "old a"),
+      row("b", "2026-10-06T12:00:00.000Z", "sse b"),
+      row("gone", "2026-10-06T09:00:00.000Z", "retired"),
+    ]);
+    mergeConversations([
+      row("a", "2026-10-06T11:00:00.000Z", "missed a"),
+      row("b", "2026-10-06T11:30:00.000Z", "stale b"),
+    ]);
+    const byId = Object.fromEntries(getChatState().conversations.map((c) => [c.agent_id, c.last_message]));
+    expect(byId).toEqual({ a: "missed a", b: "sse b" });
   });
 });
 

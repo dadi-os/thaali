@@ -393,9 +393,6 @@
 }
 
 .lane-chip {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--sage-line) 48%, transparent);
   background: color-mix(in srgb, var(--bone) 72%, transparent);
   -webkit-backdrop-filter: blur(16px);
@@ -403,42 +400,49 @@
   box-shadow: 0 1px 2px rgb(92 107 82 / 0.06);
 }
 
-/* Thinking: a band of light sweeps across the glass, left to right like the dots. */
-.lane-chip--thinking::after,
-.lane-chip--both::after {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  z-index: -1;
-  width: 45%;
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--sage) 22%, transparent),
-    transparent
-  );
-  animation: lane-sweep 1.5s var(--ease) infinite;
-  pointer-events: none;
-}
-
-/* Working: a ring of light runs round the pill's edge, like the dots' orbit. */
+/*
+ * Working sheen: one angle turns and drives both a beam of light sweeping through the
+ * glass and a ring of light running round its edge, so the pill (or a busy list row)
+ * reads as working at the level of the surface itself.
+ */
 @property --lane-turn {
   syntax: "<angle>";
-  inherits: false;
+  inherits: true;
   initial-value: 0deg;
 }
 
-.lane-chip--working::before,
-.lane-chip--both::before {
+.lane-sheen {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  animation: lane-turn 2.4s linear infinite;
+}
+
+.lane-sheen::before,
+.lane-sheen::after {
   content: "";
   position: absolute;
   inset: 0;
   border-radius: inherit;
+  pointer-events: none;
+}
+
+.lane-sheen::before {
+  z-index: -1;
+  background: conic-gradient(
+    from var(--lane-turn),
+    transparent 0 62%,
+    color-mix(in srgb, var(--sage) 20%, transparent) 84%,
+    transparent 100%
+  );
+}
+
+.lane-sheen::after {
   padding: 1px;
   background: conic-gradient(
     from var(--lane-turn),
     transparent 0 58%,
-    color-mix(in srgb, var(--sage) 90%, transparent) 82%,
+    color-mix(in srgb, var(--sage) 90%, transparent) 84%,
     transparent 100%
   );
   -webkit-mask:
@@ -446,25 +450,6 @@
     linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
-  animation: lane-turn 1.1s linear infinite;
-  pointer-events: none;
-}
-
-.lane-chip--both::before {
-  animation-duration: 2.2s;
-}
-
-.lane-chip--both::after {
-  animation-duration: 2.2s;
-}
-
-@keyframes lane-sweep {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(240%);
-  }
 }
 
 @keyframes lane-turn {
@@ -474,8 +459,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lane-chip::before,
-  .lane-chip::after {
+  .lane-sheen {
     animation: none;
   }
 }
@@ -544,11 +528,17 @@
   backdrop-filter: blur(22px) saturate(1.1);
 }
 
-.host-modal__sheet {
-  border-radius: 20px;
+.host-modal__media {
+  box-shadow:
+    0 2px 6px rgb(27 30 25 / 0.12),
+    0 40px 90px -24px rgb(27 30 25 / 0.5);
+}
+
+.host-modal__close {
   border: 1px solid var(--glass-border);
-  background: color-mix(in srgb, var(--glass-sheet) 86%, transparent);
-  box-shadow: var(--shadow-deep);
+  background: color-mix(in srgb, var(--glass-sheet) 70%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
 }
 
 /* Thread under a host pin: messages dissolve as they scroll up beneath it. */

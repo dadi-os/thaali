@@ -196,6 +196,36 @@ export function IconDismiss() {
   );
 }
 
+/** Two overlapping sheets: copy to the clipboard. */
+export function IconCopy() {
+  return (
+    <svg viewBox="0 0 15 15" fill="none" aria-hidden className="size-[15px]">
+      <rect x="5" y="5" width="7.5" height="7.5" rx="1.6" stroke="currentColor" strokeWidth="1.4" />
+      <path
+        d="M10 3.2V3a1.5 1.5 0 0 0-1.5-1.5H3.6A1.6 1.6 0 0 0 2 3.1v4.9A1.5 1.5 0 0 0 3.5 9.5h.3"
+        stroke="currentColor"
+        strokeWidth="1.4"
+        strokeLinecap="round"
+      />
+    </svg>
+  );
+}
+
+/** Check mark: an action just succeeded. */
+export function IconCheck() {
+  return (
+    <svg viewBox="0 0 15 15" fill="none" aria-hidden className="size-[15px]">
+      <path
+        d="M3.5 7.8l2.6 2.6 5.4-5.8"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
 /** Power / leave-mesh glyph (24 viewBox; sized by parent). */
 export function IconPower() {
   return (

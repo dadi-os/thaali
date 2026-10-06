@@ -34,6 +34,7 @@ import {
   listQueuedThread,
   markFailed,
   markPending,
+  mergeConversations,
   openAgent,
   openDadi,
   openList,
@@ -67,6 +68,7 @@ import {
   HISTORY_LOG_LIMIT,
   NEAR_BOTTOM_PX,
   TEXTAREA_MAX_PX,
+  LIST_REFRESH_MS,
   THREAD_REFRESH_MS,
 } from "./constants";
 import { ActivityPulse } from "./ActivityPulse";
@@ -338,6 +340,34 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
       }
     };
   }, [connected, openAgentId, chat.historyStatus]);
+
+  /**
+   * Keep the conversation list's previews current. The list only loads on connect and
+   * otherwise follows SSE, which has no replay, so a dropped event left a stale preview
+   * until reconnect. A failed refresh is logged and the next one tries again.
+   */
+  useEffect(() => {
+    if (!connected) {
+      return;
+    }
+    const refresh = () => {
+      if (document.visibilityState !== "visible") {
+        return;
+      }
+      hath
+        .listThreads()
+        .then(({ threads }) => mergeConversations(threads))
+        .catch((err: unknown) => {
+          logLine("warn", err instanceof Error ? err.message : String(err), "threads_refresh_failed");
+        });
+    };
+    const timer = setInterval(refresh, LIST_REFRESH_MS);
+    window.addEventListener("focus", refresh);
+    return () => {
+      clearInterval(timer);
+      window.removeEventListener("focus", refresh);
+    };
+  }, [connected]);
 
   const onScroll = () => {
     const el = scrollRef.current;
@@ -745,11 +775,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                         );
                       }}
                       onCancel={cancelQueued}
-                      onRevealTick={() => {
-                        if (stickToBottomRef.current) {
-                          scrollToBottom("auto");
-                        }
-                      }}
                       agentName={openAgentRecord.name}
                       agent={openAgentRecord}
                       load={

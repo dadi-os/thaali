@@ -16,7 +16,7 @@ export function partitionByQueued(messages: ChatMessage[]): {
 /**
  * First call (`seed`) records the open-thread snapshot so those rows stay still.
  * Later rows that were not in the snapshot are live — except `historical`
- * hydrations that land after open (agent log fetch), which must not typewriter.
+ * hydrations that land after open (agent log fetch), which must not animate in.
  */
 export function trackIncoming(
   known: Set<string>,

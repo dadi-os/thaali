@@ -1,7 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { IconDismiss } from "../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { Avatar } from "./Avatar";
 
 export type NewMessageBubbleProps = {
   /** Agent whose held message is on offer, with its name and unread count; null hides the bubble. */
@@ -34,9 +33,8 @@ export function NewMessageBubble({ from, onOpen, onDismiss }: NewMessageBubblePr
             <button
               type="button"
               onClick={() => onOpen(from.agentId)}
-              className="flex min-w-0 items-center gap-2 rounded-full py-0.5 pl-0.5 pr-1.5 text-left transition-colors duration-fast ease-dadi hover:bg-(--chat-hover)"
+              className="flex min-w-0 items-center gap-2 rounded-full py-0.5 pl-2 pr-1.5 text-left transition-colors duration-fast ease-dadi hover:bg-(--chat-hover)"
             >
-              <Avatar glyph={from.name.charAt(0).toUpperCase()} live className="size-5 text-[10px]" />
               <span className="min-w-0 truncate text-[12px] text-ink">
                 <span className="font-medium">{from.name}</span>
                 <span className="text-ink-muted">

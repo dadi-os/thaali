@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { NasLogEntry } from "../../shared/api/nas";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { formatRelative } from "../../shared/lib/ux/time";
-import { copyText } from "../chaavi/copy";
+import { copyText } from "../../shared/lib/platform/clipboard";
 
 /** Structured detail pulled out of a log line's raw Loki/pino JSON. */
 export type LogDetail = {
