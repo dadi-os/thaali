@@ -24,3 +24,16 @@ export function formatAbsolute(iso: string): string {
     timeStyle: "short",
   }).format(new Date(iso));
 }
+
+/** A duration at the coarsest unit that still says something (e.g. "12s", "3m", "1h 5m"). */
+export function formatSpan(ms: number): string {
+  const seconds = Math.round(ms / 1000);
+  if (seconds < 60) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
+}

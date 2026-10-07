@@ -1,8 +1,9 @@
 /** Rendering for the steps of a wake in the agent popover's activity feed. */
 
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { MarkdownBody } from "../../../shared/components/Markdown";
 import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
+import { formatSpan } from "../../../shared/lib/ux/time";
 import type { ActivityStep, ActivityTool, MessageStep, Thought, TurnStep } from "./wakes";
 
 /** A tool parameter as display text: strings as-is, anything structured as indented JSON. */
@@ -156,19 +157,36 @@ type ToolRowProps = {
   tool: ActivityTool;
   /** True while the tool's wake is live, so a missing result reads as running rather than lost. */
   live: boolean;
+  /**
+   * When the model call that made this tool call was logged, on the box's clock; a running
+   * tool counts from here, held at zero while this device's clock runs behind.
+   */
+  calledAt: string;
 };
 
 /**
  * A tool call as its wrapping `name(args)` signature with its status, expanding to the
- * full parameters and result.
+ * full parameters and result. While it runs, the row is tinted and counts its time in
+ * flight once a second, so a slow tool reads as working rather than stalled.
  */
-function ToolRow({ tool, live }: ToolRowProps) {
+function ToolRow({ tool, live, calledAt }: ToolRowProps) {
   const [open, setOpen] = useState(false);
   const result = tool.result;
   const signature = formatToolSignature(tool.name, tool.input);
+  const running = result === null && live;
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!running) {
+      return;
+    }
+    setNow(Date.now());
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, [running]);
 
   return (
-    <div>
+    <div className={running ? "-mx-1.5 rounded-[6px] bg-sage-fill px-1.5 py-1" : undefined}>
       <button
         type="button"
         className="flex w-full items-baseline gap-2 text-left"
@@ -180,14 +198,19 @@ function ToolRow({ tool, live }: ToolRowProps) {
             result?.isError ? "text-ink-muted line-through decoration-ink-ghost/60" : "text-ink"
           }`}
         >
+          {running ? (
+            <span
+              aria-hidden
+              className="mr-1.5 inline-block size-1.5 animate-breath rounded-full bg-sage-deep align-middle"
+            />
+          ) : null}
           {tool.name}
           <span className="text-ink-ghost">{signature.slice(tool.name.length)}</span>
         </span>
         {result === null ? (
-          live ? (
-            <span className="inline-flex shrink-0 items-center gap-1 text-[10px] text-sage-deep">
-              <span aria-hidden className="inline-block size-1.5 animate-breath rounded-full bg-sage-deep" />
-              running
+          running ? (
+            <span role="status" className="shrink-0 text-[10px] tabular-nums text-sage-deep">
+              running · {formatSpan(Math.max(0, now - Date.parse(calledAt)))}
             </span>
           ) : (
             <span className="shrink-0 text-[10px] text-ink-ghost">no result</span>
@@ -258,7 +281,7 @@ function TurnBody({ step, live }: { step: TurnStep; live: boolean }) {
             <MarkdownBody content={part.text} compact />
           </Clamp>
         ) : (
-          <ToolRow key={part.key} tool={part.tool} live={live} />
+          <ToolRow key={part.key} tool={part.tool} live={live} calledAt={step.at} />
         ),
       )}
     </div>

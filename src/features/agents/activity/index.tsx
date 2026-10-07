@@ -8,7 +8,7 @@ import { Tooltip } from "../../../shared/components/Tooltip";
 import { LANE_LABEL } from "../../../shared/lib/ux/lanes";
 import { EASE, REVEAL, SLOW_S } from "../../../shared/lib/ux/motion";
 import { countNoun } from "../../../shared/lib/ux/plural";
-import { formatAbsolute, formatRelative } from "../../../shared/lib/ux/time";
+import { formatAbsolute, formatRelative, formatSpan } from "../../../shared/lib/ux/time";
 import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
 import { Step } from "./blocks";
 import { buildActivity, type ActivityStep, type ActivityWake } from "./wakes";
@@ -37,19 +37,6 @@ const LANE_DOT: Record<Lane, string> = {
   conversation: "bg-sage",
   reasoning: "bg-bone ring-1 ring-inset ring-sage-deep/60",
 };
-
-/** How long a wake ran, at the coarsest unit that still says something. */
-function formatSpan(ms: number): string {
-  const seconds = Math.round(ms / 1000);
-  if (seconds < 60) {
-    return `${seconds}s`;
-  }
-  const minutes = Math.round(seconds / 60);
-  if (minutes < 60) {
-    return `${minutes}m`;
-  }
-  return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
-}
 
 /** What set a wake off: who messaged, or which lanes started on their own. */
 function wakeTitle(wake: ActivityWake): string {
