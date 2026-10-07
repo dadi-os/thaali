@@ -24,8 +24,10 @@ function visibleSnapshot(): boolean {
 /**
  * View-only live MJPEG of the virtual display from Nas `GET /browsers/:id/stream`.
  * The stream is open only while the mesh is connected and the webview is visible, so a
- * hidden window or an unmounted frame closes it and Nas stops its ffmpeg. The caption sits
- * under the image until the first frame paints over it; a stream error replaces the image.
+ * hidden window or an unmounted frame closes it and Nas stops its ffmpeg. Every change of
+ * browser or liveness takes a new open id, so a reopened stream is a fresh request rather than
+ * the webview's frozen last frame for that URL. The caption sits under the image until the
+ * first frame paints over it; a stream error replaces the image.
  */
 export function BrowserFrame({ browserId, className, variant }: BrowserFrameProps) {
   const { state: connection } = useConnection();
@@ -33,6 +35,10 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
   const [failedId, setFailedId] = useState<number | null>(null);
   const failed = failedId === browserId;
   const live = connection === "connected" && visible && !failed;
+  const [opening, setOpening] = useState(() => ({ browserId, live, id: crypto.randomUUID() }));
+  if (opening.browserId !== browserId || opening.live !== live) {
+    setOpening({ browserId, live, id: crypto.randomUUID() });
+  }
 
   const size =
     variant === "peek"
@@ -54,7 +60,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
       </div>
       {live ? (
         <img
-          src={nas.browserStreamUrl(browserId)}
+          src={nas.browserStreamUrl(browserId, opening.id)}
           alt={`Browser ${browserId}`}
           className="absolute inset-0 h-full w-full object-cover object-top"
           draggable={false}
