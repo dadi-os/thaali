@@ -10,6 +10,7 @@ import { formatAbsolute } from "../../../shared/lib/ux/time";
 import type { ChatMessage } from "../../../store/chat";
 import { MarkdownBody } from "../../../shared/components/Markdown";
 import { formatMessageTime } from "../format";
+import { MessageFiles } from "./files";
 
 export interface MessageBubbleProps {
   /** Message to render (user or agent). */
@@ -124,17 +125,24 @@ function UserBubble({
         </button>
       ) : null}
       <div className="flex max-w-[min(92%,34rem)] flex-col items-end gap-1">
-        <div
-          className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap ${
-            failed
-              ? "border border-error-line bg-error-fill text-ink"
-              : queued
-                ? "border border-dashed border-sage-line/50 bg-sage-fill/25 text-ink/60"
-                : "bg-sage-active text-ink"
-          }`}
-        >
-          {message.content}
-        </div>
+        <MessageFiles
+          files={message.files ?? []}
+          sending={message.files ? [] : (message.attachments ?? [])}
+          align="end"
+        />
+        {message.content ? (
+          <div
+            className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap ${
+              failed
+                ? "border border-error-line bg-error-fill text-ink"
+                : queued
+                  ? "border border-dashed border-sage-line/50 bg-sage-fill/25 text-ink/60"
+                  : "bg-sage-active text-ink"
+            }`}
+          >
+            {message.content}
+          </div>
+        ) : null}
         {message.sendError ? (
           <p className="px-1 text-[12px] leading-snug text-error">{message.sendError}</p>
         ) : null}
@@ -181,6 +189,7 @@ function AgentBubble({ message, live }: { message: ChatMessage; live: boolean })
   const body = (
     <>
       <SettledMarkdown content={message.content} />
+      <MessageFiles files={message.files ?? []} sending={[]} align="start" />
       <MessageMeta message={message} copyLabel="Copy response" align="start" />
     </>
   );

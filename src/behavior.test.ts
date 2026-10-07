@@ -15,9 +15,13 @@ import {
 import { laneChipLabel } from "./chrome/chatSidebar/LaneChip";
 import { formatToolSignature } from "./shared/lib/content/toolSignature";
 import {
+  attachmentSizeLabel,
+  PASTE_ATTACHMENT_CHARS,
+  pasteAsFile,
+} from "./shared/lib/content/attachments";
+import {
   addOptimistic,
   clearLiveChat,
-  formatOutboundContent,
   getChatState,
   hydrateThreadMessages,
   ingestLiveMessage,
@@ -82,13 +86,45 @@ describe("formatRelative", () => {
   });
 });
 
-describe("formatOutboundContent", () => {
-  it("joins text and image placeholders", () => {
-    expect(
-      formatOutboundContent("hi", [
-        { media_type: "image/png", data: "abc", filename: "shot.png" },
-      ]),
-    ).toBe("hi\n[Image: shot.png]");
+describe("attachments", () => {
+  it("keeps a short paste as draft text and turns a long one into a text file", async () => {
+    expect(pasteAsFile("a".repeat(PASTE_ATTACHMENT_CHARS))).toBeNull();
+    const file = pasteAsFile("b".repeat(PASTE_ATTACHMENT_CHARS + 1));
+    expect(file?.type).toBe("text/plain");
+    expect(await file?.text()).toBe("b".repeat(PASTE_ATTACHMENT_CHARS + 1));
+  });
+
+  it("sizes text in tokens and other files in bytes", () => {
+    expect(attachmentSizeLabel("text/markdown", 49_222)).toBe("~12.3k tokens");
+    expect(attachmentSizeLabel("application/json", 400)).toBe("~100 tokens");
+    expect(attachmentSizeLabel("image/png", 34_000)).toBe("33 KB");
+  });
+
+  it("resolves a file-only send to the stored files when its event lands", () => {
+    resetChatStore();
+    const tempSeq = addOptimistic("agent-files", "", {
+      attachments: [{ media_type: "text/plain", data: "aGk=", filename: "notes.txt" }],
+    });
+    const file = {
+      id: "f1",
+      filename: "notes.txt",
+      media_type: "text/plain",
+      size_bytes: 2,
+      description: null,
+    };
+    ingestLiveMessage("agent-files", {
+      seq: 41,
+      from_user: true,
+      content: "",
+      files: [file],
+      at: "2026-10-07T12:00:00Z",
+    });
+    const [row] = getChatState().threads["agent-files"] ?? [];
+    expect(row?.seq).toBe(41);
+    expect(row?.pending).toBe(false);
+    expect(row?.files).toEqual([file]);
+    expect(row?.attachments).toBeUndefined();
+    expect(tempSeq).toBeLessThan(0);
   });
 });
 
@@ -249,6 +285,7 @@ function durableMessage(partial: {
     from_agent_id: partial.from,
     to_agent_id: partial.to,
     content: partial.content,
+    attachments: [],
     created_at: partial.at,
   };
 }

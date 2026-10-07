@@ -1,4 +1,9 @@
-import type { DurableMessage, MessageAttachment, ThreadSummary } from "../types/hath";
+import type {
+  AttachmentSummary,
+  DurableMessage,
+  MessageAttachment,
+  ThreadSummary,
+} from "../types/hath";
 
 export type { MessageAttachment };
 
@@ -22,13 +27,10 @@ export type ChatMessage = {
    * Rendered after settled messages as a draft (reasoning-busy does not queue).
    */
   queued?: boolean;
-  /** Kept only while queued/pending so retry can re-POST; cleared once server content lands. */
+  /** Outbound files, kept only while queued/pending so retry can re-POST; cleared once Hath confirms. */
   attachments?: MessageAttachment[];
-  /**
-   * Original user text for POST when `content` is a local display string
-   * (e.g. with `[Image: …]` placeholders before describe-patch).
-   */
-  outboundText?: string;
+  /** Files the message carries, as Hath stored them. */
+  files?: AttachmentSummary[];
   /** Loaded from durable REST history; skip typewriter on open. */
   historical?: boolean;
 };
@@ -330,27 +332,6 @@ export function appendMessage(agentId: string, msg: ChatMessage): void {
   emit();
 }
 
-/** Local bubble text before Hath patches image descriptions into content. */
-export function formatOutboundContent(
-  text: string,
-  attachments?: MessageAttachment[],
-): string {
-  const trimmed = text.trim();
-  const parts: string[] = [];
-  if (trimmed) {
-    parts.push(trimmed);
-  }
-  for (const att of attachments ?? []) {
-    const name = att.filename?.trim();
-    if (att.media_type.startsWith("image/")) {
-      parts.push(name ? `[Image: ${name}]` : "[Image]");
-    } else {
-      parts.push(name ? `[File: ${name}]` : "[File]");
-    }
-  }
-  return parts.join("\n");
-}
-
 /** Insert an optimistic user message; returns its temporary (negative) seq. */
 export function addOptimistic(
   agentId: string,
@@ -358,7 +339,6 @@ export function addOptimistic(
   opts?: {
     queued?: boolean;
     attachments?: MessageAttachment[];
-    outboundText?: string;
   },
 ): number {
   const seq = nextTempSeq;
@@ -373,19 +353,18 @@ export function addOptimistic(
     pending: true,
     queued: queued || undefined,
     attachments: opts?.attachments,
-    outboundText: opts?.outboundText,
   };
   setThread(agentId, sortMessages([...threadOf(agentId), msg]));
   emit();
   return seq;
 }
 
-/** Promote a temp seq to the server seq and clear pending. */
+/** Promote a temp seq to the server seq, take the stored files, and clear pending. */
 export function resolveOptimistic(
   agentId: string,
   tempSeq: number,
   realSeq: number,
-  content?: string,
+  files: AttachmentSummary[],
 ): void {
   const current = threadOf(agentId);
   if (hasConfirmedSeq(current, realSeq)) {
@@ -406,9 +385,8 @@ export function resolveOptimistic(
               seq: realSeq,
               pending: false,
               failed: false,
-              content: content ?? m.content,
               attachments: undefined,
-              outboundText: undefined,
+              files,
             }
           : m,
       ),
@@ -531,6 +509,7 @@ export function hydrateThreadMessages(
       seq: row.seq,
       from_user: row.from_agent_id === null,
       content: row.content,
+      files: row.attachments,
       at: row.created_at,
       historical: seen ? seen.historical : opts?.live ? undefined : true,
     });
@@ -550,8 +529,8 @@ export function hydrateThreadMessages(
 
 /**
  * If a pending optimistic row has the same content, resolve it to realSeq.
- * Otherwise, if exactly one in-flight (non-queued) user pending exists — typical
- * after image describe rewrites content — resolve that. Else append.
+ * Otherwise, if exactly one in-flight (non-queued) user pending exists, resolve
+ * that. Else append.
  */
 export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
   const current = threadOf(agentId);
@@ -564,14 +543,14 @@ export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
         m.pending && m.from_user && !m.queued && m.content === msg.content,
     );
     if (exact) {
-      resolveOptimistic(agentId, exact.seq, msg.seq, msg.content);
+      resolveOptimistic(agentId, exact.seq, msg.seq, msg.files ?? []);
       return;
     }
     const inFlight = current.filter(
       (m) => m.pending && m.from_user && !m.queued,
     );
     if (inFlight.length === 1) {
-      resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.content);
+      resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.files ?? []);
       return;
     }
   }

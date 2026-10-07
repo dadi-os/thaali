@@ -27,7 +27,6 @@ import {
   addOptimistic,
   clearLiveChat,
   dismissNudge,
-  formatOutboundContent,
   getChatState,
   hydrateThreadMessages,
   ingestLiveMessage,
@@ -396,7 +395,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     attachments?: MessageAttachment[],
   ) => {
     const trimmed = content.trim();
-    const display = formatOutboundContent(trimmed, attachments);
     if (
       (!trimmed && (!attachments || attachments.length === 0)) ||
       !connected
@@ -412,10 +410,9 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
       markPending(toId, existingTempSeq);
       tempSeq = existingTempSeq;
     } else {
-      tempSeq = addOptimistic(toId, display, {
+      tempSeq = addOptimistic(toId, trimmed, {
         queued: queueLocally,
         attachments,
-        outboundText: trimmed,
       });
       setDraft("");
       clearDraftAttachments();
@@ -441,7 +438,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
       });
-      resolveOptimistic(toId, tempSeq, res.seq, res.content);
+      resolveOptimistic(toId, tempSeq, res.seq, res.attachments);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       markFailed(toId, tempSeq, message);
@@ -461,7 +458,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     for (const msg of queued) {
       await sendThread(
         targetId,
-        msg.outboundText ?? msg.content,
+        msg.content,
         msg.seq,
         msg.attachments,
       );
@@ -488,7 +485,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     }
   };
 
-  const onPickFiles = async (files: FileList | null) => {
+  const onPickFiles = async (files: FileList | File[] | null) => {
     if (!files || files.length === 0) {
       return;
     }
@@ -558,6 +555,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
           seq: sent.seq,
           from_user: true,
           content: sent.content,
+          files: sent.attachments,
           at: sent.created_at,
         });
       }
@@ -769,7 +767,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                       onRetry={(msg) => {
                         void sendThread(
                           openAgentId,
-                          msg.outboundText ?? msg.content,
+                          msg.content,
                           msg.seq,
                           msg.attachments,
                         );

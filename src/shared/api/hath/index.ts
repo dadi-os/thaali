@@ -64,6 +64,21 @@ export function createHathClient(transport: Transport, baseUrl: string) {
       });
     },
 
+    /** GET /attachments/:id as a URL the webview loads directly, for `<img src>`. */
+    attachmentUrl(id: string): string {
+      return transport.mediaUrl({ baseUrl, path: `/attachments/${id}` });
+    },
+
+    /** GET /attachments/:id — a text attachment's contents. */
+    getAttachmentText(id: string): Promise<string> {
+      return transport.request({
+        baseUrl,
+        path: `/attachments/${id}`,
+        method: "GET",
+        responseType: "text",
+      });
+    },
+
     /** POST /router — speak to the router, not an agent. */
     postRouter(body: {
       content: string;

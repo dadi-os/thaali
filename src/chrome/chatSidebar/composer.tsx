@@ -16,7 +16,11 @@ import {
   IconPlus,
   IconSend,
 } from "../../shared/components/IconButton";
-import type { DraftAttachment } from "../../shared/lib/content/attachments";
+import {
+  attachmentSizeLabel,
+  pasteAsFile,
+  type DraftAttachment,
+} from "../../shared/lib/content/attachments";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { TEXTAREA_MAX_PX } from "./constants";
 import { LaneChip, type LaneChipProps } from "./LaneChip";
@@ -38,7 +42,8 @@ export interface FloatingComposerProps {
   cameraInputRef: RefObject<HTMLInputElement | null>;
   attachments: DraftAttachment[];
   onRemoveAttachment: (index: number) => void;
-  onPickFiles: (files: FileList | null) => void;
+  /** Add files to the draft: picked, pasted, dropped, or a long paste turned into a text file. */
+  onPickFiles: (files: FileList | File[] | null) => void;
   onSubmit: (e: FormEvent) => void;
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
   /** Focus the field once this composer mounts (Talk to Dadi). */
@@ -48,7 +53,9 @@ export interface FloatingComposerProps {
 }
 
 /**
- * Floating bottom composer — frosted with the rail, no highlight.
+ * Floating bottom composer — frosted with the rail, no highlight. Files dropped on it or
+ * pasted into it join the draft, and so does a paste over PASTE_ATTACHMENT_CHARS, as a
+ * text file, instead of flooding the field.
  */
 export function FloatingComposer({
   connected,
@@ -137,6 +144,17 @@ export function FloatingComposer({
         ) : null}
         <form
           onSubmit={onSubmit}
+          onDragOver={(e) => {
+            if (connected && e.dataTransfer.types.includes("Files")) {
+              e.preventDefault();
+            }
+          }}
+          onDrop={(e) => {
+            if (connected && e.dataTransfer.files.length > 0) {
+              e.preventDefault();
+              onPickFiles(e.dataTransfer.files);
+            }
+          }}
           className={`composer-glass pointer-events-auto flex flex-col gap-2 px-2 py-2 transition-[opacity,box-shadow] duration-slow ease-dadi ${
             workingMode && !thinkingMode ? "composer-glass--live" : ""
           } ${thinkingMode ? "composer-glass--thinking" : ""} ${
@@ -160,8 +178,11 @@ export function FloatingComposer({
                     className="h-14 w-14 rounded-[12px] object-cover"
                   />
                 ) : (
-                  <div className="flex h-14 max-w-[8rem] items-center rounded-[12px] border border-rule bg-sage-fill/30 px-2.5 text-[11px] leading-tight text-ink-muted">
+                  <div className="flex h-14 max-w-[9rem] flex-col justify-center rounded-[12px] border border-rule bg-sage-fill/30 px-2.5 text-[11px] leading-tight text-ink-muted">
                     <span className="truncate">{att.filename ?? "file"}</span>
+                    <span className="truncate text-ink-ghost">
+                      {attachmentSizeLabel(att.media_type, att.sizeBytes)}
+                    </span>
                   </div>
                 )}
                 <button
@@ -245,6 +266,19 @@ export function FloatingComposer({
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={onKeyDown}
+            onPaste={(e) => {
+              const files = Array.from(e.clipboardData.files);
+              if (files.length > 0) {
+                e.preventDefault();
+                onPickFiles(files);
+                return;
+              }
+              const pasted = pasteAsFile(e.clipboardData.getData("text"));
+              if (pasted) {
+                e.preventDefault();
+                onPickFiles([pasted]);
+              }
+            }}
             rows={1}
             disabled={!connected}
             placeholder={connected ? placeholder : "Connect to message agent"}

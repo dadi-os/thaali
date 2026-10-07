@@ -3,6 +3,7 @@
     "windows": [
       {
         "title": "Dadi",
+        "dragDropEnabled": false,
         "width": 1280,
         "height": 800,
         "decorations": true,

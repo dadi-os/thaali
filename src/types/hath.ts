@@ -15,10 +15,21 @@ export type MessageAttachment = {
   filename?: string;
 };
 
+/** A file a message carries, as Hath stores it; the file itself is GET /attachments/:id. */
+export type AttachmentSummary = {
+  id: string;
+  filename: string;
+  media_type: string;
+  size_bytes: number;
+  /** What an image shows, from Dwar image.describe; null for other files. */
+  description: string | null;
+};
+
 /** Response from Hath POST /messages. */
 export type PostMessageResponse = {
   to_agent_id: string;
   content: string;
+  attachments: AttachmentSummary[];
   seq: number;
   created_at: string;
 };
@@ -39,6 +50,7 @@ export type DurableMessage = {
   from_agent_id: string | null;
   to_agent_id: string | null;
   content: string;
+  attachments: AttachmentSummary[];
   created_at: string;
 };
 
@@ -46,6 +58,7 @@ export type DurableMessage = {
 export type RoutedMessage = {
   to_agent_id: string;
   content: string;
+  attachments: AttachmentSummary[];
   seq: number;
   created_at: string;
 };
@@ -127,6 +140,7 @@ export type HathEvent =
       from_agent_id: string | null;
       to_agent_id: string | null;
       content: string;
+      attachments: AttachmentSummary[];
       seq: number;
       at: string;
     }
