@@ -124,7 +124,7 @@ function UserBubble({
           <IconDismiss />
         </button>
       ) : null}
-      <div className="flex max-w-[min(92%,34rem)] flex-col items-end gap-1">
+      <div className="flex min-w-0 max-w-[min(92%,34rem)] flex-col items-end gap-1">
         <MessageFiles
           files={message.files ?? []}
           sending={message.files ? [] : (message.attachments ?? [])}
@@ -132,7 +132,7 @@ function UserBubble({
         />
         {message.content ? (
           <div
-            className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap ${
+            className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere] ${
               failed
                 ? "border border-error-line bg-error-fill text-ink"
                 : queued
