@@ -26,19 +26,17 @@ import {
   hydrateThreadMessages,
   ingestLiveMessage,
   isUserThreadMessage,
-  holdAgentMessage,
-  dismissNudge,
+  announceAgentMessage,
   mergeConversations,
   messageKey,
   openAgent,
-  openList,
   resetChatStore,
   seedConversations,
   threadAgentId,
   upsertConversation,
 } from "./store/chat";
 import type { ChatMessage } from "./store/chat";
-import { IDLE_MS, readingMs, shouldSwitchChat, type Attention } from "./store/attention";
+import { getToasts, pushToast, resetToasts } from "./store/toasts";
 import type { GharDevice } from "./types/ghar";
 import type { DurableMessage, Lane, LogRecord } from "./types/hath";
 import { searchHouse } from "./features/ghar/house/search";
@@ -461,48 +459,63 @@ describe("user-thread history", () => {
   });
 });
 
-describe("chat switching on agent replies", () => {
-  const idle: Attention = { focused: true, sinceInputMs: IDLE_MS, composing: false, reading: false };
-  const list = { kind: "list" } as const;
-
-  it("switches only once you are idle and done reading", () => {
-    expect(shouldSwitchChat(list, idle)).toBe(true);
-    expect(shouldSwitchChat(list, { ...idle, sinceInputMs: IDLE_MS - 1 })).toBe(false);
-    expect(shouldSwitchChat({ kind: "agent", agentId: "a" }, { ...idle, reading: true })).toBe(false);
+describe("agent message announcements", () => {
+  const row = (agent_id: string, last_at: string, from_user = false) => ({
+    agent_id,
+    agent_name: agent_id.toUpperCase(),
+    last_message: `msg ${agent_id}`,
+    last_at,
+    from_user,
   });
 
-  it("never moves you while a draft is going, even away from the window", () => {
-    expect(shouldSwitchChat(list, { ...idle, composing: true })).toBe(false);
-    expect(shouldSwitchChat(list, { ...idle, composing: true, focused: false })).toBe(false);
-  });
-
-  it("switches while you are away or waiting on a Talk to Dadi hand-off", () => {
-    expect(shouldSwitchChat(list, { ...idle, focused: false, sinceInputMs: 0, reading: true })).toBe(true);
-    expect(shouldSwitchChat({ kind: "dadi" }, { ...idle, sinceInputMs: 0 })).toBe(true);
-  });
-
-  it("gives longer replies longer to read, within bounds", () => {
-    expect(readingMs("ok")).toBe(4_000);
-    expect(readingMs(Array(40).fill("word").join(" "))).toBe(10_000);
-    expect(readingMs(Array(1000).fill("word").join(" "))).toBe(45_000);
-  });
-
-  it("holds messages as unread until their chat opens", () => {
+  it("counts and toasts a message unless its chat is open, never switching chats", () => {
     resetChatStore();
-    holdAgentMessage("a");
-    holdAgentMessage("a");
-    holdAgentMessage("b");
-    expect(getChatState().unread).toEqual({ a: 2, b: 1 });
-    expect(getChatState().nudge).toBe("b");
-    dismissNudge();
-    expect(getChatState().nudge).toBeNull();
-    expect(getChatState().unread.b).toBe(1);
+    resetToasts();
     openAgent("a");
-    expect(getChatState().unread).toEqual({ b: 1 });
-    holdAgentMessage("b");
-    openList();
-    expect(getChatState().nudge).toBeNull();
-    expect(getChatState().unread.b).toBe(2);
+    announceAgentMessage("a", "A", "here");
+    announceAgentMessage("b", "B", "one");
+    announceAgentMessage("b", "B", "two");
+    expect(getChatState().open).toEqual({ kind: "agent", agentId: "a" });
+    expect(getChatState().unread).toEqual({ b: 2 });
+    expect(getToasts().map((t) => [t.key, t.count, t.body])).toEqual([["message:b", 2, "two"]]);
+    getToasts()[0]!.onOpen!();
+    expect(getChatState().open).toEqual({ kind: "agent", agentId: "b" });
+    expect(getChatState().unread).toEqual({});
+  });
+
+  it("announces agent messages a thread refresh finds that live events missed, once history has loaded", () => {
+    resetChatStore();
+    resetToasts();
+    mergeConversations([row("a", "2026-10-06T10:00:00.000Z")]);
+    expect(getChatState().unread).toEqual({});
+    seedConversations([row("a", "2026-10-06T10:00:00.000Z"), row("b", "2026-10-06T10:00:00.000Z")]);
+    expect(getChatState().unread).toEqual({});
+    mergeConversations([
+      row("a", "2026-10-06T11:00:00.000Z"),
+      row("b", "2026-10-06T11:00:00.000Z", true),
+      row("c", "2026-10-06T11:00:00.000Z"),
+    ]);
+    expect(getChatState().unread).toEqual({ a: 1, c: 1 });
+    mergeConversations([row("a", "2026-10-06T11:00:00.000Z"), row("c", "2026-10-06T11:00:00.000Z")]);
+    expect(getChatState().unread).toEqual({ a: 1, c: 1 });
+    seedConversations([row("a", "2026-10-06T12:00:00.000Z")]);
+    expect(getChatState().unread).toEqual({ a: 2, c: 1 });
+  });
+});
+
+describe("toasts", () => {
+  it("folds repeats by key and keeps only the newest few on screen", () => {
+    resetToasts();
+    for (const n of [1, 2, 3, 4, 5]) {
+      pushToast({ key: `k${n}`, tone: "info", title: `t${n}` }, n);
+    }
+    pushToast({ key: "k5", tone: "error", title: "t5 again" }, 9);
+    expect(getToasts().map((t) => [t.key, t.count, t.at])).toEqual([
+      ["k2", 1, 2],
+      ["k3", 1, 3],
+      ["k4", 1, 4],
+      ["k5", 2, 9],
+    ]);
   });
 });
 

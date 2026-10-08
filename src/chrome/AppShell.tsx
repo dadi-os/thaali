@@ -6,9 +6,10 @@ import { DisconnectedState } from "./DisconnectedState";
 import { Header } from "./Header";
 import { MeshPowerOverlay } from "./MeshPowerOverlay";
 import { ProvisionOverlay } from "./ProvisionOverlay";
+import { Toaster } from "./Toaster";
 import { bootstrapMesh } from "../store/connection";
 import { useConnection } from "../shared/hooks/useConnection";
-import { useAttention } from "./useAttention";
+import { useActivityToasts } from "./useActivityToasts";
 import { useDesktopTray } from "./useDesktopTray";
 import { useEvents } from "../shared/hooks/useEvents";
 import { useDeviceRemote } from "./useDeviceRemote";
@@ -29,7 +30,7 @@ export function AppShell() {
   const needsProvisioning = useNeedsProvisioning();
 
   useEvents();
-  useAttention();
+  useActivityToasts();
   useDeviceRemote();
   useDesktopTray({
     onProvision: () => {
@@ -90,6 +91,7 @@ export function AppShell() {
 
         {showOnboarding ? <DisconnectedState /> : null}
         {showPower ? <MeshPowerOverlay /> : null}
+        <Toaster />
       </div>
       <ProvisionOverlay
         open={provisionOpen}

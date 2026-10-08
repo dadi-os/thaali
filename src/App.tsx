@@ -1,4 +1,4 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AppShell } from "./chrome/AppShell";
 import { ChaaviPage } from "./pages/ChaaviPage";
@@ -8,8 +8,15 @@ import { SystemPage } from "./pages/SystemPage";
 import { TimelinePage } from "./pages/TimelinePage";
 import { WidgetGridPage } from "./pages/WidgetGridPage";
 import { YaadPage } from "./pages/YaadPage";
+import { pushToast } from "./store/toasts";
 
+/** Every failed action (a toggle, a save, a send through a mutation) toasts its real error, folded per message. */
 const queryClient = new QueryClient({
+  mutationCache: new MutationCache({
+    onError: (err) => {
+      pushToast({ key: `mutation:${err.message}`, tone: "error", title: "Action failed", body: err.message });
+    },
+  }),
   defaultOptions: {
     queries: {
       retry: false,

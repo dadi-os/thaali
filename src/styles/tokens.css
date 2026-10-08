@@ -392,6 +392,11 @@
   background: var(--sage-active);
 }
 
+/* An error toast keeps the glass but takes the error rim. */
+.pane-bubble--error {
+  border-color: var(--error-line);
+}
+
 .lane-chip {
   border: 1px solid color-mix(in srgb, var(--sage-line) 48%, transparent);
   background: color-mix(in srgb, var(--bone) 72%, transparent);

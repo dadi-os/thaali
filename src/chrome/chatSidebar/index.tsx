@@ -19,14 +19,12 @@ import {
 } from "../../features/agents/sessions";
 import { AgentPopover } from "../../features/agents/AgentPopover";
 import type { PopoverAnchor } from "../../shared/components/Popover";
-import { setComposing } from "../../store/attention";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
 import {
   addOptimistic,
   clearLiveChat,
-  dismissNudge,
   getChatState,
   hydrateThreadMessages,
   ingestLiveMessage,
@@ -44,6 +42,7 @@ import {
   type MessageAttachment,
 } from "../../store/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
+import { pushToast } from "../../store/toasts";
 import {
   getRunning,
   isDadiBusy,
@@ -74,7 +73,6 @@ import { ActivityPulse } from "./ActivityPulse";
 import { DadiHome, type DadiRouting } from "./DadiHome";
 import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
-import { NewMessageBubble } from "./NewMessageBubble";
 import { PaneHeader } from "./PaneHeader";
 import { ThreadView } from "./thread";
 
@@ -261,10 +259,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   }, [draft, chat.open]);
 
   useEffect(() => {
-    setComposing(draft.trim().length > 0 || draftAttachments.length > 0);
-  }, [draft, draftAttachments.length]);
-
-  useEffect(() => {
     setDetailsAnchor(null);
   }, [chat.open]);
 
@@ -343,7 +337,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   /**
    * Keep the conversation list's previews current. The list only loads on connect and
    * otherwise follows SSE, which has no replay, so a dropped event left a stale preview
-   * until reconnect. A failed refresh is logged and the next one tries again.
+   * until reconnect. A failed refresh is logged and toasted, and the next one tries again.
    */
   useEffect(() => {
     if (!connected) {
@@ -357,7 +351,9 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
         .listThreads()
         .then(({ threads }) => mergeConversations(threads))
         .catch((err: unknown) => {
-          logLine("warn", err instanceof Error ? err.message : String(err), "threads_refresh_failed");
+          const message = err instanceof Error ? err.message : String(err);
+          logLine("warn", message, "threads_refresh_failed");
+          pushToast({ key: "threads_refresh_failed", tone: "error", title: "Chat list refresh failed", body: message });
         });
     };
     const timer = setInterval(refresh, LIST_REFRESH_MS);
@@ -646,10 +642,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
 
   const showComposer =
     viewingDadi || (openAgentView?.kind === "ready" && openAgentView.agent.active);
-  const nudgeConversation =
-    chat.nudge !== null && chat.nudge !== openAgentId
-      ? chat.conversations.find((c) => c.agent_id === chat.nudge)
-      : undefined;
 
   const paneKey = viewingThread
     ? `agent:${openAgentId ?? ""}`
@@ -820,20 +812,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
             />
           ) : null}
         </AnimatePresence>
-
-        <NewMessageBubble
-          from={
-            nudgeConversation && paneKey !== "list"
-              ? {
-                  agentId: nudgeConversation.agent_id,
-                  name: nudgeConversation.agent_name,
-                  count: chat.unread[nudgeConversation.agent_id]!,
-                }
-              : null
-          }
-          onOpen={openAgent}
-          onDismiss={dismissNudge}
-        />
       </div>
 
       {openAgentView?.kind === "ready" ? (

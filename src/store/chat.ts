@@ -4,6 +4,7 @@ import type {
   MessageAttachment,
   ThreadSummary,
 } from "../types/hath";
+import { pushToast } from "./toasts";
 
 export type { MessageAttachment };
 
@@ -58,10 +59,8 @@ type ChatState = {
   open: ChatOpen;
   historyStatus: HistoryStatus;
   historyError: string | null;
-  /** Agent messages to you that arrived while you were busy, per agent; cleared when its chat opens. */
+  /** Agent messages to you that arrived while their chat was not open, per agent; cleared when it opens. */
   unread: Record<string, number>;
-  /** Agent whose held message the new-message bubble offers; null when there is none. */
-  nudge: string | null;
 };
 
 type Listener = (state: ChatState) => void;
@@ -73,10 +72,11 @@ let state: ChatState = {
   historyStatus: "idle",
   historyError: null,
   unread: {},
-  nudge: null,
 };
 const listeners = new Set<Listener>();
 let nextTempSeq = -1;
+/** GET /threads has seeded the list once this session, so later loads can tell what is new. */
+let threadsSeeded = false;
 
 function emit(): void {
   for (const listener of listeners) {
@@ -159,48 +159,44 @@ export function subscribeChat(listener: Listener): () => void {
   };
 }
 
-/** Show the conversation list; its unread marks take over from the new-message bubble. */
+/** Show the conversation list. */
 export function openList(): void {
   if (state.open.kind === "list") {
     return;
   }
-  state = { ...state, open: { kind: "list" }, nudge: null };
+  state = { ...state, open: { kind: "list" } };
   emit();
 }
 
-/** Open a user-thread for the given agent, clearing its unread count and any bubble for it. */
+/** Open a user-thread for the given agent, clearing its unread count. */
 export function openAgent(agentId: string): void {
   const here = state.open.kind === "agent" && state.open.agentId === agentId;
-  if (here && state.unread[agentId] === undefined && state.nudge !== agentId) {
+  if (here && state.unread[agentId] === undefined) {
     return;
   }
   const { [agentId]: _read, ...unread } = state.unread;
-  state = {
-    ...state,
-    open: here ? state.open : { kind: "agent", agentId },
-    unread,
-    nudge: state.nudge === agentId ? null : state.nudge,
-  };
+  state = { ...state, open: here ? state.open : { kind: "agent", agentId }, unread };
   emit();
 }
 
-/** Count an agent's message to you as unread and offer it in the new-message bubble. */
-export function holdAgentMessage(agentId: string): void {
-  state = {
-    ...state,
-    unread: { ...state.unread, [agentId]: (state.unread[agentId] ?? 0) + 1 },
-    nudge: agentId,
-  };
-  emit();
-}
-
-/** Put the new-message bubble away; the chat stays unread in the list. */
-export function dismissNudge(): void {
-  if (state.nudge === null) {
+/**
+ * An agent's message to you arrived. Unless its chat is open, count it unread and toast
+ * it (repeats from one agent fold into one toast); clicking the toast opens the chat.
+ * The open chat never changes on its own.
+ */
+export function announceAgentMessage(agentId: string, agentName: string, content: string): void {
+  if (state.open.kind === "agent" && state.open.agentId === agentId) {
     return;
   }
-  state = { ...state, nudge: null };
+  state = { ...state, unread: { ...state.unread, [agentId]: (state.unread[agentId] ?? 0) + 1 } };
   emit();
+  pushToast({
+    key: `message:${agentId}`,
+    tone: "info",
+    title: agentName,
+    body: content.replace(/\s+/g, " ").trim(),
+    onOpen: () => openAgent(agentId),
+  });
 }
 
 /** Open the Talk to Dadi composer (not an agent thread). */
@@ -247,6 +243,7 @@ export function clearLiveChat(): void {
 
 /** Wipe threads and conversations (tests / full local reset). */
 export function resetChatStore(): void {
+  threadsSeeded = false;
   state = {
     threads: {},
     conversations: [],
@@ -254,27 +251,49 @@ export function resetChatStore(): void {
     historyStatus: "idle",
     historyError: null,
     unread: {},
-    nudge: null,
   };
   emit();
 }
 
-/** Replace conversation list from GET /threads. */
+/** Replace conversation list from GET /threads, announcing agent messages it shows that live events missed. */
 export function seedConversations(threads: ThreadSummary[]): void {
+  const missed = missedAgentMessages(threads);
+  threadsSeeded = true;
   state = {
     ...state,
     conversations: sortConversations(threads.map((t) => ({ ...t }))),
   };
   emit();
+  for (const t of missed) {
+    announceAgentMessage(t.agent_id, t.agent_name, t.last_message);
+  }
+}
+
+/**
+ * Threads in a fresh GET /threads whose latest message is an agent's and newer than the
+ * list holds, which live events missed (SSE has no replay). None before the first seed,
+ * since that load has nothing to compare against.
+ */
+function missedAgentMessages(threads: ThreadSummary[]): ThreadSummary[] {
+  if (!threadsSeeded) {
+    return [];
+  }
+  const ours = new Map(state.conversations.map((c) => [c.agent_id, c]));
+  return threads.filter((t) => {
+    const mine = ours.get(t.agent_id);
+    return !t.from_user && (!mine || t.last_at > mine.last_at);
+  });
 }
 
 /**
  * Merge a fresh GET /threads into the list. Hath decides which conversations exist; for
  * each, whichever of its summary or ours is newer wins, so a refresh catches previews a
- * dropped SSE event missed without undoing one SSE just delivered.
+ * dropped SSE event missed without undoing one SSE just delivered. An agent's message
+ * found this way is announced as if it had arrived live.
  */
 export function mergeConversations(threads: ThreadSummary[]): void {
   const ours = new Map(state.conversations.map((c) => [c.agent_id, c]));
+  const missed = missedAgentMessages(threads);
   const next = threads.map((t) => {
     const mine = ours.get(t.agent_id);
     return mine && mine.last_at > t.last_at ? mine : { ...t };
@@ -290,6 +309,9 @@ export function mergeConversations(threads: ThreadSummary[]): void {
   }
   state = { ...state, conversations: sortConversations(next) };
   emit();
+  for (const t of missed) {
+    announceAgentMessage(t.agent_id, t.agent_name, t.last_message);
+  }
 }
 
 /** Insert or refresh a conversation summary if `last_at` is newer than what we have. */

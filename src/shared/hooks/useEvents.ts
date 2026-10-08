@@ -5,6 +5,7 @@ import type { AgentRecord, HathEvent } from "../../types/hath";
 import type { ConnectionState } from "../api/transport";
 import { subscribeConnection } from "../../store/connection";
 import {
+  announceAgentMessage,
   ingestLiveMessage,
   isUserThreadMessage,
   removeConversation,
@@ -12,8 +13,8 @@ import {
   setHistoryState,
   upsertConversation,
 } from "../../store/chat";
-import { deliverAgentMessage } from "../../store/attention";
 import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../../store/running";
+import { pushToast } from "../../store/toasts";
 import { logLine } from "../lib/platform/log";
 import { notifyAgentMessage } from "../lib/platform/notify";
 
@@ -66,15 +67,16 @@ async function hydrateHistory(): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     setHistoryState("error", message);
     logLine("error", message, "history_load_failed");
+    pushToast({ key: "history_load_failed", tone: "error", title: "Chat history failed to load", body: message });
   }
 }
 
 /**
  * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay).
- * An agent → user message goes through `deliverAgentMessage` (open its chat if you are
- * idle, else hold it as unread) and, while the window is hidden or unfocused, raises a
- * native notification.
+ * An agent → user message is announced (unread and a toast unless its chat is open) and,
+ * while the window is hidden or unfocused, raises a native notification. Failed lanes and
+ * routing, and a dropped stream, toast as errors.
  */
 export function useEvents(): void {
   const queryClient = useQueryClient();
@@ -127,12 +129,13 @@ export function useEvents(): void {
           from_user: data.from_agent_id === null,
         });
         if (data.from_agent_id !== null) {
-          deliverAgentMessage(data.agent_id, data.content, Date.now());
-          notifyAgentMessage(agentNameFromCache(queryClient, data.agent_id), data.content).catch(
-            (err: unknown) => {
-              logLine("error", err instanceof Error ? err.message : String(err), "notification_failed");
-            },
-          );
+          const name = agentNameFromCache(queryClient, data.agent_id);
+          announceAgentMessage(data.agent_id, name, data.content);
+          notifyAgentMessage(name, data.content).catch((err: unknown) => {
+            const message = err instanceof Error ? err.message : String(err);
+            logLine("error", message, "notification_failed");
+            pushToast({ key: "notification_failed", tone: "error", title: "Notification failed", body: message });
+          });
         }
         return;
       }
@@ -144,6 +147,9 @@ export function useEvents(): void {
 
       if (data.type === "router_finished" || data.type === "router_failed") {
         setDadiBusy(false);
+        if (data.type === "router_failed") {
+          pushToast({ key: "router_failed", tone: "error", title: "Dadi could not route that", body: data.message });
+        }
         return;
       }
 
@@ -155,6 +161,14 @@ export function useEvents(): void {
       if (data.type === "lane_finished" || data.type === "lane_failed") {
         setLaneRunning(data.agent_id, data.lane, false);
         void queryClient.invalidateQueries({ queryKey: ["agent-logs", data.agent_id] });
+        if (data.type === "lane_failed") {
+          pushToast({
+            key: `lane_failed:${data.agent_id}:${data.lane}`,
+            tone: "error",
+            title: `${agentNameFromCache(queryClient, data.agent_id)}'s ${data.lane} lane failed`,
+            body: data.message,
+          });
+        }
         return;
       }
 
@@ -180,6 +194,12 @@ export function useEvents(): void {
       const delay = backoff;
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       logLine("warn", `${reason}; retrying in ${delay}ms`, code);
+      pushToast({
+        key: "events_stream",
+        tone: "error",
+        title: "Live updates dropped",
+        body: `${reason}; retrying in ${Math.round(delay / 1000)}s`,
+      });
       timer = setTimeout(() => {
         if (gen !== generation || !transport.isActive()) {
           return;
