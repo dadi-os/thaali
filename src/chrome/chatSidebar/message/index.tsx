@@ -83,10 +83,11 @@ function MessageMeta({ message, copyLabel, align }: MessageMetaProps) {
   );
 }
 
-const userRowClass = (queued: boolean, failed: boolean) =>
-  `group/msg flex justify-end gap-1.5 ${queued || failed ? "items-center" : "items-end"}`;
-
-/** Right-aligned user pill with optional retry / cancel for failed or queued sends. */
+/**
+ * Right-aligned user pill with optional retry / cancel for failed or queued sends. The
+ * buttons line up with the files and bubble only, so the error and time lines under them
+ * do not pull them down.
+ */
 function UserBubble({
   message,
   live,
@@ -101,57 +102,59 @@ function UserBubble({
   const failed = Boolean(message.failed);
   const queued = Boolean(message.queued);
   const body = (
-    <>
-      {failed && onRetry ? (
-        <button
-          type="button"
-          onClick={onRetry}
-          aria-label="Retry send"
-          title="Retry"
-          className="inline-flex size-7 shrink-0 items-center justify-center text-error transition-opacity duration-slow ease-dadi hover:opacity-70"
-        >
-          <IconRetry />
-        </button>
-      ) : null}
-      {(queued || failed) && onCancel ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          aria-label="Remove message"
-          title="Remove"
-          className="inline-flex size-7 shrink-0 items-center justify-center text-ink-ghost transition-opacity duration-slow ease-dadi hover:text-ink-muted"
-        >
-          <IconDismiss />
-        </button>
-      ) : null}
-      <div className="flex min-w-0 max-w-[min(92%,34rem)] flex-col items-end gap-1">
-        <MessageFiles
-          files={message.files ?? []}
-          sending={message.files ? [] : (message.attachments ?? [])}
-          align="end"
-        />
-        {message.content ? (
-          <div
-            className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere] ${
-              failed
-                ? "border border-error-line bg-error-fill text-ink"
-                : queued
-                  ? "border border-dashed border-sage-line/50 bg-sage-fill/25 text-ink/60"
-                  : "bg-sage-active text-ink"
-            }`}
+    <div className="flex min-w-0 max-w-[min(92%,34rem)] flex-col items-end gap-1">
+      <div className="flex min-w-0 max-w-full items-center gap-1.5">
+        {failed && onRetry ? (
+          <button
+            type="button"
+            onClick={onRetry}
+            aria-label="Retry send"
+            title="Retry"
+            className="inline-flex size-7 shrink-0 items-center justify-center text-error transition-opacity duration-slow ease-dadi hover:opacity-70"
           >
-            {message.content}
-          </div>
+            <IconRetry />
+          </button>
         ) : null}
-        {message.sendError ? (
-          <p className="px-1 text-[12px] leading-snug text-error">{message.sendError}</p>
+        {(queued || failed) && onCancel ? (
+          <button
+            type="button"
+            onClick={onCancel}
+            aria-label="Remove message"
+            title="Remove"
+            className="inline-flex size-7 shrink-0 items-center justify-center text-ink-ghost transition-opacity duration-slow ease-dadi hover:text-ink-muted"
+          >
+            <IconDismiss />
+          </button>
         ) : null}
-        <MessageMeta message={message} copyLabel="Copy message" align="end" />
+        <div className="flex min-w-0 flex-col items-end gap-1">
+          <MessageFiles
+            files={message.files ?? []}
+            sending={message.files ? [] : (message.attachments ?? [])}
+            align="end"
+          />
+          {message.content ? (
+            <div
+              className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere] ${
+                failed
+                  ? "border border-error-line bg-error-fill text-ink"
+                  : queued
+                    ? "border border-dashed border-sage-line/50 bg-sage-fill/25 text-ink/60"
+                    : "bg-sage-active text-ink"
+              }`}
+            >
+              {message.content}
+            </div>
+          ) : null}
+        </div>
       </div>
-    </>
+      {message.sendError ? (
+        <p className="px-1 text-[12px] leading-snug text-error">{message.sendError}</p>
+      ) : null}
+      <MessageMeta message={message} copyLabel="Copy message" align="end" />
+    </div>
   );
 
-  const className = userRowClass(queued, failed);
+  const className = "group/msg flex justify-end";
   if (!live) {
     return <div className={className}>{body}</div>;
   }
