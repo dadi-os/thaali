@@ -22,12 +22,23 @@ function visibleSnapshot(): boolean {
 }
 
 /**
+ * Ref callback that drops the stream image's `src` when it leaves the page. WebKit keeps
+ * loading a detached image's multipart stream, so without this every closed frame holds one
+ * of the proxy origin's few connections until new streams stall behind their caption.
+ * Removing the attribute (not `src = ""`) aborts the load without firing `onError`.
+ */
+function abortStreamOnDetach(img: HTMLImageElement): () => void {
+  return () => img.removeAttribute("src");
+}
+
+/**
  * View-only live MJPEG of the virtual display from Nas `GET /browsers/:id/stream`.
  * The stream is open only while the mesh is connected and the webview is visible, so a
  * hidden window or an unmounted frame closes it and Nas stops its ffmpeg. Every change of
  * browser or liveness takes a new open id, so a reopened stream is a fresh request rather than
- * the webview's frozen last frame for that URL. The caption sits under the image until the
- * first frame paints over it; a stream error replaces the image.
+ * the webview's frozen last frame for that URL, on its own image element that aborts its
+ * stream on detach. The caption sits under the image until the first frame paints over it; a
+ * stream error replaces the image.
  */
 export function BrowserFrame({ browserId, className, variant }: BrowserFrameProps) {
   const { state: connection } = useConnection();
@@ -60,6 +71,8 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
       </div>
       {live ? (
         <img
+          key={opening.id}
+          ref={abortStreamOnDetach}
           src={nas.browserStreamUrl(browserId, opening.id)}
           alt={`Browser ${browserId}`}
           className="absolute inset-0 h-full w-full object-cover object-top"
