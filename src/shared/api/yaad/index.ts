@@ -40,7 +40,7 @@ export function createYaadClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** POST /graph — bounded live subgraph (seeded one-hop when `seed_ids` is set). */
+    /** POST /graph — every live node and edge, or the one-hop neighborhood of `seed_ids`. */
     graph(body: GraphRequest): Promise<GraphResponse> {
       return transport.request({
         baseUrl,

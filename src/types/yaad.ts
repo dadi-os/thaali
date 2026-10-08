@@ -123,10 +123,9 @@ export type RecallResponse = {
   anchors: string[];
 };
 
-/** POST /graph body — omit `seed_ids` for the most-used live nodes. */
+/** POST /graph body — omit `seed_ids` for every live node. */
 export type GraphRequest = {
   seed_ids?: string[];
-  limit?: number;
 };
 
 /** POST /graph response. Every edge endpoint is in `nodes`. */
