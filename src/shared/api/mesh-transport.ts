@@ -4,7 +4,7 @@ import {
   loadCredentials,
   type Credentials,
 } from "./credentials";
-import { NotProvisionedError } from "./errors";
+import { ApiError, NotProvisionedError } from "./errors";
 import type { ConnectionState, Transport } from "./transport";
 import { consumeSseBuffer } from "./sse";
 import { logLine } from "../lib/platform/log";
@@ -163,7 +163,8 @@ export class MeshTransport implements Transport {
 
     const path = opts.path.startsWith("/") ? opts.path : `/${opts.path}`;
     const url = this.meshUrl(opts.baseUrl, path);
-    const headers: Record<string, string> = {};
+    const requestId = crypto.randomUUID();
+    const headers: Record<string, string> = { "X-Request-Id": requestId };
     let body: string | undefined;
     if (opts.bodyText !== undefined) {
       headers["Content-Type"] = "text/plain; charset=utf-8";
@@ -190,8 +191,11 @@ export class MeshTransport implements Transport {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(
+      throw new ApiError(
         `HTTP ${response.status} ${opts.method} ${opts.baseUrl}${path}: ${text}`,
+        opts.baseUrl,
+        requestId,
+        response.status,
       );
     }
 

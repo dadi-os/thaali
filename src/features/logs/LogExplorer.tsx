@@ -13,8 +13,21 @@ import { LogPopover, levelTone } from "./LogPopover";
 
 export type RangePreset = "1h" | "6h" | "24h";
 
+/** A log line to bring up, from an error toast. */
+export type LogFocus = {
+  service: string;
+  /** Text the line contains (a request id, a log message); empty only narrows to the service. */
+  q: string;
+  /** When it happened (ISO); the matching line nearest this is pinned open. */
+  at: string;
+  /** New on every arrival, so the same line can be focused again. */
+  key: string;
+};
+
 export type LogExplorerProps = {
   className?: string;
+  /** Line to filter to and pin open; null leaves the filters alone. */
+  focus?: LogFocus | null;
 };
 
 /** ISO from/to for a log range preset. Call per fetch so `to` stays current. */
@@ -324,7 +337,7 @@ function ServiceOption({ label, on, onClick }: { label: string; on: boolean; onC
  * Nas GET /logs explorer: one toolbar (search with range, services, level), dense
  * one-line rows, and a hover popover with the full line. Click a row to pin it.
  */
-export function LogExplorer({ className }: LogExplorerProps) {
+export function LogExplorer({ className, focus }: LogExplorerProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
 
@@ -393,6 +406,24 @@ export function LogExplorer({ className }: LogExplorerProps) {
   const listRef = useRef<HTMLUListElement>(null);
   const lastPointerDownInList = useRef(0);
   const lastDetail = useRef<NasLogEntry | null>(null);
+  const appliedFocus = useRef<string | null>(null);
+  const pendingPin = useRef<LogFocus | null>(null);
+
+  useEffect(() => {
+    if (!focus || appliedFocus.current === focus.key) {
+      return;
+    }
+    appliedFocus.current = focus.key;
+    const age = Date.now() - new Date(focus.at).getTime();
+    setSelected(new Set([focus.service]));
+    setLevel("");
+    setQDraft(focus.q);
+    setQ(focus.q);
+    setRange(age < 60 * 60_000 ? "1h" : age < 6 * 60 * 60_000 ? "6h" : "24h");
+    setPinned(null);
+    details.close();
+    pendingPin.current = focus.q ? focus : null;
+  }, [focus, details.close]);
 
   /**
    * Line the popover shows. Keeps the last one after it scrolls out of the result set so
@@ -448,6 +479,29 @@ export function LogExplorer({ className }: LogExplorerProps) {
     setPinned(key);
     details.hover(key, at);
   };
+
+  useEffect(() => {
+    const target = pendingPin.current;
+    if (!target || q !== target.q || !logsQuery.data || logsQuery.isFetching) {
+      return;
+    }
+    pendingPin.current = null;
+    const at = new Date(target.at).getTime();
+    const nearest = rows.reduce<(typeof rows)[number] | null>(
+      (best, row) =>
+        !best ||
+        Math.abs(new Date(row.entry.time).getTime() - at) < Math.abs(new Date(best.entry.time).getTime() - at)
+          ? row
+          : best,
+      null,
+    );
+    const el = nearest && listRef.current?.querySelector<HTMLElement>(`[data-log-key="${CSS.escape(nearest.key)}"]`);
+    if (!nearest || !el) {
+      return;
+    }
+    el.scrollIntoView({ block: "center" });
+    pinRow(nearest.key, el);
+  });
 
   const leaveDetails = () => {
     if (!pinned) {
@@ -567,6 +621,7 @@ export function LogExplorer({ className }: LogExplorerProps) {
                       delay: Math.min(i * 0.008, 0.12),
                     }}
                     tabIndex={0}
+                    data-log-key={key}
                     aria-label={`${entry.level} ${entry.service}: ${entry.msg}`}
                     onPointerEnter={(e) => previewRow(key, e.currentTarget)}
                     onClick={(e) => pinRow(key, e.currentTarget)}

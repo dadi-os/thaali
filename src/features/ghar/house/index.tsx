@@ -29,6 +29,11 @@ export type GharHouseProps = {
   mode: "preview" | "full";
   /** Page header slot for search and New room in `full` mode; null on the home widget. */
   toolbar: HTMLElement | null;
+  /**
+   * Device whose controls to open once it is on screen (from a toast in `full` mode).
+   * `key` is new on every arrival, so the same device can be focused again.
+   */
+  focus?: { deviceId: string; key: string } | null;
 };
 
 type DragGhost = {
@@ -120,7 +125,7 @@ function confirmState(queryClient: QueryClient, id: string, values: Record<strin
  * Rooms and devices. Preview tiles toggle a room and do not navigate.
  * Full mode: click a device to switch it, hover for its controls, drag it into a room.
  */
-export function GharHouse({ mode, toolbar }: GharHouseProps) {
+export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const queryClient = useQueryClient();
@@ -138,6 +143,7 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
   const [roomDraft, setRoomDraft] = useState("");
   const [query, setQuery] = useState("");
   const roomButtonRef = useRef<HTMLButtonElement>(null);
+  const focusedKey = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
@@ -290,6 +296,16 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey: GHAR_DEVICES_KEY });
     },
+  });
+
+  useEffect(() => {
+    const device = devicesQuery.data?.devices.find((d) => d.id === focus?.deviceId);
+    if (!focus || !device || focusedKey.current === focus.key) {
+      return;
+    }
+    if (showDevice(device)) {
+      focusedKey.current = focus.key;
+    }
   });
 
   const create = useMutation({
@@ -518,16 +534,17 @@ export function GharHouse({ mode, toolbar }: GharHouseProps) {
     setNaming(true);
   }
 
-  /** Open a device's controls as if hovered, e.g. when search narrows to it. */
-  function showDevice(device: GharDevice): void {
+  /** Open a device's controls as if hovered, e.g. when search narrows to it or a toast points at it; false when it is not on screen. */
+  function showDevice(device: GharDevice): boolean {
     const el = canvasRef.current?.querySelector<HTMLElement>(`[data-device-id="${device.id}"]`);
     if (!el) {
-      return;
+      return false;
     }
     clearOpenTimer();
     clearCloseTimer();
     setHoverId(device.id);
     setAnchor(anchorFor(el));
+    return true;
   }
 
   function submitRoom(): void {

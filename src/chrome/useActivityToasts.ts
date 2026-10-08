@@ -1,11 +1,10 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { ghar, yaad } from "../shared/api";
 import { GHAR_DEVICES_KEY } from "../shared/api/ghar";
 import { useConnection } from "../shared/hooks/useConnection";
 import { POLL_MS } from "../shared/lib/ux/poll";
-import { pushToast } from "../store/toasts";
+import { failureTarget, pushToast } from "../store/toasts";
 import { formatTime, toIsoBounds } from "../features/timeline/dates";
 import { asPlan, isMultiDay, spanOf, type PlanNode } from "../features/timeline/plans";
 
@@ -20,12 +19,11 @@ const PLAN_STARTING_MS = 2 * 60_000;
  * Toast what happens around the house while the app is open: a Ghar device turning on or
  * off (any source: an agent, a wall switch, the house page; picked up by the shared
  * GET /devices poll), and a timed plan ten minutes before it starts and again as it
- * starts. A failed poll toasts its real error. Clicking a toast opens its page.
+ * starts. A failed poll toasts its real error, linked to the service's log line for it.
  */
 export function useActivityToasts(): void {
   const { state: connection } = useConnection();
   const connected = connection === "connected";
-  const navigate = useNavigate();
 
   const devicesQuery = useQuery({
     queryKey: GHAR_DEVICES_KEY,
@@ -62,10 +60,10 @@ export function useActivityToasts(): void {
         tone: "info",
         title: `${device.name} turned ${on ? "on" : "off"}`,
         body: device.room.name,
-        onOpen: () => navigate("/ghar"),
+        target: { kind: "ghar", deviceId: device.id },
       });
     }
-  }, [devicesQuery.data, navigate]);
+  }, [devicesQuery.data]);
 
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
@@ -114,10 +112,10 @@ export function useActivityToasts(): void {
           phase === "soon"
             ? `In ${Math.ceil(lead / 60_000)} min · ${formatTime(span.start.toISOString())}`
             : `Starting now · until ${formatTime(span.end.toISOString())}`,
-        onOpen: () => navigate("/timeline"),
+        target: { kind: "timeline" },
       });
     }
-  }, [plansQuery.data, now, navigate]);
+  }, [plansQuery.data, now]);
 
   useEffect(() => {
     if (devicesQuery.error) {
@@ -126,6 +124,7 @@ export function useActivityToasts(): void {
         tone: "error",
         title: "Ghar devices failed to load",
         body: devicesQuery.error.message,
+        target: failureTarget(devicesQuery.error),
       });
     }
   }, [devicesQuery.error, devicesQuery.errorUpdatedAt]);
@@ -137,6 +136,7 @@ export function useActivityToasts(): void {
         tone: "error",
         title: "Upcoming plans failed to load",
         body: plansQuery.error.message,
+        target: failureTarget(plansQuery.error),
       });
     }
   }, [plansQuery.error, plansQuery.errorUpdatedAt]);

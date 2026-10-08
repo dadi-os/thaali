@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useLocation, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
 import { LogExplorer } from "../features/logs/LogExplorer";
 import { SystemMap } from "../features/system/SystemMap";
@@ -7,9 +8,17 @@ import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 /**
  * Split system view: health on one side, log explorer on the other.
  * Device provisioning lives on the desktop tray / app menu (Dadi → Provision client).
- * Stacks under `@container` when the page body is narrow.
+ * Stacks under `@container` when the page body is narrow. `?service=&q=&at=` (from an
+ * error toast) focuses the explorer on that log line.
  */
 export function SystemPage() {
+  const [params] = useSearchParams();
+  const location = useLocation();
+  const service = params.get("service");
+  const at = params.get("at");
+  const focus =
+    service && at ? { service, q: params.get("q") || "", at, key: location.key } : null;
+
   return (
     <motion.div
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden"
@@ -37,7 +46,7 @@ export function SystemPage() {
               LOGS
             </span>
             <div className="min-h-0 min-w-0 flex-1">
-              <LogExplorer />
+              <LogExplorer focus={focus} />
             </div>
           </section>
         </div>

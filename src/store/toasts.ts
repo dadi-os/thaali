@@ -1,7 +1,22 @@
+import { ApiError } from "../shared/api/errors";
+
 /** Most toasts on screen at once; a new one past this pushes out the oldest. */
 const MAX_TOASTS = 4;
 
 export type ToastTone = "info" | "error";
+
+/** Where clicking a toast takes you. */
+export type ToastTarget =
+  /** The agent's chat in the sidebar. */
+  | { kind: "chat"; agentId: string }
+  /**
+   * The log explorer filtered to `service` and the text `q` around `at`, with the line
+   * nearest `at` pinned open (none when `q` is empty, which only narrows to the service).
+   */
+  | { kind: "logs"; service: string; q: string; at: string }
+  /** The house page with the device's controls open. */
+  | { kind: "ghar"; deviceId: string }
+  | { kind: "timeline" };
 
 /** One bottom-right notice: an agent's message, a system failure, or something that happened around the house. */
 export type Toast = {
@@ -15,14 +30,14 @@ export type Toast = {
   count: number;
   /** When it was last pushed (ms since epoch); a repeat restarts its time on screen. */
   at: number;
-  /** Clicking the toast does this (open a chat, a page); null makes it a plain notice. */
-  onOpen: (() => void) | null;
+  /** Where clicking the toast goes; null makes it a plain notice. */
+  target: ToastTarget | null;
 };
 
 /** What a caller supplies; the store fills in id, count and time. */
 export type ToastInput = Pick<Toast, "key" | "tone" | "title"> & {
   body?: string;
-  onOpen?: () => void;
+  target?: ToastTarget | null;
 };
 
 type Listener = (toasts: Toast[]) => void;
@@ -57,7 +72,7 @@ export function pushToast(input: ToastInput, now: number = Date.now()): void {
     title: input.title,
     body: input.body ?? null,
     at: now,
-    onOpen: input.onOpen ?? null,
+    target: input.target ?? null,
   };
   const existing = toasts.find((t) => t.key === input.key);
   if (existing) {
@@ -66,6 +81,15 @@ export function pushToast(input: ToastInput, now: number = Date.now()): void {
     toasts = [...toasts, { id: nextId++, key: input.key, count: 1, ...fields }].slice(-MAX_TOASTS);
   }
   emit();
+}
+
+/**
+ * Where a failure's own log line is: the service's line for the request id when a service
+ * answered with an error. Null when no service answered (a network failure, or a failure
+ * in the app itself), since then there is no server line to show.
+ */
+export function failureTarget(err: unknown): ToastTarget | null {
+  return err instanceof ApiError ? { kind: "logs", service: err.service, q: err.requestId, at: err.at } : null;
 }
 
 /** Take a toast off screen. */

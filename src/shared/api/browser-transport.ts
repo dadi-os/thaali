@@ -1,4 +1,5 @@
 import { NAS } from "./constants";
+import { ApiError } from "./errors";
 import { joinUrl } from "./sse";
 import type { ConnectionState, Transport } from "./transport";
 import { POLL_MS } from "../lib/ux/poll";
@@ -58,7 +59,8 @@ export class BrowserTransport implements Transport {
     }
 
     const url = joinUrl(opts.baseUrl, opts.path);
-    const headers: Record<string, string> = {};
+    const requestId = crypto.randomUUID();
+    const headers: Record<string, string> = { "X-Request-Id": requestId };
     let body: string | undefined;
     if (opts.bodyText !== undefined) {
       headers["Content-Type"] = "text/plain; charset=utf-8";
@@ -76,7 +78,12 @@ export class BrowserTransport implements Transport {
 
     if (!response.ok) {
       const text = await response.text();
-      throw new Error(`HTTP ${response.status} ${opts.method} ${url}: ${text}`);
+      throw new ApiError(
+        `HTTP ${response.status} ${opts.method} ${url}: ${text}`,
+        opts.baseUrl,
+        requestId,
+        response.status,
+      );
     }
 
     if (opts.responseType === "text") {

@@ -42,7 +42,7 @@ import {
   type MessageAttachment,
 } from "../../store/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
-import { pushToast } from "../../store/toasts";
+import { failureTarget, pushToast } from "../../store/toasts";
 import {
   getRunning,
   isDadiBusy,
@@ -353,7 +353,13 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
         .catch((err: unknown) => {
           const message = err instanceof Error ? err.message : String(err);
           logLine("warn", message, "threads_refresh_failed");
-          pushToast({ key: "threads_refresh_failed", tone: "error", title: "Chat list refresh failed", body: message });
+          pushToast({
+            key: "threads_refresh_failed",
+            tone: "error",
+            title: "Chat list refresh failed",
+            body: message,
+            target: failureTarget(err),
+          });
         });
     };
     const timer = setInterval(refresh, LIST_REFRESH_MS);

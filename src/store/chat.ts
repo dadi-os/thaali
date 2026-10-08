@@ -195,7 +195,7 @@ export function announceAgentMessage(agentId: string, agentName: string, content
     tone: "info",
     title: agentName,
     body: content.replace(/\s+/g, " ").trim(),
-    onOpen: () => openAgent(agentId),
+    target: { kind: "chat", agentId },
   });
 }
 

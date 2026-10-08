@@ -36,7 +36,8 @@ import {
   upsertConversation,
 } from "./store/chat";
 import type { ChatMessage } from "./store/chat";
-import { getToasts, pushToast, resetToasts } from "./store/toasts";
+import { failureTarget, getToasts, pushToast, resetToasts } from "./store/toasts";
+import { ApiError } from "./shared/api/errors";
 import type { GharDevice } from "./types/ghar";
 import type { DurableMessage, Lane, LogRecord } from "./types/hath";
 import { searchHouse } from "./features/ghar/house/search";
@@ -478,8 +479,8 @@ describe("agent message announcements", () => {
     expect(getChatState().open).toEqual({ kind: "agent", agentId: "a" });
     expect(getChatState().unread).toEqual({ b: 2 });
     expect(getToasts().map((t) => [t.key, t.count, t.body])).toEqual([["message:b", 2, "two"]]);
-    getToasts()[0]!.onOpen!();
-    expect(getChatState().open).toEqual({ kind: "agent", agentId: "b" });
+    expect(getToasts()[0]!.target).toEqual({ kind: "chat", agentId: "b" });
+    openAgent("b");
     expect(getChatState().unread).toEqual({});
   });
 
@@ -504,6 +505,12 @@ describe("agent message announcements", () => {
 });
 
 describe("toasts", () => {
+  it("links a failed request to its service's log line by request id, and nothing else to the logs", () => {
+    const err = new ApiError("HTTP 502 GET http://ghar.dadi/devices: bad gateway", "http://ghar.dadi", "req-1", 502);
+    expect(failureTarget(err)).toEqual({ kind: "logs", service: "ghar", q: "req-1", at: err.at });
+    expect(failureTarget(new Error("Failed to fetch"))).toBeNull();
+  });
+
   it("folds repeats by key and keeps only the newest few on screen", () => {
     resetToasts();
     for (const n of [1, 2, 3, 4, 5]) {

@@ -1,11 +1,34 @@
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { IconDismiss } from "../shared/components/IconButton";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
-import { dismissToast, getToasts, subscribeToasts, type Toast } from "../store/toasts";
+import { openAgent } from "../store/chat";
+import { dismissToast, getToasts, subscribeToasts, type Toast, type ToastTarget } from "../store/toasts";
 
 /** How long a toast stays up after its last push, by tone; hovering holds it. */
 const VISIBLE_MS: Record<Toast["tone"], number> = { info: 6_000, error: 12_000 };
+
+/**
+ * Go where a toast points: its chat in the sidebar, or the page for a log line, a device
+ * or the timeline. Page targets ride in the URL, so the page focuses them on arrival.
+ */
+function openTarget(target: ToastTarget, navigate: NavigateFunction): void {
+  switch (target.kind) {
+    case "chat":
+      openAgent(target.agentId);
+      return;
+    case "logs":
+      navigate(`/system?${new URLSearchParams({ service: target.service, q: target.q, at: target.at })}`);
+      return;
+    case "ghar":
+      navigate(`/ghar?${new URLSearchParams({ device: target.deviceId })}`);
+      return;
+    case "timeline":
+      navigate("/timeline");
+      return;
+  }
+}
 
 /** Bottom-right stack of toasts from the toast store, newest at the bottom. */
 export function Toaster() {
@@ -27,13 +50,14 @@ export function Toaster() {
 
 /**
  * One glass toast: title, a two-line body and a repeat count. It leaves on its own
- * VISIBLE_MS after its last push unless the pointer is on it; clicking it runs `onOpen`
- * and puts it away.
+ * VISIBLE_MS after its last push unless the pointer is on it; clicking it goes to its
+ * target and puts it away.
  */
 function ToastCard({ toast }: { toast: Toast }) {
   const [held, setHeld] = useState(false);
   const error = toast.tone === "error";
-  const { onOpen } = toast;
+  const { target } = toast;
+  const navigate = useNavigate();
 
   useEffect(() => {
     if (held) {
@@ -74,11 +98,11 @@ function ToastCard({ toast }: { toast: Toast }) {
         error ? "pane-bubble--error" : ""
       }`}
     >
-      {onOpen ? (
+      {target ? (
         <button
           type="button"
           onClick={() => {
-            onOpen();
+            openTarget(target, navigate);
             dismissToast(toast.id);
           }}
           className={`${textClass} rounded-l-[13px]`}

@@ -8,13 +8,19 @@ import { SystemPage } from "./pages/SystemPage";
 import { TimelinePage } from "./pages/TimelinePage";
 import { WidgetGridPage } from "./pages/WidgetGridPage";
 import { YaadPage } from "./pages/YaadPage";
-import { pushToast } from "./store/toasts";
+import { failureTarget, pushToast } from "./store/toasts";
 
 /** Every failed action (a toggle, a save, a send through a mutation) toasts its real error, folded per message. */
 const queryClient = new QueryClient({
   mutationCache: new MutationCache({
     onError: (err) => {
-      pushToast({ key: `mutation:${err.message}`, tone: "error", title: "Action failed", body: err.message });
+      pushToast({
+        key: `mutation:${err.message}`,
+        tone: "error",
+        title: "Action failed",
+        body: err.message,
+        target: failureTarget(err),
+      });
     },
   }),
   defaultOptions: {

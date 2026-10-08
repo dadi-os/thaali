@@ -14,7 +14,7 @@ import {
   upsertConversation,
 } from "../../store/chat";
 import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../../store/running";
-import { pushToast } from "../../store/toasts";
+import { failureTarget, pushToast } from "../../store/toasts";
 import { logLine } from "../lib/platform/log";
 import { notifyAgentMessage } from "../lib/platform/notify";
 
@@ -50,6 +50,14 @@ function agentNameFromCache(
   return agents?.find((a) => a.id === agentId)?.name ?? agentId;
 }
 
+/**
+ * Text to find a Hath log line by its message. Nas matches it against the raw JSON line,
+ * where quotes, backslashes and newlines are escaped, so it stops before the first of them.
+ */
+function logSearchText(message: string): string {
+  return message.split(/["\\\n]/)[0]!.trim();
+}
+
 async function refetchAgents(queryClient: QueryClient): Promise<void> {
   const { agents } = await hath.listAgents();
   seedRunningFromAgents(agents);
@@ -67,7 +75,13 @@ async function hydrateHistory(): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     setHistoryState("error", message);
     logLine("error", message, "history_load_failed");
-    pushToast({ key: "history_load_failed", tone: "error", title: "Chat history failed to load", body: message });
+    pushToast({
+      key: "history_load_failed",
+      tone: "error",
+      title: "Chat history failed to load",
+      body: message,
+      target: failureTarget(err),
+    });
   }
 }
 
@@ -148,7 +162,13 @@ export function useEvents(): void {
       if (data.type === "router_finished" || data.type === "router_failed") {
         setDadiBusy(false);
         if (data.type === "router_failed") {
-          pushToast({ key: "router_failed", tone: "error", title: "Dadi could not route that", body: data.message });
+          pushToast({
+            key: "router_failed",
+            tone: "error",
+            title: "Dadi could not route that",
+            body: data.message,
+            target: { kind: "logs", service: "hath", q: logSearchText(data.message), at: data.at },
+          });
         }
         return;
       }
@@ -167,6 +187,7 @@ export function useEvents(): void {
             tone: "error",
             title: `${agentNameFromCache(queryClient, data.agent_id)}'s ${data.lane} lane failed`,
             body: data.message,
+            target: { kind: "logs", service: "hath", q: `${data.lane} lane failed`, at: data.at },
           });
         }
         return;
@@ -199,6 +220,7 @@ export function useEvents(): void {
         tone: "error",
         title: "Live updates dropped",
         body: `${reason}; retrying in ${Math.round(delay / 1000)}s`,
+        target: { kind: "logs", service: "hath", q: "", at: new Date().toISOString() },
       });
       timer = setTimeout(() => {
         if (gen !== generation || !transport.isActive()) {
