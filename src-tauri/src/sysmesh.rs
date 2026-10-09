@@ -747,7 +747,14 @@ fn tailscale_up(
         format!("--hostname={hostname}"),
         "--accept-dns=true".into(),
         "--reset".into(),
+        // Bound the CLI's own wait for Running so a stalled `up` cannot hang the app.
+        format!("--timeout={}s", JOIN_TIMEOUT.as_secs()),
     ]);
+    // Windows tailscaled ties the session to the CLI client that started it and
+    // resets to NoState when that client exits; --unattended (ForceDaemon) keeps
+    // the node up after `up` returns.
+    #[cfg(windows)]
+    args.push("--unattended".into());
     let mut cmd = Command::new(&bins.tailscale);
     hide_console(&mut cmd);
     let output = cmd
