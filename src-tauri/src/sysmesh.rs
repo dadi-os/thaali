@@ -59,6 +59,8 @@ pub fn start(
     ensure_daemon(&bins, &state_dir, &socket)?;
     if backend_running(&bins, &socket) {
         logutil::emit("info", "sysmesh already Running; skipping tailscale up");
+        #[cfg(windows)]
+        ensure_unattended(&bins, &socket);
     } else {
         tailscale_up(&bins, &socket, control_url, auth_key, hostname)?;
         wait_until_running(&bins, &socket)?;
@@ -772,6 +774,28 @@ fn tailscale_up(
         ));
     }
     Ok(())
+}
+
+/// Re-applies unattended mode on a node that is already Running. Nodes joined by
+/// builds without --unattended (or reset by a later `up --reset`) otherwise drop to
+/// NoState once the daemon restarts, e.g. after an app update.
+#[cfg(windows)]
+fn ensure_unattended(bins: &Bins, socket: &Path) {
+    let mut args = socket_cli_args(socket);
+    args.extend(["set".into(), "--unattended=true".into()]);
+    let mut cmd = Command::new(&bins.tailscale);
+    hide_console(&mut cmd);
+    match cmd.args(&args).output() {
+        Ok(out) if out.status.success() => {}
+        Ok(out) => logutil::emit(
+            "warn",
+            format!(
+                "sysmesh set --unattended failed: {}",
+                String::from_utf8_lossy(&out.stderr).trim()
+            ),
+        ),
+        Err(e) => logutil::emit("warn", format!("sysmesh set --unattended: {e}")),
+    }
 }
 
 fn wait_until_running(bins: &Bins, socket: &Path) -> Result<(), String> {
