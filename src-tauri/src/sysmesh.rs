@@ -60,7 +60,7 @@ pub fn start(
     if backend_running(&bins, &socket) {
         logutil::emit("info", "sysmesh already Running; skipping tailscale up");
         #[cfg(windows)]
-        ensure_unattended(&bins, &socket);
+        ensure_unattended(&bins, &socket)?;
     } else {
         tailscale_up(&bins, &socket, control_url, auth_key, hostname)?;
         wait_until_running(&bins, &socket)?;
@@ -732,7 +732,11 @@ fn windows_daemon_ready_timeout(log_path: &Path) -> String {
     )
 }
 
-
+/// Joins the mesh with `tailscale up`. `--timeout` bounds the CLI's own wait for
+/// Running so a stalled `up` returns an error instead of hanging the app. On Windows,
+/// tailscaled ties the session to the CLI client that started it and resets to NoState
+/// when that client exits, so `--unattended` (ForceDaemon) keeps the node up after
+/// `up` returns.
 fn tailscale_up(
     bins: &Bins,
     socket: &Path,
@@ -749,12 +753,8 @@ fn tailscale_up(
         format!("--hostname={hostname}"),
         "--accept-dns=true".into(),
         "--reset".into(),
-        // Bound the CLI's own wait for Running so a stalled `up` cannot hang the app.
         format!("--timeout={}s", JOIN_TIMEOUT.as_secs()),
     ]);
-    // Windows tailscaled ties the session to the CLI client that started it and
-    // resets to NoState when that client exits; --unattended (ForceDaemon) keeps
-    // the node up after `up` returns.
     #[cfg(windows)]
     args.push("--unattended".into());
     let mut cmd = Command::new(&bins.tailscale);
@@ -780,22 +780,22 @@ fn tailscale_up(
 /// builds without --unattended (or reset by a later `up --reset`) otherwise drop to
 /// NoState once the daemon restarts, e.g. after an app update.
 #[cfg(windows)]
-fn ensure_unattended(bins: &Bins, socket: &Path) {
+fn ensure_unattended(bins: &Bins, socket: &Path) -> Result<(), String> {
     let mut args = socket_cli_args(socket);
     args.extend(["set".into(), "--unattended=true".into()]);
     let mut cmd = Command::new(&bins.tailscale);
     hide_console(&mut cmd);
-    match cmd.args(&args).output() {
-        Ok(out) if out.status.success() => {}
-        Ok(out) => logutil::emit(
-            "warn",
-            format!(
-                "sysmesh set --unattended failed: {}",
-                String::from_utf8_lossy(&out.stderr).trim()
-            ),
-        ),
-        Err(e) => logutil::emit("warn", format!("sysmesh set --unattended: {e}")),
+    let output = cmd
+        .args(&args)
+        .output()
+        .map_err(|e| format!("tailscale set --unattended: {e}"))?;
+    if !output.status.success() {
+        return Err(format!(
+            "tailscale set --unattended failed: {}",
+            String::from_utf8_lossy(&output.stderr).trim()
+        ));
     }
+    Ok(())
 }
 
 fn wait_until_running(bins: &Bins, socket: &Path) -> Result<(), String> {
