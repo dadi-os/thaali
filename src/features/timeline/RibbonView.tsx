@@ -66,7 +66,7 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
                   ))}
                 </div>
               ) : null}
-              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
                 {dayPlans.map((p, j) => {
                   const span = spanOf(p)!;
                   const live = !p.detail.all_day && span.start <= now && now < span.end;

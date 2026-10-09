@@ -37,7 +37,7 @@ export function SomedayRail({ onOpen }: SomedayRailProps) {
       ) : ideasQuery.data.length === 0 ? (
         <p className="text-[12px] text-ink-ghost">No ideas yet</p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto">
+        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
           <AnimatePresence>
             {ideasQuery.data.map((idea, i) => (
               <motion.li
