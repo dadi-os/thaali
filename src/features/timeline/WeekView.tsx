@@ -245,7 +245,7 @@ function NowMarker({ now }: { now: Date }) {
       initial={{ opacity: 0, scaleX: 0.6 }}
       animate={{ opacity: 1, scaleX: 1 }}
       transition={{ duration: SLOW_S, ease: EASE }}
-      className="flex items-center gap-1.5 py-0.5"
+      className="flex items-center gap-1.5 py-0.5 pl-1.5"
     >
       <LiveDot />
       <span className="h-px flex-1" style={{ background: "color-mix(in srgb, var(--clay) 55%, transparent)" }} />
