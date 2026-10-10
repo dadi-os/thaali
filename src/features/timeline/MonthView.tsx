@@ -18,7 +18,7 @@ import { SpanLaneCell } from "./SpanLaneCell";
 
 /** Delay per diagonal step as the grid washes in from the top-left. */
 const WAVE_STEP_S = 0.018;
-/** Timed plans listed per day before "+N more" hands off to the week view. */
+/** Lines a day holds; a busier day lists one fewer plan and ends on "+N more" into its week. */
 const ITEMS_SHOWN = 4;
 /** Memory dots drawn beside a date. */
 const DOTS_SHOWN = 4;
@@ -209,6 +209,7 @@ export function MonthView({
 
 type MonthItemProps = {
   plan: PlanNode;
+  /** Ticking clock: pulses the line while its plan is happening and fades it once past. */
   now: Date;
   fresh: boolean;
   /** Entrance delay so lines settle after their day. */

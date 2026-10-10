@@ -75,7 +75,10 @@ export function isMultiDay(plan: PlanNode): boolean {
   return span !== null && span.end.getTime() > endOfDay(span.start).getTime();
 }
 
-/** True when the plan draws as a bar along the top of its days rather than as a chip: it is all-day or runs past a day. */
+/**
+ * True when the plan draws as a bar along the top of its days rather than as a chip:
+ * it is all-day or runs past a day.
+ */
 export function runsAsBar(plan: PlanNode): boolean {
   return plan.detail.all_day || isMultiDay(plan);
 }

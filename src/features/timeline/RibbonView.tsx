@@ -20,8 +20,8 @@ export type RibbonViewProps = {
 
 /**
  * Compact current-week ribbon for the home tile: day columns cascade in, today
- * breathes, all-day and multi-day plans run as bars under the dates, and each day lists all of its
- * plans with their start time, scrolling when they overflow. A plan opens in place;
+ * breathes, all-day and multi-day plans run as bars under the dates, and each day lists
+ * all of its other plans with their start time, scrolling when they overflow. A plan opens in place;
  * the rest of the tile opens the full timeline.
  */
 export function RibbonView({ days, labels, today, now, plans, onOpen, className = "" }: RibbonViewProps) {
