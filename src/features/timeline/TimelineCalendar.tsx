@@ -415,10 +415,12 @@ export function TimelineCalendar({
                   anchor={anchor}
                   labels={labels}
                   today={today}
+                  now={now}
                   plans={plans}
                   memories={memories}
                   loading={plansQuery.isPending}
                   fresh={fresh}
+                  onOpen={openNode}
                   onSelectDay={(day) => {
                     setAnchor(day);
                     setView("week");

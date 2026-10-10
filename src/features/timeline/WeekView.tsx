@@ -5,10 +5,10 @@ import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
 import { BreathRing, FreshGlow, LiveDot } from "./markers";
 import {
-  isMultiDay,
   memoriesOn,
   plansOn,
   planStartsOn,
+  runsAsBar,
   spanLanes,
   startLabel,
   spanOf,
@@ -46,10 +46,10 @@ export type WeekViewProps = {
 };
 
 /**
- * Seven day columns of plan chips. Multi-day plans run as bars across the columns under
- * the dates. Columns cascade in, chips settle after them, today breathes and carries a
- * now marker between what happened and what is next, and each column offers a + to add
- * to that day.
+ * Seven day columns of plan chips. All-day and multi-day plans run as bars across the
+ * columns under the dates. Columns cascade in, chips settle after them, today breathes
+ * and carries a now marker between what happened and what is next, and each column
+ * offers a + to add to that day.
  */
 export function WeekView({
   days,
@@ -68,7 +68,7 @@ export function WeekView({
   return (
     <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
       {days.map((day, i) => {
-        const dayPlans = plansOn(plans, day).filter((p) => !isMultiDay(p));
+        const dayPlans = plansOn(plans, day).filter((p) => !runsAsBar(p));
         const dayMemories = memoriesOn(memories, day);
         const isToday = isSameDay(day, today);
         const isPast = day < today;

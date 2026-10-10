@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { isSameDay } from "./dates";
 import { BreathRing, LiveDot } from "./markers";
-import { isMultiDay, occurrenceOf, plansOn, planStartsOn, spanLanes, spanOf, startLabel, type PlanNode, type PlanOccurrence } from "./plans";
+import { occurrenceOf, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, type PlanNode, type PlanOccurrence } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
 export type RibbonViewProps = {
@@ -20,7 +20,7 @@ export type RibbonViewProps = {
 
 /**
  * Compact current-week ribbon for the home tile: day columns cascade in, today
- * breathes, multi-day plans run as bars under the dates, and each day lists all of its
+ * breathes, all-day and multi-day plans run as bars under the dates, and each day lists all of its
  * plans with their start time, scrolling when they overflow. A plan opens in place;
  * the rest of the tile opens the full timeline.
  */
@@ -30,7 +30,7 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
     <div className={`flex h-full min-h-0 flex-col px-2 pb-2 pt-1 ${className}`}>
       <div className="flex min-h-0 flex-1">
         {days.map((day, i) => {
-          const dayPlans = plansOn(plans, day).filter((p) => !isMultiDay(p));
+          const dayPlans = plansOn(plans, day).filter((p) => !runsAsBar(p));
           const isToday = isSameDay(day, today);
           return (
             <motion.div

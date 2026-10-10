@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../types/yaad";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, memoriesOn, occurrenceOf, plansOn, spanLanes, spanOf, startLabel } from "./plans";
+import { asPlan, isMultiDay, memoriesOn, occurrenceOf, plansOn, runsAsBar, spanLanes, spanOf, startLabel } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -133,5 +133,14 @@ describe("all-day plans", () => {
     const window = plan("window", new Date(2026, 8, 30), new Date(2026, 9, 2), true);
     expect(isMultiDay(window)).toBe(true);
     expect(spanLanes([window], week).map((lane) => lane.map((p) => p.id))).toEqual([["window"]]);
+  });
+
+  it("a single all-day date runs as a bar and lands in a lane, a timed plan does not", () => {
+    const week = Array.from({ length: 7 }, (_, i) => new Date(2026, 8, 28 + i));
+    const drop = plan("drop", new Date(2026, 8, 30), null, true);
+    const lunch = plan("lunch", new Date(2026, 8, 30, 12), new Date(2026, 8, 30, 13));
+    expect(runsAsBar(drop)).toBe(true);
+    expect(runsAsBar(lunch)).toBe(false);
+    expect(spanLanes([lunch, drop], week).map((lane) => lane.map((p) => p.id))).toEqual([["drop"]]);
   });
 });

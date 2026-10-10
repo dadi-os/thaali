@@ -75,15 +75,20 @@ export function isMultiDay(plan: PlanNode): boolean {
   return span !== null && span.end.getTime() > endOfDay(span.start).getTime();
 }
 
+/** True when the plan draws as a bar along the top of its days rather than as a chip: it is all-day or runs past a day. */
+export function runsAsBar(plan: PlanNode): boolean {
+  return plan.detail.all_day || isMultiDay(plan);
+}
+
 /**
- * Multi-day plans touching `days`, stacked into lanes, earliest first: plans in one lane
- * share no shown day, so each lane draws as one row of bars.
+ * Bar plans (all-day or multi-day) touching `days`, stacked into lanes, earliest first:
+ * plans in one lane share no shown day, so each lane draws as one row of bars.
  */
 export function spanLanes(plans: PlanNode[], days: Date[]): PlanNode[][] {
   const shownDays = (plan: PlanNode) => days.filter((day) => planOverlapsDay(plan, day));
   const lanes: PlanNode[][] = [];
   const multi = plans
-    .filter((p) => isMultiDay(p) && shownDays(p).length > 0)
+    .filter((p) => runsAsBar(p) && shownDays(p).length > 0)
     .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
   for (const plan of multi) {
     const mine = shownDays(plan);
