@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../types/yaad";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, memoriesOn, occurrenceOf, plansOn, runsAsBar, spanLanes, spanOf, startLabel } from "./plans";
+import { asPlan, isMultiDay, memoriesOn, occurrenceOf, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -142,5 +142,29 @@ describe("all-day plans", () => {
     expect(runsAsBar(drop)).toBe(true);
     expect(runsAsBar(lunch)).toBe(false);
     expect(spanLanes([lunch, drop], week).map((lane) => lane.map((p) => p.id))).toEqual([["drop"]]);
+  });
+});
+
+describe("weekSlots", () => {
+  const week = Array.from({ length: 7 }, (_, i) => new Date(2026, 9, 5 + i));
+
+  it("spans each bar over its columns and lists a day's timed plans in the slots its bars leave free", () => {
+    const trip = plan("trip", new Date(2026, 9, 5), new Date(2026, 9, 6), true);
+    const drop = plan("drop", new Date(2026, 9, 6), null, true);
+    const lunch = plan("lunch", new Date(2026, 9, 6, 12), new Date(2026, 9, 6, 13));
+    const quiz = plan("quiz", new Date(2026, 9, 8, 9), null);
+    const layout = weekSlots([trip, drop, lunch, quiz], week, 4);
+    expect(layout.bars.map((b) => [b.plan.id, b.lane, b.from, b.to])).toEqual([["trip", 0, 0, 1], ["drop", 1, 1, 1]]);
+    expect(layout.items[1]!.map((i) => [i.plan.id, i.slot])).toEqual([["lunch", 2]]);
+    expect(layout.items[3]!.map((i) => [i.plan.id, i.slot])).toEqual([["quiz", 0]]);
+    expect(layout.slots).toBe(3);
+  });
+
+  it("turns a full day's last free slot into +N more", () => {
+    const busy = [9, 10, 11, 12, 13].map((h) => plan(`p${h}`, new Date(2026, 9, 7, h), null));
+    const layout = weekSlots(busy, week, 4);
+    expect(layout.items[2]!.map((i) => i.slot)).toEqual([0, 1, 2]);
+    expect(layout.more[2]).toEqual({ slot: 3, count: 2 });
+    expect(layout.slots).toBe(4);
   });
 });

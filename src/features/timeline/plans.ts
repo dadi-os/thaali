@@ -105,6 +105,57 @@ export function spanLanes(plans: PlanNode[], days: Date[]): PlanNode[][] {
   return lanes;
 }
 
+/** Where one week row of the month draws each plan. */
+export type WeekSlots = {
+  /** Bar plans with their lane and the first and last column (0–6) they cover. */
+  bars: Array<{ plan: PlanNode; lane: number; from: number; to: number }>;
+  /** Per column, the timed plans shown and the slot each takes. */
+  items: Array<Array<{ plan: PlanNode; slot: number }>>;
+  /** Per column, the slot and count of a "+N more" line, or null when every plan fits. */
+  more: Array<{ slot: number; count: number } | null>;
+  /** Slot rows the week needs. */
+  slots: number;
+};
+
+/**
+ * Lays out one week of the month: bar plans keep their `spanLanes` lanes, and each day's
+ * timed plans fill the slots no bar covers that day, top first, so a day without bars
+ * lists from the top. A day holds `max(limit, lanes)` slots; when its plans do not fit,
+ * its last free slot becomes "+N more".
+ */
+export function weekSlots(plans: PlanNode[], week: Date[], limit: number): WeekSlots {
+  const lanes = spanLanes(plans, week);
+  const bars = lanes.flatMap((lane, l) =>
+    lane.map((plan) => {
+      const cols = week.flatMap((day, c) => (planOverlapsDay(plan, day) ? [c] : []));
+      return { plan, lane: l, from: cols[0]!, to: cols[cols.length - 1]! };
+    }),
+  );
+  const cap = Math.max(limit, lanes.length);
+  const items: WeekSlots["items"] = [];
+  const more: WeekSlots["more"] = [];
+  let slots = lanes.length;
+  week.forEach((day, c) => {
+    const taken = new Set(bars.filter((b) => b.from <= c && c <= b.to).map((b) => b.lane));
+    const free = Array.from({ length: cap }, (_, s) => s).filter((s) => !taken.has(s));
+    const timed = plansOn(plans, day).filter((p) => !runsAsBar(p));
+    const fits = timed.length <= free.length;
+    const shown = fits ? timed : timed.slice(0, Math.max(free.length - 1, 0));
+    items.push(shown.map((plan, j) => ({ plan, slot: free[j]! })));
+    if (fits) {
+      more.push(null);
+      if (shown.length > 0) {
+        slots = Math.max(slots, free[shown.length - 1]! + 1);
+      }
+    } else {
+      const slot = free.length > 0 ? free[free.length - 1]! : cap;
+      more.push({ slot, count: timed.length - shown.length });
+      slots = Math.max(slots, slot + 1);
+    }
+  });
+  return { bars, items, more, slots };
+}
+
 /** Plans on `day`, earliest first. */
 export function plansOn(plans: PlanNode[], day: Date): PlanNode[] {
   return plans
