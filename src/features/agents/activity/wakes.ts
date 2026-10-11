@@ -329,3 +329,28 @@ export function buildActivity(logs: LogRecord[]): ActivityWake[] {
 
   return wakes.filter((wake) => wake.steps.length > 0).reverse();
 }
+
+/**
+ * carryWakeKeys gives each wake in `next` the key of the `previous` wake it shares a step
+ * with, so a wake keeps its identity (and its row's open state) when the log window slides
+ * past the row it started on and buildActivity keys it by a later one.
+ */
+export function carryWakeKeys(previous: ActivityWake[], next: ActivityWake[]): ActivityWake[] {
+  const keyByStep = new Map<string, string>();
+  for (const wake of previous) {
+    for (const step of wake.steps) {
+      keyByStep.set(step.key, wake.key);
+    }
+  }
+  const taken = new Set(next.map((wake) => wake.key));
+  return next.map((wake) => {
+    const carried = wake.steps
+      .map((step) => keyByStep.get(step.key))
+      .find((key) => key !== undefined && key !== wake.key && !taken.has(key));
+    if (carried === undefined) {
+      return wake;
+    }
+    taken.add(carried);
+    return { ...wake, key: carried };
+  });
+}

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import type { UseQueryResult } from "@tanstack/react-query";
 import type { Lane, LogRecord } from "../../../types/hath";
@@ -11,7 +11,7 @@ import { countNoun } from "../../../shared/lib/ux/plural";
 import { formatAbsolute, formatRelative, formatSpan } from "../../../shared/lib/ux/time";
 import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
 import { Step } from "./blocks";
-import { buildActivity, type ActivityStep, type ActivityWake } from "./wakes";
+import { buildActivity, carryWakeKeys, type ActivityStep, type ActivityWake } from "./wakes";
 
 /** Wakes shown at first, and added per "show older". */
 const WAKE_PAGE = 5;
@@ -46,6 +46,24 @@ function wakeTitle(wake: ActivityWake): string {
     return first.scheduled ? `scheduled ${from}` : from;
   }
   return wake.lanes.map((lane) => LANE_LABEL[lane]).join(" + ");
+}
+
+/**
+ * The innermost feed row crossing `line` (a viewport y), or the first row below it, with
+ * its top: the row the reader is looking at, which must not move as rows above it change.
+ */
+function readingRow(list: HTMLElement, line: number): { row: Element; top: number } | null {
+  let found: Element | null = null;
+  for (const row of list.querySelectorAll("li")) {
+    const { top, bottom } = row.getBoundingClientRect();
+    if (top <= line && bottom > line) {
+      found = row;
+    } else if (found === null && top > line) {
+      found = row;
+      break;
+    }
+  }
+  return found ? { row: found, top: found.getBoundingClientRect().top } : null;
 }
 
 /** The wake's opening step as one line for its collapsed row. */
@@ -205,7 +223,7 @@ export type AgentActivityProps = {
   logs: UseQueryResult<LogRecord[], Error>;
   /** Which of the agent's lanes are running now; marks the newest wake live. */
   running: Record<Lane, boolean>;
-  /** The popover's scroll area: the header sticks to it, and new steps wait while it is scrolled past the feed's top. */
+  /** The popover's scroll area: the header sticks to it, and it keeps the reader's row still while it is scrolled past the feed's top. */
   scrollRef: RefObject<HTMLDivElement | null>;
 };
 
@@ -213,26 +231,70 @@ export type AgentActivityProps = {
  * Recent agent activity from durable logs, as wakes: each stretch of work from the
  * message (or cold start) that set it off until both lanes yielded, its messages and
  * model calls in order with each call's thought, text and tool calls. The header filters
- * by lane and stays pinned while scrolling. New steps ease in; while the reader is
- * scrolled into the feed they wait behind an "↑ N new" pill instead of shifting the page.
+ * by lane and stays pinned while scrolling. New steps always render and ease in; while
+ * the reader is scrolled into the feed, the row they are on holds still as steps land
+ * above it, and an "↑ N new" pill counts what arrived. A wake keeps its key while the
+ * log window slides, and the newest wake opens when it first appears and stays as left.
  */
 export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActivityProps) {
-  const wakes = useMemo(
-    () => (logsQuery.data ? buildActivity(logsQuery.data) : []),
-    [logsQuery.data],
-  );
+  const previousWakes = useRef<ActivityWake[]>([]);
+  const wakes = useMemo(() => {
+    const built = logsQuery.data
+      ? carryWakeKeys(previousWakes.current, buildActivity(logsQuery.data))
+      : [];
+    previousWakes.current = built;
+    return built;
+  }, [logsQuery.data]);
   const [filter, setFilter] = useState<LaneFilter>("all");
   const [limit, setLimit] = useState(WAKE_PAGE);
   const [openWakes, setOpenWakes] = useState<Record<string, boolean>>({});
+  const newestKey = wakes[0]?.key;
+  if (newestKey !== undefined && openWakes[newestKey] === undefined) {
+    setOpenWakes((prev) => ({ ...prev, [newestKey]: true }));
+  }
+  const headerRef = useRef<HTMLDivElement>(null);
   const sentinelRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLOListElement>(null);
   const [away, setAway] = useState(false);
-  const [held, setHeld] = useState<Set<string> | null>(null);
-  if (away && held === null) {
-    setHeld(new Set(wakes.flatMap((wake) => wake.steps.map((step) => step.key))));
+  const [seen, setSeen] = useState<Set<string> | null>(null);
+  if (away && seen === null) {
+    setSeen(new Set(wakes.flatMap((wake) => wake.steps.map((step) => step.key))));
   }
-  if (!away && held !== null) {
-    setHeld(null);
+  if (!away && seen !== null) {
+    setSeen(null);
   }
+
+  useLayoutEffect(() => {
+    const root = scrollRef.current;
+    const header = headerRef.current;
+    const sentinel = sentinelRef.current;
+    const list = listRef.current;
+    if (!root || !header || !sentinel || !list) {
+      return;
+    }
+    let anchor: { row: Element; top: number } | null = null;
+    const pick = () => {
+      const line = header.getBoundingClientRect().bottom;
+      anchor = sentinel.getBoundingClientRect().top < line ? readingRow(list, line) : null;
+    };
+    const hold = () => {
+      if (anchor && anchor.row.isConnected) {
+        const drift = anchor.row.getBoundingClientRect().top - anchor.top;
+        if (drift !== 0) {
+          root.scrollTop += drift;
+        }
+      }
+      pick();
+    };
+    pick();
+    root.addEventListener("scroll", pick, { passive: true });
+    const observer = new ResizeObserver(hold);
+    observer.observe(list);
+    return () => {
+      root.removeEventListener("scroll", pick);
+      observer.disconnect();
+    };
+  }, [scrollRef]);
 
   useEffect(() => {
     const root = scrollRef.current;
@@ -262,9 +324,8 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
       if (filter !== "all" && step.lane !== filter) {
         return false;
       }
-      if (held && !held.has(step.key)) {
+      if (seen && !seen.has(step.key)) {
         newCount += 1;
-        return false;
       }
       return true;
     });
@@ -277,7 +338,10 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
 
   return (
     <section>
-      <div className="sticky top-0 z-10 -mx-4 flex items-center justify-between gap-2 bg-glass-sheet px-4 py-2 backdrop-blur-md">
+      <div
+        ref={headerRef}
+        className="sticky -top-3 z-10 -mx-4 flex items-center justify-between gap-2 bg-glass-sheet px-4 py-2 backdrop-blur-md"
+      >
         <h3 className="text-[11px] font-medium tracking-[2px] text-ink-faint">ACTIVITY</h3>
         <div className="flex items-center gap-2">
           <AnimatePresence initial={false}>
@@ -331,11 +395,11 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
         ) : null}
       </AnimatePresence>
 
-      <ol className="flex flex-col">
+      <ol ref={listRef} className="flex flex-col">
         <AnimatePresence initial={false}>
           {visible.map(({ wake, steps }, index) => {
             const live = wake.key === liveKey;
-            const open = openWakes[wake.key] ?? (index === 0 || live);
+            const open = openWakes[wake.key] ?? index === 0;
             return (
               <WakeRow
                 key={wake.key}

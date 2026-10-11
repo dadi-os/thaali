@@ -57,7 +57,7 @@ import {
   type MemoryLink,
 } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/ForceGraph";
-import { buildActivity, thoughtGist } from "./features/agents/activity/wakes";
+import { buildActivity, carryWakeKeys, thoughtGist } from "./features/agents/activity/wakes";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
 import {
   hasRememberedSessions,
@@ -1307,6 +1307,19 @@ describe("buildActivity", () => {
     expect(wakes.map((wake) => wake.key)).toEqual(["d1", "b1", "a"]);
     expect(wakes[1]!.steps.map((step) => step.key)).toEqual(["b1", "c"]);
     expect(wakes[1]!.steps[1]).toMatchObject({ kind: "message", peer: "career-manager", scheduled: true });
+  });
+
+  it("keeps a wake's key when the log window slides past its first row", () => {
+    const logs = [
+      message("in", 0, { direction: "receive", from_agent_id: null }),
+      response("c1", "conversation", 1, [{ type: "text", text: "first" }]),
+      response("c2", "conversation", 2, [{ type: "text", text: "second" }]),
+      response("c3", "conversation", 3, [{ type: "text", text: "third" }]),
+    ].reverse();
+    const before = buildActivity(logs);
+    const slid = buildActivity(logs.slice(0, 3));
+    expect(slid.map((wake) => wake.key)).toEqual(["c1"]);
+    expect(carryWakeKeys(before, slid).map((wake) => wake.key)).toEqual(["in"]);
   });
 
   it("keeps the lane a handoff wakes in the wake that handed off", () => {

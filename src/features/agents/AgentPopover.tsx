@@ -219,7 +219,7 @@ export function AgentPopover({
         </div>
       ) : null}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 [overflow-anchor:none]">
         <section className="mb-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
           <span className="text-ink-ghost">Created</span>
           <Tooltip content={createdAt ? formatAbsolute(createdAt) : "—"}>
