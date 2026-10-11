@@ -546,6 +546,82 @@
   backdrop-filter: blur(16px);
 }
 
+/* File viewer: one solid sheet on the frost, its header over the file. */
+.file-sheet {
+  border: 1px solid var(--glass-border);
+  background: var(--bone);
+  box-shadow:
+    0 2px 6px rgb(27 30 25 / 0.12),
+    0 40px 90px -24px rgb(27 30 25 / 0.5);
+}
+
+/* Images sit on a faint checkerboard so transparency reads as transparency. */
+.file-sheet__canvas {
+  background-color: var(--bone-raised);
+  background-image:
+    linear-gradient(45deg, var(--sage-fill) 25%, transparent 25%),
+    linear-gradient(-45deg, var(--sage-fill) 25%, transparent 25%),
+    linear-gradient(45deg, transparent 75%, var(--sage-fill) 75%),
+    linear-gradient(-45deg, transparent 75%, var(--sage-fill) 75%);
+  background-size: 16px 16px;
+  background-position: 0 0, 0 8px, 8px -8px, -8px 0;
+}
+
+/* Shiki output (dual vitesse themes as CSS variables) with a line-number gutter. */
+.code-view pre,
+.code-view__plain {
+  margin: 0;
+  padding: 14px 0 18px;
+  background: transparent !important;
+  font-size: 12.5px;
+  line-height: 1.7;
+  tab-size: 2;
+  color: var(--ink);
+}
+
+.code-view pre {
+  font-family: inherit;
+}
+
+.code-view__plain {
+  padding-inline: 20px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code-view code {
+  counter-reset: line;
+  display: block;
+  min-width: max-content;
+}
+
+.code-view .line {
+  padding-right: 20px;
+}
+
+.code-view .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 3.25rem;
+  margin-right: 1.25rem;
+  padding-right: 0.75rem;
+  border-right: 1px solid var(--rule);
+  text-align: right;
+  color: var(--ink-ghost);
+  user-select: none;
+}
+
+.code-view span {
+  color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .code-view span {
+    color: var(--shiki-dark);
+  }
+}
+
 /* Thread under a host pin: messages dissolve as they scroll up beneath it. */
 .thread-fade-top {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.25rem);

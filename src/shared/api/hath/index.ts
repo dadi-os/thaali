@@ -69,6 +69,16 @@ export function createHathClient(transport: Transport, baseUrl: string) {
       return transport.mediaUrl({ baseUrl, path: `/attachments/${id}` });
     },
 
+    /** GET /attachments/:id — any attachment's bytes, for saving it. */
+    getAttachmentBlob(id: string): Promise<Blob> {
+      return transport.request({
+        baseUrl,
+        path: `/attachments/${id}`,
+        method: "GET",
+        responseType: "blob",
+      });
+    },
+
     /** GET /attachments/:id — a text attachment's contents. */
     getAttachmentText(id: string): Promise<string> {
       return transport.request({

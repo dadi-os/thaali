@@ -9,6 +9,6 @@ description = "Allows reading geolocation for device_get_location."
 commands.allow = ["device_get_location"]
 
 [[permission]]
-identifier = "allow-device-write-download"
-description = "Allows writing files into the Downloads folder for device_send_file."
-commands.allow = ["device_write_download"]
+identifier = "allow-save-download"
+description = "Allows saving a file Ankur downloads from the app into the Downloads folder."
+commands.allow = ["save_download"]

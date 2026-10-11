@@ -18,6 +18,7 @@ import {
   attachmentSizeLabel,
   PASTE_ATTACHMENT_CHARS,
   pasteAsFile,
+  resolveMediaType,
 } from "./shared/lib/content/attachments";
 import {
   addOptimistic,
@@ -100,6 +101,13 @@ describe("attachments", () => {
     expect(attachmentSizeLabel("text/markdown", 49_222)).toBe("~12.3k tokens");
     expect(attachmentSizeLabel("application/json", 400)).toBe("~100 tokens");
     expect(attachmentSizeLabel("image/png", 34_000)).toBe("33 KB");
+  });
+
+  it("types files by extension first so source code is stored as text", () => {
+    expect(resolveMediaType({ name: "driver.ts", type: "video/mp2t" })).toBe("text/plain");
+    expect(resolveMediaType({ name: "data.json", type: "" })).toBe("application/json");
+    expect(resolveMediaType({ name: "photo.heic", type: "image/heic" })).toBe("image/heic");
+    expect(resolveMediaType({ name: "Dockerfile", type: "" })).toBe("application/octet-stream");
   });
 
   it("resolves a file-only send to the stored files when its event lands", () => {

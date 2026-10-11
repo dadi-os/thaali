@@ -1,6 +1,7 @@
 mod logutil;
 mod net;
 mod device;
+mod download;
 mod radio;
 
 #[cfg(windows)]
@@ -37,6 +38,7 @@ pub fn run() {
             net::mesh_clear_credentials,
             device::device_get_battery,
             device::device_get_location,
+            download::save_download,
             radio::radio_start_scan,
             radio::radio_stop_scan,
             radio::radio_connect,

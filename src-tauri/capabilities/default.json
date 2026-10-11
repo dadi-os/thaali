@@ -25,7 +25,7 @@
     "allow-net",
     "allow-device-get-battery",
     "allow-device-get-location",
-    "allow-device-write-download",
+    "allow-save-download",
     {
       "identifier": "http:default",
       "allow": [

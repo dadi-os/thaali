@@ -9,10 +9,51 @@ export const MAX_ATTACHMENTS = 8;
 export const PASTE_ATTACHMENT_CHARS = 4000;
 
 /**
- * Media types by extension for files the platform leaves untyped. Text formats map to
- * text types so Hath stores them as text agents can read, not as opaque bytes.
+ * Media types by extension, trusted over the platform's guess (which types `.ts` as
+ * video/mp2t and leaves most source files untyped). Text formats map to text types so
+ * Hath stores them as text agents can read, not as opaque bytes; source code with no
+ * registered type is text/plain, as Hath's own create_attachment does.
  */
 const EXT_MEDIA: Record<string, string> = {
+  ts: "text/plain",
+  tsx: "text/plain",
+  mts: "text/plain",
+  cts: "text/plain",
+  js: "text/javascript",
+  jsx: "text/plain",
+  mjs: "text/javascript",
+  cjs: "text/javascript",
+  py: "text/plain",
+  go: "text/plain",
+  rs: "text/plain",
+  swift: "text/plain",
+  kt: "text/plain",
+  java: "text/plain",
+  c: "text/plain",
+  h: "text/plain",
+  cpp: "text/plain",
+  hpp: "text/plain",
+  cs: "text/plain",
+  rb: "text/plain",
+  php: "text/plain",
+  lua: "text/plain",
+  sql: "text/plain",
+  sh: "application/x-sh",
+  bash: "application/x-sh",
+  zsh: "application/x-sh",
+  css: "text/css",
+  scss: "text/plain",
+  vue: "text/plain",
+  svelte: "text/plain",
+  graphql: "text/plain",
+  proto: "text/plain",
+  ini: "text/plain",
+  env: "text/plain",
+  diff: "text/plain",
+  patch: "text/plain",
+  tex: "text/plain",
+  jsonc: "text/plain",
+  jsonl: "text/plain",
   jpg: "image/jpeg",
   jpeg: "image/jpeg",
   png: "image/png",
@@ -125,13 +166,14 @@ export function toMessageAttachments(
   });
 }
 
-function resolveMediaType(file: File): string {
-  if (file.type) {
-    return file.type;
-  }
-  const ext = file.name.split(".").pop()?.toLowerCase();
+/** A file's media type: its extension's when known, else the platform's, else opaque bytes. */
+export function resolveMediaType(file: Pick<File, "name" | "type">): string {
+  const ext = file.name.includes(".") ? file.name.split(".").pop()?.toLowerCase() : undefined;
   if (ext && EXT_MEDIA[ext]) {
     return EXT_MEDIA[ext];
+  }
+  if (file.type) {
+    return file.type;
   }
   return "application/octet-stream";
 }
