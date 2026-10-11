@@ -46,6 +46,17 @@ export interface Transport {
    */
   mediaUrl(opts: { baseUrl: string; path: string }): string;
 
+  /**
+   * Open a long-lived binary response (Nas's MJPEG browser stream) through the transport's
+   * own HTTP client and hand back its body. Aborting `signal` closes it.
+   * @throws ApiError with the service's message on a non-2xx; "Not connected" like `request`.
+   */
+  openStream(opts: {
+    baseUrl: string;
+    path: string;
+    signal: AbortSignal;
+  }): Promise<ReadableStream<Uint8Array>>;
+
   /** True after connect() until disconnect() — drives event-stream reconnect. */
   isActive(): boolean;
   connectionState(): ConnectionState;

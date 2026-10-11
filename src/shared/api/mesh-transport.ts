@@ -222,6 +222,42 @@ export class MeshTransport implements Transport {
     return this.meshUrl(opts.baseUrl, opts.path);
   }
 
+  async openStream(opts: {
+    baseUrl: string;
+    path: string;
+    signal: AbortSignal;
+  }): Promise<ReadableStream<Uint8Array>> {
+    if (this.port === null || !this.active) {
+      throw new Error("Not connected");
+    }
+    const path = opts.path.startsWith("/") ? opts.path : `/${opts.path}`;
+    const requestId = crypto.randomUUID();
+    let response: Response;
+    try {
+      response = await fetch(this.meshUrl(opts.baseUrl, path), {
+        method: "GET",
+        headers: { "X-Request-Id": requestId },
+        signal: opts.signal,
+      });
+    } catch (err) {
+      if (!opts.signal.aborted) {
+        void this.probeHealth();
+      }
+      throw err instanceof Error ? err : new Error(String(err));
+    }
+    this.markSuccess();
+    if (!response.ok || !response.body) {
+      const text = await response.text();
+      throw new ApiError(
+        `HTTP ${response.status} GET ${opts.baseUrl}${path}: ${text}`,
+        opts.baseUrl,
+        requestId,
+        response.status,
+      );
+    }
+    return response.body;
+  }
+
   stream(opts: {
     baseUrl: string;
     path: string;

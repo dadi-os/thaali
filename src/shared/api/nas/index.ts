@@ -217,13 +217,9 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /**
-     * GET /browsers/:id/stream — MJPEG live view of the virtual monitor, for `<img src>`.
-     * `openId` makes each opening a distinct URL: the webview reuses an image it already
-     * loaded for the same URL (ignoring `no-store`), which is a frozen last frame for a stream.
-     */
-    browserStreamUrl(id: number, openId: string): string {
-      return transport.mediaUrl({ baseUrl, path: `/browsers/${id}/stream?open=${openId}` });
+    /** GET /browsers/:id/stream — the virtual monitor as an MJPEG (multipart/x-mixed-replace) body. */
+    browserStream(id: number, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+      return transport.openStream({ baseUrl, path: `/browsers/${id}/stream`, signal });
     },
 
     /** GET /terminals — live host terminal panes on Nas. */

@@ -109,6 +109,27 @@ export class BrowserTransport implements Transport {
     return joinUrl(opts.baseUrl, opts.path);
   }
 
+  async openStream(opts: {
+    baseUrl: string;
+    path: string;
+    signal: AbortSignal;
+  }): Promise<ReadableStream<Uint8Array>> {
+    if (!this.active) {
+      throw new Error("Not connected");
+    }
+    const url = joinUrl(opts.baseUrl, opts.path);
+    const requestId = crypto.randomUUID();
+    const response = await fetch(url, {
+      headers: { "X-Request-Id": requestId },
+      signal: opts.signal,
+    });
+    if (!response.ok || !response.body) {
+      const text = await response.text();
+      throw new ApiError(`HTTP ${response.status} GET ${url}: ${text}`, opts.baseUrl, requestId, response.status);
+    }
+    return response.body;
+  }
+
   stream(opts: {
     baseUrl: string;
     path: string;
