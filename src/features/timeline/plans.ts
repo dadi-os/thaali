@@ -105,6 +105,20 @@ export function spanLanes(plans: PlanNode[], days: Date[]): PlanNode[][] {
   return lanes;
 }
 
+/**
+ * The lanes one day column draws: down to its lowest lane with a bar on `day`, so a day
+ * without bars starts its chips under the date while bars keep their row across days.
+ */
+export function lanesThrough(lanes: PlanNode[][], day: Date): PlanNode[][] {
+  let last = -1;
+  lanes.forEach((lane, r) => {
+    if (lane.some((p) => planOverlapsDay(p, day))) {
+      last = r;
+    }
+  });
+  return lanes.slice(0, last + 1);
+}
+
 /** Where one week row of the month draws each plan. */
 export type WeekSlots = {
   /** Bar plans with their lane and the first and last column (0–6) they cover. */

@@ -5,6 +5,7 @@ import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
 import { BreathRing, FreshGlow, LiveDot } from "./markers";
 import {
+  lanesThrough,
   memoriesOn,
   plansOn,
   planStartsOn,
@@ -70,6 +71,7 @@ export function WeekView({
       {days.map((day, i) => {
         const dayPlans = plansOn(plans, day).filter((p) => !runsAsBar(p));
         const dayMemories = memoriesOn(memories, day);
+        const dayLanes = lanesThrough(lanes, day);
         const isToday = isSameDay(day, today);
         const isPast = day < today;
         const ghosts = pending.filter((p) => isSameDay(p.day ?? today, day));
@@ -109,9 +111,9 @@ export function WeekView({
               </button>
             </div>
 
-            {lanes.length > 0 ? (
+            {dayLanes.length > 0 ? (
               <div className="mb-1.5 flex flex-col gap-0.5">
-                {lanes.map((lane, r) => (
+                {dayLanes.map((lane, r) => (
                   <SpanLaneCell
                     key={r}
                     lane={lane}

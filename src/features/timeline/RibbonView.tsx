@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { isSameDay } from "./dates";
 import { BreathRing, LiveDot } from "./markers";
-import { occurrenceOf, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, type PlanNode, type PlanOccurrence } from "./plans";
+import { lanesThrough, occurrenceOf, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, type PlanNode, type PlanOccurrence } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
 export type RibbonViewProps = {
@@ -32,6 +32,7 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
         {days.map((day, i) => {
           const dayPlans = plansOn(plans, day).filter((p) => !runsAsBar(p));
           const isToday = isSameDay(day, today);
+          const dayLanes = lanesThrough(lanes, day);
           return (
             <motion.div
               key={day.toISOString()}
@@ -51,9 +52,9 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
                   {isToday ? <BreathRing /> : null}
                 </span>
               </div>
-              {lanes.length > 0 ? (
+              {dayLanes.length > 0 ? (
                 <div className="mb-1.5 flex flex-col gap-0.5">
-                  {lanes.map((lane, r) => (
+                  {dayLanes.map((lane, r) => (
                     <SpanLaneCell
                       key={r}
                       lane={lane}

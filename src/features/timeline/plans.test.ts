@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../types/yaad";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, memoriesOn, occurrenceOf, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
+import { asPlan, isMultiDay, memoriesOn, occurrenceOf, lanesThrough, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -166,5 +166,17 @@ describe("weekSlots", () => {
     expect(layout.items[2]!.map((i) => i.slot)).toEqual([0, 1, 2]);
     expect(layout.more[2]).toEqual({ slot: 3, count: 2 });
     expect(layout.slots).toBe(4);
+  });
+});
+
+describe("lanesThrough", () => {
+  it("keeps a day's lanes down to its lowest bar and none for a day without bars", () => {
+    const week = Array.from({ length: 7 }, (_, i) => new Date(2026, 9, 5 + i));
+    const trip = plan("trip", new Date(2026, 9, 5), new Date(2026, 9, 6), true);
+    const drop = plan("drop", new Date(2026, 9, 6), null, true);
+    const lanes = spanLanes([trip, drop], week);
+    expect(lanesThrough(lanes, week[0]!).map((l) => l.map((p) => p.id))).toEqual([["trip"]]);
+    expect(lanesThrough(lanes, week[1]!)).toHaveLength(2);
+    expect(lanesThrough(lanes, week[3]!)).toEqual([]);
   });
 });
