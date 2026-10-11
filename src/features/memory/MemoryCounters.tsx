@@ -1,8 +1,9 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQueries } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { isMeshOnline, yaad } from "../../shared/api";
 import type { NodeKind } from "../../types/yaad";
+import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -115,23 +116,22 @@ export type MemoryCountersProps = {
 };
 
 /**
- * Home memory preview — kind counts as a quiet ledger with labeled icons.
+ * Home memory preview — kind counts as a quiet ledger with labeled icons. Each kind is
+ * counted on its own, so its ticker spins until its count lands and then rolls to it.
  */
 export function MemoryCounters({ className }: MemoryCountersProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
 
-  const countsQuery = useQuery({
-    queryKey: ["yaad", "memory-kind-counts"],
-    queryFn: async () => {
-      const entries = await Promise.all(
-        KINDS.map(async ({ kind }) => [kind, await countKind(kind)] as const),
-      );
-      return Object.fromEntries(entries) as Record<NodeKind, number>;
-    },
-    enabled: connected,
-    refetchInterval: POLL_MS,
+  const countQueries = useQueries({
+    queries: KINDS.map(({ kind }) => ({
+      queryKey: ["yaad", "memory-kind-count", kind],
+      queryFn: () => countKind(kind),
+      enabled: connected,
+      refetchInterval: POLL_MS,
+    })),
   });
+  const failed = countQueries.find((query) => query.isError);
 
   if (!connected) {
     return (
@@ -143,53 +143,46 @@ export function MemoryCounters({ className }: MemoryCountersProps) {
     );
   }
 
-  if (countsQuery.isError) {
+  if (failed?.error) {
     return (
       <div
-        className={`flex h-full items-center justify-center ${className ?? ""}`}
+        className={`flex h-full items-center justify-center px-3 ${className ?? ""}`}
       >
-        <p className="text-[13px] text-ink-muted">Could not load memory.</p>
+        <p className="text-center text-[13px] text-ink-muted">{failed.error.message}</p>
       </div>
     );
   }
-
-  if (countsQuery.isLoading || !countsQuery.data) {
-    return (
-      <div
-        className={`flex h-full items-center justify-center ${className ?? ""}`}
-      >
-        <p className="text-[13px] text-ink-ghost">Loading memory…</p>
-      </div>
-    );
-  }
-
-  const counts = countsQuery.data;
 
   return (
     <div
       className={`flex h-full min-h-0 items-stretch px-2 pb-2.5 pt-0.5 ${className ?? ""}`}
     >
-      {KINDS.map(({ kind, singular, plural, icon }, i) => (
-        <motion.div
-          key={kind}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 }}
-          className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-2 px-2 ${
-            i > 0 ? "border-l border-dashed border-sage-line/70" : ""
-          }`}
-        >
-          <span className="text-[26px] font-medium leading-none tabular-nums tracking-tight text-ink">
-            {counts[kind]}
-          </span>
-          <span className="inline-flex items-center gap-1 text-sage-deep">
-            {icon}
-            <span className="text-[10px] font-medium tracking-[2px]">
-              {countNoun(counts[kind], singular, plural)}
+      {KINDS.map(({ kind, singular, plural, icon }, i) => {
+        const count = countQueries[i]?.data;
+        return (
+          <motion.div
+            key={kind}
+            initial={{ opacity: 0, y: 4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 }}
+            className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-2 px-2 ${
+              i > 0 ? "border-l border-dashed border-sage-line/70" : ""
+            }`}
+          >
+            <Ticker
+              value={count ?? null}
+              delay={i * 0.06}
+              className="text-[28px] font-medium tracking-tight text-ink"
+            />
+            <span className="inline-flex items-center gap-1 text-sage-deep">
+              {icon}
+              <span className="text-[10px] font-medium tracking-[2px]">
+                {count === undefined ? plural : countNoun(count, singular, plural)}
+              </span>
             </span>
-          </span>
-        </motion.div>
-      ))}
+          </motion.div>
+        );
+      })}
     </div>
   );
 }

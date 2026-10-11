@@ -48,3 +48,11 @@
   src: url("../assets/fonts/noto-sans-gujarati-gujarati-600-normal.woff2")
     format("woff2");
 }
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: block;
+  src: url("../assets/fonts/geist-mono-latin-500-normal.woff2") format("woff2");
+}

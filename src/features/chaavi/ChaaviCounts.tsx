@@ -1,13 +1,15 @@
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { chaavi, isMeshOnline } from "../../shared/api";
+import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { countNoun } from "../../shared/lib/ux/plural";
 
 /**
- * Home Chaavi tile — login vs secret catalog counts. Notes count as secrets.
+ * Home Chaavi tile — login vs secret catalog counts. Notes count as secrets. Its tickers
+ * spin while the vault and its items load and roll to the counts when they land.
  */
 export function ChaaviCounts() {
   const { state: connection } = useConnection();
@@ -47,15 +49,7 @@ export function ChaaviCounts() {
     );
   }
 
-  if (healthQuery.isLoading || !healthQuery.data) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-[13px] text-ink-ghost">Loading…</p>
-      </div>
-    );
-  }
-
-  if (healthQuery.data.vault === "unconfigured") {
+  if (healthQuery.data?.vault === "unconfigured") {
     return (
       <div className="flex h-full items-center justify-center px-3">
         <p className="text-center text-[13px] text-ink-ghost">Vault unconfigured</p>
@@ -75,24 +69,16 @@ export function ChaaviCounts() {
     );
   }
 
-  if (itemsQuery.isLoading || !itemsQuery.data) {
-    return (
-      <div className="flex h-full items-center justify-center">
-        <p className="text-[13px] text-ink-ghost">Loading…</p>
-      </div>
-    );
-  }
-
-  const items = itemsQuery.data.items;
-  const passwords = items.filter((i) => i.kind === "login").length;
-  const secrets = items.filter((i) => i.kind !== "login").length;
+  const items = itemsQuery.data?.items;
+  const passwords = items ? items.filter((i) => i.kind === "login").length : null;
+  const secrets = items ? items.filter((i) => i.kind !== "login").length : null;
 
   return (
     <div className="flex h-full min-h-0 items-stretch px-2 pb-2.5 pt-0.5">
       {(
         [
-          { key: "passwords", label: countNoun(passwords, "PASSWORD"), value: passwords },
-          { key: "secrets", label: countNoun(secrets, "SECRET"), value: secrets },
+          { key: "passwords", label: passwords === null ? "PASSWORDS" : countNoun(passwords, "PASSWORD"), value: passwords },
+          { key: "secrets", label: secrets === null ? "SECRETS" : countNoun(secrets, "SECRET"), value: secrets },
         ] as const
       ).map((col, i) => (
         <motion.div
@@ -104,9 +90,11 @@ export function ChaaviCounts() {
             i > 0 ? "border-l border-rule/80" : ""
           }`}
         >
-          <span className="text-[26px] font-medium leading-none tabular-nums tracking-tight text-ink">
-            {col.value}
-          </span>
+          <Ticker
+            value={col.value}
+            delay={i * 0.06}
+            className="text-[28px] font-medium tracking-tight text-ink"
+          />
           <span className="text-[10px] font-medium tracking-[1.2px] text-ink-ghost">
             {col.label}
           </span>
