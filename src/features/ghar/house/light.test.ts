@@ -43,7 +43,8 @@ describe("light", () => {
 
   it("reads level over the dimmable range and glows only lit lamps", () => {
     expect(lampLevel(bulb({ brightness: [50, 1] }))).toBe(0.5);
-    expect(roomGlow([bulb({ brightness: [50, 1] }, false)])).toBeNull();
-    expect(roomGlow([bulb({ brightness: [50, 1] }), bulb({}, true)])?.split("radial-gradient")).toHaveLength(3);
+    expect(roomGlow([bulb({ brightness: [50, 1] }, false)], "top")).toBeNull();
+    expect(roomGlow([bulb({ brightness: [50, 1] }), bulb({}, true)], "end")?.split("radial-gradient")).toHaveLength(3);
+    expect(roomGlow([{ ...bulb({ brightness: [50, 1] }), online: false }], "top")).toBeNull();
   });
 });
