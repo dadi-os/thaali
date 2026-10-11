@@ -275,7 +275,7 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
     let anchor: { row: Element; top: number } | null = null;
     const pick = () => {
       const line = header.getBoundingClientRect().bottom;
-      anchor = sentinel.getBoundingClientRect().top < line ? readingRow(list, line) : null;
+      anchor = sentinel.getBoundingClientRect().top < line - 1 ? readingRow(list, line) : null;
     };
     const hold = () => {
       if (anchor && anchor.row.isConnected) {

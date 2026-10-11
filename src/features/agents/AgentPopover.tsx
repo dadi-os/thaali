@@ -68,11 +68,12 @@ export type AgentPopoverProps = {
 };
 
 /**
- * Agent detail panel. Uses shared Popover for positioning / dismiss. It holds its first
- * open until detail and activity have loaded (at most SETTLE_MS), so it appears at full
- * size instead of growing; content that arrives later eases in. While a scheduled message
- * is being edited the panel ignores the pointer leaving it, so a draft is not lost; ESC
- * and outside clicks still close it.
+ * Agent detail panel. Uses shared Popover for positioning / dismiss. It is always its full
+ * height, so content that arrives after it opens (activity easing in) fills it instead of
+ * growing it, which made Popover re-clamp it to the viewport and spring it back up. It
+ * holds its first open until detail and activity have loaded (at most SETTLE_MS). While
+ * a scheduled message is being edited the panel ignores the pointer leaving it, so a
+ * draft is not lost; ESC and outside clicks still close it.
  */
 export function AgentPopover({
   open,
@@ -176,7 +177,7 @@ export function AgentPopover({
       containerRef={containerRef}
       aria-label={`${name} details`}
       className="max-h-[min(86vh,760px)]"
-      style={{ maxHeight: "min(86vh, 760px)" }}
+      style={{ height: "min(86vh, 760px)", maxHeight: "min(86vh, 760px)" }}
       widthPx={460}
       contentKey={agentId}
       hover={editingSchedule && hover ? { onInside: hover.onInside, onOutside: () => {} } : hover}
