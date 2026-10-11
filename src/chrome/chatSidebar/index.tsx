@@ -29,6 +29,7 @@ import {
   hydrateThreadMessages,
   ingestLiveMessage,
   listQueuedThread,
+  queuedAgentIds,
   markFailed,
   markPending,
   mergeConversations,
@@ -427,7 +428,9 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
       });
     }
 
-    stickToBottomRef.current = true;
+    if (toId === openAgentId) {
+      stickToBottomRef.current = true;
+    }
 
     if (queueLocally) {
       return;
@@ -440,7 +443,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
         attachments:
           attachments && attachments.length > 0 ? attachments : undefined,
       });
-      resolveOptimistic(toId, tempSeq, res.seq, res.attachments);
+      resolveOptimistic(toId, tempSeq, res.seq, res.attachments, res.created_at);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       markFailed(toId, tempSeq, message);
@@ -448,24 +451,35 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     }
   };
 
+  /** Agents whose queue is being sent now, so overlapping flushes never send a message twice or out of order. */
+  const flushingRef = useRef(new Set<string>());
+
+  /**
+   * Send every agent's queued messages, oldest first, once its conversation lane is idle,
+   * whether or not its thread is open, so a queue never outlives leaving the chat.
+   */
   const flushQueues = useEffectEvent(async () => {
     if (!connected) {
       return;
     }
-    const targetId = openAgentId;
-    if (!targetId) {
-      return;
-    }
-    const queued = listQueuedThread(targetId);
-    for (const msg of queued) {
-      await sendThread(
-        targetId,
-        msg.content,
-        msg.seq,
-        msg.attachments,
-      );
+    for (const agentId of queuedAgentIds()) {
+      if (running[agentId]?.conversation === true || flushingRef.current.has(agentId)) {
+        continue;
+      }
+      flushingRef.current.add(agentId);
+      try {
+        for (const msg of listQueuedThread(agentId)) {
+          await sendThread(agentId, msg.content, msg.seq, msg.attachments);
+        }
+      } finally {
+        flushingRef.current.delete(agentId);
+      }
     }
   });
+
+  useEffect(() => {
+    void flushQueues();
+  }, [running, connected]);
 
   const wasBusyRef = useRef(false);
   useEffect(() => {
@@ -478,7 +492,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     }
     wasBusyRef.current = false;
     refreshThreadRef.current?.();
-    void flushQueues();
   }, [conversationBusy]);
 
   const cancelQueued = (seq: number) => {

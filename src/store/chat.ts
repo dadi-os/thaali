@@ -381,12 +381,17 @@ export function addOptimistic(
   return seq;
 }
 
-/** Promote a temp seq to the server seq, take the stored files, and clear pending. */
+/**
+ * Promote a temp seq to the server seq, take the stored files and Hath's `at` (when it
+ * stored the message, so a queued send sorts after replies that came while it waited),
+ * and clear pending.
+ */
 export function resolveOptimistic(
   agentId: string,
   tempSeq: number,
   realSeq: number,
   files: AttachmentSummary[],
+  at: string,
 ): void {
   const current = threadOf(agentId);
   if (hasConfirmedSeq(current, realSeq)) {
@@ -405,6 +410,7 @@ export function resolveOptimistic(
           ? {
               ...m,
               seq: realSeq,
+              at,
               pending: false,
               failed: false,
               attachments: undefined,
@@ -453,6 +459,11 @@ export function markPending(agentId: string, tempSeq: number): void {
 /** Queued (not yet POSTed) messages for an agent, oldest first. */
 export function listQueuedThread(agentId: string): ChatMessage[] {
   return threadOf(agentId).filter((m) => m.queued && m.from_user);
+}
+
+/** Agents with at least one queued message, whichever thread is open. */
+export function queuedAgentIds(): string[] {
+  return Object.keys(state.threads).filter((agentId) => listQueuedThread(agentId).length > 0);
 }
 
 /**
@@ -565,14 +576,14 @@ export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
         m.pending && m.from_user && !m.queued && m.content === msg.content,
     );
     if (exact) {
-      resolveOptimistic(agentId, exact.seq, msg.seq, msg.files ?? []);
+      resolveOptimistic(agentId, exact.seq, msg.seq, msg.files ?? [], msg.at);
       return;
     }
     const inFlight = current.filter(
       (m) => m.pending && m.from_user && !m.queued,
     );
     if (inFlight.length === 1) {
-      resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.files ?? []);
+      resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.files ?? [], msg.at);
       return;
     }
   }

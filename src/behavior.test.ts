@@ -27,6 +27,9 @@ import {
   ingestLiveMessage,
   isUserThreadMessage,
   announceAgentMessage,
+  markPending,
+  queuedAgentIds,
+  resolveOptimistic,
   mergeConversations,
   messageKey,
   openAgent,
@@ -380,6 +383,18 @@ describe("user-thread history", () => {
     expect(thread).toHaveLength(1);
     expect(thread[0]!.seq).toBe(7);
     expect(messageKey(thread[0]!)).toBe(pendingKey);
+    resetChatStore();
+  });
+
+  it("sends a queue from any thread and sorts it after replies that came while it waited", () => {
+    resetChatStore();
+    const tempSeq = addOptimistic("planner", "follow up", { queued: true });
+    expect(queuedAgentIds()).toEqual(["planner"]);
+    ingestLiveMessage("planner", { seq: 8, from_user: false, content: "reply", at: "2099-01-01T00:00:00Z" });
+    markPending("planner", tempSeq);
+    expect(queuedAgentIds()).toEqual([]);
+    resolveOptimistic("planner", tempSeq, 9, [], "2099-01-01T00:00:05Z");
+    expect(getChatState().threads.planner!.map((m) => m.content)).toEqual(["reply", "follow up"]);
     resetChatStore();
   });
 
