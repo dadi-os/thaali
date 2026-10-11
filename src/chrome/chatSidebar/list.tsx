@@ -161,7 +161,7 @@ export function ConversationList({
               <span className="animate-pulse-out absolute inset-0 rounded-full bg-sage/45 [--pulse-scale:1.55]" />
             ) : null}
             <span
-              className={`relative flex size-full items-center justify-center rounded-full font-gujarati leading-none ${
+              className={`relative flex size-full items-center justify-center rounded-full pt-[0.4em] font-gujarati leading-none ${
                 dadi.busy ? "bg-sage-active text-sage-deep" : "bg-sage-fill text-sage-text"
               }`}
             >

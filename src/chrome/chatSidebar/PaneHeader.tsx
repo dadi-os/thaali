@@ -9,7 +9,7 @@ export type PaneHeaderProps = {
   title: string | null;
   /** Why the name could not be loaded, shown in the bubble in place of it. */
   error?: string | null;
-  /** Set the name in the Gujarati face, as Dadi's દાદી is. */
+  /** Set the name in the Gujarati face, as Dadi's દાદી is; its glyphs sit 0.2em high, so the bubble pads them down. */
   gujarati?: boolean;
   /**
    * Bubble pressed, with its on-screen box; the bubble is static text without it. While
@@ -30,8 +30,10 @@ export function PaneHeader({
   onOpenDetails,
   detailsOpen = false,
 }: PaneHeaderProps) {
-  const bubble = `pane-bubble min-w-0 max-w-full truncate rounded-full px-3.5 py-1 leading-tight ${
-    gujarati ? "font-gujarati text-[16px]" : "text-[13.5px] font-medium"
+  const bubble = `pane-bubble min-w-0 max-w-full truncate rounded-full px-3.5 ${
+    gujarati
+      ? "pt-[calc(0.25rem+0.2em)] pb-[calc(0.25rem-0.2em)] font-gujarati text-[16px] leading-none"
+      : "py-1 text-[13.5px] leading-tight font-medium"
   }`;
   return (
     <div className="relative z-10 grid h-14 shrink-0 grid-cols-[1.75rem_minmax(0,1fr)_1.75rem] items-center gap-2 border-b border-(--chat-edge) px-2.5">
