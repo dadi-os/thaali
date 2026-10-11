@@ -1,12 +1,13 @@
 /**
- * Ghar rooms — the same dashed glass panels as System, shared by the page
- * and the home widget. Widget tiles toggle a room and do not navigate.
+ * Ghar rooms, shared by the page and the home widget: each room glows with the light its
+ * lamps are giving off. Widget strips toggle a room and do not navigate.
  */
 
 import {
   useEffect,
   useRef,
   useState,
+  type CSSProperties,
   type PointerEvent as ReactPointerEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -22,6 +23,7 @@ import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { shownError, roomTitle, UnplacedCommission } from "../commission";
 import { DeviceGlyph, glyphFor } from "./icons";
 import { DevicePopover } from "./inspector";
+import { isOn, isSwitchable, lampColor, lampLevel, PLAIN_LAMP, roomGlow } from "./light";
 import { searchHouse, type RoomRef } from "./search";
 
 export type GharHouseProps = {
@@ -62,17 +64,7 @@ const HOVER_CLOSE_MS = 320;
  */
 const NEW_ROOM_ANCHOR_OFFSET = { x: 28, y: 30 };
 
-const panel =
-  "flex min-h-0 min-w-0 flex-col rounded-[var(--radius)] border border-dashed px-3 py-3 transition-[border-color,background-color,box-shadow] duration-slow ease-dadi";
-
-function isSwitchable(device: GharDevice): boolean {
-  return device.capabilities.some((cap) => cap.capability === "switchable");
-}
-
-function isOn(device: GharDevice): boolean {
-  return device.state.on?.value === true;
-}
-
+/** The Matter product string when it says more than the device's own name, else null. */
 function productSubtitle(device: GharDevice): string | null {
   const product = device.product_name?.trim() ?? "";
   if (!product) {
@@ -82,16 +74,6 @@ function productSubtitle(device: GharDevice): string | null {
     return null;
   }
   return product;
-}
-
-function panelTone(lit: boolean, hot: boolean): string {
-  if (hot) {
-    return "border-sage bg-sage-active/50";
-  }
-  if (lit) {
-    return "border-sage bg-sage-faint/70";
-  }
-  return "border-sage-line bg-bone/40 hover:border-sage";
 }
 
 /**
@@ -325,7 +307,21 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     return <StatusNote tone="error">{shownError(roomsQuery.error)}</StatusNote>;
   }
   if (!devicesQuery.data || (!roomsQuery.data && roomsQuery.isLoading)) {
-    return <StatusNote>Loading…</StatusNote>;
+    return (
+      <div
+        aria-label="Loading Ghar"
+        className={`grid h-full min-h-0 content-start gap-3 ${
+          mode === "full" ? "px-3 pb-3 [grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))]" : "px-2 pb-2.5 pt-0.5"
+        }`}
+      >
+        {[0, 1].map((i) => (
+          <span
+            key={i}
+            className={`animate-pulse rounded-[16px] border border-rule bg-sage-fill/40 ${mode === "full" ? "h-56" : "h-14"}`}
+          />
+        ))}
+      </div>
+    );
   }
 
   const devices = devicesQuery.data.devices;
@@ -596,7 +592,19 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       <div
         className={`min-h-0 flex-1 [container-type:size] ${mode === "full" ? "px-3 pb-3" : "px-2 pb-2.5 pt-0.5"}`}
       >
-        {panels.length === 0 && mode === "preview" ? (
+        {mode === "preview" && panels.length > 0 && search.rooms.length > 0 ? (
+          <div className={`grid h-full min-h-0 auto-rows-fr gap-1.5 ${panels.length > 3 ? "grid-cols-2" : "grid-cols-1"}`}>
+            {search.rooms.map(({ room }) => (
+              <RoomStrip
+                key={room.id}
+                room={room}
+                lamps={devices.filter((device) => device.room.id === room.id && isSwitchable(device))}
+                pendingIds={pendingIds}
+                onToggle={() => toggleRoom(room.id)}
+              />
+            ))}
+          </div>
+        ) : panels.length === 0 && mode === "preview" ? (
           <div className="flex h-full items-center justify-center">
             <p className="text-[13px] text-ink-ghost">{emptyLabel}</p>
           </div>
@@ -609,49 +617,25 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
             <p className="text-[13px] text-ink-ghost">No rooms or devices match “{query.trim()}”</p>
           </div>
         ) : (
-          <div
-            className={
-              mode === "preview"
-                ? "grid h-full min-h-0 grid-cols-2 gap-1.5 @min-[420px]:grid-cols-3"
-                : "grid h-full min-h-0 grid-cols-3 gap-3 overflow-y-auto [grid-auto-rows:calc((100cqh-0.75rem)/2)]"
-            }
-          >
-            {search.rooms.map(({ room, listed }) => {
-              const inRoom = devices.filter((device) => device.room.id === room.id);
-              const lit = inRoom.some(
-                (device) => device.online && isSwitchable(device) && isOn(device),
-              );
-              const hot = drag?.overId === room.id;
-              if (mode === "preview") {
-                return (
-                  <PreviewTile
-                    key={room.id}
-                    room={room}
-                    lit={lit}
-                    pending={inRoom.some((device) => pendingIds.has(device.id))}
-                    onToggle={() => toggleRoom(room.id)}
-                  />
-                );
-              }
-              return (
-                <RoomPanel
-                  key={room.id}
-                  room={room}
-                  lit={lit}
-                  hot={hot}
-                  devices={listed}
-                  pendingIds={pendingIds}
-                  draggingId={drag?.id ?? null}
-                  onFloor={() => toggleRoom(room.id)}
-                  onHover={scheduleHover}
-                  onHoverEnd={scheduleHoverClose}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={endPointer}
-                  onPointerCancel={endPointer}
-                />
-              );
-            })}
+          <div className="grid h-full min-h-0 content-start items-start gap-4 overflow-y-auto pb-2 [grid-template-columns:repeat(auto-fill,minmax(min(100%,420px),1fr))]">
+            {search.rooms.map(({ room, listed }) => (
+              <RoomCard
+                key={room.id}
+                room={room}
+                inRoom={devices.filter((device) => device.room.id === room.id)}
+                devices={listed}
+                hot={drag?.overId === room.id}
+                pendingIds={pendingIds}
+                draggingId={drag?.id ?? null}
+                onToggleRoom={() => toggleRoom(room.id)}
+                onHover={scheduleHover}
+                onHoverEnd={scheduleHoverClose}
+                onPointerDown={onPointerDown}
+                onPointerMove={onPointerMove}
+                onPointerUp={endPointer}
+                onPointerCancel={endPointer}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -742,54 +726,90 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
           className="pointer-events-none absolute z-20"
           style={{ left: drag.x, top: drag.y, transform: "translate(-50%, -50%)" }}
         >
-          <DeviceTile device={dragged} ghost pending={false} />
+          <LightCard device={dragged} ghost pending={false} />
         </div>
       ) : null}
     </div>
   );
 }
 
-/** Home widget tile. Click toggles the room and does not open the page. */
-function PreviewTile({
-  room,
-  lit,
-  pending,
-  onToggle,
-}: {
-  room: RoomRef;
-  lit: boolean;
+/** What a room's lights are doing, in a few words. */
+function lightsSummary(lamps: GharDevice[]): string {
+  if (lamps.length === 0) {
+    return "No lights";
+  }
+  const on = lamps.filter((lamp) => lamp.online && isOn(lamp)).length;
+  if (on === 0) {
+    return lamps.length === 1 ? "Off" : "All off";
+  }
+  return on === lamps.length ? (on === 1 ? "On" : "All on") : `${on} of ${lamps.length} on`;
+}
+
+type LampOrbProps = {
+  device: GharDevice;
+  /** A command for it is in flight: gray and breathing. */
   pending: boolean;
+  /** `sm` a dot in the widget's strip, `lg` the disc on a light card with the device's glyph. */
+  size: "sm" | "lg";
+};
+
+/** A light as a disc: lit in its own color with a halo as strong as its level, a ring when off. */
+function LampOrb({ device, pending, size }: LampOrbProps) {
+  const lit = !pending && device.online && isSwitchable(device) && isOn(device);
+  const color = lampColor(device);
+  const style = lit
+    ? ({ "--lamp": color ?? PLAIN_LAMP, "--lamp-level": String(0.35 + 0.65 * lampLevel(device)) } as CSSProperties)
+    : undefined;
+  return (
+    <span
+      aria-hidden
+      className={`lamp-orb lamp-orb--${size} ${lit ? "lamp-orb--lit" : ""} ${pending ? "animate-breath" : ""}`}
+      style={style}
+    >
+      {size === "lg" ? (
+        <DeviceGlyph kind={glyphFor(device.capabilities)} lit={false} className="size-6 shrink-0" />
+      ) : null}
+    </span>
+  );
+}
+
+type RoomStripProps = {
+  room: RoomRef;
+  /** Switchable devices in the room. */
+  lamps: GharDevice[];
+  pendingIds: ReadonlySet<string>;
   onToggle: () => void;
-}) {
+};
+
+/** Home widget row for one room: its name, what its lights are doing, and each light as an orb. Click switches the room and does not open the page. */
+function RoomStrip({ room, lamps, pendingIds, onToggle }: RoomStripProps) {
+  const pending = lamps.some((lamp) => pendingIds.has(lamp.id));
+  const lit = lamps.some((lamp) => lamp.online && isOn(lamp));
+  const glow = roomGlow(lamps);
   return (
     <button
       type="button"
       aria-pressed={lit}
       aria-busy={pending}
       aria-label={`${roomTitle(room.name)} lights`}
-      disabled={pending}
+      disabled={pending || lamps.length === 0}
       onClick={(event) => {
         event.stopPropagation();
         onToggle();
       }}
       onKeyDown={(event) => event.stopPropagation()}
-      className={`${panel} justify-between ${
-        pending ? "border-rule bg-rule/50" : panelTone(lit, false)
-      }`}
+      className={`room-strip ${lit ? "room-strip--lit" : ""}`}
+      style={glow ? { backgroundImage: glow } : undefined}
     >
-      <span
-        className={`text-[10px] font-medium tracking-[1.2px] uppercase ${
-          pending ? "text-ink-ghost" : lit ? "text-sage-deep" : "text-ink-ghost"
-        }`}
-      >
-        {roomTitle(room.name)}
+      <span className="flex min-w-0 flex-col items-start gap-0.5">
+        <span className="max-w-full truncate text-[13px] font-medium text-ink">{roomTitle(room.name)}</span>
+        <span className={`text-[11px] ${lit ? "text-sage-deep" : "text-ink-ghost"}`}>{lightsSummary(lamps)}</span>
       </span>
-      <span
-        className={`h-1.5 w-1.5 rounded-full ${
-          pending ? "animate-breath bg-ink-ghost" : lit ? "bg-sage" : "bg-ink-ghost"
-        }`}
-        aria-hidden
-      />
+      <span className="flex shrink-0 flex-wrap justify-end gap-1.5">
+        {lamps.map((lamp) => (
+          <LampOrb key={lamp.id} device={lamp} pending={pendingIds.has(lamp.id)} size="sm" />
+        ))}
+      </span>
     </button>
   );
 }
@@ -803,57 +823,98 @@ type DeviceHandlers = {
   onHoverEnd: () => void;
 };
 
-/** One room — dashed glass, tracking label, devices you can press or drag. */
-function RoomPanel({
-  room,
-  devices,
-  lit,
-  hot,
-  pendingIds,
-  draggingId,
-  onFloor,
-  ...handlers
-}: DeviceHandlers & {
+type RoomCardProps = DeviceHandlers & {
   room: RoomRef;
+  /** Every device in the room, for its summary and glow. */
+  inRoom: GharDevice[];
+  /** The devices search leaves showing. */
   devices: GharDevice[];
-  lit: boolean;
+  /** A dragged device is over the room. */
   hot: boolean;
   pendingIds: ReadonlySet<string>;
   draggingId: string | null;
-  onFloor: () => void;
-}) {
+  onToggleRoom: () => void;
+};
+
+/**
+ * One room: a glass card washed in the light of its lit lamps, its name, what its lights
+ * are doing and a switch for all of them, over its devices. Unplaced is the dashed pairing
+ * zone instead. Devices are dropped onto any card to move them.
+ */
+function RoomCard({
+  room,
+  inRoom,
+  devices,
+  hot,
+  pendingIds,
+  draggingId,
+  onToggleRoom,
+  ...handlers
+}: RoomCardProps) {
+  const unplaced = room.name === "unassigned";
+  const lamps = inRoom.filter(isSwitchable);
+  const lit = lamps.some((lamp) => lamp.online && isOn(lamp));
+  const pending = lamps.some((lamp) => pendingIds.has(lamp.id));
+  const glow = unplaced ? null : roomGlow(lamps);
   return (
     <section
       data-room-id={room.id}
       aria-label={roomTitle(room.name)}
-      onClick={onFloor}
-      className={`${panel} min-h-0 cursor-pointer gap-3 px-3 py-3 ${panelTone(lit, hot)}`}
+      className={`room-card ${unplaced ? "room-card--unplaced" : ""} ${hot ? "room-card--hot" : ""}`}
     >
-      <span
-        className={`shrink-0 self-start text-[11px] font-medium tracking-[2px] ${
-          lit ? "text-sage-deep" : "text-ink-ghost"
-        }`}
-      >
-        {roomTitle(room.name).toUpperCase()}
-      </span>
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto">
-        {room.name === "unassigned" ? <UnplacedCommission /> : null}
-        {devices.map((device) => (
-          <DeviceMark
-            key={device.id}
-            device={device}
-            pending={pendingIds.has(device.id)}
-            dimmed={draggingId === device.id}
-            {...handlers}
-          />
-        ))}
-      </div>
+      <span aria-hidden className="room-card__glow" style={{ backgroundImage: glow ?? "none", opacity: glow ? 1 : 0 }} />
+      <header className="relative flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="truncate text-[15px] font-medium text-ink">{roomTitle(room.name)}</h2>
+          <p className={`text-[12px] ${lit ? "text-sage-deep" : "text-ink-ghost"}`}>
+            {unplaced ? "New devices land here · drag one into a room" : lightsSummary(lamps)}
+          </p>
+        </div>
+        {!unplaced && lamps.length > 0 ? (
+          <button
+            type="button"
+            role="switch"
+            aria-checked={lit}
+            aria-label={`${roomTitle(room.name)} lights`}
+            disabled={pending}
+            onClick={onToggleRoom}
+            className={`room-switch ${lit ? "room-switch--on" : ""} ${pending ? "animate-breath" : ""}`}
+          >
+            <span className="room-switch__knob" />
+          </button>
+        ) : null}
+      </header>
+      {unplaced ? <UnplacedCommission /> : null}
+      {devices.length > 0 ? (
+        <div className="relative grid gap-2.5 [grid-template-columns:repeat(auto-fill,minmax(150px,1fr))]">
+          {devices.map((device) => (
+            <DeviceMark
+              key={device.id}
+              device={device}
+              pending={pendingIds.has(device.id)}
+              dimmed={draggingId === device.id}
+              {...handlers}
+            />
+          ))}
+        </div>
+      ) : unplaced ? null : (
+        <p className="relative rounded-[12px] border border-dashed border-sage-line px-3 py-5 text-center text-[12px] text-ink-ghost">
+          Drag a device here
+        </p>
+      )}
     </section>
   );
 }
 
+type DeviceMarkProps = DeviceHandlers & {
+  device: GharDevice;
+  pending: boolean;
+  /** It is the one being dragged, so its place shows faded. */
+  dimmed: boolean;
+};
+
 /**
- * A device row. Click switches it. Hover opens controls. A move drags it to another room.
+ * A device's card where it sits. Click switches it. Hover opens controls. A move drags it to another room.
  */
 function DeviceMark({
   device,
@@ -865,11 +926,7 @@ function DeviceMark({
   onPointerCancel,
   onHover,
   onHoverEnd,
-}: DeviceHandlers & {
-  device: GharDevice;
-  pending: boolean;
-  dimmed: boolean;
-}) {
+}: DeviceMarkProps) {
   return (
     <div
       data-device-id={device.id}
@@ -880,80 +937,57 @@ function DeviceMark({
       onMouseEnter={(event) => onHover(device.id, event.currentTarget)}
       onMouseLeave={onHoverEnd}
       onClick={(event) => event.stopPropagation()}
-      className={`touch-none ${dimmed ? "opacity-30" : ""}`}
+      className={`touch-none transition-opacity duration-slow ease-dadi ${dimmed ? "opacity-30" : ""}`}
     >
-      <DeviceTile device={device} pending={pending} />
+      <LightCard device={device} pending={pending} />
     </div>
   );
 }
 
-/** Horizontal device row. The icon sits beside the name. */
-function DeviceTile({
-  device,
-  pending,
-  ghost,
-}: {
+type LightCardProps = {
   device: GharDevice;
   pending: boolean;
+  /** The copy that follows the pointer while dragging. */
   ghost?: boolean;
-}) {
+};
+
+/**
+ * One device: its orb, name and state (level when on), and for a dimmable light a bar as
+ * full as its brightness in its own color; a lit card picks up a tint of its light.
+ */
+function LightCard({ device, pending, ghost = false }: LightCardProps) {
   const lit = !pending && device.online && isSwitchable(device) && isOn(device);
-  const subtitle = productSubtitle(device);
-  const hue = device.state.hue?.value;
-  const saturation = device.state.saturation?.value;
-  const swatch =
-    typeof hue === "number"
-      ? `hsl(${Math.round((hue / 254) * 360)} ${Math.round(((typeof saturation === "number" ? saturation : 254) / 254) * 100)}% 52%)`
-      : null;
+  const color = lampColor(device);
+  const level = lampLevel(device);
+  const dimmable = device.capabilities.some((cap) => cap.capability === "dimmable");
+  const state = !device.online
+    ? "Offline"
+    : pending
+      ? "Switching…"
+      : !isSwitchable(device)
+        ? (productSubtitle(device) ?? "Device")
+        : lit
+          ? dimmable
+            ? `On · ${Math.round(level * 100)}%`
+            : "On"
+          : "Off";
   return (
     <div
       aria-busy={pending}
-      className={`flex items-center gap-3 rounded-[var(--radius)] border border-dashed px-3 py-2.5 shadow-[var(--shadow)] backdrop-blur-sm ${
-        pending ? "transition-none" : "transition-[border-color,background-color,opacity] duration-200 ease-dadi"
-      } ${ghost ? "w-64 cursor-grabbing" : "w-full cursor-grab"} ${
-        pending
-          ? "border-ink-ghost/50 bg-ink-ghost/20 text-ink-ghost"
-          : lit
-            ? "border-sage bg-sage-active hover:bg-sage-fill"
-            : "border-sage-line bg-[var(--glass-sheet)] hover:border-sage hover:bg-sage-active/50"
-      } ${device.online || pending ? "" : "opacity-50"}`}
+      title={productSubtitle(device) ?? undefined}
+      className={`light-card ${lit ? "light-card--lit" : ""} ${pending ? "light-card--pending" : ""} ${
+        ghost ? "w-44 cursor-grabbing" : "w-full cursor-grab"
+      } ${device.online ? "" : "opacity-50"}`}
+      style={lit ? ({ "--lamp": color ?? PLAIN_LAMP } as CSSProperties) : undefined}
     >
-      <span
-        className={`flex size-10 shrink-0 items-center justify-center rounded-[8px] border border-dashed ${
-          pending
-            ? "border-rule text-ink-ghost"
-            : lit
-              ? "border-sage bg-sage-faint text-sage-deep"
-              : "border-sage-line text-ink-muted"
-        }`}
-      >
-        <DeviceGlyph kind={glyphFor(device.capabilities)} lit={lit} className="size-7 shrink-0" />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col items-start gap-0.5">
-        <span
-          className={`w-full truncate text-left text-[13px] leading-tight ${
-            pending ? "text-ink-ghost" : lit ? "text-sage-deep" : "text-ink"
-          }`}
-        >
-          {device.name}
-        </span>
-        {subtitle && !pending ? (
-          <span className="w-full truncate text-left text-[11px] text-ink-ghost">{subtitle}</span>
-        ) : null}
-      </span>
-      {isSwitchable(device) ? (
-        <span className="inline-flex items-center gap-1" aria-hidden>
-          <span
-            className={`h-1.5 w-1.5 shrink-0 rounded-full ${
-              pending ? "animate-breath bg-ink-ghost" : lit ? "bg-sage" : "bg-ink-ghost"
-            }`}
-          />
-          {swatch && !pending ? (
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full border border-sage-line"
-              style={{ background: swatch }}
-            />
-          ) : null}
+      <LampOrb device={device} pending={pending} size="lg" />
+      <div className="min-w-0">
+        <p className="truncate text-[13px] leading-tight font-medium text-ink">{device.name}</p>
+        <p className={`mt-0.5 truncate text-[11.5px] ${lit ? "text-sage-deep" : "text-ink-ghost"}`}>{state}</p>
+      </div>
+      {dimmable ? (
+        <span aria-hidden className="light-card__level">
+          <span style={{ width: `${lit ? Math.round(level * 100) : 0}%` }} />
         </span>
       ) : null}
     </div>

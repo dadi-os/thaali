@@ -21,7 +21,7 @@ export function GharPage() {
     >
       <PageHeader
         title="GHAR"
-        hint="Click a room or a device to switch it · hover a device for color and name"
+        hint="Tap a light or a room's switch · hover a light for color and name · drag it to move rooms"
         trailing={<div ref={setToolbar} className="flex items-center gap-2" />}
       />
       <div className="min-h-0 flex-1">

@@ -622,6 +622,206 @@
   }
 }
 
+/* Ghar: rooms are glass cards washed in their lamps' light; lamps are glowing discs. */
+.room-card {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 14px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 16px;
+  background: var(--glass-sheet);
+  box-shadow: var(--shadow);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  transition:
+    border-color var(--slow) var(--ease),
+    box-shadow var(--slow) var(--ease);
+}
+
+.room-card__glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  transition: opacity var(--slower) var(--ease);
+}
+
+.room-card--unplaced {
+  border-style: dashed;
+  border-color: var(--sage-line);
+  background: color-mix(in srgb, var(--bone) 40%, transparent);
+  box-shadow: none;
+}
+
+.room-card--hot {
+  border-color: var(--sage);
+  box-shadow:
+    0 0 0 3px var(--sage-active),
+    var(--shadow-deep);
+}
+
+.room-switch {
+  position: relative;
+  width: 40px;
+  height: 22px;
+  flex-shrink: 0;
+  border-radius: 999px;
+  background: var(--rule);
+  transition: background-color var(--slow) var(--ease);
+}
+
+.room-switch--on {
+  background: var(--sage);
+}
+
+.room-switch__knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--bone);
+  box-shadow: 0 1px 3px rgb(27 30 25 / 0.25);
+  transition: transform var(--slow) var(--ease);
+}
+
+.room-switch--on .room-switch__knob {
+  transform: translateX(18px);
+}
+
+.light-card {
+  position: relative;
+  display: flex;
+  min-height: 132px;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 12px 12px 14px;
+  background: color-mix(in srgb, var(--bone) 70%, transparent);
+  transition:
+    border-color var(--slow) var(--ease),
+    background var(--slower) var(--ease),
+    transform var(--fast) var(--ease),
+    box-shadow var(--slow) var(--ease);
+}
+
+.light-card:hover {
+  border-color: var(--sage);
+  box-shadow: var(--shadow);
+  transform: translateY(-1px);
+}
+
+.light-card--lit {
+  border-color: color-mix(in srgb, var(--lamp) 45%, var(--glass-border));
+  background: linear-gradient(
+    160deg,
+    color-mix(in srgb, var(--lamp) 18%, var(--bone)) 0%,
+    color-mix(in srgb, var(--bone) 75%, transparent) 70%
+  );
+}
+
+.light-card--pending {
+  border-color: var(--rule);
+}
+
+.light-card__level {
+  position: absolute;
+  right: 12px;
+  bottom: 8px;
+  left: 12px;
+  height: 3px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: var(--rule);
+}
+
+.light-card__level > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--lamp, var(--ink-ghost));
+  transition: width var(--slower) var(--ease);
+}
+
+.lamp-orb {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--sage-line);
+  border-radius: 999px;
+  color: var(--ink-muted);
+  background: color-mix(in srgb, var(--bone) 60%, transparent);
+  transition:
+    background var(--slow) var(--ease),
+    border-color var(--slow) var(--ease),
+    box-shadow var(--slower) var(--ease),
+    color var(--slow) var(--ease);
+}
+
+.lamp-orb--sm {
+  width: 14px;
+  height: 14px;
+}
+
+.lamp-orb--lg {
+  width: 44px;
+  height: 44px;
+}
+
+.lamp-orb--lit {
+  border-color: transparent;
+  color: rgb(27 30 25 / 0.55);
+  background: radial-gradient(
+    circle at 35% 30%,
+    color-mix(in srgb, white 55%, var(--lamp)),
+    var(--lamp) 72%
+  );
+  box-shadow: 0 0 calc(22px * var(--lamp-level)) calc(5px * var(--lamp-level))
+    color-mix(in srgb, var(--lamp) 55%, transparent);
+}
+
+.lamp-orb--sm.lamp-orb--lit {
+  box-shadow: 0 0 calc(9px * var(--lamp-level)) calc(1.5px * var(--lamp-level))
+    color-mix(in srgb, var(--lamp) 60%, transparent);
+}
+
+.room-strip {
+  display: flex;
+  min-height: 0;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 8px 12px;
+  text-align: left;
+  background-color: color-mix(in srgb, var(--bone) 55%, transparent);
+  transition:
+    border-color var(--slow) var(--ease),
+    background-color var(--slow) var(--ease);
+}
+
+.room-strip:hover:not(:disabled) {
+  border-color: var(--sage);
+}
+
+.room-strip--lit {
+  border-color: color-mix(in srgb, var(--sage) 45%, var(--glass-border));
+}
+
+.room-strip:disabled {
+  cursor: default;
+}
+
 /* Thread under a host pin: messages dissolve as they scroll up beneath it. */
 .thread-fade-top {
   -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 1.25rem);
