@@ -1,17 +1,17 @@
 /**
- * How Ghar draws the house: rooms are panels on the paper, each lamp a soft pool of light
- * in its own color and brightness around a small fixture, and the home widget gives each
- * room one row with a dot per lamp.
+ * How Ghar draws the house: rooms are glass panels on the paper, each washed from above by its
+ * lit lamps, and every device is its family's abstract form over its name and reading. The
+ * home tile gives each room one row with a bead per lamp and a mark per other device.
  */
 
-import type { CSSProperties, PointerEvent as ReactPointerEvent } from "react";
+import type { PointerEvent as ReactPointerEvent } from "react";
 import { motion } from "motion/react";
 import type { GharDevice } from "../../../types/ghar";
 import { Ticker } from "../../../shared/components/Ticker";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
-import { roomTitle, UnplacedCommission } from "../commission";
-import { DeviceGlyph, glyphFor } from "./icons";
-import { isLit, isSwitchable, lampColor, lampLevel, PLAIN_LAMP, roomGlow } from "./light";
+import { roomTitle } from "../commission";
+import { attention, familyOf, LampFixture } from "./families";
+import { isLamp, isLit, roomGlow } from "./light";
 import type { RoomRef } from "./search";
 
 /** Pointer and hover wiring for a device where it sits. Click, drag and hover are decided by the house. */
@@ -24,55 +24,29 @@ export type DeviceHandlers = {
   onHoverEnd: () => void;
 };
 
-/** True for a light Ghar can dim. */
-function isDimmable(device: GharDevice): boolean {
-  return device.capabilities.some((cap) => cap.capability === "dimmable");
-}
-
 /** The Matter product string when it says more than the device's own name, else null. */
 function productSubtitle(device: GharDevice): string | null {
-  const product = device.product_name?.trim() ?? "";
-  if (!product) {
-    return null;
-  }
-  if (product.localeCompare(device.name.trim(), undefined, { sensitivity: "accent" }) === 0) {
+  const product = device.product_name?.trim();
+  if (!product || product.localeCompare(device.name.trim(), undefined, { sensitivity: "accent" }) === 0) {
     return null;
   }
   return product;
 }
 
-/**
- * What a device that is not a light last reported, in a few words: lock, contact,
- * occupancy, temperature and humidity readings, else its product, else that it has none.
- */
-function deviceReading(device: GharDevice): string {
-  const { locked, contact, occupancy, temperature, humidity } = device.state;
-  const parts = [
-    typeof locked?.value === "boolean" ? (locked.value ? "Locked" : "Unlocked") : null,
-    typeof contact?.value === "boolean" ? (contact.value ? "Closed" : "Open") : null,
-    typeof occupancy?.value === "boolean" ? (occupancy.value ? "Occupied" : "Clear") : null,
-    typeof temperature?.value === "number" ? `${temperature.value.toFixed(1)}°C` : null,
-    typeof humidity?.value === "number" ? `${Math.round(humidity.value)}% RH` : null,
-  ].filter((part): part is string => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : (productSubtitle(device) ?? "No reading yet");
-}
-
-/** True when a device reports something worth a glance: a door unlocked or open. */
-function needsAttention(device: GharDevice): boolean {
-  return device.state.locked?.value === false || device.state.contact?.value === false;
-}
-
-/** CSS variables a lit lamp draws with: its color and its level, 0–1. */
-function lampVars(device: GharDevice): CSSProperties {
-  return {
-    "--lamp": lampColor(device) ?? PLAIN_LAMP,
-    "--lamp-level": String(lampLevel(device)),
-  } as CSSProperties;
+/** The temperature a room reads: the mean of its thermostats and temperature sensors, or null. */
+export function roomTemperature(inRoom: GharDevice[]): number | null {
+  const readings = inRoom.flatMap((device) => {
+    const value = device.state.temperature?.value;
+    return device.online && typeof value === "number" && device.kind !== "refrigerator" && device.kind !== "cabinet" && device.kind !== "oven"
+      ? [value]
+      : [];
+  });
+  return readings.length === 0 ? null : readings.reduce((sum, value) => sum + value, 0) / readings.length;
 }
 
 /** What a room's lights are doing, in a few words; a room without lights counts its devices. */
-function roomSummary(inRoom: GharDevice[]): string {
-  const lamps = inRoom.filter(isSwitchable);
+export function roomSummary(inRoom: GharDevice[]): string {
+  const lamps = inRoom.filter(isLamp);
   if (lamps.length === 0) {
     return inRoom.length === 0 ? "Empty" : inRoom.length === 1 ? "1 device" : `${inRoom.length} devices`;
   }
@@ -86,33 +60,13 @@ function roomSummary(inRoom: GharDevice[]): string {
   return `${on} of ${lamps.length} lights on`;
 }
 
-type LampFixtureProps = {
-  device: GharDevice;
-  /** A command for it is in flight: it keeps its last reading and breathes. */
-  pending: boolean;
-  /** `dot` in a widget row, `bulb` at the heart of a light's pool on the page. */
-  size: "dot" | "bulb";
-};
-
-/** A light's fixture: a ring when off, a glowing bead of its own color when on, dashed when offline. */
-export function LampFixture({ device, pending, size }: LampFixtureProps) {
-  const lit = isLit(device);
-  return (
-    <span
-      aria-hidden
-      className={`ghar-fixture ghar-fixture--${size} ${lit ? "ghar-fixture--lit" : ""} ${
-        device.online ? "" : "ghar-fixture--offline"
-      } ${pending ? "animate-breath" : ""}`}
-      style={lit ? lampVars(device) : undefined}
-    />
-  );
-}
-
 export type TallyProps = {
   /** The count; null while it loads. */
   value: number | null;
   /** Shown after the count as `/of`, for a part of a whole. */
   of?: number;
+  /** A reading that is not a count, such as 21.4°; replaces the ticker. */
+  text?: string;
   /** Tracking-caps label under the count. */
   label: string;
   /** `error` for a count of trouble, such as devices offline. */
@@ -122,22 +76,19 @@ export type TallyProps = {
 };
 
 /** A count as the home ledgers draw it: an odometer number over a tracking-caps label. */
-export function Tally({ value, of, label, tone = "quiet", delay = 0 }: TallyProps) {
+export function Tally({ value, of, text, label, tone = "quiet", delay = 0 }: TallyProps) {
+  const color = tone === "error" ? "text-error" : "text-ink";
   return (
     <span className="flex min-w-0 flex-col items-center justify-center gap-2 px-3">
       <span className="flex items-baseline gap-0.5">
-        <Ticker
-          value={value}
-          delay={delay}
-          className={`text-[28px] font-medium tracking-tight ${tone === "error" ? "text-error" : "text-ink"}`}
-        />
-        {of !== undefined ? (
-          <span className="font-numeric text-[13px] text-ink-ghost tabular-nums">/{of}</span>
-        ) : null}
+        {text !== undefined ? (
+          <span className={`font-numeric text-[28px] font-medium tracking-tight ${color}`}>{text}</span>
+        ) : (
+          <Ticker value={value} delay={delay} className={`text-[28px] font-medium tracking-tight ${color}`} />
+        )}
+        {of !== undefined ? <span className="font-numeric text-[13px] text-ink-ghost tabular-nums">/{of}</span> : null}
       </span>
-      <span
-        className={`truncate text-[10px] font-medium tracking-[2px] ${tone === "error" ? "text-error" : "text-sage-deep"}`}
-      >
+      <span className={`truncate text-[10px] font-medium tracking-[2px] ${tone === "error" ? "text-error" : "text-sage-deep"}`}>
         {label}
       </span>
     </span>
@@ -152,58 +103,44 @@ type DeviceFaceProps = {
 };
 
 /**
- * One device as it sits in a room. A light is a pool of its own color, as wide and strong as
- * its brightness, around its fixture, over its name and level; anything else is its glyph in
- * a ring over its last reading, tinted clay when a door is unlocked or open.
+ * One device as it sits in a room: its family's form over its name and reading, with its
+ * battery and bridge marked in the corner. The tile's modifiers carry its state.
  */
 export function DeviceFace({ device, pending, ghost = false }: DeviceFaceProps) {
-  const light = isSwitchable(device);
-  const lit = isLit(device);
-  const level = Math.round(lampLevel(device) * 100);
+  const family = familyOf(device);
+  const tone = family.tone(device);
+  const battery = device.state.battery?.value;
+  const { Form } = family;
   return (
     <div
       aria-busy={pending}
       title={productSubtitle(device) ?? undefined}
-      className={`ghar-tile ${lit ? "ghar-tile--lit" : ""} ${pending ? "ghar-tile--pending" : ""} ${
+      className={`ghar-tile ${tone.on ? "ghar-tile--on" : ""} ${tone.run ? "ghar-tile--run" : ""} ${
+        tone.alert ? "ghar-tile--alert" : ""
+      } ${tone.danger ? "ghar-tile--danger" : ""} ${pending ? "ghar-tile--pending" : ""} ${
         device.online ? "" : "ghar-tile--offline"
       } ${ghost ? "ghar-tile--ghost" : ""}`}
-      style={light ? lampVars(device) : undefined}
+      style={family.style?.(device)}
     >
-      <span className="ghar-tile__stage">
-        {light ? (
-          <>
-            <span aria-hidden className="ghar-tile__pool" />
-            <LampFixture device={device} pending={pending} size="bulb" />
-          </>
-        ) : (
-          <span className={`ghar-device ${needsAttention(device) ? "ghar-device--attention" : ""}`}>
-            <DeviceGlyph kind={glyphFor(device.capabilities)} lit={false} />
+      <span className="pointer-events-none absolute top-1.5 left-2 flex items-center gap-1">
+        {typeof battery === "number" ? (
+          <span className={`ghar-battery ${battery < 20 ? "ghar-battery--low" : ""}`} title={`Battery ${Math.round(battery)}%`}>
+            <i style={{ width: `${Math.max(4, Math.min(100, battery))}%` }} />
           </span>
-        )}
+        ) : null}
+        {device.bridge_name ? (
+          <span className="text-[9px] tracking-[0.12em] text-ink-faint uppercase">via {device.bridge_name}</span>
+        ) : null}
+      </span>
+      <span className="ghar-tile__stage">
+        <Form device={device} />
       </span>
       <span className="relative block min-w-0 text-center">
         <span className="block truncate text-[12.5px] leading-tight font-medium text-ink">{device.name}</span>
-        <span
-          className={`mt-1 flex h-[13px] items-center justify-center text-[11px] leading-none ${
-            lit && !pending ? "text-sage-deep" : "text-ink-ghost"
-          }`}
-        >
-          {!device.online ? (
-            "Offline"
-          ) : pending ? (
-            "Switching…"
-          ) : !light ? (
-            <span className="truncate">{deviceReading(device)}</span>
-          ) : lit && isDimmable(device) ? (
-            <>
-              <Ticker value={level} className="text-[11px]" />
-              <span className="font-numeric">%</span>
-            </>
-          ) : lit ? (
-            "On"
-          ) : (
-            "Off"
-          )}
+        <span className="ghar-tile__reading mt-1 flex h-[13px] items-center justify-center font-numeric text-[11px] leading-none">
+          <span className="truncate">
+            {!device.online ? "Offline" : pending ? "Waiting…" : family.reading(device)}
+          </span>
         </span>
       </span>
     </div>
@@ -217,7 +154,7 @@ type DeviceTileProps = DeviceHandlers & {
   dimmed: boolean;
 };
 
-/** A device where it sits, wired to the house: click switches it, hover opens its controls, a move drags it to another room. */
+/** A device where it sits, wired to the house: a tap does its primary action, hover opens its controls, a move drags it to another room. */
 function DeviceTile({
   device,
   pending,
@@ -239,7 +176,7 @@ function DeviceTile({
       onMouseEnter={(event) => onHover(device.id, event.currentTarget)}
       onMouseLeave={onHoverEnd}
       onClick={(event) => event.stopPropagation()}
-      className={`touch-none transition-opacity duration-slow ease-dadi ${dimmed ? "opacity-30" : ""}`}
+      className={`touch-pan-y transition-opacity duration-slow ease-dadi ${dimmed ? "opacity-30" : ""}`}
     >
       <DeviceFace device={device} pending={pending} />
     </div>
@@ -248,7 +185,7 @@ function DeviceTile({
 
 export type RoomPanelProps = DeviceHandlers & {
   room: RoomRef;
-  /** Every device in the room, for its summary and its light. */
+  /** Every device in the room, for its summary, its temperature and its light. */
   inRoom: GharDevice[];
   /** The devices search leaves showing. */
   devices: GharDevice[];
@@ -256,15 +193,21 @@ export type RoomPanelProps = DeviceHandlers & {
   index: number;
   /** A dragged device is over the room. */
   hot: boolean;
+  /** Unplaced is the only room: it spans the page. */
+  wide: boolean;
+  /** Briefly drawn out, after the horizon pointed at it. */
+  flash: boolean;
   pendingIds: ReadonlySet<string>;
   draggingId: string | null;
   onToggleRoom: () => void;
+  /** Open the pairing sheet; shown in Unplaced. */
+  onPair: () => void;
 };
 
 /**
- * One room: a glass panel lit from above by its lit lamps, its name in tracking caps, what
- * its lights are doing and a switch for all of them, over a floor of its devices. Unplaced
- * is the dashed pairing zone instead. Devices are dropped onto any panel to move them.
+ * One room: a glass panel lit from above by its lit lamps, its name in tracking caps, what its
+ * lights are doing, its temperature and a switch for all of its lights, over a floor of its
+ * devices. Unplaced is the dashed pairing zone. Devices are dropped onto any panel to move them.
  */
 export function RoomPanel({
   room,
@@ -272,16 +215,21 @@ export function RoomPanel({
   devices,
   index,
   hot,
+  wide,
+  flash,
   pendingIds,
   draggingId,
   onToggleRoom,
+  onPair,
   ...handlers
 }: RoomPanelProps) {
   const unplaced = room.name === "unassigned";
-  const lamps = inRoom.filter(isSwitchable);
+  const lamps = inRoom.filter((device) => isLamp(device) && device.online);
   const lit = lamps.some(isLit);
   const pending = lamps.some((lamp) => pendingIds.has(lamp.id));
   const glow = unplaced ? null : roomGlow(lamps, "top");
+  const temperature = unplaced ? null : roomTemperature(inRoom);
+  const heating = inRoom.some((device) => device.state.running?.value === "heating");
   return (
     <motion.section
       data-room-id={room.id}
@@ -289,40 +237,58 @@ export function RoomPanel({
       initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE, delay: index * 0.05 }}
-      className={`ghar-room ${unplaced ? "ghar-room--unplaced" : ""} ${hot ? "ghar-room--hot" : ""}`}
+      className={`ghar-room ${unplaced ? "ghar-room--unplaced" : ""} ${hot || flash ? "ghar-room--hot" : ""} ${
+        wide ? "col-span-full" : ""
+      }`}
     >
-      <span
-        aria-hidden
-        className="ghar-room__light"
-        style={{ backgroundImage: glow ?? "none", opacity: glow ? 1 : 0 }}
-      />
+      <span aria-hidden className="ghar-room__light" style={{ backgroundImage: glow ?? "none", opacity: glow ? 1 : 0 }} />
       <header className="relative flex items-center justify-between gap-3 px-4 pt-3.5 pb-3">
         <div className="min-w-0">
-          <h2 className="truncate text-[11px] font-medium tracking-[2.5px] text-sage-deep uppercase">
-            {roomTitle(room.name)}
-          </h2>
+          <h2 className="truncate text-[11px] font-medium tracking-[2.5px] text-sage-deep uppercase">{roomTitle(room.name)}</h2>
           <p className={`mt-1 truncate text-[12px] ${lit ? "text-ink-muted" : "text-ink-ghost"}`}>
             {unplaced ? "New devices land here · drag one into a room" : roomSummary(inRoom)}
           </p>
         </div>
-        {!unplaced && lamps.length > 0 ? (
-          <button
-            type="button"
-            role="switch"
-            aria-checked={lit}
-            aria-label={`${roomTitle(room.name)} lights`}
-            disabled={pending}
-            onClick={onToggleRoom}
-            className={`ghar-switch ${lit ? "ghar-switch--on" : ""} ${pending ? "animate-breath" : ""}`}
-          >
-            <span className="ghar-switch__knob" />
-          </button>
-        ) : null}
+        <div className="flex shrink-0 items-center gap-3">
+          {temperature !== null ? (
+            <span className="flex items-center gap-1.5 font-numeric text-[12px] text-ink-muted">
+              <span aria-hidden className={`size-1.5 rounded-full ${heating ? "bg-[var(--clay)]" : "bg-[var(--tide)]"}`} />
+              {temperature.toFixed(1)}°
+            </span>
+          ) : null}
+          {!unplaced && lamps.length > 0 ? (
+            <button
+              type="button"
+              role="switch"
+              aria-checked={lit}
+              aria-label={`${roomTitle(room.name)} lights`}
+              disabled={pending}
+              onClick={onToggleRoom}
+              className={`ghar-switch ${lit ? "ghar-switch--on" : ""} ${pending ? "animate-breath" : ""}`}
+            >
+              <span className="ghar-switch__knob" />
+            </button>
+          ) : null}
+        </div>
       </header>
       <div className="ghar-room__floor">
-        {unplaced ? <UnplacedCommission /> : null}
+        {unplaced ? (
+          <button
+            type="button"
+            onClick={onPair}
+            className="flex items-center gap-3.5 rounded-[var(--radius)] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3.5 py-3 text-left transition-[border-color] duration-slow ease-dadi hover:border-sage"
+          >
+            <span className="grid size-[34px] shrink-0 place-items-center rounded-full border border-dashed border-sage text-[18px] text-sage-deep">
+              +
+            </span>
+            <span className="min-w-0">
+              <span className="block text-[13px] font-medium text-ink">Add a device</span>
+              <span className="block text-[12px] text-ink-ghost">Matter pairing code or QR text</span>
+            </span>
+          </button>
+        ) : null}
         {devices.length > 0 ? (
-          <div className="grid gap-1.5 [grid-template-columns:repeat(auto-fill,minmax(128px,1fr))]">
+          <div className="grid gap-1 [grid-template-columns:repeat(auto-fill,minmax(112px,1fr))]">
             {devices.map((device) => (
               <DeviceTile
                 key={device.id}
@@ -345,26 +311,26 @@ export function RoomPanel({
 
 export type RoomRowProps = {
   room: RoomRef;
-  /** Few rooms share the widget, so each row also says what its lights are doing, under its name and as ON or OFF. */
-  roomy: boolean;
-  /** Switchable devices in the room. */
-  lamps: GharDevice[];
+  /** Every device in the room. */
+  inRoom: GharDevice[];
   pendingIds: ReadonlySet<string>;
   onToggle: () => void;
 };
 
 /**
- * Home widget row for one room: its name and a dot per light glowing its color, washed from
- * the right in its lit lamps' light. Click switches the room and does not open the page.
+ * Home tile row for one room: its name, a bead per lamp glowing its color and a small mark per
+ * other device (clay when it needs a look), washed from the right in its lit lamps' light.
+ * A tap switches the room's lights and does not open the page.
  */
-export function RoomRow({ room, roomy, lamps, pendingIds, onToggle }: RoomRowProps) {
+export function RoomRow({ room, inRoom, pendingIds, onToggle }: RoomRowProps) {
+  const lamps = inRoom.filter(isLamp);
+  const others = inRoom.filter((device) => !isLamp(device));
   const pending = lamps.some((lamp) => pendingIds.has(lamp.id));
-  const lit = lamps.some(isLit);
   const glow = roomGlow(lamps, "end");
   return (
     <button
       type="button"
-      aria-pressed={lit}
+      aria-pressed={lamps.some(isLit)}
       aria-busy={pending}
       aria-label={`${roomTitle(room.name)} lights`}
       disabled={pending || lamps.length === 0}
@@ -373,30 +339,17 @@ export function RoomRow({ room, roomy, lamps, pendingIds, onToggle }: RoomRowPro
         onToggle();
       }}
       onKeyDown={(event) => event.stopPropagation()}
-      className="ghar-row"
+      className="ghar-row h-[30px]"
       style={glow ? { backgroundImage: glow } : undefined}
     >
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[13px] text-ink">{roomTitle(room.name)}</span>
-        {roomy ? (
-          <span className="mt-0.5 truncate text-[11px] text-ink-ghost">{roomSummary(lamps)}</span>
-        ) : null}
-      </span>
-      <span className="flex shrink-0 items-center gap-3">
-        <span className="flex items-center gap-1.5">
-          {lamps.map((lamp) => (
-            <LampFixture key={lamp.id} device={lamp} pending={pendingIds.has(lamp.id)} size="dot" />
-          ))}
-        </span>
-        {roomy ? (
-          <span
-            className={`w-7 text-right text-[10px] font-medium tracking-[1.5px] ${
-              lit && !pending ? "text-sage-deep" : "text-ink-ghost"
-            }`}
-          >
-            {lamps.length === 0 ? "—" : lit ? "ON" : "OFF"}
-          </span>
-        ) : null}
+      <span className="truncate text-[13px] text-ink">{roomTitle(room.name)}</span>
+      <span className="flex shrink-0 items-center gap-1.5">
+        {lamps.map((lamp) => (
+          <LampFixture key={lamp.id} device={lamp} size="dot" pending={pendingIds.has(lamp.id)} />
+        ))}
+        {others.slice(0, lamps.length > 0 ? 2 : 4).map((device) => (
+          <span key={device.id} aria-hidden className={`ghar-mini ${attention(device) ? "ghar-mini--alert" : ""}`} />
+        ))}
       </span>
     </button>
   );

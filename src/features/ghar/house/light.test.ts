@@ -7,12 +7,14 @@ function bulb(state: Record<string, [unknown, number]>, on = true): GharDevice {
   return {
     id: "b",
     name: "Desk Lamp",
+    kind: "light",
     product_name: null,
+    bridge_name: null,
     room: { id: "r", name: "Den" },
     capabilities: [
-      { capability: "switchable" },
-      { capability: "dimmable", config: { min: 0, max: 100 } },
-      { capability: "colorable", config: { modes: ["hue_sat", "color_temp"] } },
+      { capability: "on_off", config: {} },
+      { capability: "level", config: { min: 0, max: 100 } },
+      { capability: "color", config: { modes: ["hue_sat", "color_temp"] } },
     ],
     online: true,
     last_seen_at: null,
@@ -39,6 +41,15 @@ describe("light", () => {
     expect(lampColor(bulb({ hue: [127, 1], saturation: [254, 1], color_temp: [250, 5] }))).toMatch(/^rgb\(/);
     expect(lampColor(bulb({ hue: [127, 3], color_temp: [250, 3] }))).toMatch(/^rgb\(/);
     expect(lampColor(bulb({}))).toBeNull();
+  });
+
+  it("follows the color mode the lamp reports over which reading changed last", () => {
+    expect(lampColor(bulb({ hue: [127, 1], saturation: [254, 1], color_temp: [250, 5], color_mode: ["hue_sat", 5] }))).toBe(
+      "hsl(180 100% 58%)",
+    );
+    expect(lampColor(bulb({ hue: [127, 5], saturation: [254, 5], color_temp: [250, 1], color_mode: ["color_temp", 5] }))).toMatch(
+      /^rgb\(/,
+    );
   });
 
   it("reads level over the dimmable range and glows only lit lamps", () => {

@@ -1,7 +1,9 @@
 import type { Transport } from "../transport";
 import type {
+  GharCommand,
   GharCommissionJob,
   GharDevice,
+  GharEvent,
   GharRadioCommand,
   GharRoom,
 } from "../../../types/ghar";
@@ -75,62 +77,23 @@ export function createGharClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** POST /devices/:id/command — switchable toggle. */
-    toggleSwitch(id: string): Promise<void> {
+    /** POST /devices/:id/command — one capability command, attributed to the user. */
+    command(id: string, command: GharCommand): Promise<void> {
       return transport.request({
         baseUrl,
         path: `/devices/${id}/command`,
         method: "POST",
-        body: {
-          capability: "switchable",
-          params: { state: "toggle" },
-          cause: "user",
-        },
+        body: { ...command, cause: "user" },
       });
     },
 
-    /** POST /devices/:id/command — dimmable level, 0–100. */
-    setBrightness(id: string, level: number): Promise<void> {
+    /** GET /events — a device's latest events, newest first. */
+    listDeviceEvents(id: string, limit: number): Promise<{ events: GharEvent[] }> {
+      const params = new URLSearchParams({ device_id: id, limit: String(limit), order: "desc" });
       return transport.request({
         baseUrl,
-        path: `/devices/${id}/command`,
-        method: "POST",
-        body: {
-          capability: "dimmable",
-          params: { level },
-          cause: "user",
-        },
-      });
-    },
-
-    /**
-     * POST /devices/:id/command — colorable hue and saturation.
-     * Both are Matter units, 0–254.
-     */
-    setHue(id: string, hue: number, saturation: number): Promise<void> {
-      return transport.request({
-        baseUrl,
-        path: `/devices/${id}/command`,
-        method: "POST",
-        body: {
-          capability: "colorable",
-          params: { hue, saturation },
-          cause: "user",
-        },
-      });
-    },
-
-    /** POST /devices/:id/command — colorable color temperature in mireds. */
-    setColorTemp(id: string, colorTemp: number): Promise<void> {
-      return transport.request({
-        baseUrl,
-        path: `/devices/${id}/command`,
-        method: "POST",
-        body: {
-          capability: "colorable",
-          params: { color_temp: colorTemp },
-          cause: "user",
-        },
+        path: `/events?${params.toString()}`,
+        method: "GET",
       });
     },
 

@@ -1,5 +1,6 @@
 import type { GharDevice } from "../../../types/ghar";
 import { roomTitle } from "../commission";
+import { familyOf } from "./families";
 
 /** A room panel on the Ghar page. */
 export type RoomRef = { id: string; name: string };
@@ -16,7 +17,7 @@ export type HouseSearch = {
 
 /**
  * Narrow the page to a query. A room whose name matches keeps every device;
- * otherwise a room stays only for the devices whose name or product matches.
+ * otherwise a room stays only for the devices whose name, product or family matches.
  */
 export function searchHouse(query: string, rooms: RoomRef[], devices: GharDevice[]): HouseSearch {
   const needle = query.trim().toLowerCase();
@@ -30,7 +31,9 @@ export function searchHouse(query: string, rooms: RoomRef[], devices: GharDevice
   }
   const roomHit = (room: RoomRef) => roomTitle(room.name).toLowerCase().includes(needle);
   const deviceHit = (device: GharDevice) =>
-    [device.name, device.product_name ?? ""].some((text) => text.toLowerCase().includes(needle));
+    [device.name, device.product_name, familyOf(device).label(device)].some(
+      (text) => text !== null && text.toLowerCase().includes(needle),
+    );
   const matchedRooms = rooms.filter(roomHit);
   const matchedDevices = devices.filter(deviceHit);
   return {

@@ -5,7 +5,7 @@ import { PageHeader } from "../chrome/PageHeader";
 import { GharHouse } from "../features/ghar/house";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
-/** Full Ghar page. Pairing lives in Unplaced. `?device=` (from a toast) opens that device's controls. */
+/** Full Ghar page. Add device opens the pairing sheet. `?device=` (from a toast) opens that device's controls. */
 export function GharPage() {
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
   const [params] = useSearchParams();
@@ -21,7 +21,7 @@ export function GharPage() {
     >
       <PageHeader
         title="GHAR"
-        hint="Tap a light or a room's switch · hover a light for color and name · drag it to move rooms"
+        hint="Tap to switch · hover for controls · drag between rooms"
         trailing={<div ref={setToolbar} className="flex items-center gap-2" />}
       />
       <div className="min-h-0 flex-1">

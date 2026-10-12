@@ -1,30 +1,34 @@
 /**
- * Ghar's house, shared by the page and the home widget. The page is a ledger of the whole
- * house over a panel per room, each lamp drawn as a pool of its own light; the widget is
- * the lights-on count beside a row per room. Widget rows toggle a room and do not navigate.
+ * Ghar's house, shared by the page and the home tile. The page is the house at a glance (a
+ * ledger over a horizon of rooms and what needs a look) over a glass panel per room, each
+ * device drawn as its family's abstract form; the tile is how much of the house is lit beside
+ * a row per room. Tile rows switch a room's lights and do not navigate.
  */
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tanstack/react-query";
+import { AnimatePresence } from "motion/react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ghar, isMeshOnline } from "../../../shared/api";
 import { GHAR_DEVICES_KEY, GHAR_ROOMS_KEY } from "../../../shared/api/ghar";
-import type { GharDevice, GharRoom } from "../../../types/ghar";
+import type { GharCommand, GharDevice, GharRoom } from "../../../types/ghar";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { IconPlus } from "../../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
 import { SearchField } from "../../../shared/components/SearchField";
 import { POLL_MS } from "../../../shared/lib/ux/poll";
-import { shownError } from "../commission";
+import { PairingSheet, shownError } from "../commission";
+import { attention, familyOf } from "./families";
+import { Horizon } from "./horizon";
 import { DevicePopover } from "./inspector";
-import { isLit, isOn, isSwitchable } from "./light";
-import { DeviceFace, RoomPanel, RoomRow, Tally } from "./rooms";
+import { isLamp, isLit, lampColor, PLAIN_LAMP } from "./light";
+import { DeviceFace, roomTemperature, RoomPanel, RoomRow, Tally } from "./rooms";
 import { searchHouse, type RoomRef } from "./search";
 
 export type GharHouseProps = {
-  /** `preview` is the home widget: room tiles only. `full` is the page. */
+  /** `preview` is the home tile. `full` is the page. */
   mode: "preview" | "full";
-  /** Page header slot for search and New room in `full` mode; null on the home widget. */
+  /** Page header slot for search, Add device and New room in `full` mode; null on the home tile. */
   toolbar: HTMLElement | null;
   /**
    * Device whose controls to open once it is on screen (from a toast in `full` mode).
@@ -47,48 +51,29 @@ type PointerSession = {
   dragging: boolean;
 };
 
+/** One command for some devices; `started` lets the hold below measure from the tap. */
+type CommandRun = { ids: string[]; command: GharCommand; started: number };
+
 const DRAG_PX = 4;
-/** How long a toggle stays gray even when Ghar answers immediately. */
-const TOGGLE_HOLD_MS = 280;
+/** How long a device stays waiting even when Ghar answers immediately, so a tap reads as a tap. */
+const COMMAND_HOLD_MS = 280;
 const HOVER_OPEN_MS = 160;
 const HOVER_CLOSE_MS = 320;
+/** How long a room stays drawn out after the horizon points at it. */
+const FLASH_MS = 1_200;
 /**
  * New room form anchor past the button's bottom-right corner. Popover has no room
  * to open rightward at the header's edge, so it flips left and hangs right-aligned
  * just under the button instead of covering the search box.
  */
 const NEW_ROOM_ANCHOR_OFFSET = { x: 28, y: 30 };
+/** Rooms offered to an empty house. */
+const FIRST_ROOMS = ["Living room", "Kitchen", "Bedroom"];
 
 /**
- * Write confirmed attributes after Ghar accepts a command.
- * The card stays on the previous reading until this runs.
- */
-function confirmState(queryClient: QueryClient, id: string, values: Record<string, unknown>): void {
-  const changedAt = new Date().toISOString();
-  queryClient.setQueryData<{ devices: GharDevice[] }>(GHAR_DEVICES_KEY, (current) =>
-    current
-      ? {
-          devices: current.devices.map((device) =>
-            device.id === id
-              ? {
-                  ...device,
-                  state: {
-                    ...device.state,
-                    ...Object.fromEntries(
-                      Object.entries(values).map(([key, value]) => [key, { value, changed_at: changedAt }]),
-                    ),
-                  },
-                }
-              : device,
-          ),
-        }
-      : current,
-  );
-}
-
-/**
- * Rooms and devices. Preview tiles toggle a room and do not navigate.
- * Full mode: click a device to switch it, hover for its controls, drag it into a room.
+ * Rooms and devices. Tile rows switch a room and do not navigate. On the page, a tap does a
+ * device's primary action (or opens its controls), hover opens its controls, a drag moves it
+ * to another room.
  */
 export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const { state: connection } = useConnection();
@@ -98,6 +83,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const session = useRef<PointerSession | null>(null);
   const openTimer = useRef<number | null>(null);
   const closeTimer = useRef<number | null>(null);
+  const flashTimer = useRef<number | null>(null);
   const [drag, setDrag] = useState<DragGhost | null>(null);
   const [waiting, setWaiting] = useState<ReadonlySet<string>>(() => new Set());
   const waitingRef = useRef<Set<string>>(new Set());
@@ -107,16 +93,17 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const [roomAnchor, setRoomAnchor] = useState<PopoverAnchor | null>(null);
   const [roomDraft, setRoomDraft] = useState("");
   const [query, setQuery] = useState("");
+  const [pairing, setPairing] = useState(false);
+  const [flashId, setFlashId] = useState<string | null>(null);
   const roomButtonRef = useRef<HTMLButtonElement>(null);
   const focusedKey = useRef<string | null>(null);
 
   useEffect(() => {
     return () => {
-      if (openTimer.current !== null) {
-        window.clearTimeout(openTimer.current);
-      }
-      if (closeTimer.current !== null) {
-        window.clearTimeout(closeTimer.current);
+      for (const timer of [openTimer.current, closeTimer.current, flashTimer.current]) {
+        if (timer !== null) {
+          window.clearTimeout(timer);
+        }
       }
     };
   }, []);
@@ -133,48 +120,18 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     enabled: connected,
   });
 
-  const toggle = useMutation({
-    mutationFn: (ids: string[]) => Promise.all(ids.map((id) => ghar.toggleSwitch(id))),
-    onSuccess: (_data, ids) => {
-      const current = queryClient.getQueryData<{ devices: GharDevice[] }>(GHAR_DEVICES_KEY);
-      for (const id of ids) {
-        const device = current?.devices.find((item) => item.id === id);
-        confirmState(queryClient, id, { on: device?.state.on?.value !== true });
-      }
-    },
-    onSettled: () => {
+  const command = useMutation({
+    mutationFn: (run: CommandRun) => Promise.all(run.ids.map((id) => ghar.command(id, run.command))),
+    onSettled: (_data, _error, run) => {
       void queryClient.invalidateQueries({ queryKey: GHAR_DEVICES_KEY });
-    },
-  });
-
-  const brightness = useMutation({
-    mutationFn: (input: { id: string; level: number }) => ghar.setBrightness(input.id, input.level),
-    onSuccess: (_data, input) => {
-      confirmState(queryClient, input.id, { brightness: input.level });
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: GHAR_DEVICES_KEY });
-    },
-  });
-
-  const paint = useMutation({
-    mutationFn: (
-      input:
-        | { id: string; hue: number; saturation: number }
-        | { id: string; colorTemp: number },
-    ) =>
-      "colorTemp" in input
-        ? ghar.setColorTemp(input.id, input.colorTemp)
-        : ghar.setHue(input.id, input.hue, input.saturation),
-    onSuccess: (_data, input) => {
-      if ("colorTemp" in input) {
-        confirmState(queryClient, input.id, { color_temp: input.colorTemp });
-        return;
-      }
-      confirmState(queryClient, input.id, { hue: input.hue, saturation: input.saturation });
-    },
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: GHAR_DEVICES_KEY });
+      void queryClient.invalidateQueries({ queryKey: ["ghar", "events"] });
+      const hold = Math.max(0, COMMAND_HOLD_MS - (Date.now() - run.started));
+      window.setTimeout(() => {
+        for (const id of run.ids) {
+          waitingRef.current.delete(id);
+        }
+        setWaiting(new Set(waitingRef.current));
+      }, hold);
     },
   });
 
@@ -182,14 +139,10 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     mutationFn: (id: string) => ghar.identify(id),
   });
 
-  const pendingIds = new Set<string>([
-    ...waiting,
-    ...(brightness.isPending && brightness.variables ? [brightness.variables.id] : []),
-    ...(paint.isPending && paint.variables ? [paint.variables.id] : []),
-    ...(identify.isPending && identify.variables ? [identify.variables] : []),
-  ]);
+  const pendingIds = new Set<string>([...waiting, ...(identify.isPending && identify.variables ? [identify.variables] : [])]);
 
-  function beginToggle(ids: string[]): void {
+  /** Send one command to some devices; devices already waiting on a command are left alone. */
+  function send(ids: string[], next: GharCommand): void {
     if (ids.length === 0 || ids.some((id) => waitingRef.current.has(id))) {
       return;
     }
@@ -197,18 +150,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       waitingRef.current.add(id);
     }
     setWaiting(new Set(waitingRef.current));
-    const started = Date.now();
-    toggle.mutate(ids, {
-      onSettled: () => {
-        const hold = Math.max(0, TOGGLE_HOLD_MS - (Date.now() - started));
-        window.setTimeout(() => {
-          for (const id of ids) {
-            waitingRef.current.delete(id);
-          }
-          setWaiting(new Set(waitingRef.current));
-        }, hold);
-      },
-    });
+    command.mutate({ ids, command: next, started: Date.now() });
   }
 
   const move = useMutation({
@@ -218,11 +160,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       const previous = queryClient.getQueryData<{ devices: GharDevice[] }>(GHAR_DEVICES_KEY);
       queryClient.setQueryData<{ devices: GharDevice[] }>(GHAR_DEVICES_KEY, (current) =>
         current
-          ? {
-              devices: current.devices.map((device) =>
-                device.id === input.id ? { ...device, room: input.room } : device,
-              ),
-            }
+          ? { devices: current.devices.map((device) => (device.id === input.id ? { ...device, room: input.room } : device)) }
           : current,
       );
       return { previous };
@@ -244,11 +182,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       const previous = queryClient.getQueryData<{ devices: GharDevice[] }>(GHAR_DEVICES_KEY);
       queryClient.setQueryData<{ devices: GharDevice[] }>(GHAR_DEVICES_KEY, (current) =>
         current
-          ? {
-              devices: current.devices.map((device) =>
-                device.id === input.id ? { ...device, name: input.name } : device,
-              ),
-            }
+          ? { devices: current.devices.map((device) => (device.id === input.id ? { ...device, name: input.name } : device)) }
           : current,
       );
       return { previous };
@@ -263,6 +197,13 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     },
   });
 
+  const create = useMutation({
+    mutationFn: (name: string) => ghar.createRoom(name),
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey: GHAR_ROOMS_KEY });
+    },
+  });
+
   useEffect(() => {
     const device = devicesQuery.data?.devices.find((d) => d.id === focus?.deviceId);
     if (!focus || !device || focusedKey.current === focus.key) {
@@ -271,13 +212,6 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     if (showDevice(device)) {
       focusedKey.current = focus.key;
     }
-  });
-
-  const create = useMutation({
-    mutationFn: (name: string) => ghar.createRoom(name),
-    onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: GHAR_ROOMS_KEY });
-    },
   });
 
   if (!connected && !devicesQuery.data) {
@@ -289,11 +223,11 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   if (mode === "full" && roomsQuery.isError && !roomsQuery.data) {
     return <StatusNote tone="error">{shownError(roomsQuery.error)}</StatusNote>;
   }
-  if (!devicesQuery.data || (!roomsQuery.data && roomsQuery.isLoading)) {
+  if (!devicesQuery.data || (mode === "full" && !roomsQuery.data)) {
     return mode === "full" ? (
       <div aria-label="Loading Ghar" className="flex h-full min-h-0 flex-col gap-5 px-2 pb-3">
-        <span className="h-[92px] animate-pulse rounded-[var(--radius-window)] border border-rule bg-sage-fill/40" />
-        <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))]">
+        <span className="h-[220px] animate-pulse rounded-[var(--radius-window)] border border-rule bg-sage-fill/40" />
+        <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr))]">
           {[0, 1].map((i) => (
             <span key={i} className="h-60 animate-pulse rounded-[var(--radius-window)] border border-rule bg-sage-fill/40" />
           ))}
@@ -314,26 +248,19 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   }
 
   const devices = devicesQuery.data.devices;
-  const rooms = roomsQuery.data?.rooms ?? [];
+  const rooms: GharRoom[] = roomsQuery.data?.rooms ?? [];
   const named = namedRooms(rooms, devices);
   const unassigned =
-    rooms.find((room) => room.name === "unassigned") ??
-    devices.find((device) => device.room.name === "unassigned")?.room ??
-    null;
-  const panels: RoomRef[] =
-    mode === "full" && unassigned ? [unassigned, ...named] : named;
+    rooms.find((room) => room.name === "unassigned") ?? devices.find((device) => device.room.name === "unassigned")?.room ?? null;
+  const unplacedCount = devices.filter((device) => device.room.name === "unassigned").length;
+  const showUnplaced = mode === "full" && unassigned !== null && (unplacedCount > 0 || named.length === 0);
+  const panels: RoomRef[] = showUnplaced && unassigned ? [unassigned, ...named] : named;
   const dragged = devices.find((device) => device.id === drag?.id) ?? null;
-  const lights = devices.filter(isSwitchable);
-  const lightsOn = lights.filter(isLit).length;
-  const offline = devices.filter((device) => !device.online).length;
   const hovered = devices.find((device) => device.id === hoverId) ?? null;
-
   const search = searchHouse(query, panels, devices);
 
   const trouble =
-    (toggle.isError ? shownError(toggle.error) : null) ??
-    (brightness.isError ? shownError(brightness.error) : null) ??
-    (paint.isError ? shownError(paint.error) : null) ??
+    (command.isError ? shownError(command.error) : null) ??
     (identify.isError ? shownError(identify.error) : null) ??
     (move.isError ? shownError(move.error) : null) ??
     (rename.isError ? shownError(rename.error) : null) ??
@@ -365,23 +292,17 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     return fromDevice ? { id: fromDevice.id, name: fromDevice.name } : null;
   }
 
-  function lightsIn(roomId: string): GharDevice[] {
-    return devices.filter(
-      (device) => device.room.id === roomId && device.online && isSwitchable(device),
-    );
-  }
-
+  /** Switch a room's lights: off if any is on, else all on. */
   function toggleRoom(roomId: string): void {
-    const lights = lightsIn(roomId);
-    if (lights.length === 0 || !connected) {
+    const lamps = devices.filter((device) => device.room.id === roomId && device.online && isLamp(device));
+    if (lamps.length === 0 || !connected) {
       return;
     }
-    if (lights.some((device) => pendingIds.has(device.id))) {
-      return;
-    }
-    const anyOn = lights.some(isOn);
-    const ids = (anyOn ? lights.filter(isOn) : lights).map((device) => device.id);
-    beginToggle(ids);
+    const lit = lamps.filter(isLit);
+    send(
+      (lit.length > 0 ? lit : lamps).map((device) => device.id),
+      { capability: "on_off", command: lit.length > 0 ? "off" : "on" },
+    );
   }
 
   function clearOpenTimer(): void {
@@ -404,11 +325,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     if (!canvas) {
       return { x: rect.right, y: rect.top + rect.height / 2, radius: 0 };
     }
-    return {
-      x: rect.right - canvas.left,
-      y: rect.top - canvas.top + rect.height / 2,
-      radius: 0,
-    };
+    return { x: rect.right - canvas.left, y: rect.top - canvas.top + rect.height / 2, radius: 0 };
   }
 
   function scheduleHover(deviceId: string, el: HTMLElement): void {
@@ -448,12 +365,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     event.stopPropagation();
     event.currentTarget.setPointerCapture(event.pointerId);
     clearOpenTimer();
-    session.current = {
-      id: device.id,
-      startX: event.clientX,
-      startY: event.clientY,
-      dragging: false,
-    };
+    session.current = { id: device.id, startX: event.clientX, startY: event.clientY, dragging: false };
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLDivElement>): void {
@@ -473,12 +385,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     }
     current.dragging = true;
     const local = toLocal(event.clientX, event.clientY);
-    setDrag({
-      id: current.id,
-      x: local.x,
-      y: local.y,
-      overId: roomAt(event.clientX, event.clientY),
-    });
+    setDrag({ id: current.id, x: local.x, y: local.y, overId: roomAt(event.clientX, event.clientY) });
   }
 
   function endPointer(event: ReactPointerEvent<HTMLDivElement>, device: GharDevice): void {
@@ -500,8 +407,13 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       return;
     }
     setDrag(null);
-    if (connected && device.online && isSwitchable(device) && !pendingIds.has(device.id)) {
-      beginToggle([device.id]);
+    const primary = familyOf(device).primary(device);
+    if (primary === null || !device.online) {
+      showDevice(device);
+      return;
+    }
+    if (connected && !pendingIds.has(device.id)) {
+      send([device.id], primary);
     }
     scheduleHover(device.id, event.currentTarget);
   }
@@ -535,21 +447,97 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     return true;
   }
 
-  function submitRoom(): void {
-    const name = roomDraft.trim();
-    if (!name || create.isPending) {
+  /** Bring a room's panel into view and draw it out for a moment. */
+  function pointAtRoom(roomId: string): void {
+    canvasRef.current?.querySelector(`[data-room-id="${roomId}"]`)?.scrollIntoView({ behavior: "smooth", block: "center" });
+    setFlashId(roomId);
+    if (flashTimer.current !== null) {
+      window.clearTimeout(flashTimer.current);
+    }
+    flashTimer.current = window.setTimeout(() => setFlashId(null), FLASH_MS);
+  }
+
+  function submitRoom(name: string): void {
+    const trimmed = name.trim();
+    if (!trimmed || create.isPending) {
       return;
     }
     setNaming(false);
     setRoomDraft("");
-    create.mutate(name);
+    create.mutate(trimmed);
+  }
+
+  if (mode === "preview") {
+    const lamps = devices.filter(isLamp);
+    const lightsOn = lamps.filter(isLit).length;
+    const temperature = roomTemperature(devices);
+    const locks = devices.filter((device) => typeof device.state.locked?.value === "boolean");
+    const flagged = devices.filter((device) => attention(device) !== null).length;
+    return (
+      <div className="relative flex h-full min-h-0 flex-col">
+        {!connected ? <p className="px-3 pt-1 text-[12px] text-ink-ghost">Ghar is offline</p> : null}
+        {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
+        <div className="flex min-h-0 flex-1 items-stretch px-2 pb-2.5 pt-0.5">
+          <div className="flex w-[34%] shrink-0 flex-col items-center justify-center gap-2.5">
+            <Tally value={lightsOn} of={lamps.length} label={lightsOn === 1 ? "LIGHT ON" : "LIGHTS ON"} />
+            <span aria-hidden className="ghar-spectrum">
+              {lamps.length === 0 ? (
+                <i />
+              ) : (
+                lamps.map((lamp) => <i key={lamp.id} style={isLit(lamp) ? { background: lampColor(lamp) ?? PLAIN_LAMP } : undefined} />)
+              )}
+            </span>
+            <span className="flex items-center gap-2.5 text-[11px] text-ink-muted">
+              {temperature !== null ? <span className="font-numeric">{temperature.toFixed(1)}°</span> : null}
+              {locks.length > 0 ? (
+                <span>{locks.every((device) => device.state.locked?.value === true) ? "locked" : "unlocked"}</span>
+              ) : null}
+              {flagged > 0 ? (
+                <span className="flex items-center gap-1">
+                  <span aria-hidden className="ghar-mark" />
+                  {flagged}
+                </span>
+              ) : null}
+            </span>
+          </div>
+          <div className="flex min-w-0 flex-1 flex-col justify-center border-l border-dashed border-sage-line/70 pl-2">
+            {named.length === 0 ? (
+              <p className="px-2 text-[13px] text-ink-ghost">
+                {devices.length === 0
+                  ? "No devices yet"
+                  : devices.length === 1
+                    ? "1 device unplaced"
+                    : `${devices.length} devices unplaced`}
+              </p>
+            ) : (
+              <div className={`grid max-h-full min-h-0 gap-0.5 ${named.length > 4 ? "grid-cols-2 gap-x-1" : "grid-cols-1"}`}>
+                {named.map((room) => (
+                  <RoomRow
+                    key={room.id}
+                    room={room}
+                    inRoom={devices.filter((device) => device.room.id === room.id)}
+                    pendingIds={pendingIds}
+                    onToggle={() => toggleRoom(room.id)}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
     <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col">
-      {!connected ? <p className="px-3 pt-1 text-[12px] text-ink-ghost">Ghar is offline</p> : null}
+      {!connected ? (
+        <p className="mx-3 mb-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-dashed border-sage-line px-3.5 py-2 text-[12.5px] text-ink-muted">
+          <span aria-hidden className="size-[7px] rounded-full border border-dashed border-ink-faint" />
+          Ghar is offline. This is the last state it reported; controls come back when it does.
+        </p>
+      ) : null}
       {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
-      {mode === "full" && toolbar
+      {toolbar
         ? createPortal(
             <>
               <SearchField
@@ -563,12 +551,13 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
                   }
                 }}
               />
-              <button
-                ref={roomButtonRef}
-                type="button"
-                onClick={openNewRoom}
-                className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50"
-              >
+              <button type="button" onClick={() => setPairing(true)} disabled={!connected} className={toolButton}>
+                <span className="flex size-4 shrink-0">
+                  <IconPlus />
+                </span>
+                Add device
+              </button>
+              <button ref={roomButtonRef} type="button" onClick={openNewRoom} className={toolButton}>
                 <span className="flex size-4 shrink-0">
                   <IconPlus />
                 </span>
@@ -578,90 +567,81 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
             toolbar,
           )
         : null}
-      {mode === "preview" ? (
-        <div className="flex min-h-0 flex-1 items-stretch px-2 pb-2.5 pt-0.5">
-          <div className="flex w-[34%] shrink-0 items-center justify-center">
-            <Tally
-              value={lightsOn}
-              of={lights.length}
-              label={lights.length === 1 ? "LIGHT ON" : "LIGHTS ON"}
-            />
+      <div className={`min-h-0 flex-1 overflow-y-auto px-2 pb-3 ${connected ? "" : "opacity-70 saturate-50"}`}>
+        {devices.length === 0 ? (
+          <div className="flex flex-col items-center gap-5 px-4 pt-14 pb-10 text-center">
+            <div aria-hidden className="ghar-quiet">
+              <span />
+              <span />
+              <b />
+            </div>
+            <h2 className="m-0 text-[12px] font-medium tracking-[0.3em] text-sage-deep uppercase">The house is quiet</h2>
+            <p className="m-0 max-w-[46ch] text-[13.5px] leading-relaxed text-ink-muted">
+              Pair a light, plug, lock or sensor with its Matter code. It lands in Unplaced, and you drag it into a room.
+            </p>
+            <button
+              type="button"
+              disabled={!connected}
+              onClick={() => setPairing(true)}
+              className="rounded-full bg-sage-deep px-4 py-2 text-[12.5px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:opacity-40"
+            >
+              Add the first device
+            </button>
+            {named.length === 0 ? <FirstRooms onCreate={submitRoom} /> : null}
           </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-center border-l border-dashed border-sage-line/70 pl-2">
-            {named.length === 0 ? (
-              <p className="px-2 text-[13px] text-ink-ghost">
-                {devices.length === 0
-                  ? "No devices"
-                  : devices.length === 1
-                    ? "1 device unplaced"
-                    : `${devices.length} devices unplaced`}
-              </p>
+        ) : (
+          <>
+            <Horizon
+              rooms={named}
+              devices={devices}
+              onRoom={pointAtRoom}
+              onDevice={(id) => {
+                const device = devices.find((item) => item.id === id);
+                if (device) {
+                  showDevice(device);
+                }
+              }}
+            />
+            {search.rooms.length === 0 ? (
+              <p className="py-16 text-center text-[13px] text-ink-ghost">No rooms or devices match “{query.trim()}”</p>
             ) : (
-              <div
-                className={`grid max-h-full min-h-0 gap-1 ${
-                  named.length > 3 ? "auto-rows-[minmax(0,36px)]" : "auto-rows-[minmax(0,52px)]"
-                } ${named.length > 4 ? "grid-cols-2 gap-x-2" : "grid-cols-1"}`}
-              >
-                {named.map((room) => (
-                  <RoomRow
+              <div className="grid content-start items-start gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr))]">
+                {search.rooms.map(({ room, listed }, index) => (
+                  <RoomPanel
                     key={room.id}
                     room={room}
-                    roomy={named.length <= 3}
-                    lamps={devices.filter((device) => device.room.id === room.id && isSwitchable(device))}
+                    index={index}
+                    inRoom={devices.filter((device) => device.room.id === room.id)}
+                    devices={listed}
+                    hot={drag?.overId === room.id}
+                    wide={room.name === "unassigned" && named.length === 0}
+                    flash={flashId === room.id}
                     pendingIds={pendingIds}
-                    onToggle={() => toggleRoom(room.id)}
+                    draggingId={drag?.id ?? null}
+                    onToggleRoom={() => toggleRoom(room.id)}
+                    onPair={() => setPairing(true)}
+                    onHover={scheduleHover}
+                    onHoverEnd={scheduleHoverClose}
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={endPointer}
+                    onPointerCancel={endPointer}
                   />
                 ))}
               </div>
             )}
-          </div>
-        </div>
-      ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto px-2 pb-3">
-          <div className="ghar-ledger mb-5">
-            <Tally value={lightsOn} of={lights.length} label={lights.length === 1 ? "LIGHT ON" : "LIGHTS ON"} />
-            <Tally value={named.length} label={named.length === 1 ? "ROOM" : "ROOMS"} delay={0.06} />
-            <Tally value={devices.length} label={devices.length === 1 ? "DEVICE" : "DEVICES"} delay={0.12} />
-            {offline > 0 ? <Tally value={offline} label="OFFLINE" tone="error" delay={0.18} /> : null}
-          </div>
-          {panels.length === 0 ? (
-            <p className="py-16 text-center text-[13px] text-ink-ghost">No rooms yet</p>
-          ) : search.rooms.length === 0 ? (
-            <p className="py-16 text-center text-[13px] text-ink-ghost">
-              No rooms or devices match “{query.trim()}”
-            </p>
-          ) : (
-            <div className="grid content-start items-start gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,380px),1fr))]">
-              {search.rooms.map(({ room, listed }, index) => (
-                <RoomPanel
-                  key={room.id}
-                  room={room}
-                  index={index}
-                  inRoom={devices.filter((device) => device.room.id === room.id)}
-                  devices={listed}
-                  hot={drag?.overId === room.id}
-                  pendingIds={pendingIds}
-                  draggingId={drag?.id ?? null}
-                  onToggleRoom={() => toggleRoom(room.id)}
-                  onHover={scheduleHover}
-                  onHoverEnd={scheduleHoverClose}
-                  onPointerDown={onPointerDown}
-                  onPointerMove={onPointerMove}
-                  onPointerUp={endPointer}
-                  onPointerCancel={endPointer}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      )}
-      {mode === "full" && hovered && anchor ? (
+            {named.length === 0 ? <FirstRooms onCreate={submitRoom} /> : null}
+          </>
+        )}
+      </div>
+      {hovered && anchor ? (
         <DevicePopover
           device={hovered}
           open
           anchor={anchor}
           containerRef={canvasRef}
-          pending={pendingIds.has(hovered.id)}
+          pending={pendingIds.has(hovered.id) || !connected}
+          rooms={rooms}
           onClose={() => {
             clearOpenTimer();
             clearCloseTimer();
@@ -671,26 +651,13 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
           onHoverStart={clearCloseTimer}
           onHoverEnd={scheduleHoverClose}
           onRename={(name) => rename.mutate({ id: hovered.id, name })}
+          onMove={(room) => move.mutate({ id: hovered.id, room })}
           onIdentify={() => {
             if (!pendingIds.has(hovered.id)) {
               identify.mutate(hovered.id);
             }
           }}
-          onBrightness={(level) => {
-            if (!pendingIds.has(hovered.id)) {
-              brightness.mutate({ id: hovered.id, level });
-            }
-          }}
-          onHue={(hue, saturation) => {
-            if (!pendingIds.has(hovered.id)) {
-              paint.mutate({ id: hovered.id, hue, saturation });
-            }
-          }}
-          onColorTemp={(mireds) => {
-            if (!pendingIds.has(hovered.id)) {
-              paint.mutate({ id: hovered.id, colorTemp: mireds });
-            }
-          }}
+          send={(next) => send([hovered.id], next)}
         />
       ) : null}
       <Popover
@@ -708,12 +675,10 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
           className="flex flex-col gap-3 px-3.5 py-3"
           onSubmit={(event) => {
             event.preventDefault();
-            submitRoom();
+            submitRoom(roomDraft);
           }}
         >
-          <span className="text-[10px] font-medium tracking-[0.14em] text-sage-deep uppercase">
-            New room
-          </span>
+          <span className="text-[10px] font-medium tracking-[0.14em] text-sage-deep uppercase">New room</span>
           <input
             value={roomDraft}
             autoFocus
@@ -738,30 +703,41 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
         </form>
       </Popover>
       {dragged && drag ? (
-        <div
-          className="pointer-events-none absolute z-20"
-          style={{ left: drag.x, top: drag.y, transform: "translate(-50%, -50%)" }}
-        >
+        <div className="pointer-events-none absolute z-20" style={{ left: drag.x, top: drag.y, transform: "translate(-50%, -50%)" }}>
           <DeviceFace device={dragged} ghost pending={false} />
         </div>
       ) : null}
+      <AnimatePresence>{pairing ? <PairingSheet rooms={rooms} onClose={() => setPairing(false)} /> : null}</AnimatePresence>
+    </div>
+  );
+}
+
+const toolButton =
+  "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-50";
+
+/** Dashed room outlines an empty house offers to make in one tap. */
+function FirstRooms({ onCreate }: { onCreate: (name: string) => void }) {
+  return (
+    <div className="mx-auto mt-5 grid w-full max-w-[620px] gap-3 [grid-template-columns:repeat(auto-fit,minmax(150px,1fr))]">
+      {FIRST_ROOMS.map((name) => (
+        <button
+          key={name}
+          type="button"
+          onClick={() => onCreate(name)}
+          className="h-[74px] rounded-[var(--radius-window)] border border-dashed border-sage-line text-[10.5px] tracking-[0.18em] text-ink-ghost uppercase transition-[border-color,color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-faint hover:text-sage-deep"
+        >
+          + {name}
+        </button>
+      ))}
     </div>
   );
 }
 
 /** A centered line for the whole house's state: offline, or the real error. */
-function StatusNote({
-  children,
-  tone = "quiet",
-}: {
-  children: string;
-  tone?: "quiet" | "error";
-}) {
+function StatusNote({ children, tone = "quiet" }: { children: string; tone?: "quiet" | "error" }) {
   return (
     <div className="flex h-full items-center justify-center px-3">
-      <p className={`text-center text-[13px] ${tone === "error" ? "text-error" : "text-ink-ghost"}`}>
-        {children}
-      </p>
+      <p className={`text-center text-[13px] ${tone === "error" ? "text-error" : "text-ink-ghost"}`}>{children}</p>
     </div>
   );
 }

@@ -987,7 +987,7 @@ describe("chaavi client", () => {
 });
 
 describe("ghar client", () => {
-  it("lists devices and posts switch toggles", async () => {
+  it("lists devices and posts a capability command as the user", async () => {
     const calls: Array<{ path: string; method: string; body?: unknown }> = [];
     const transport = {
       request: async (opts: {
@@ -1009,18 +1009,22 @@ describe("ghar client", () => {
     const { createGharClient } = await import("./shared/api/ghar");
     const client = createGharClient(transport, GHAR);
     await client.listDevices();
-    await client.toggleSwitch("dev-1");
+    await client.command("dev-1", { capability: "on_off", command: "toggle" });
+    await client.command("dev-1", { capability: "level", command: "move_to", params: { level: 40 } });
+    await client.listDeviceEvents("dev-1", 3);
     expect(calls).toEqual([
       { path: "/devices", method: "GET", body: undefined },
       {
         path: "/devices/dev-1/command",
         method: "POST",
-        body: {
-          capability: "switchable",
-          params: { state: "toggle" },
-          cause: "user",
-        },
+        body: { capability: "on_off", command: "toggle", cause: "user" },
       },
+      {
+        path: "/devices/dev-1/command",
+        method: "POST",
+        body: { capability: "level", command: "move_to", params: { level: 40 }, cause: "user" },
+      },
+      { path: "/events?device_id=dev-1&limit=3&order=desc", method: "GET", body: undefined },
     ]);
   });
 
@@ -1072,9 +1076,6 @@ describe("ghar client", () => {
       radio: "network",
     });
     await client.getCommission("job-1");
-    await client.setBrightness("dev-1", 40);
-    await client.setHue("dev-1", 20, 200);
-    await client.setColorTemp("dev-1", 250);
     await client.identify("dev-1");
     expect(calls.map((call) => [call.method, call.path, call.body])).toEqual([
       ["GET", "/rooms", undefined],
@@ -1087,29 +1088,6 @@ describe("ghar client", () => {
         { code: "34970112332", room_id: "room-1", radio: "network" },
       ],
       ["GET", "/commission/job-1", undefined],
-      [
-        "POST",
-        "/devices/dev-1/command",
-        { capability: "dimmable", params: { level: 40 }, cause: "user" },
-      ],
-      [
-        "POST",
-        "/devices/dev-1/command",
-        {
-          capability: "colorable",
-          params: { hue: 20, saturation: 200 },
-          cause: "user",
-        },
-      ],
-      [
-        "POST",
-        "/devices/dev-1/command",
-        {
-          capability: "colorable",
-          params: { color_temp: 250 },
-          cause: "user",
-        },
-      ],
       ["POST", "/devices/dev-1/identify", undefined],
     ]);
   });
@@ -1176,7 +1154,9 @@ describe("searchHouse", () => {
   const device = (id: string, name: string, room: { id: string; name: string }, product: string | null = null): GharDevice => ({
     id,
     name,
+    kind: "light",
     product_name: product,
+    bridge_name: null,
     room,
     capabilities: [],
     online: true,

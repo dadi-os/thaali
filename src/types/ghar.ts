@@ -1,12 +1,98 @@
-/** Ghar capability name on a device. */
+/** Ghar capability name on a device: a set of state keys and the commands that change them. */
 export type GharCapabilityName =
-  | "switchable"
-  | "dimmable"
-  | "colorable"
+  | "on_off"
+  | "level"
+  | "color"
+  | "cover"
+  | "fan"
+  | "thermostat"
+  | "lock"
   | "sensor"
-  | "lockable"
+  | "button"
+  | "alarm"
+  | "power_source"
+  | "energy"
+  | "valve"
+  | "pump"
+  | "rvc"
+  | "appliance"
+  | "mode"
+  | "temperature_control"
   | "media"
-  | "thermostat";
+  | "camera";
+
+/** What a device is, from its Matter device type. */
+export type GharKind =
+  | "light"
+  | "plug"
+  | "switch"
+  | "cover"
+  | "fan"
+  | "air_purifier"
+  | "thermostat"
+  | "air_conditioner"
+  | "heat_pump"
+  | "water_heater"
+  | "lock"
+  | "contact"
+  | "occupancy"
+  | "light_sensor"
+  | "temperature"
+  | "humidity"
+  | "pressure"
+  | "flow"
+  | "leak"
+  | "freeze"
+  | "rain"
+  | "air_quality"
+  | "smoke_alarm"
+  | "energy_meter"
+  | "solar"
+  | "battery_storage"
+  | "ev_charger"
+  | "valve"
+  | "irrigation"
+  | "pump"
+  | "robot_vacuum"
+  | "washer"
+  | "dryer"
+  | "dishwasher"
+  | "refrigerator"
+  | "cabinet"
+  | "oven"
+  | "cooktop"
+  | "microwave"
+  | "extractor_hood"
+  | "speaker"
+  | "tv"
+  | "camera"
+  | "doorbell"
+  | "bridge"
+  | "other";
+
+/** A choice a device offers (a mode, area or input), from its capability config. */
+export type GharChoice = { id: number; label: string };
+
+/** One command for POST /devices/:id/command. */
+export type GharCommand = {
+  capability: GharCapabilityName;
+  command: string;
+  params?: Record<string, unknown>;
+};
+
+/** A row from Ghar GET /events. */
+export type GharEvent = {
+  id: string;
+  device_id: string;
+  attribute_key: string;
+  old_value: unknown;
+  new_value: unknown;
+  /** `external` is a change made at the device itself. */
+  cause: "agent" | "user" | "external";
+  /** The agent id for agent changes. */
+  cause_ref: string | null;
+  created_at: string;
+};
 
 /** Live attribute from Ghar GET /devices. */
 export type GharAttributeState = {
@@ -18,13 +104,16 @@ export type GharAttributeState = {
 export type GharDevice = {
   id: string;
   name: string;
+  kind: GharKind;
   /** Matter product string. Quiet subtitle; the row `name` is the device's own label. */
   product_name: string | null;
+  /** The bridge's product name when the device sits behind a bridge. */
+  bridge_name: string | null;
   room: { id: string; name: string };
   capabilities: Array<{
     capability: GharCapabilityName;
-    /** Capability config from Ghar, such as color `modes`. */
-    config?: Record<string, unknown>;
+    /** Capability config from Ghar: color `modes`, setpoint support, mode and area choices, sensor `measurements`. */
+    config: Record<string, unknown>;
   }>;
   online: boolean;
   last_seen_at: string | null;

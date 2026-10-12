@@ -8,9 +8,9 @@ import type { GharDevice } from "../../../types/ghar";
 /** What a lit lamp with no color reading (a plain on/off light) glows: the house sage. */
 export const PLAIN_LAMP = "var(--sage)";
 
-/** True for devices that switch on and off. */
-export function isSwitchable(device: GharDevice): boolean {
-  return device.capabilities.some((cap) => cap.capability === "switchable");
+/** True for a light: a device whose Matter type is a lamp, which the room switch and the light tally count. */
+export function isLamp(device: GharDevice): boolean {
+  return device.kind === "light";
 }
 
 /** True when Ghar last heard the device on. */
@@ -18,9 +18,9 @@ export function isOn(device: GharDevice): boolean {
   return device.state.on?.value === true;
 }
 
-/** True for a light giving off light: online, switchable and last heard on. */
+/** True for a light giving off light: online, a lamp and last heard on. */
 export function isLit(device: GharDevice): boolean {
-  return device.online && isSwitchable(device) && isOn(device);
+  return device.online && isLamp(device) && isOn(device);
 }
 
 /** A reported attribute with when it changed, or null when Ghar has none or it is not a number. */
@@ -46,13 +46,16 @@ export function kelvinRgb(kelvin: number): [number, number, number] {
 
 /**
  * lampColor is the CSS color a lamp shines when on, or null for a device with no color
- * reading. Matter does not report which color mode is active, so the reading Ghar heard
- * change last wins; on a tie (both set at commissioning) the white point does.
+ * reading. The lamp's reported color mode picks hue or white; a lamp that has not reported
+ * one is colored by the reading Ghar heard change last, the white point on a tie.
  */
 export function lampColor(device: GharDevice): string | null {
   const hue = reading(device, "hue");
   const temp = reading(device, "color_temp");
-  if (temp && temp.value > 0 && (!hue || temp.at >= hue.at)) {
+  const mode = device.state.color_mode?.value;
+  const white =
+    mode === "color_temp" ? true : mode === "hue_sat" ? false : !hue || (temp !== null && temp.at >= hue.at);
+  if (temp && temp.value > 0 && white) {
     const [r, g, b] = kelvinRgb(1_000_000 / temp.value);
     return `rgb(${r} ${g} ${b})`;
   }
@@ -66,7 +69,7 @@ export function lampColor(device: GharDevice): string | null {
 
 /** How bright a lamp is, 0–1: its brightness over the dimmable range, or 1 when it does not dim. */
 export function lampLevel(device: GharDevice): number {
-  const dimmable = device.capabilities.find((cap) => cap.capability === "dimmable");
+  const dimmable = device.capabilities.find((cap) => cap.capability === "level");
   const brightness = reading(device, "brightness");
   if (!dimmable || !brightness) {
     return 1;

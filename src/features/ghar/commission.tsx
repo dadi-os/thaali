@@ -1,7 +1,6 @@
 /**
- * Commission a Matter device from the plus slot in Unplaced.
- * The slot opens into a pairing code, then a connection phase.
- * Nearby pairing uses this computer as the Bluetooth radio.
+ * Pair a Matter device from a sheet over the Ghar page, and the room and error words the
+ * house shares. Nearby pairing uses this computer as the Bluetooth radio.
  */
 
 import { useEffect, useState } from "react";
@@ -10,14 +9,15 @@ import { AnimatePresence, motion } from "motion/react";
 import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
 import { isTauriRuntime } from "../../shared/api/runtime";
-import type { GharCommissionJob } from "../../types/ghar";
+import type { GharRoom } from "../../types/ghar";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { IconPlus } from "../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { DeviceFace } from "./house/rooms";
 import { startDeviceRadio } from "./radio";
 
 type RadioMode = "network" | "nearby";
-type PairPhase = "plus" | "code" | "link";
+
+const caps = "text-[10px] font-medium tracking-[0.14em] text-ink-faint uppercase";
 
 const field =
   "rounded-[var(--radius)] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 py-2.5 text-ink outline-none transition-[border-color,background-color] duration-slow ease-dadi placeholder:text-ink-ghost hover:border-sage focus:border-sage disabled:cursor-default disabled:opacity-50";
@@ -39,30 +39,25 @@ export function shownError(err: unknown): string {
   return match[1].replace(/\\"/g, '"');
 }
 
-/** Status line while a job is in flight or finished. */
-function jobLine(job: GharCommissionJob): string {
-  switch (job.status) {
-    case "pending":
-    case "discovering":
-      return "Looking for the device";
-    case "commissioning":
-      return "Pairing";
-    case "succeeded":
-      return "Landed in Unplaced";
-    case "failed":
-      return job.error;
-  }
-}
+export type PairingSheetProps = {
+  /** Every room, so a device can land straight in one. */
+  rooms: GharRoom[];
+  onClose: () => void;
+};
 
 /**
- * Plus slot in Unplaced. It opens into the pairing code, then the connection phase.
- * Clicks stay on the slot so they do not toggle the room.
+ * Pair a Matter device: its setup code, how it reaches Ghar and the room it lands in, then
+ * rings reaching out while Ghar looks for it and closing in while it pairs, then the device
+ * itself. Nearby pairing makes this computer the Bluetooth radio.
  */
-export function UnplacedCommission() {
+export function PairingSheet({ rooms, onClose }: PairingSheetProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const queryClient = useQueryClient();
+  const named = rooms.filter((room) => room.name !== "unassigned");
   const [code, setCode] = useState("");
+  /** The room picked for the device; empty lands it in Unplaced. */
+  const [roomId, setRoomId] = useState("");
   const [radio, setRadio] = useState<RadioMode>("network");
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
@@ -71,7 +66,6 @@ export function UnplacedCommission() {
   const [jobId, setJobId] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const [phase, setPhase] = useState<PairPhase>("plus");
 
   useEffect(() => {
     if (radio !== "nearby") {
@@ -81,7 +75,7 @@ export function UnplacedCommission() {
     }
     if (!isTauriRuntime()) {
       setRadioReady(false);
-      setRadioError("Bluetooth commissioning needs the dadi desktop app on this computer.");
+      setRadioError("Bluetooth pairing needs the dadi desktop app on this computer.");
       return;
     }
     if (!connected) {
@@ -112,35 +106,38 @@ export function UnplacedCommission() {
     enabled: connected && jobId !== null,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
-      if (status === "succeeded" || status === "failed") {
-        return false;
-      }
-      return 400;
+      return status === "succeeded" || status === "failed" ? false : 400;
     },
+  });
+  const devicesQuery = useQuery({
+    queryKey: GHAR_DEVICES_KEY,
+    queryFn: () => ghar.listDevices(),
+    enabled: connected && jobQuery.data?.status === "succeeded",
   });
 
   useEffect(() => {
-    if (jobQuery.data?.status !== "succeeded") {
-      return;
+    if (jobQuery.data?.status === "succeeded") {
+      void queryClient.invalidateQueries({ queryKey: GHAR_DEVICES_KEY });
     }
-    void queryClient.invalidateQueries({ queryKey: GHAR_DEVICES_KEY });
-    const timer = window.setTimeout(() => {
-      setPhase("plus");
-      setCode("");
-      setJobId(null);
-      setRadio("network");
-    }, 1400);
-    return () => window.clearTimeout(timer);
   }, [jobQuery.data?.status, queryClient]);
 
   const job = jobQuery.data ?? null;
-  const running =
-    pending ||
-    (job !== null && job.status !== "succeeded" && job.status !== "failed");
-  const nearbyBlocked =
-    radio === "nearby" && (!radioReady || ssid.trim().length === 0);
-  const canSubmit =
-    connected && code.trim().length > 0 && !running && !nearbyBlocked;
+  const running = pending || (job !== null && job.status !== "succeeded" && job.status !== "failed");
+  const failure = job?.status === "failed" ? job.error : (submitError ?? (jobQuery.isError ? shownError(jobQuery.error) : null));
+  const nearbyBlocked = radio === "nearby" && (!radioReady || ssid.trim().length === 0);
+  const canSubmit = connected && code.trim().length > 0 && !running && !nearbyBlocked;
+  const step: "code" | "seek" | "pair" | "done" | "failed" =
+    failure !== null
+      ? "failed"
+      : job?.status === "succeeded"
+        ? "done"
+        : job?.status === "commissioning"
+          ? "pair"
+          : jobId !== null || pending
+            ? "seek"
+            : "code";
+  const landed = devicesQuery.data ? devicesQuery.data.devices.filter((device) => job?.device_ids?.includes(device.id)) : null;
+  const landedIn = named.find((room) => room.id === roomId);
 
   async function submit(): Promise<void> {
     if (!canSubmit) {
@@ -148,14 +145,12 @@ export function UnplacedCommission() {
     }
     setSubmitError(null);
     setPending(true);
-    setPhase("link");
     try {
       const started = await ghar.startCommission({
         code: code.trim(),
         radio,
-        ...(radio === "nearby"
-          ? { wifi: { ssid: ssid.trim(), password } }
-          : {}),
+        ...(roomId !== "" ? { room_id: roomId } : {}),
+        ...(radio === "nearby" ? { wifi: { ssid: ssid.trim(), password } } : {}),
       });
       setJobId(started.job_id);
     } catch (err) {
@@ -165,94 +160,93 @@ export function UnplacedCommission() {
     }
   }
 
-  function close(): void {
-    if (running) {
-      return;
-    }
-    setPhase("plus");
-    setRadio("network");
-    setSubmitError(null);
+  function retry(): void {
     setJobId(null);
+    setSubmitError(null);
   }
 
-  const status = job
-    ? jobLine(job)
-    : submitError ?? (jobQuery.isError ? shownError(jobQuery.error) : null);
-  const failed = job?.status === "failed" || submitError !== null || jobQuery.isError;
-
+  const steps = step === "code" ? 0 : step === "seek" ? 1 : 2;
   return (
     <motion.div
-      layout
-      onClick={(event) => event.stopPropagation()}
-      onPointerDown={(event) => event.stopPropagation()}
-      className="overflow-hidden rounded-[var(--radius)] border border-dashed border-sage-line bg-[var(--glass-sheet)]"
+      className="frost-scrim absolute inset-0 z-30 flex items-center justify-center p-4"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      transition={{ duration: SLOW_S, ease: EASE }}
+      onClick={() => {
+        if (!running) {
+          onClose();
+        }
+      }}
     >
-      <AnimatePresence mode="wait" initial={false}>
-        {phase === "plus" ? (
-          <motion.button
-            key="plus"
-            type="button"
-            aria-label="Commission a device"
-            initial={{ opacity: 0, scale: 0.92 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.92 }}
-            transition={{ duration: SLOW_S, ease: EASE }}
-            onClick={() => setPhase("code")}
-            className="flex w-full items-center justify-center py-3.5 text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-active/50 [&_svg]:size-5"
-          >
-            <IconPlus />
-          </motion.button>
-        ) : null}
-        {phase === "code" ? (
-          <motion.form
-            key="code"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: SLOW_S, ease: EASE }}
-            className="flex flex-col gap-3 px-3 py-3"
-            onSubmit={(event) => {
-              event.preventDefault();
-              void submit();
-            }}
-          >
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[10px] font-medium tracking-[0.14em] text-sage-deep uppercase">
-                Setup code
-              </span>
-              <button
-                type="button"
-                onClick={close}
-                className="text-[11px] tracking-wide text-ink-ghost hover:text-ink-muted"
-              >
-                ESC
-              </button>
-            </div>
-            <input
-              value={code}
-              autoFocus
-              autoCapitalize="characters"
-              autoCorrect="off"
-              spellCheck={false}
-              placeholder="3497-011-2332"
-              onChange={(event) => setCode(event.target.value)}
-              className={`${field} font-mono text-[15px] tracking-[0.12em]`}
+      <motion.div
+        role="dialog"
+        aria-label="Add a device"
+        onClick={(event) => event.stopPropagation()}
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: SLOW_S, ease: EASE }}
+        className="glass-sheet flex w-[420px] max-w-full flex-col gap-4 rounded-[16px] px-[22px] pt-5 pb-[18px]"
+      >
+        <div className="flex gap-1.5" aria-hidden>
+          {[0, 1, 2].map((index) => (
+            <span
+              key={index}
+              className={`h-0.5 flex-1 rounded-full transition-colors duration-slow ease-dadi ${index <= steps ? "bg-sage" : "bg-rule"}`}
             />
-            <RadioGlider value={radio} disabled={false} onChange={setRadio} />
-            <AnimatePresence mode="wait" initial={false}>
+          ))}
+        </div>
+        <h3 className="m-0 text-[11px] font-medium tracking-[0.2em] text-sage-deep uppercase">
+          {step === "code"
+            ? "Add a device"
+            : step === "seek"
+              ? "Looking for the device"
+              : step === "pair"
+                ? "Pairing"
+                : step === "done"
+                  ? "Paired"
+                  : "Pairing failed"}
+        </h3>
+        <AnimatePresence mode="wait" initial={false}>
+          {step === "code" ? (
+            <motion.form
+              key="code"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: SLOW_S, ease: EASE }}
+              className="flex flex-col gap-3.5"
+              onSubmit={(event) => {
+                event.preventDefault();
+                void submit();
+              }}
+            >
+              <p className="m-0 text-[13px] leading-relaxed text-ink-muted">
+                Use the 11-digit code or the QR text on the device or its box. Put the device in pairing mode first.
+              </p>
+              <label className="flex flex-col gap-1.5">
+                <span className={caps}>Setup code</span>
+                <input
+                  value={code}
+                  autoFocus
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="3497-011-2332"
+                  onChange={(event) => setCode(event.target.value)}
+                  className={`${field} font-numeric text-[17px] tracking-[0.12em]`}
+                />
+              </label>
+              <div className="flex flex-col gap-1.5">
+                <span className={caps}>How it reaches Ghar</span>
+                <RadioGlider value={radio} disabled={false} onChange={setRadio} />
+              </div>
               {radio === "nearby" ? (
-                <motion.div
-                  key="nearby"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: SLOW_S, ease: EASE }}
-                  className="flex flex-col gap-2"
-                >
-                  <p className="text-[12px] text-ink-muted">
+                <div className="flex flex-col gap-2">
+                  <p className="m-0 text-[12px] text-ink-muted">
                     {radioError ??
                       (radioReady
-                        ? "Hold this computer next to the device. The password is sent once and not saved."
+                        ? "Hold this computer next to the device. The Wi-Fi password is sent once and not saved."
                         : "Opening this computer's radio…")}
                   </p>
                   <input
@@ -271,117 +265,96 @@ export function UnplacedCommission() {
                     onChange={(event) => setPassword(event.target.value)}
                     className={`${field} text-[13px]`}
                   />
-                </motion.div>
-              ) : (
-                <motion.p
-                  key="network"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: SLOW_S, ease: EASE }}
-                  className="text-[12px] text-ink-muted"
+                </div>
+              ) : null}
+              <label className="flex flex-col gap-1.5">
+                <span className={caps}>Room</span>
+                <select value={roomId} onChange={(event) => setRoomId(event.target.value)} className={`${field} text-[13px]`}>
+                  <option value="">Unplaced</option>
+                  {named.map((room) => (
+                    <option key={room.id} value={room.id}>
+                      {room.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={onClose} className="px-2 py-2 text-[12.5px] text-ink-muted hover:text-ink">
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={!canSubmit}
+                  className="rounded-full bg-sage-deep px-4 py-2 text-[12.5px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:cursor-default disabled:opacity-40"
                 >
-                  The device is already on the house network.
-                </motion.p>
-              )}
-            </AnimatePresence>
-            <button
-              type="submit"
-              disabled={!canSubmit}
-              className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:cursor-default disabled:opacity-40"
+                  Pair
+                </button>
+              </div>
+            </motion.form>
+          ) : (
+            <motion.div
+              key="link"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -4 }}
+              transition={{ duration: SLOW_S, ease: EASE }}
+              className="flex flex-col gap-3.5"
             >
-              Pair
-            </button>
-          </motion.form>
-        ) : null}
-        {phase === "link" ? (
-          <motion.div
-            key="link"
-            initial={{ opacity: 0, y: 6 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -4 }}
-            transition={{ duration: SLOW_S, ease: EASE }}
-            className="flex flex-col gap-3 px-3 py-3"
-          >
-            <span className="text-[10px] font-medium tracking-[0.14em] text-sage-deep uppercase">
-              Connecting
-            </span>
-            <ConnectionPhase
-              status={job?.status ?? (pending ? "pending" : null)}
-              failed={failed}
-              detail={status}
-            />
-            {failed ? (
-              <button
-                type="button"
-                onClick={() => {
-                  setJobId(null);
-                  setSubmitError(null);
-                  setPhase("code");
-                }}
-                className="self-start text-[12px] text-ink-ghost hover:text-ink-muted"
-              >
-                Try again
-              </button>
-            ) : null}
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+              {step === "done" ? (
+                <div className="flex flex-wrap justify-center gap-2 py-2">
+                  {devicesQuery.isError ? (
+                    <p className="m-0 text-[12px] text-error">{shownError(devicesQuery.error)}</p>
+                  ) : landed === null ? (
+                    <span className="h-32 w-32 animate-pulse rounded-[var(--radius)] bg-sage-fill/50" />
+                  ) : (
+                    landed.map((device) => (
+                      <div key={device.id} className="w-[132px]">
+                        <DeviceFace device={device} pending={false} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              ) : (
+                <div
+                  aria-hidden
+                  className={`ghar-seek ${step === "pair" ? "ghar-seek--pairing" : ""} ${step === "failed" ? "ghar-seek--failed" : ""}`}
+                >
+                  <i />
+                  <i />
+                  <i />
+                  <b />
+                </div>
+              )}
+              <p className={`m-0 text-[13px] leading-relaxed ${step === "failed" ? "text-error" : "text-ink-muted"}`}>
+                {step === "seek"
+                  ? "Ghar is listening for a device with that code."
+                  : step === "pair"
+                    ? "Found it. Exchanging certificates and joining the house."
+                    : step === "done"
+                      ? `In ${landedIn ? landedIn.name : "Unplaced"}. Drag it to another room any time.`
+                      : `${failure} Check the device is in pairing mode (power-cycle it if it was paired before) and try again.`}
+              </p>
+              {step === "failed" || step === "done" ? (
+                <div className="flex items-center justify-end gap-2">
+                  {step === "failed" ? (
+                    <button type="button" onClick={retry} className="px-2 py-2 text-[12.5px] text-ink-muted hover:text-ink">
+                      Try again
+                    </button>
+                  ) : null}
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-full bg-sage-deep px-4 py-2 text-[12.5px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage"
+                  >
+                    {step === "done" ? "Done" : "Close"}
+                  </button>
+                </div>
+              ) : null}
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.div>
     </motion.div>
-  );
-}
-
-/** The three beats of a pairing job, with the active one breathing. */
-function ConnectionPhase({
-  status,
-  failed,
-  detail,
-}: {
-  status: GharCommissionJob["status"] | null;
-  failed: boolean;
-  detail: string | null;
-}) {
-  const step =
-    failed ? 2 : status === "commissioning" ? 1 : status === "succeeded" ? 2 : 0;
-  const steps = ["Looking", "Pairing", "In Unplaced"] as const;
-  return (
-    <ol className="flex flex-col gap-1.5">
-      {steps.map((label, index) => {
-        const active = index === step;
-        const done = index < step && !failed;
-        return (
-          <li
-            key={label}
-            className={`flex items-center gap-2 text-[13px] ${
-              failed && active
-                ? "text-error"
-                : active || done
-                  ? "text-sage-deep"
-                  : "text-ink-ghost"
-            }`}
-          >
-            <span
-              className={`size-1.5 rounded-full ${
-                failed && active
-                  ? "bg-error"
-                  : active
-                    ? "animate-breath bg-sage"
-                    : done
-                      ? "bg-sage"
-                      : "bg-ink-ghost"
-              }`}
-              aria-hidden
-            />
-            {label}
-          </li>
-        );
-      })}
-      {detail ? (
-        <li className={`pl-3.5 text-[12px] ${failed ? "text-error" : "text-ink-muted"}`}>
-          {detail}
-        </li>
-      ) : null}
-    </ol>
   );
 }
 
