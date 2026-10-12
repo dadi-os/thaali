@@ -20,6 +20,9 @@ const TYPE_TONE: Record<ChaaviItemType, string> = {
   card: "var(--clay)",
   identity: "var(--sage-line)",
   sshKey: "var(--ink-muted)",
+  bankAccount: "color-mix(in srgb, var(--clay) 55%, var(--bone))",
+  driversLicense: "var(--ink-faint)",
+  passport: "color-mix(in srgb, var(--sage-deep) 50%, var(--bone))",
 };
 
 /** Folders and recent items the tile lists at most. */

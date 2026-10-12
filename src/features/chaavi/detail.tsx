@@ -9,7 +9,7 @@ import { chaavi } from "../../shared/api";
 import { CopyButton } from "../../shared/components/CopyButton";
 import { formatRelative } from "../../shared/lib/ux/time";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
-import { fullName, LINK_TARGETS, TYPE_META } from "./draft";
+import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META } from "./draft";
 import { IconStar, TypeGlyph } from "./icons";
 
 const MASK = "••••••••••••";
@@ -38,6 +38,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
   const [confirming, setConfirming] = useState(false);
 
   const folder = folders.find((entry) => entry.id === item.folderId);
+  const flat = flatData(item);
 
   async function fetchSecret(request: ChaaviReveal): Promise<string> {
     const { value } = await chaavi.reveal(item.id, request);
@@ -184,6 +185,20 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
                 secret={secretProps("privateKey", { field: "privateKey" })}
               />
             ) : null}
+          </>
+        ) : null}
+
+        {flat !== null && isFlatType(item.type) ? (
+          <>
+            {FLAT_FIELDS[item.type].text.map((field) => {
+              const value = flat[field.key];
+              return <PlainRow key={field.key} label={field.label} value={typeof value === "string" ? value : null} />;
+            })}
+            {FLAT_FIELDS[item.type].secret.map((field) =>
+              flat[hasKey(field.key)] === true ? (
+                <SecretRow key={field.key} label={field.label} mono secret={secretProps(field.key, { field: field.key })} />
+              ) : null,
+            )}
           </>
         ) : null}
 

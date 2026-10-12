@@ -6,6 +6,7 @@
 
 import type {
   ChaaviCreateItem,
+  ChaaviSecretField,
   ChaaviFieldInput,
   ChaaviItem,
   ChaaviItemType,
@@ -21,10 +22,94 @@ export const TYPE_META: Record<ChaaviItemType, { one: string; many: string }> = 
   card: { one: "Card", many: "Cards" },
   identity: { one: "Identity", many: "Identities" },
   sshKey: { one: "SSH key", many: "SSH keys" },
+  bankAccount: { one: "Bank account", many: "Bank accounts" },
+  driversLicense: { one: "Driver's license", many: "Licenses" },
+  passport: { one: "Passport", many: "Passports" },
 };
 
 /** Item types in ledger order. */
-export const ITEM_TYPES: ChaaviItemType[] = ["login", "note", "card", "identity", "sshKey"];
+export const ITEM_TYPES: ChaaviItemType[] = ["login", "note", "card", "identity", "sshKey", "bankAccount", "driversLicense", "passport"];
+
+/** The item types whose data is a flat set of named strings, each public or secret. */
+export type FlatType = "bankAccount" | "driversLicense" | "passport";
+
+/** True for a bank account, driver's license or passport. */
+export function isFlatType(type: ChaaviItemType): type is FlatType {
+  return type === "bankAccount" || type === "driversLicense" || type === "passport";
+}
+
+/**
+ * The fields of each flat type with their labels: `text` are shown and edited as values,
+ * `secret` are masked, revealed one at a time by the same name.
+ */
+export const FLAT_FIELDS: Record<
+  FlatType,
+  { text: Array<{ key: string; label: string }>; secret: Array<{ key: ChaaviSecretField; label: string }> }
+> = {
+  bankAccount: {
+    text: [
+      { key: "bankName", label: "Bank" },
+      { key: "nameOnAccount", label: "Name on account" },
+      { key: "accountType", label: "Account type" },
+      { key: "routingNumber", label: "Routing number" },
+      { key: "branchNumber", label: "Branch number" },
+      { key: "swiftCode", label: "SWIFT / BIC" },
+      { key: "bankContactPhone", label: "Bank phone" },
+    ],
+    secret: [
+      { key: "accountNumber", label: "Account number" },
+      { key: "iban", label: "IBAN" },
+      { key: "pin", label: "PIN" },
+    ],
+  },
+  driversLicense: {
+    text: [
+      { key: "firstName", label: "First name" },
+      { key: "middleName", label: "Middle name" },
+      { key: "lastName", label: "Last name" },
+      { key: "dateOfBirth", label: "Date of birth" },
+      { key: "licenseClass", label: "Class" },
+      { key: "issuingState", label: "Issuing state" },
+      { key: "issuingCountry", label: "Issuing country" },
+      { key: "issuingAuthority", label: "Issuing authority" },
+      { key: "issueDate", label: "Issued" },
+      { key: "expirationDate", label: "Expires" },
+    ],
+    secret: [{ key: "licenseNumber", label: "License number" }],
+  },
+  passport: {
+    text: [
+      { key: "givenName", label: "Given name" },
+      { key: "surname", label: "Surname" },
+      { key: "dateOfBirth", label: "Date of birth" },
+      { key: "sex", label: "Sex" },
+      { key: "birthPlace", label: "Place of birth" },
+      { key: "nationality", label: "Nationality" },
+      { key: "passportType", label: "Type" },
+      { key: "issuingCountry", label: "Issuing country" },
+      { key: "issuingAuthority", label: "Issuing authority" },
+      { key: "issueDate", label: "Issued" },
+      { key: "expirationDate", label: "Expires" },
+    ],
+    secret: [
+      { key: "passportNumber", label: "Passport number" },
+      { key: "nationalIdentificationNumber", label: "National ID number" },
+    ],
+  },
+};
+
+/** A flat item's data object, read by field name. */
+export function flatData(item: ChaaviItem): Record<string, string | boolean | null> | null {
+  if (!isFlatType(item.type)) {
+    return null;
+  }
+  return (item as unknown as Record<FlatType, Record<string, string | boolean | null>>)[item.type];
+}
+
+/** `has` + the field name with its first letter raised: `accountNumber` → `hasAccountNumber`. */
+export function hasKey(field: string): string {
+  return `has${field[0]!.toUpperCase()}${field.slice(1)}`;
+}
 
 /** Item properties a linked field may point at, by item type, with their labels. */
 export const LINK_TARGETS: Record<ChaaviItemType, Array<{ id: ChaaviLinkedTarget; label: string }>> = {
@@ -59,6 +144,9 @@ export const LINK_TARGETS: Record<ChaaviItemType, Array<{ id: ChaaviLinkedTarget
   ],
   note: [],
   sshKey: [],
+  bankAccount: [],
+  driversLicense: [],
+  passport: [],
 };
 
 /** How a login website is matched, with labels. */
@@ -117,6 +205,15 @@ function searchText(item: ChaaviItem): string[] {
   if (item.type === "identity") {
     out.push(fullName(item) ?? "", item.identity.email ?? "", item.identity.company ?? "");
   }
+  const flat = flatData(item);
+  if (flat !== null && isFlatType(item.type)) {
+    for (const field of FLAT_FIELDS[item.type].text) {
+      const value = flat[field.key];
+      if (typeof value === "string") {
+        out.push(value);
+      }
+    }
+  }
   for (const field of item.fields) {
     out.push(field.name);
     if (field.type === "text") {
@@ -160,6 +257,18 @@ export function itemSubtitle(item: ChaaviItem): string {
   }
   if (item.type === "sshKey") {
     return item.sshKey.keyFingerprint ?? "SSH key";
+  }
+  const flat = flatData(item);
+  if (flat !== null) {
+    const pick = (key: string) => (typeof flat[key] === "string" ? (flat[key] as string) : null);
+    const parts =
+      item.type === "bankAccount"
+        ? [pick("bankName"), pick("accountType")]
+        : item.type === "driversLicense"
+          ? [[pick("firstName"), pick("lastName")].filter(Boolean).join(" ") || null, pick("issuingState")]
+          : [[pick("givenName"), pick("surname")].filter(Boolean).join(" ") || null, pick("nationality")];
+    const shown = parts.filter((part): part is string => part !== null);
+    return shown.length > 0 ? shown.join(" · ") : TYPE_META[item.type].one;
   }
   const hidden = item.fields.filter((field) => field.type === "hidden").map((field) => field.name);
   return hidden.length > 0 ? `Hidden: ${hidden.join(", ")}` : "Secure note";
@@ -218,6 +327,10 @@ export type ItemDraft = {
     licenseNumber: SecretDraft;
   };
   sshKey: { privateKey: SecretDraft; publicKey: string; keyFingerprint: string };
+  /** Text fields of a bank account, driver's license or passport, by Bitwarden name. */
+  flat: Record<string, string>;
+  /** Secret fields of a bank account, driver's license or passport, by Bitwarden name. */
+  flatSecrets: Record<string, SecretDraft>;
 };
 
 const clean = (): SecretDraft => ({ value: "", dirty: false });
@@ -263,7 +376,15 @@ export function emptyDraft(type: ChaaviItemType, folderId: string | null): ItemD
       licenseNumber: clean(),
     },
     sshKey: { privateKey: clean(), publicKey: "", keyFingerprint: "" },
+    flat: isFlatType(type) ? Object.fromEntries(FLAT_FIELDS[type].text.map((field) => [field.key, ""])) : {},
+    flatSecrets: isFlatType(type) ? Object.fromEntries(FLAT_FIELDS[type].secret.map((field) => [field.key, clean()])) : {},
   };
+}
+
+/** Switch a new item's draft to `type`, keeping what it shares and fresh fields for the rest. */
+export function retype(draft: ItemDraft, type: ChaaviItemType): ItemDraft {
+  const fresh = emptyDraft(type, draft.folderId);
+  return { ...draft, type, flat: fresh.flat, flatSecrets: fresh.flatSecrets };
 }
 
 /** The draft of an existing item: every public value, secrets blank and untouched. */
@@ -299,6 +420,13 @@ export function draftFromItem(item: ChaaviItem): ItemDraft {
   if (item.type === "sshKey") {
     draft.sshKey.publicKey = item.sshKey.publicKey ?? "";
     draft.sshKey.keyFingerprint = item.sshKey.keyFingerprint ?? "";
+  }
+  const flat = flatData(item);
+  if (flat !== null && isFlatType(item.type)) {
+    for (const field of FLAT_FIELDS[item.type].text) {
+      const value = flat[field.key];
+      draft.flat[field.key] = typeof value === "string" ? value : "";
+    }
   }
   return draft;
 }
@@ -434,6 +562,16 @@ export function createBody(draft: ItemDraft): ChaaviCreateItem {
         }
       : { ...base, type: "sshKey" };
   }
+  if (isFlatType(draft.type)) {
+    const values: Record<string, string> = {};
+    for (const field of FLAT_FIELDS[draft.type].text) {
+      values[field.key] = draft.flat[field.key]!.trim();
+    }
+    for (const field of FLAT_FIELDS[draft.type].secret) {
+      values[field.key] = draft.flatSecrets[field.key]!.value.trim();
+    }
+    return { ...base, type: draft.type, [draft.type]: present(values) } as ChaaviCreateItem;
+  }
   return { ...base, type: "note" };
 }
 
@@ -522,6 +660,23 @@ export function updateBody(item: ChaaviItem, draft: ItemDraft): ChaaviUpdateItem
     }
     if (Object.keys(sshKey).length > 0) {
       body.sshKey = sshKey;
+    }
+  }
+  if (isFlatType(item.type)) {
+    const values: Record<string, string> = {};
+    for (const field of FLAT_FIELDS[item.type].text) {
+      if (draft.flat[field.key]!.trim() !== before.flat[field.key]) {
+        values[field.key] = draft.flat[field.key]!.trim();
+      }
+    }
+    for (const field of FLAT_FIELDS[item.type].secret) {
+      const secret = draft.flatSecrets[field.key]!;
+      if (secret.dirty) {
+        values[field.key] = secret.value.trim();
+      }
+    }
+    if (Object.keys(values).length > 0) {
+      body[item.type] = values;
     }
   }
   return Object.keys(body).length > 0 ? body : null;

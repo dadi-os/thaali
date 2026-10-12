@@ -11,8 +11,11 @@ import type { ChaaviFolder, ChaaviReveal } from "../../types/chaavi";
 import {
   draftKey,
   draftProblem,
+  FLAT_FIELDS,
+  isFlatType,
   ITEM_TYPES,
   LINK_TARGETS,
+  retype,
   TYPE_META,
   URI_MATCHES,
   type FieldDraft,
@@ -132,7 +135,7 @@ export function ItemEditor({ mode, initial, itemId, folders, pending, error, onC
                   key={type}
                   type="button"
                   aria-pressed={draft.type === type}
-                  onClick={() => update((next) => void (next.type = type))}
+                  onClick={() => setDraft((current) => retype(current, type))}
                   className={`h-8 flex-[1_1_90px] rounded-[6px] text-[11px] font-medium tracking-[0.12em] uppercase transition-[background-color,color] duration-fast ease-dadi ${
                     draft.type === type ? "bg-sage-active text-sage-deep shadow-[var(--shadow)]" : "text-ink-ghost hover:text-sage-deep"
                   }`}
@@ -462,6 +465,42 @@ function TypeFields({ draft, editing, update, reveal, generate }: TypeFieldsProp
               onChange={(event) => update((next) => void (next.sshKey.keyFingerprint = event.target.value))}
             />
           </Labelled>
+        </Grid>
+      </>
+    );
+  }
+  if (isFlatType(draft.type)) {
+    const spec = FLAT_FIELDS[draft.type];
+    return (
+      <>
+        <Grid>
+          {spec.text.map((field) => (
+            <Labelled key={field.key} label={field.label}>
+              <input
+                className={FIELD}
+                type={/date/i.test(field.key) ? "date" : "text"}
+                value={draft.flat[field.key]}
+                onChange={(event) => update((next) => void (next.flat[field.key] = event.target.value))}
+                spellCheck={false}
+              />
+            </Labelled>
+          ))}
+        </Grid>
+        <Grid>
+          {spec.secret.map((field) => (
+            <Labelled key={field.key} label={field.label}>
+              <SecretInput
+                secret={draft.flatSecrets[field.key]!}
+                stored={editing}
+                mono
+                placeholder={editing ? "Stored · leave blank to keep" : ""}
+                onChange={(value) => update((next) => void (next.flatSecrets[field.key] = value))}
+                {...(editing
+                  ? { onReveal: () => reveal({ field: field.key }, (next, value) => void (next.flatSecrets[field.key] = { value, dirty: false })) }
+                  : {})}
+              />
+            </Labelled>
+          ))}
         </Grid>
       </>
     );

@@ -1,7 +1,7 @@
 /** Chaavi `/v1` contract. An item never carries a secret value; reveals return one at a time. */
 
-/** Bitwarden item types Chaavi serves. */
-export type ChaaviItemType = "login" | "note" | "card" | "identity" | "sshKey";
+/** Every Bitwarden item type. */
+export type ChaaviItemType = "login" | "note" | "card" | "identity" | "sshKey" | "bankAccount" | "driversLicense" | "passport";
 
 /** How the Bitwarden extension matches a login website; `default` follows the account setting. */
 export type ChaaviUriMatch = "default" | "domain" | "host" | "startsWith" | "exact" | "regex" | "never";
@@ -112,6 +112,52 @@ export type ChaaviSshKey = {
   hasPrivateKey: boolean;
 };
 
+/** Bank account fields that are not secret, plus which secrets it holds. */
+export type ChaaviBankAccount = {
+  bankName: string | null;
+  nameOnAccount: string | null;
+  accountType: string | null;
+  routingNumber: string | null;
+  branchNumber: string | null;
+  swiftCode: string | null;
+  bankContactPhone: string | null;
+  hasAccountNumber: boolean;
+  hasPin: boolean;
+  hasIban: boolean;
+};
+
+/** Driver's license fields that are not secret, plus which secrets it holds. */
+export type ChaaviDriversLicense = {
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  dateOfBirth: string | null;
+  issuingCountry: string | null;
+  issuingState: string | null;
+  issueDate: string | null;
+  expirationDate: string | null;
+  issuingAuthority: string | null;
+  licenseClass: string | null;
+  hasLicenseNumber: boolean;
+};
+
+/** Passport fields that are not secret, plus which secrets it holds. */
+export type ChaaviPassport = {
+  surname: string | null;
+  givenName: string | null;
+  dateOfBirth: string | null;
+  sex: string | null;
+  birthPlace: string | null;
+  nationality: string | null;
+  issuingCountry: string | null;
+  passportType: string | null;
+  issuingAuthority: string | null;
+  issueDate: string | null;
+  expirationDate: string | null;
+  hasPassportNumber: boolean;
+  hasNationalIdentificationNumber: boolean;
+};
+
 type ChaaviItemBase = {
   /** Vault item id. */
   id: string;
@@ -134,6 +180,9 @@ export type ChaaviItem = ChaaviItemBase &
     | { type: "card"; card: ChaaviCard }
     | { type: "identity"; identity: ChaaviIdentity }
     | { type: "sshKey"; sshKey: ChaaviSshKey }
+    | { type: "bankAccount"; bankAccount: ChaaviBankAccount }
+    | { type: "driversLicense"; driversLicense: ChaaviDriversLicense }
+    | { type: "passport"; passport: ChaaviPassport }
   );
 
 /** A vault folder. */
@@ -161,6 +210,9 @@ export type ChaaviIdentityInput = Partial<
 /** SSH key fields on write: all three, or none on create to generate an Ed25519 key. */
 export type ChaaviSshKeyInput = Partial<Record<"privateKey" | "publicKey" | "keyFingerprint", string>>;
 
+/** Fields of a bank account, driver's license or passport on write; empty clears. */
+export type ChaaviFlatInput = Record<string, string>;
+
 type ChaaviCreateBase = {
   name: string;
   folderId?: string | null;
@@ -177,6 +229,9 @@ export type ChaaviCreateItem = ChaaviCreateBase &
     | { type: "card"; card?: ChaaviCardInput }
     | { type: "identity"; identity?: ChaaviIdentityInput }
     | { type: "sshKey"; sshKey?: ChaaviSshKeyInput }
+    | { type: "bankAccount"; bankAccount?: ChaaviFlatInput }
+    | { type: "driversLicense"; driversLicense?: ChaaviFlatInput }
+    | { type: "passport"; passport?: ChaaviFlatInput }
   );
 
 /**
@@ -193,6 +248,9 @@ export type ChaaviUpdateItem = {
   card?: ChaaviCardInput;
   identity?: ChaaviIdentityInput;
   sshKey?: ChaaviSshKeyInput;
+  bankAccount?: ChaaviFlatInput;
+  driversLicense?: ChaaviFlatInput;
+  passport?: ChaaviFlatInput;
 };
 
 /** A secret an item can reveal. */
@@ -205,6 +263,10 @@ export type ChaaviSecretField =
   | "passportNumber"
   | "licenseNumber"
   | "privateKey"
+  | "accountNumber"
+  | "pin"
+  | "iban"
+  | "nationalIdentificationNumber"
   | "notes";
 
 /** Body for Chaavi `POST /v1/items/:id/reveal`. */

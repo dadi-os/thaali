@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ChaaviItem } from "../../types/chaavi";
-import { createBody, draftFromItem, draftProblem, emptyDraft, inScope, itemSubtitle, searchItems, updateBody } from "./draft";
+import { createBody, draftFromItem, draftProblem, emptyDraft, inScope, itemSubtitle, retype, searchItems, updateBody } from "./draft";
 
 const login: ChaaviItem = {
   id: "l1",
@@ -35,6 +35,29 @@ const card: ChaaviItem = {
   card: { cardholderName: "Ada Lovelace", brand: "Visa", expMonth: "8", expYear: "2029", hasNumber: true, hasCode: true },
 };
 
+const bank: ChaaviItem = {
+  id: "b1",
+  name: "Checking",
+  type: "bankAccount",
+  folderId: null,
+  favorite: false,
+  hasNotes: false,
+  revisionDate: null,
+  fields: [],
+  bankAccount: {
+    bankName: "Acme Bank",
+    nameOnAccount: "Ada Lovelace",
+    accountType: "checking",
+    routingNumber: "011000015",
+    branchNumber: null,
+    swiftCode: null,
+    bankContactPhone: null,
+    hasAccountNumber: true,
+    hasPin: true,
+    hasIban: false,
+  },
+};
+
 describe("vault search and scopes", () => {
   it("searches names, usernames, sites, card holders and text fields", () => {
     expect(searchItems([login, card], "octo")).toEqual([login]);
@@ -53,6 +76,11 @@ describe("vault search and scopes", () => {
   it("subtitles show public fields only", () => {
     expect(itemSubtitle(login)).toBe("octocat · github.com");
     expect(itemSubtitle(card)).toBe("Visa · 08/29");
+    expect(itemSubtitle(bank)).toBe("Acme Bank · checking");
+  });
+
+  it("searches a bank account's public fields", () => {
+    expect(searchItems([login, bank], "acme")).toEqual([bank]);
   });
 });
 
@@ -101,6 +129,28 @@ describe("editor bodies", () => {
     const draft = emptyDraft("sshKey", null);
     draft.name = "Deploy";
     expect(createBody(draft)).toEqual({ name: "Deploy", folderId: null, favorite: false, type: "sshKey" });
+  });
+
+  it("edits a bank account's text and typed secrets only", () => {
+    const draft = draftFromItem(bank);
+    expect(updateBody(bank, draft)).toBeNull();
+    draft.flat.bankName = "Acme Credit Union";
+    draft.flatSecrets.pin = { value: "", dirty: true };
+    expect(updateBody(bank, draft)).toEqual({ bankAccount: { bankName: "Acme Credit Union", pin: "" } });
+  });
+
+  it("creates a passport with only the fields given, after switching type", () => {
+    const draft = retype(emptyDraft("login", null), "passport");
+    draft.name = "US passport";
+    draft.flat.surname = "Lovelace";
+    draft.flatSecrets.passportNumber = { value: "A123", dirty: true };
+    expect(createBody(draft)).toEqual({
+      name: "US passport",
+      folderId: null,
+      favorite: false,
+      type: "passport",
+      passport: { surname: "Lovelace", passportNumber: "A123" },
+    });
   });
 
   it("names what blocks a save", () => {
