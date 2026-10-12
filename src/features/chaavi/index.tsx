@@ -1,221 +1,355 @@
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-} from "@tanstack/react-query";
+/**
+ * The vault page: a ledger of item types, the folder rail, the item list and the open item.
+ * Owns the queries, mutations, search, scope and the drag that moves an item between
+ * folders; vault.tsx draws the rail and rows, detail.tsx the item, editor.tsx the sheet.
+ * Revealed secrets live in the detail and editor components only, never in the query cache.
+ */
+
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import {
-  useEffect,
-  useEffectEvent,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-import { useConnection } from "../../shared/hooks/useConnection";
+import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { CHAAVI_VAULT, chaavi, isMeshOnline } from "../../shared/api";
-import type {
-  ChaaviCreateLogin,
-  ChaaviItem,
-  ChaaviUpdateLogin,
-} from "../../types/chaavi";
+import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
+import { IconPlus } from "../../shared/components/IconButton";
+import { SearchField } from "../../shared/components/SearchField";
+import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
-import { copyText } from "../../shared/lib/platform/clipboard";
-import { LoginEditor } from "./editor";
+import type { ChaaviItem, ChaaviItemType, ChaaviUpdateItem } from "../../types/chaavi";
+import { ItemDetail } from "./detail";
+import { createBody, draftFromItem, emptyDraft, inScope, ITEM_TYPES, searchItems, TYPE_META, updateBody, type ItemDraft, type VaultScope } from "./draft";
+import { ItemEditor } from "./editor";
+import { FolderRail, ItemFace, ItemRow, Ledger, parseDrop, type DropTarget } from "./vault";
 
-const ITEMS_KEY = ["chaavi", "items"] as const;
-const HEALTH_KEY = ["chaavi", "health"] as const;
-const FAST = 0.18;
+/** Pointer travel before a press on a row becomes a drag. */
+const DRAG_PX = 4;
 
-type EditorMode =
-  | { kind: "closed" }
-  | { kind: "create" }
-  | { kind: "edit"; item: ChaaviItem };
+type EditorState =
+  | { mode: "closed" }
+  | { mode: "create"; draft: ItemDraft }
+  | { mode: "edit"; item: ChaaviItem; draft: ItemDraft };
 
-/**
- * Vault login manager: search, reveal/copy, create, edit, delete.
- * Secrets live in component state only — never in the React Query cache.
- */
-export function PasswordManager() {
+type DragState = {
+  id: string;
+  startX: number;
+  startY: number;
+  dragging: boolean;
+};
+
+type Ghost = {
+  id: string;
+  x: number;
+  y: number;
+  over: string | null;
+};
+
+export type PasswordManagerProps = {
+  /** Page header slot for search and New item. */
+  toolbar: HTMLElement | null;
+};
+
+/** The full vault manager. */
+export function PasswordManager({ toolbar }: PasswordManagerProps) {
   const queryClient = useQueryClient();
   const { state } = useConnection();
   const connected = isMeshOnline(state);
+  const canvasRef = useRef<HTMLDivElement>(null);
+  const session = useRef<DragState | null>(null);
 
   const [query, setQuery] = useState("");
+  const [pickedScope, setScope] = useState<VaultScope>({ kind: "all" });
+  const [typeFilter, setTypeFilter] = useState<ChaaviItemType | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
-  const [editor, setEditor] = useState<EditorMode>({ kind: "closed" });
-  const [revealed, setRevealed] = useState<{
-    id: string;
-    username: string;
-    password: string;
-  } | null>(null);
-  const [passwordVisible, setPasswordVisible] = useState(false);
-  const [copiedField, setCopiedField] = useState<"username" | "password" | null>(
-    null,
-  );
-  const [busyError, setBusyError] = useState<string | null>(null);
-  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
+  const [ghost, setGhost] = useState<Ghost | null>(null);
 
   const healthQuery = useQuery({
-    queryKey: HEALTH_KEY,
+    queryKey: CHAAVI_HEALTH_KEY,
     queryFn: () => chaavi.getHealth(),
     enabled: connected,
     refetchInterval: POLL_MS,
   });
-
+  const ready = healthQuery.data?.vault === "ready";
   const itemsQuery = useQuery({
-    queryKey: ITEMS_KEY,
+    queryKey: CHAAVI_ITEMS_KEY,
     queryFn: () => chaavi.listItems(),
-    enabled: connected && healthQuery.data?.vault === "ready",
+    enabled: connected && ready,
+    refetchInterval: POLL_MS,
+  });
+  const foldersQuery = useQuery({
+    queryKey: CHAAVI_FOLDERS_KEY,
+    queryFn: () => chaavi.listFolders(),
+    enabled: connected && ready,
     refetchInterval: POLL_MS,
   });
 
-  const items = itemsQuery.isSuccess ? itemsQuery.data.items : [];
-  const filtered = useMemo(() => filterItems(items, query), [items, query]);
-  const selected =
-    selectedId === null
-      ? null
-      : (items.find((item) => item.id === selectedId) ?? null);
+  const invalidate = () =>
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: CHAAVI_ITEMS_KEY }),
+      queryClient.invalidateQueries({ queryKey: CHAAVI_FOLDERS_KEY }),
+    ]);
 
-  const clearReveal = useEffectEvent(() => {
-    setRevealed(null);
-    setPasswordVisible(false);
-    setCopiedField(null);
-    setConfirmDelete(false);
-    setBusyError(null);
-  });
-
-  useEffect(() => {
-    clearReveal();
-  }, [selectedId]);
-
-  useEffect(() => {
-    return () => {
-      clearReveal();
-    };
-  }, []);
-
-  useEffect(() => {
-    if (selectedId && !items.some((item) => item.id === selectedId)) {
-      setSelectedId(null);
-    }
-  }, [items, selectedId]);
-
-  const invalidateItems = () =>
-    queryClient.invalidateQueries({ queryKey: ITEMS_KEY });
-
-  const revealMutation = useMutation({
-    mutationFn: (id: string) => chaavi.revealLogin(id),
-    onSuccess: (cred, id) => {
-      setRevealed({ id, username: cred.username, password: cred.password });
-      setPasswordVisible(true);
-      setBusyError(null);
+  const patch = useMutation({
+    mutationFn: (input: { id: string; body: ChaaviUpdateItem }) => chaavi.updateItem(input.id, input.body),
+    onMutate: async (input) => {
+      await queryClient.cancelQueries({ queryKey: CHAAVI_ITEMS_KEY });
+      const previous = queryClient.getQueryData<{ items: ChaaviItem[] }>(CHAAVI_ITEMS_KEY);
+      const { folderId, favorite } = input.body;
+      queryClient.setQueryData<{ items: ChaaviItem[] }>(CHAAVI_ITEMS_KEY, (current) =>
+        current
+          ? {
+              items: current.items.map((item) =>
+                item.id === input.id
+                  ? { ...item, ...(folderId !== undefined ? { folderId } : {}), ...(favorite !== undefined ? { favorite } : {}) }
+                  : item,
+              ),
+            }
+          : current,
+      );
+      return { previous };
     },
-    onError: (err) => {
-      setBusyError(err instanceof Error ? err.message : String(err));
-    },
-  });
-
-  const saveMutation = useMutation({
-    mutationFn: async (
-      payload:
-        | { mode: "create"; body: ChaaviCreateLogin }
-        | { mode: "edit"; id: string; body: ChaaviUpdateLogin },
-    ) => {
-      if (payload.mode === "create") {
-        return chaavi.createLogin(payload.body);
+    onError: (_err, _input, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(CHAAVI_ITEMS_KEY, context.previous);
       }
-      return chaavi.updateLogin(payload.id, payload.body);
+    },
+    onSettled: () => void invalidate(),
+  });
+
+  const save = useMutation({
+    mutationFn: (input: { mode: "create"; draft: ItemDraft } | { mode: "edit"; item: ChaaviItem; draft: ItemDraft }) => {
+      if (input.mode === "create") {
+        return chaavi.createItem(createBody(input.draft));
+      }
+      const body = updateBody(input.item, input.draft);
+      return body === null ? Promise.resolve(input.item) : chaavi.updateItem(input.item.id, body);
     },
     onSuccess: async (item) => {
-      await invalidateItems();
-      setEditor({ kind: "closed" });
+      await invalidate();
+      setEditor({ mode: "closed" });
       setSelectedId(item.id);
-      clearReveal();
     },
   });
 
-  const deleteMutation = useMutation({
+  const remove = useMutation({
     mutationFn: (id: string) => chaavi.deleteItem(id),
     onSuccess: async () => {
-      await invalidateItems();
+      await invalidate();
       setSelectedId(null);
-      clearReveal();
-    },
-    onError: (err) => {
-      setBusyError(err instanceof Error ? err.message : String(err));
     },
   });
 
-  const onCopy = async (field: "username" | "password", value: string) => {
-    try {
-      await copyText(value);
-      setBusyError(null);
-      setCopiedField(field);
-      window.setTimeout(() => {
-        setCopiedField((current) => (current === field ? null : current));
-      }, 1400);
-    } catch (err) {
-      setBusyError(err instanceof Error ? err.message : String(err));
-    }
-  };
+  const folderOp = useMutation({
+    mutationFn: (
+      input: { op: "create"; name: string } | { op: "rename"; id: string; name: string } | { op: "delete"; id: string },
+    ): Promise<unknown> => {
+      if (input.op === "create") {
+        return chaavi.createFolder(input.name);
+      }
+      if (input.op === "rename") {
+        return chaavi.renameFolder(input.id, input.name);
+      }
+      return chaavi.deleteFolder(input.id);
+    },
+    onSettled: () => void invalidate(),
+  });
 
-  const vaultReady = healthQuery.data?.vault === "ready";
+  const items = itemsQuery.data?.items ?? null;
+  const folders = foldersQuery.data?.folders ?? [];
+  const scope: VaultScope =
+    pickedScope.kind === "folder" && !folders.some((folder) => folder.id === pickedScope.id) ? { kind: "all" } : pickedScope;
+  const searched = items === null ? [] : searchItems(items, query);
+  const scoped = searched.filter((item) => inScope(item, scope));
+  const shown = scoped.filter((item) => typeFilter === null || item.type === typeFilter);
+  const selected = items?.find((item) => item.id === selectedId) ?? null;
+  const dragged = ghost === null ? null : (items?.find((item) => item.id === ghost.id) ?? null);
+
+  const typeCounts =
+    items === null
+      ? null
+      : (Object.fromEntries(ITEM_TYPES.map((type) => [type, scoped.filter((item) => item.type === type).length])) as Record<ChaaviItemType, number>);
+  const byFolder: Record<string, number> = {};
+  for (const item of searched) {
+    if (item.folderId !== null) {
+      byFolder[item.folderId] = (byFolder[item.folderId] ?? 0) + 1;
+    }
+  }
+  const scopeTitle =
+    scope.kind === "all"
+      ? "All items"
+      : scope.kind === "favorites"
+        ? "Favorites"
+        : scope.kind === "none"
+          ? "No folder"
+          : folders.find((folder) => folder.id === scope.id)!.name;
+
+  const trouble = foldersQuery.isError ? foldersQuery.error : folderOp.isError ? folderOp.error : null;
+
+  function dropAt(clientX: number, clientY: number): string | null {
+    const hit = document
+      .elementsFromPoint(clientX, clientY)
+      .map((node) => node.closest("[data-drop]"))
+      .find((node): node is Element => node !== null);
+    return hit?.getAttribute("data-drop") ?? null;
+  }
+
+  function moveTo(item: ChaaviItem, target: DropTarget): void {
+    if (target.kind === "favorites") {
+      if (!item.favorite) {
+        patch.mutate({ id: item.id, body: { favorite: true } });
+      }
+      return;
+    }
+    const folderId = target.kind === "folder" ? target.id : null;
+    if (folderId !== item.folderId) {
+      patch.mutate({ id: item.id, body: { folderId } });
+    }
+  }
+
+  function onPointerDown(event: ReactPointerEvent<HTMLButtonElement>, item: ChaaviItem): void {
+    if (event.button !== 0) {
+      return;
+    }
+    event.currentTarget.setPointerCapture(event.pointerId);
+    session.current = { id: item.id, startX: event.clientX, startY: event.clientY, dragging: false };
+  }
+
+  function onPointerMove(event: ReactPointerEvent<HTMLButtonElement>): void {
+    const current = session.current;
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!current || !canvas) {
+      return;
+    }
+    if (!current.dragging && Math.hypot(event.clientX - current.startX, event.clientY - current.startY) < DRAG_PX) {
+      return;
+    }
+    current.dragging = true;
+    setGhost({ id: current.id, x: event.clientX - canvas.left, y: event.clientY - canvas.top, over: dropAt(event.clientX, event.clientY) });
+  }
+
+  function onPointerUp(event: ReactPointerEvent<HTMLButtonElement>, item: ChaaviItem): void {
+    const current = session.current;
+    session.current = null;
+    setGhost(null);
+    if (!current || current.id !== item.id) {
+      return;
+    }
+    if (!current.dragging) {
+      setSelectedId(item.id);
+      return;
+    }
+    const key = dropAt(event.clientX, event.clientY);
+    const target = key === null ? null : parseDrop(key);
+    if (target !== null) {
+      moveTo(item, target);
+    }
+  }
+
+  function openCreate(): void {
+    save.reset();
+    setEditor({
+      mode: "create",
+      draft: emptyDraft(typeFilter ?? "login", scope.kind === "folder" ? scope.id : null),
+    });
+  }
+
+  const toolbarContent = (
+    <>
+      <SearchField
+        value={query}
+        onChange={setQuery}
+        placeholder="Search vault"
+        matches={query.trim() ? searched.length : null}
+        onPick={() => {
+          if (searched.length === 1) {
+            setSelectedId(searched[0]!.id);
+          }
+        }}
+      />
+      <button
+        type="button"
+        onClick={openCreate}
+        disabled={!connected || !ready}
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-40"
+      >
+        <span className="flex size-4 shrink-0">
+          <IconPlus />
+        </span>
+        New item
+      </button>
+    </>
+  );
+
+  const status = vaultStatus(connected, healthQuery, itemsQuery);
 
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden">
-      <div className="flex min-h-0 flex-1 gap-3">
-        <aside className="widget-frame flex w-[min(100%,20rem)] shrink-0 flex-col">
-          <div className="widget-frame__chrome !justify-between gap-2 !px-3 !pb-2 !pt-3">
-            <span className="widget-frame__title">Vault</span>
-            <button
-              type="button"
-              disabled={!connected || !vaultReady}
-              onClick={() => {
-                setBusyError(null);
-                setEditor({ kind: "create" });
+    <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col gap-4">
+      {toolbar ? createPortal(toolbarContent, toolbar) : null}
+
+      <Ledger counts={typeCounts} active={typeFilter} onPick={setTypeFilter} />
+
+      <div className="flex min-h-0 flex-1 gap-4">
+        <aside className="widget-frame w-[15.5rem] shrink-0" aria-label="Folders">
+          <div className="widget-frame__body overflow-y-auto">
+            <FolderRail
+              folders={folders}
+              scope={scope}
+              counts={{
+                all: searched.length,
+                favorites: searched.filter((item) => item.favorite).length,
+                none: searched.filter((item) => item.folderId === null).length,
+                byFolder,
               }}
-              className="rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-2.5 py-1 text-[10px] font-medium tracking-[1.6px] text-sage-deep transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-40"
-            >
-              NEW
-            </button>
-          </div>
-          <div className="widget-frame__body flex flex-col px-3 pb-3">
-            <label className="mb-2 block shrink-0">
-              <span className="sr-only">Search vault</span>
-              <input
-                type="search"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Search name, user, site…"
-                disabled={!vaultReady}
-                className="w-full rounded-[var(--radius)] border border-rule bg-bone/50 px-3 py-2 text-[13px] text-ink outline-none transition-[border-color] duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage disabled:opacity-50"
-              />
-            </label>
-            <div className="min-h-0 flex-1 overflow-y-auto">
-              <VaultListBody
-                connected={connected}
-                health={healthQuery}
-                itemsQuery={itemsQuery}
-                items={filtered}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-              />
-            </div>
+              hot={ghost?.over ?? null}
+              busy={folderOp.isPending}
+              onScope={setScope}
+              onCreate={(name) => folderOp.mutate({ op: "create", name })}
+              onRename={(id, name) => folderOp.mutate({ op: "rename", id, name })}
+              onDelete={(id) => folderOp.mutate({ op: "delete", id })}
+            />
           </div>
         </aside>
 
-        <section className="widget-frame min-w-0 flex-1">
-          <div className="widget-frame__chrome !justify-start !px-4 !pb-2 !pt-3">
+        <section className="widget-frame w-[min(100%,22rem)] shrink-0" aria-label="Items">
+          <div className="widget-frame__chrome !justify-between !px-4 !pt-3.5 !pb-3">
             <span className="widget-frame__title">
-              {selected ? selected.kind.toUpperCase() : "Detail"}
+              {typeFilter ? `${scopeTitle} · ${TYPE_META[typeFilter].many}` : scopeTitle}
             </span>
+            <span className="font-numeric text-[11px] text-ink-ghost">{items === null ? "" : shown.length}</span>
           </div>
-          <div className="widget-frame__body overflow-y-auto px-4 pb-4">
+          <div className="widget-frame__body overflow-y-auto border-t border-dashed border-sage-line p-2">
+            {status !== null ? (
+              <ListMessage tone={status.tone}>{status.text}</ListMessage>
+            ) : shown.length === 0 ? (
+              <ListMessage>{query.trim() ? `Nothing matches “${query.trim()}”` : "Nothing here yet"}</ListMessage>
+            ) : (
+              <ul className="flex flex-col gap-0.5">
+                {shown.map((item, i) => (
+                  <ItemRow
+                    key={item.id}
+                    item={item}
+                    index={i}
+                    selected={item.id === selectedId}
+                    dragging={ghost?.id === item.id}
+                    onPointerDown={onPointerDown}
+                    onPointerMove={onPointerMove}
+                    onPointerUp={onPointerUp}
+                    onSelect={(next) => setSelectedId(next.id)}
+                  />
+                ))}
+              </ul>
+            )}
+          </div>
+        </section>
+
+        <section className="widget-frame min-w-0 flex-1" aria-label="Item">
+          <div className="widget-frame__body overflow-y-auto">
             <AnimatePresence mode="wait">
               {selected ? (
                 <motion.div
                   key={selected.id}
+                  className="min-h-full"
                   initial={{ opacity: 0, y: 6 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -4 }}
@@ -223,53 +357,28 @@ export function PasswordManager() {
                 >
                   <ItemDetail
                     item={selected}
-                    revealed={
-                      revealed?.id === selected.id ? revealed : null
-                    }
-                    passwordVisible={passwordVisible}
-                    copiedField={copiedField}
-                    revealing={revealMutation.isPending}
-                    deleting={deleteMutation.isPending}
-                    confirmDelete={confirmDelete}
-                    error={busyError}
-                    onReveal={() => {
-                      setBusyError(null);
-                      revealMutation.mutate(selected.id);
-                    }}
-                    onShow={() => setPasswordVisible(true)}
-                    onHide={() => {
-                      setPasswordVisible(false);
-                    }}
-                    onCopyUsername={(value) => {
-                      void onCopy("username", value);
-                    }}
-                    onCopyPassword={(value) => {
-                      void onCopy("password", value);
-                    }}
+                    folders={folders}
+                    busy={remove.isPending || patch.isPending}
+                    error={remove.isError ? messageOf(remove.error) : patch.isError ? messageOf(patch.error) : null}
                     onEdit={() => {
-                      setBusyError(null);
-                      setEditor({ kind: "edit", item: selected });
+                      save.reset();
+                      setEditor({ mode: "edit", item: selected, draft: draftFromItem(selected) });
                     }}
-                    onAskDelete={() => setConfirmDelete(true)}
-                    onCancelDelete={() => setConfirmDelete(false)}
-                    onConfirmDelete={() => {
-                      deleteMutation.mutate(selected.id);
-                    }}
+                    onToggleFavorite={() => patch.mutate({ id: selected.id, body: { favorite: !selected.favorite } })}
+                    onDelete={() => remove.mutate(selected.id)}
                   />
                 </motion.div>
               ) : (
                 <motion.div
-                  key="empty-detail"
+                  key="empty"
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
-                  transition={{ duration: FAST, ease: EASE }}
                   className="flex h-full min-h-[16rem] flex-col items-center justify-center gap-2 px-6 text-center"
                 >
-                  <p className="text-[15px] text-ink">Select a login</p>
+                  <p className="text-[15px] text-ink">Select an item</p>
                   <p className="max-w-sm text-[12px] leading-relaxed text-ink-ghost">
-                    Search the vault, reveal a password when you need it, or
-                    create a new login.
+                    Secrets stay hidden until you reveal or copy them.
                   </p>
                 </motion.div>
               )}
@@ -278,9 +387,9 @@ export function PasswordManager() {
         </section>
       </div>
 
-      <footer className="mt-3 flex shrink-0 items-center justify-between gap-3 px-1">
-        <p className="text-[11px] text-ink-ghost">
-          Vaultwarden store · Chaavi adapter
+      <footer className="flex shrink-0 items-center justify-between gap-3 px-1">
+        <p className={`text-[11px] ${trouble ? "text-error" : "text-ink-ghost"}`}>
+          {trouble ? messageOf(trouble) : "Vaultwarden store · Chaavi adapter · Bitwarden extension fills the browser"}
         </p>
         <a
           href={CHAAVI_VAULT}
@@ -293,444 +402,85 @@ export function PasswordManager() {
       </footer>
 
       <AnimatePresence>
-        {editor.kind !== "closed" ? (
-          <LoginEditor
-            key={editor.kind === "edit" ? editor.item.id : "create"}
-            mode={editor.kind}
-            initial={
-              editor.kind === "edit"
-                ? {
-                    name: editor.item.name,
-                    username: editor.item.username ?? "",
-                    uri: editor.item.uris[0] ?? "",
-                  }
-                : undefined
-            }
-            pending={saveMutation.isPending}
-            error={
-              saveMutation.isError
-                ? saveMutation.error instanceof Error
-                  ? saveMutation.error.message
-                  : String(saveMutation.error)
-                : null
-            }
+        {editor.mode !== "closed" ? (
+          <ItemEditor
+            key={editor.mode === "edit" ? editor.item.id : "create"}
+            mode={editor.mode}
+            initial={editor.draft}
+            itemId={editor.mode === "edit" ? editor.item.id : null}
+            folders={folders}
+            pending={save.isPending}
+            error={save.isError ? messageOf(save.error) : null}
             onClose={() => {
-              if (!saveMutation.isPending) {
-                setEditor({ kind: "closed" });
-                saveMutation.reset();
+              if (!save.isPending) {
+                setEditor({ mode: "closed" });
               }
             }}
-            onSubmit={(values) => {
-              setBusyError(null);
-              if (editor.kind === "create") {
-                const body: ChaaviCreateLogin = {
-                  name: values.name,
-                  username: values.username,
-                };
-                if (values.uri) {
-                  body.uri = values.uri;
-                }
-                if (values.password) {
-                  body.password = values.password;
-                }
-                saveMutation.mutate({ mode: "create", body });
-                return;
-              }
-              if (editor.kind !== "edit") {
-                return;
-              }
-              const body: ChaaviUpdateLogin = {};
-              if (values.name !== editor.item.name) {
-                body.name = values.name;
-              }
-              if (values.username !== (editor.item.username ?? "")) {
-                body.username = values.username;
-              }
-              const prevUri = editor.item.uris[0] ?? "";
-              if (values.uri !== prevUri) {
-                body.uri = values.uri;
-              }
-              if (values.password) {
-                body.password = values.password;
-              }
-              if (
-                body.name === undefined &&
-                body.username === undefined &&
-                body.uri === undefined &&
-                body.password === undefined
-              ) {
-                setEditor({ kind: "closed" });
-                return;
-              }
-              saveMutation.mutate({
-                mode: "edit",
-                id: editor.item.id,
-                body,
-              });
-            }}
+            onSubmit={(draft) =>
+              save.mutate(editor.mode === "edit" ? { mode: "edit", item: editor.item, draft } : { mode: "create", draft })
+            }
           />
         ) : null}
       </AnimatePresence>
+
+      {dragged && ghost ? (
+        <div
+          className="pointer-events-none absolute z-30 flex w-72 items-center gap-3 rounded-[var(--radius)] border border-[var(--glass-border)] bg-[var(--glass-sheet)] px-3 py-2.5 shadow-[var(--shadow-deep)] backdrop-blur-[var(--glass-blur)]"
+          style={{ left: ghost.x, top: ghost.y, transform: "translate(-24px, -50%)" }}
+        >
+          <ItemFace item={dragged} />
+        </div>
+      ) : null}
     </div>
   );
 }
 
-function filterItems(items: ChaaviItem[], raw: string): ChaaviItem[] {
-  const q = raw.trim().toLowerCase();
-  if (!q) {
-    return items;
-  }
-  return items.filter((item) => {
-    if (item.name.toLowerCase().includes(q)) {
-      return true;
-    }
-    if (item.username?.toLowerCase().includes(q)) {
-      return true;
-    }
-    return item.uris.some((uri) => uri.toLowerCase().includes(q));
-  });
+/** The real error message for display. */
+function messageOf(err: unknown): string {
+  return err instanceof Error ? err.message : String(err);
 }
 
-function VaultListBody(props: {
-  connected: boolean;
-  health: {
-    isError: boolean;
-    isLoading: boolean;
-    data?: { vault: "ready" | "unconfigured" };
-    error: unknown;
-  };
-  itemsQuery: {
-    isError: boolean;
-    isLoading: boolean;
-    error: unknown;
-  };
-  items: ChaaviItem[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  const { connected, health, itemsQuery, items, selectedId, onSelect } = props;
-
+/**
+ * What the list shows instead of items while it cannot show them: offline, Chaavi's error,
+ * loading, or an unconfigured vault. Null once items are in.
+ */
+function vaultStatus(
+  connected: boolean,
+  health: { isError: boolean; error: unknown; data?: { vault: "ready" | "unconfigured" } | undefined },
+  items: { isError: boolean; error: unknown; data?: unknown },
+): { text: string; tone: "quiet" | "error" } | null {
   if (!connected) {
-    return <ListMessage>Connect to load the vault</ListMessage>;
+    return { text: "Connect to load the vault", tone: "quiet" };
   }
   if (health.isError) {
-    return (
-      <ListMessage tone="error">
-        {health.error instanceof Error
-          ? health.error.message
-          : String(health.error)}
-      </ListMessage>
-    );
+    return { text: messageOf(health.error), tone: "error" };
   }
-  if (health.isLoading || !health.data) {
-    return <ListMessage>Loading…</ListMessage>;
+  if (!health.data) {
+    return { text: "Loading…", tone: "quiet" };
   }
   if (health.data.vault === "unconfigured") {
-    return (
-      <ListMessage>
-        Vault unconfigured — sign up at the Bitwarden vault, set BW_* in
-        Preferences, restart Chaavi.
-      </ListMessage>
-    );
+    return { text: "Vault unconfigured — sign up at the Bitwarden vault, set BW_* in Preferences, restart Chaavi.", tone: "quiet" };
   }
-  if (itemsQuery.isError) {
-    return (
-      <ListMessage tone="error">
-        {itemsQuery.error instanceof Error
-          ? itemsQuery.error.message
-          : String(itemsQuery.error)}
-      </ListMessage>
-    );
+  if (items.isError) {
+    return { text: messageOf(items.error), tone: "error" };
   }
-  if (itemsQuery.isLoading) {
-    return <ListMessage>Loading…</ListMessage>;
+  if (items.data === undefined) {
+    return { text: "Loading…", tone: "quiet" };
   }
-  if (items.length === 0) {
-    return <ListMessage>No matching items</ListMessage>;
-  }
-
-  return (
-    <ul className="flex flex-col gap-0.5">
-      {items.map((item, i) => {
-        const active = item.id === selectedId;
-        return (
-          <motion.li
-            key={item.id}
-            initial={{ opacity: 0, y: 4 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{
-              duration: FAST,
-              ease: EASE,
-              delay: Math.min(i, 12) * 0.015,
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => onSelect(item.id)}
-              className={`flex w-full flex-col gap-0.5 rounded-[var(--radius)] px-2.5 py-2.5 text-left transition-[background-color,box-shadow] duration-fast ease-dadi ${
-                active
-                  ? "bg-sage-active/70 shadow-[var(--shadow)]"
-                  : "hover:bg-sage-faint"
-              }`}
-            >
-              <div className="flex items-baseline justify-between gap-2">
-                <span className="min-w-0 truncate text-[13px] text-ink">
-                  {item.name}
-                </span>
-                <span className="shrink-0 text-[9px] font-medium tracking-[1.6px] text-sage-deep">
-                  {item.hasPasskey ? "PASSKEY" : item.kind.toUpperCase()}
-                </span>
-              </div>
-              {item.username ? (
-                <span className="truncate text-[11px] text-ink-muted">
-                  {item.username}
-                </span>
-              ) : null}
-              {item.uris[0] ? (
-                <span className="truncate text-[11px] text-ink-ghost">
-                  {item.uris[0]}
-                </span>
-              ) : null}
-            </button>
-          </motion.li>
-        );
-      })}
-    </ul>
-  );
+  return null;
 }
 
-function ListMessage(props: { children: ReactNode; tone?: "muted" | "error" }) {
+type ListMessageProps = {
+  children: ReactNode;
+  tone?: "quiet" | "error";
+};
+
+/** A centered line in the list panel. */
+function ListMessage({ children, tone = "quiet" }: ListMessageProps) {
   return (
     <div className="flex h-full min-h-[10rem] items-center justify-center px-3">
-      <p
-        className={`text-center text-[12px] leading-relaxed ${
-          props.tone === "error" ? "text-ink-muted" : "text-ink-ghost"
-        }`}
-      >
-        {props.children}
-      </p>
+      <p className={`text-center text-[12px] leading-relaxed ${tone === "error" ? "text-error" : "text-ink-ghost"}`}>{children}</p>
     </div>
   );
 }
 
-function ItemDetail(props: {
-  item: ChaaviItem;
-  revealed: { username: string; password: string } | null;
-  passwordVisible: boolean;
-  copiedField: "username" | "password" | null;
-  revealing: boolean;
-  deleting: boolean;
-  confirmDelete: boolean;
-  error: string | null;
-  onReveal: () => void;
-  onShow: () => void;
-  onHide: () => void;
-  onCopyUsername: (value: string) => void;
-  onCopyPassword: (value: string) => void;
-  onEdit: () => void;
-  onAskDelete: () => void;
-  onCancelDelete: () => void;
-  onConfirmDelete: () => void;
-}) {
-  const {
-    item,
-    revealed,
-    passwordVisible,
-    copiedField,
-    revealing,
-    deleting,
-    confirmDelete,
-    error,
-    onReveal,
-    onShow,
-    onHide,
-    onCopyUsername,
-    onCopyPassword,
-    onEdit,
-    onAskDelete,
-    onCancelDelete,
-    onConfirmDelete,
-  } = props;
-
-  const isLogin = item.kind === "login";
-  const username = revealed?.username ?? item.username ?? "";
-  const passwordDisplay = !revealed
-    ? "••••••••••••"
-    : passwordVisible
-      ? revealed.password
-      : "•".repeat(Math.min(18, Math.max(8, revealed.password.length)));
-
-  let passwordAction = "REVEAL";
-  if (revealing) {
-    passwordAction = "…";
-  } else if (revealed) {
-    passwordAction = passwordVisible ? "HIDE" : "SHOW";
-  }
-
-  return (
-    <div className="flex flex-col gap-5">
-      <div>
-        <h2 className="text-[22px] font-medium tracking-tight text-ink">
-          {item.name}
-        </h2>
-        {item.uris[0] ? (
-          <a
-            href={item.uris[0]}
-            target="_blank"
-            rel="noreferrer"
-            className="mt-1 block truncate text-[13px] text-sage-deep hover:text-sage"
-          >
-            {item.uris[0]}
-          </a>
-        ) : (
-          <p className="mt-1 text-[13px] text-ink-ghost">No website</p>
-        )}
-      </div>
-
-      {isLogin ? (
-        <div className="flex flex-col gap-3">
-          <FieldRow
-            label="USERNAME"
-            value={username || "—"}
-            actionLabel={copiedField === "username" ? "COPIED" : "COPY"}
-            actionDisabled={!username}
-            onAction={() => {
-              if (username) {
-                onCopyUsername(username);
-              }
-            }}
-          />
-          <FieldRow
-            label="PASSWORD"
-            value={passwordDisplay}
-            mono
-            actionLabel={passwordAction}
-            onAction={() => {
-              if (!revealed) {
-                onReveal();
-                return;
-              }
-              if (passwordVisible) {
-                onHide();
-                return;
-              }
-              onShow();
-            }}
-            secondaryLabel={
-              revealed && passwordVisible
-                ? copiedField === "password"
-                  ? "COPIED"
-                  : "COPY"
-                : undefined
-            }
-            onSecondary={
-              revealed && passwordVisible
-                ? () => onCopyPassword(revealed.password)
-                : undefined
-            }
-          />
-        </div>
-      ) : (
-        <p className="text-[13px] leading-relaxed text-ink-muted">
-          This {item.kind} is listed for agents and the Bitwarden vault. Login
-          create/edit/delete in dadi covers passwords only.
-        </p>
-      )}
-
-      {error ? (
-        <p className="text-[12px] text-[var(--error)]">{error}</p>
-      ) : null}
-
-      {isLogin ? (
-        <div className="flex flex-wrap items-center gap-2 border-t border-rule/80 pt-4">
-          <ActionButton onClick={onEdit}>EDIT</ActionButton>
-          {confirmDelete ? (
-            <>
-              <ActionButton
-                danger
-                disabled={deleting}
-                onClick={onConfirmDelete}
-              >
-                {deleting ? "DELETING…" : "CONFIRM DELETE"}
-              </ActionButton>
-              <ActionButton onClick={onCancelDelete}>CANCEL</ActionButton>
-            </>
-          ) : (
-            <ActionButton danger onClick={onAskDelete}>
-              DELETE
-            </ActionButton>
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
-function FieldRow(props: {
-  label: string;
-  value: string;
-  mono?: boolean;
-  actionLabel: string;
-  actionDisabled?: boolean;
-  onAction: () => void;
-  secondaryLabel?: string;
-  onSecondary?: () => void;
-}) {
-  return (
-    <div className="rounded-[var(--radius)] border border-dashed border-sage-line/80 bg-bone/30 px-3 py-2.5">
-      <div className="mb-1.5 flex items-center justify-between gap-2">
-        <span className="text-[10px] font-medium tracking-[2px] text-sage-deep">
-          {props.label}
-        </span>
-        <div className="flex items-center gap-2">
-          {props.secondaryLabel && props.onSecondary ? (
-            <button
-              type="button"
-              onClick={props.onSecondary}
-              className="text-[10px] font-medium tracking-[1.6px] text-sage-deep hover:text-sage"
-            >
-              {props.secondaryLabel}
-            </button>
-          ) : null}
-          <button
-            type="button"
-            disabled={props.actionDisabled}
-            onClick={props.onAction}
-            className="text-[10px] font-medium tracking-[1.6px] text-sage-deep hover:text-sage disabled:opacity-40"
-          >
-            {props.actionLabel}
-          </button>
-        </div>
-      </div>
-      <p
-        className={`break-all text-[14px] text-ink ${
-          props.mono ? "font-mono tracking-wide" : ""
-        }`}
-      >
-        {props.value}
-      </p>
-    </div>
-  );
-}
-
-function ActionButton(props: {
-  children: ReactNode;
-  onClick: () => void;
-  danger?: boolean;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={props.disabled}
-      onClick={props.onClick}
-      className={`rounded-[7px] border border-dashed px-3 py-1.5 text-[10px] font-medium tracking-[1.8px] transition-[border-color,background-color,opacity] duration-slow ease-dadi disabled:opacity-40 ${
-        props.danger
-          ? "border-error-line bg-error-fill/40 text-[var(--error)] hover:border-[var(--error)]"
-          : "border-sage-line bg-[var(--glass-sheet)] text-sage-deep hover:border-sage hover:bg-sage-active/50"
-      }`}
-    >
-      {props.children}
-    </button>
-  );
-}

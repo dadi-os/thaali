@@ -2,7 +2,7 @@ import type { KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { AgentGraph3D } from "../features/agents/AgentGraph3D";
-import { ChaaviCounts } from "../features/chaavi/ChaaviCounts";
+import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharHouse } from "../features/ghar/house";
 import { MemoryCounters } from "../features/memory/MemoryCounters";
 import { SystemMap } from "../features/system/SystemMap";
@@ -15,7 +15,7 @@ const tile =
 
 /**
  * Home widget grid — 4×4 on desktop.
- * Hath 2×2, Timeline 2×2, Yaad 2×1, Ghar 2×1, Chaavi 1×1, System 1×2.
+ * Hath 2×2, Timeline 2×2, Yaad 2×1, Ghar 2×1, Chaavi 1×2, System 1×2.
  */
 export function WidgetGridPage() {
   const navigate = useNavigate();
@@ -92,9 +92,9 @@ export function WidgetGridPage() {
         tabIndex={0}
         onClick={open("/chaavi")}
         onKeyDown={onActivate("/chaavi")}
-        className={`${tile} md:col-span-1 md:col-start-3 md:row-start-3`}
+        className={`${tile} md:col-span-1 md:col-start-3 md:row-span-2 md:row-start-3`}
       >
-        <ChaaviCounts />
+        <ChaaviTile />
       </WidgetFrame>
 
       <WidgetFrame

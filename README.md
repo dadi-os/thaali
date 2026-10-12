@@ -7,7 +7,7 @@ The desktop app for dadi: macOS, Windows, and Linux, plus a browser build. Thaal
 - Nas (`http://nas.dadi`) — provision, status, logs, module config
 - Hath (`http://hath.dadi`) — agents, messages, events
 - Yaad (`http://yaad.dadi`) — memory graph
-- Chaavi (`http://chaavi.dadi` API, `https://chaavi.dadi` Bitwarden) — login password manager over the Chaavi adapter; extension for browser autofill
+- Chaavi (`http://chaavi.dadi` API, `https://chaavi.dadi` Bitwarden) — full password manager over the Chaavi adapter (logins with TOTP and passkeys, notes, cards, identities, SSH keys, custom fields, folders with drag-and-drop); extension for browser autofill
 - Ghar (`http://ghar.dadi`) — rooms and Matter devices
 - Dwar (indirect via Hath/Yaad)
 - The dadi network (system `tailscaled` TUN + MagicDNS)

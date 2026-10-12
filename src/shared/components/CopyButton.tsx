@@ -6,8 +6,11 @@ import { IconCheck, IconCopy } from "./IconButton";
 const COPIED_MS = 1_400;
 
 export type CopyButtonProps = {
-  /** Text placed on the clipboard. */
-  text: string;
+  /**
+   * Text placed on the clipboard, or a function that fetches it at click time, so a secret
+   * can be copied without being rendered first.
+   */
+  text: string | (() => Promise<string>);
   /** Accessible name and tooltip, e.g. "Copy message". */
   label: string;
   /** Extra classes, e.g. positioning or a hover reveal. */
@@ -39,7 +42,7 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
         onClick={(e) => {
           e.stopPropagation();
           setError(null);
-          copyText(text)
+          (typeof text === "string" ? copyText(text) : text().then(copyText))
             .then(() => setCopied(true))
             .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
         }}

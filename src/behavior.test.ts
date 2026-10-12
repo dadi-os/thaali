@@ -945,86 +945,43 @@ describe("nas log services", () => {
 });
 
 describe("chaavi client", () => {
-  it("calls health, catalog, CRUD, and reveal routes", async () => {
+  it("calls health, catalog, item and folder CRUD, and the reveal routes", async () => {
     const calls: Array<{ path: string; method: string; body?: unknown }> = [];
     const transport = {
-      request: async (opts: {
-        path: string;
-        method: string;
-        body?: unknown;
-      }) => {
-        calls.push({
-          path: opts.path,
-          method: opts.method,
-          body: opts.body,
-        });
-        if (opts.path === "/health") {
-          return { status: "ok", vault: "ready" };
-        }
-        if (opts.path.endsWith("/login")) {
-          return { username: "ada", password: "secret" };
-        }
-        if (opts.method === "DELETE") {
-          return undefined;
-        }
-        return {
-          id: "11111111-1111-1111-1111-111111111111",
-          name: "GitHub",
-          kind: "login",
-          username: "octocat",
-          uris: ["https://github.com"],
-          hasPasskey: false,
-        };
+      request: async (opts: { path: string; method: string; body?: unknown }) => {
+        calls.push({ path: opts.path, method: opts.method, body: opts.body });
+        return {};
       },
     } as unknown as Transport;
+    const id = "11111111-1111-1111-1111-111111111111";
     const client = createChaaviClient(transport, CHAAVI);
     await client.getHealth();
-    await client.listItems({ q: "bank", uri: "https://ex.test", kind: "login" });
+    await client.listItems({ q: "bank", uri: "https://ex.test", type: "login" });
     await client.listItems();
-    await client.getItem("11111111-1111-1111-1111-111111111111");
-    await client.createLogin({
-      name: "X",
-      username: "u",
-      password: "p",
-    });
-    await client.updateLogin("11111111-1111-1111-1111-111111111111", {
-      name: "Y",
-    });
-    await client.revealLogin("11111111-1111-1111-1111-111111111111");
-    await client.deleteItem("11111111-1111-1111-1111-111111111111");
+    await client.createItem({ type: "note", name: "X" });
+    await client.updateItem(id, { folderId: null });
+    await client.reveal(id, { field: "custom", name: "Secret" });
+    await client.getTotp(id);
+    await client.generatePassword({ length: 24 });
+    await client.deleteItem(id);
+    await client.listFolders();
+    await client.createFolder("Dev");
+    await client.renameFolder("f 1", "Work");
+    await client.deleteFolder("f 1");
     expect(calls).toEqual([
       { path: "/health", method: "GET", body: undefined },
-      {
-        path: "/v1/items?q=bank&uri=https%3A%2F%2Fex.test&kind=login",
-        method: "GET",
-        body: undefined,
-      },
+      { path: "/v1/items?q=bank&uri=https%3A%2F%2Fex.test&type=login", method: "GET", body: undefined },
       { path: "/v1/items", method: "GET", body: undefined },
-      {
-        path: "/v1/items/11111111-1111-1111-1111-111111111111",
-        method: "GET",
-        body: undefined,
-      },
-      {
-        path: "/v1/logins",
-        method: "POST",
-        body: { name: "X", username: "u", password: "p" },
-      },
-      {
-        path: "/v1/items/11111111-1111-1111-1111-111111111111",
-        method: "PATCH",
-        body: { name: "Y" },
-      },
-      {
-        path: "/v1/items/11111111-1111-1111-1111-111111111111/login",
-        method: "POST",
-        body: undefined,
-      },
-      {
-        path: "/v1/items/11111111-1111-1111-1111-111111111111",
-        method: "DELETE",
-        body: undefined,
-      },
+      { path: "/v1/items", method: "POST", body: { type: "note", name: "X" } },
+      { path: `/v1/items/${id}`, method: "PATCH", body: { folderId: null } },
+      { path: `/v1/items/${id}/reveal`, method: "POST", body: { field: "custom", name: "Secret" } },
+      { path: `/v1/items/${id}/totp`, method: "POST", body: undefined },
+      { path: "/v1/generate", method: "POST", body: { length: 24 } },
+      { path: `/v1/items/${id}`, method: "DELETE", body: undefined },
+      { path: "/v1/folders", method: "GET", body: undefined },
+      { path: "/v1/folders", method: "POST", body: { name: "Dev" } },
+      { path: "/v1/folders/f%201", method: "PATCH", body: { name: "Work" } },
+      { path: "/v1/folders/f%201", method: "DELETE", body: undefined },
     ]);
   });
 });

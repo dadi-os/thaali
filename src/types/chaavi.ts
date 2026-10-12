@@ -1,49 +1,220 @@
-/** Vault item classification in the Chaavi catalog. */
-export type ChaaviItemKind = "login" | "note" | "secret";
+/** Chaavi `/v1` contract. An item never carries a secret value; reveals return one at a time. */
 
-/**
- * Catalog row from Chaavi GET /v1/items.
- * Metadata only — never a password or secret body (use revealLogin).
- */
-export type ChaaviItem = {
+/** Bitwarden item types Chaavi serves. */
+export type ChaaviItemType = "login" | "note" | "card" | "identity" | "sshKey";
+
+/** How the Bitwarden extension matches a login website; `default` follows the account setting. */
+export type ChaaviUriMatch = "default" | "domain" | "host" | "startsWith" | "exact" | "regex" | "never";
+
+/** Item property a linked custom field points at. Valid targets depend on the item type. */
+export type ChaaviLinkedTarget =
+  | "username"
+  | "password"
+  | "cardholderName"
+  | "expMonth"
+  | "expYear"
+  | "code"
+  | "brand"
+  | "number"
+  | "title"
+  | "firstName"
+  | "middleName"
+  | "lastName"
+  | "fullName"
+  | "address1"
+  | "address2"
+  | "address3"
+  | "city"
+  | "state"
+  | "postalCode"
+  | "country"
+  | "company"
+  | "email"
+  | "phone"
+  | "ssn"
+  | "passportNumber"
+  | "licenseNumber";
+
+/** A custom field as listed: a hidden field only says whether it holds a value. */
+export type ChaaviField =
+  | { name: string; type: "text"; value: string }
+  | { name: string; type: "hidden"; hasValue: boolean }
+  | { name: string; type: "boolean"; value: boolean }
+  | { name: string; type: "linked"; linkedTo: ChaaviLinkedTarget };
+
+/** A custom field to write. A hidden field without `value` on update keeps its stored value. */
+export type ChaaviFieldInput =
+  | { name: string; type: "text"; value: string }
+  | { name: string; type: "hidden"; value?: string }
+  | { name: string; type: "boolean"; value: boolean }
+  | { name: string; type: "linked"; linkedTo: ChaaviLinkedTarget };
+
+/** A login website. */
+export type ChaaviUri = {
+  uri: string;
+  match: ChaaviUriMatch;
+};
+
+/** A passkey on a login, without its key. */
+export type ChaaviPasskeyInfo = {
+  rpId: string;
+  userName: string | null;
+  creationDate: string | null;
+};
+
+/** Login fields that are not secret, plus which secrets it holds. */
+export type ChaaviLogin = {
+  username: string | null;
+  uris: ChaaviUri[];
+  hasPassword: boolean;
+  hasTotp: boolean;
+  passkeys: ChaaviPasskeyInfo[];
+};
+
+/** Card fields that are not secret, plus which secrets it holds. */
+export type ChaaviCard = {
+  cardholderName: string | null;
+  brand: string | null;
+  /** `1`–`12`. */
+  expMonth: string | null;
+  /** Four digits. */
+  expYear: string | null;
+  hasNumber: boolean;
+  hasCode: boolean;
+};
+
+/** Identity fields that are not secret, plus which secrets it holds. */
+export type ChaaviIdentity = {
+  title: string | null;
+  firstName: string | null;
+  middleName: string | null;
+  lastName: string | null;
+  address1: string | null;
+  address2: string | null;
+  address3: string | null;
+  city: string | null;
+  state: string | null;
+  postalCode: string | null;
+  country: string | null;
+  company: string | null;
+  email: string | null;
+  phone: string | null;
+  username: string | null;
+  hasSsn: boolean;
+  hasPassportNumber: boolean;
+  hasLicenseNumber: boolean;
+};
+
+/** SSH key fields that are not secret. */
+export type ChaaviSshKey = {
+  publicKey: string | null;
+  keyFingerprint: string | null;
+  hasPrivateKey: boolean;
+};
+
+type ChaaviItemBase = {
   /** Vault item id. */
   id: string;
-  /** Display name. */
   name: string;
-  /** Item classification. */
-  kind: ChaaviItemKind;
-  /** Login username when present; null for notes/secrets without one. */
-  username: string | null;
-  /** Associated URIs. */
-  uris: string[];
-  /** True when a login stores a FIDO2 passkey. */
-  hasPasskey: boolean;
+  /** Null when the item is in no folder. */
+  folderId: string | null;
+  favorite: boolean;
+  /** True when the notes hold text; the text is revealed on demand. */
+  hasNotes: boolean;
+  fields: ChaaviField[];
+  /** ISO time of the last change. */
+  revisionDate: string | null;
 };
 
-/** Body for Chaavi POST /v1/logins. */
-export type ChaaviCreateLogin = {
+/** Catalog item from Chaavi `GET /v1/items`. */
+export type ChaaviItem = ChaaviItemBase &
+  (
+    | { type: "login"; login: ChaaviLogin }
+    | { type: "note" }
+    | { type: "card"; card: ChaaviCard }
+    | { type: "identity"; identity: ChaaviIdentity }
+    | { type: "sshKey"; sshKey: ChaaviSshKey }
+  );
+
+/** A vault folder. */
+export type ChaaviFolder = {
+  id: string;
   name: string;
-  username: string;
-  uri?: string;
-  /** When omitted, Chaavi generates a password. */
-  password?: string;
-  length?: number;
-  special?: boolean;
 };
 
-/** Body for Chaavi PATCH /v1/items/:id (login). At least one field required. */
-export type ChaaviUpdateLogin = {
-  name?: string;
+/** Login fields on write. On create, an omitted password is generated. */
+export type ChaaviLoginInput = {
   username?: string;
-  /** Empty string clears websites. */
-  uri?: string;
   password?: string;
+  totp?: string;
+  uris?: Array<{ uri: string; match?: ChaaviUriMatch }>;
 };
 
-/** Decrypt-on-demand login from Chaavi POST /v1/items/:id/login. */
-export type ChaaviLoginCredential = {
-  username: string;
-  password: string;
+/** Card fields on write; empty clears. */
+export type ChaaviCardInput = Partial<Record<"cardholderName" | "brand" | "number" | "expMonth" | "expYear" | "code", string>>;
+
+/** Identity fields on write; empty clears. */
+export type ChaaviIdentityInput = Partial<
+  Record<Exclude<keyof ChaaviIdentity, "hasSsn" | "hasPassportNumber" | "hasLicenseNumber"> | "ssn" | "passportNumber" | "licenseNumber", string>
+>;
+
+/** SSH key fields on write: all three, or none on create to generate an Ed25519 key. */
+export type ChaaviSshKeyInput = Partial<Record<"privateKey" | "publicKey" | "keyFingerprint", string>>;
+
+type ChaaviCreateBase = {
+  name: string;
+  folderId?: string | null;
+  favorite?: boolean;
+  notes?: string;
+  fields?: ChaaviFieldInput[];
+};
+
+/** Body for Chaavi `POST /v1/items`. */
+export type ChaaviCreateItem = ChaaviCreateBase &
+  (
+    | { type: "login"; login?: ChaaviLoginInput }
+    | { type: "note" }
+    | { type: "card"; card?: ChaaviCardInput }
+    | { type: "identity"; identity?: ChaaviIdentityInput }
+    | { type: "sshKey"; sshKey?: ChaaviSshKeyInput }
+  );
+
+/**
+ * Body for Chaavi `PATCH /v1/items/:id`: only given keys change, `fields` replaces the list,
+ * `{ folderId }` alone moves the item.
+ */
+export type ChaaviUpdateItem = {
+  name?: string;
+  folderId?: string | null;
+  favorite?: boolean;
+  notes?: string;
+  fields?: ChaaviFieldInput[];
+  login?: ChaaviLoginInput;
+  card?: ChaaviCardInput;
+  identity?: ChaaviIdentityInput;
+  sshKey?: ChaaviSshKeyInput;
+};
+
+/** A secret an item can reveal. */
+export type ChaaviSecretField =
+  | "password"
+  | "totp"
+  | "number"
+  | "code"
+  | "ssn"
+  | "passportNumber"
+  | "licenseNumber"
+  | "privateKey"
+  | "notes";
+
+/** Body for Chaavi `POST /v1/items/:id/reveal`. */
+export type ChaaviReveal = { field: ChaaviSecretField } | { field: "custom"; name: string };
+
+/** Current one-time code (`POST /v1/items/:id/totp`). */
+export type ChaaviTotp = {
+  code: string;
+  period: number;
+  remaining: number;
 };
 
 /** GET /health — process is up; vault may still be unconfigured. */
