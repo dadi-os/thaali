@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
+import { StateView } from "../../shared/components/states";
 import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -58,14 +59,14 @@ export function ChaaviTile() {
   });
 
   if (!connected) {
-    return <TileNote>No vault yet</TileNote>;
+    return <StateView tone="offline" label="Chaavi is offline" detail="The vault comes back when dadi reconnects" compact />;
   }
   const failed = [healthQuery, itemsQuery, foldersQuery].find((query) => query.isError);
   if (failed) {
-    return <TileNote tone="error">{failed.error instanceof Error ? failed.error.message : String(failed.error)}</TileNote>;
+    return <StateView tone="error" label="Could not reach Chaavi" error={failed.error} onRetry={() => void failed.refetch()} compact />;
   }
   if (healthQuery.data?.vault === "unconfigured") {
-    return <TileNote>Vault unconfigured</TileNote>;
+    return <StateView tone="empty" label="Vault unconfigured" detail="Set BW_* in Preferences, then restart Chaavi" compact />;
   }
 
   const items = itemsQuery.data?.items ?? null;
@@ -219,19 +220,5 @@ function Skeleton({ rows }: SkeletonProps) {
         <span key={i} className="h-3.5 animate-pulse rounded-[4px] bg-sage-fill/60" />
       ))}
     </>
-  );
-}
-
-type TileNoteProps = {
-  children: string;
-  tone?: "quiet" | "error";
-};
-
-/** A centered line for the tile's whole state: offline, unconfigured, or the real error. */
-function TileNote({ children, tone = "quiet" }: TileNoteProps) {
-  return (
-    <div className="flex h-full items-center justify-center px-3">
-      <p className={`text-center text-[13px] ${tone === "error" ? "text-ink-muted" : "text-ink-ghost"}`}>{children}</p>
-    </div>
   );
 }

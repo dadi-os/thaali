@@ -7,12 +7,13 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion } from "motion/react";
-import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
+import { useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
 import { CHAAVI_VAULT, chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
 import { IconPlus } from "../../shared/components/IconButton";
 import { SearchField } from "../../shared/components/SearchField";
+import { StateView, type StateViewProps } from "../../shared/components/states";
 import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -397,29 +398,38 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
             {items === null ? null : <Ticker value={shown.length} className="text-[11px] text-ink-ghost" />}
           </div>
           <motion.div layoutScroll className="widget-frame__body !overflow-y-auto border-t border-dashed border-sage-line p-2">
-            {status !== null ? (
-              <ListMessage tone={status.tone}>{status.text}</ListMessage>
-            ) : shown.length === 0 ? (
-              <ListMessage>{query.trim() ? `Nothing matches “${query.trim()}”` : "Nothing here yet"}</ListMessage>
-            ) : (
-              <ul className="relative flex flex-col gap-0.5">
-                <AnimatePresence mode="popLayout">
-                  {shown.map((item, i) => (
-                    <ItemRow
-                      key={item.id}
-                      item={item}
-                      index={i}
-                      selected={item.id === selectedId}
-                      dragging={ghost !== null && ghost.id === item.id}
-                      onPointerDown={onPointerDown}
-                      onPointerMove={onPointerMove}
-                      onPointerUp={onPointerUp}
-                      onSelect={(next) => select(next.id)}
-                    />
-                  ))}
-                </AnimatePresence>
-              </ul>
-            )}
+            <AnimatePresence mode="wait" initial={false}>
+              {status !== null ? (
+                <StateView key={`${status.tone}:${status.label}`} {...status} compact className="min-h-[10rem]" />
+              ) : shown.length === 0 ? (
+                <StateView
+                  key="empty"
+                  tone="empty"
+                  label={query.trim() ? "No matches" : "Nothing here yet"}
+                  detail={query.trim() ? `Nothing matches “${query.trim()}”` : undefined}
+                  compact
+                  className="min-h-[10rem]"
+                />
+              ) : (
+                <ul key="items" className="relative flex flex-col gap-0.5">
+                  <AnimatePresence mode="popLayout">
+                    {shown.map((item, i) => (
+                      <ItemRow
+                        key={item.id}
+                        item={item}
+                        index={i}
+                        selected={item.id === selectedId}
+                        dragging={ghost !== null && ghost.id === item.id}
+                        onPointerDown={onPointerDown}
+                        onPointerMove={onPointerMove}
+                        onPointerUp={onPointerUp}
+                        onSelect={(next) => select(next.id)}
+                      />
+                    ))}
+                  </AnimatePresence>
+                </ul>
+              )}
+            </AnimatePresence>
           </motion.div>
         </section>
 
@@ -537,46 +547,36 @@ function messageOf(err: unknown): string {
 }
 
 /**
- * What the list shows instead of items while it cannot show them: offline, Chaavi's error,
- * loading, or an unconfigured vault. Null once items are in.
+ * What the list shows instead of items while it cannot show them: offline, Chaavi's error
+ * with a retry, loading, or an unconfigured vault. Null once items are in.
  */
 function vaultStatus(
   connected: boolean,
-  health: { isError: boolean; error: unknown; data?: { vault: "ready" | "unconfigured" } | undefined },
-  items: { isError: boolean; error: unknown; data?: unknown },
-): { text: string; tone: "quiet" | "error" } | null {
+  health: { isError: boolean; error: unknown; data?: { vault: "ready" | "unconfigured" } | undefined; refetch: () => Promise<unknown> },
+  items: { isError: boolean; error: unknown; data?: unknown; refetch: () => Promise<unknown> },
+): StateViewProps | null {
   if (!connected) {
-    return { text: "Connect to load the vault", tone: "quiet" };
+    return { tone: "offline", label: "Chaavi is offline", detail: "The vault comes back when dadi reconnects" };
   }
   if (health.isError) {
-    return { text: messageOf(health.error), tone: "error" };
+    return { tone: "error", label: "Could not reach Chaavi", error: health.error, onRetry: () => void health.refetch() };
   }
   if (!health.data) {
-    return { text: "Loading…", tone: "quiet" };
+    return { tone: "loading", label: "Opening the vault" };
   }
   if (health.data.vault === "unconfigured") {
-    return { text: "Vault unconfigured — sign up at the Bitwarden vault, set BW_* in Preferences, restart Chaavi.", tone: "quiet" };
+    return {
+      tone: "empty",
+      label: "Vault unconfigured",
+      detail: "Sign up at the Bitwarden vault, set BW_* in Preferences, then restart Chaavi",
+    };
   }
   if (items.isError) {
-    return { text: messageOf(items.error), tone: "error" };
+    return { tone: "error", label: "Could not list items", error: items.error, onRetry: () => void items.refetch() };
   }
   if (items.data === undefined) {
-    return { text: "Loading…", tone: "quiet" };
+    return { tone: "loading", label: "Reading items" };
   }
   return null;
-}
-
-type ListMessageProps = {
-  children: ReactNode;
-  tone?: "quiet" | "error";
-};
-
-/** A centered line in the list panel. */
-function ListMessage({ children, tone = "quiet" }: ListMessageProps) {
-  return (
-    <div className="flex h-full min-h-[10rem] items-center justify-center px-3">
-      <p className={`text-center text-[12px] leading-relaxed ${tone === "error" ? "text-error" : "text-ink-ghost"}`}>{children}</p>
-    </div>
-  );
 }
 

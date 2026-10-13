@@ -16,6 +16,7 @@ import { useConnection } from "../../../shared/hooks/useConnection";
 import { IconPlus } from "../../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
 import { SearchField } from "../../../shared/components/SearchField";
+import { StaleBanner, StateView, type StaleBannerProps } from "../../../shared/components/states";
 import { Ticker } from "../../../shared/components/Ticker";
 import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { PairingSheet, shownError } from "../commission";
@@ -232,13 +233,21 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   });
 
   if (!connected && !devicesQuery.data) {
-    return <StatusNote>Ghar is offline</StatusNote>;
+    return <StateView tone="offline" label="Ghar is offline" detail="The house comes back when dadi reconnects" compact={mode === "preview"} />;
   }
   if (devicesQuery.isError && !devicesQuery.data) {
-    return <StatusNote tone="error">{shownError(devicesQuery.error)}</StatusNote>;
+    return (
+      <StateView
+        tone="error"
+        label="Could not reach Ghar"
+        error={devicesQuery.error}
+        onRetry={() => void devicesQuery.refetch()}
+        compact={mode === "preview"}
+      />
+    );
   }
   if (mode === "full" && roomsQuery.isError && !roomsQuery.data) {
-    return <StatusNote tone="error">{shownError(roomsQuery.error)}</StatusNote>;
+    return <StateView tone="error" label="Could not load rooms" error={roomsQuery.error} onRetry={() => void roomsQuery.refetch()} />;
   }
   if (!devicesQuery.data || (mode === "full" && !roomsQuery.data)) {
     return mode === "full" ? (
@@ -271,6 +280,12 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const dragged = devices.find((device) => device.id === drag?.id) ?? null;
   const inspected = devices.find((device) => device.id === (hoverId ?? shownId)) ?? null;
   const search = searchHouse(query, panels, devices);
+
+  const stale: Pick<StaleBannerProps, "label" | "error" | "detail"> | null = !connected
+    ? { label: "Ghar is offline", detail: "controls come back when it does" }
+    : devicesQuery.isError
+      ? { label: "Ghar is not answering", error: devicesQuery.error, detail: "the next poll tries again" }
+      : null;
 
   const trouble =
     (command.isError ? shownError(command.error) : null) ??
@@ -495,7 +510,9 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     return (
       <MotionConfig reducedMotion="user">
         <div className="relative flex h-full min-h-0 flex-col">
-          {!connected ? <p className="px-3 pt-1 text-[12px] text-ink-ghost">Ghar is offline</p> : null}
+          <AnimatePresence initial={false}>
+            {stale ? <StaleBanner key="stale" {...stale} since={devicesQuery.dataUpdatedAt} compact className="mx-2 mb-1" /> : null}
+          </AnimatePresence>
           {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
           <div className={tileBody}>
             <div className="min-h-0 flex-1">
@@ -554,12 +571,9 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   return (
     <MotionConfig reducedMotion="user">
       <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col">
-        {!connected ? (
-          <p className="mx-3 mb-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-dashed border-sage-line px-3.5 py-2 text-[12.5px] text-ink-muted">
-            <span aria-hidden className="size-[7px] rounded-full border border-dashed border-ink-faint" />
-            Ghar is offline. This is the last state it reported; controls come back when it does.
-          </p>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {stale ? <StaleBanner key="stale" {...stale} since={devicesQuery.dataUpdatedAt} className="mx-3 mb-3" /> : null}
+        </AnimatePresence>
         {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
         {toolbar
           ? createPortal(
@@ -783,15 +797,6 @@ function FirstRooms({ onCreate }: { onCreate: (name: string) => void }) {
           + {name}
         </button>
       ))}
-    </div>
-  );
-}
-
-/** A centered line for the whole house's state: offline, or the real error. */
-function StatusNote({ children, tone = "quiet" }: { children: string; tone?: "quiet" | "error" }) {
-  return (
-    <div className="flex h-full items-center justify-center px-3">
-      <p className={`text-center text-[13px] ${tone === "error" ? "text-error" : "text-ink-ghost"}`}>{children}</p>
     </div>
   );
 }

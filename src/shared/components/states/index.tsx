@@ -58,6 +58,7 @@ const LABEL_INK: Record<StateTone, string> = {
 export function StateView(props: StateViewProps) {
   const { tone, label, compact = false, className = "" } = props;
   const navigate = useNavigate();
+  const reduced = useReducedMotion() ?? false;
   const failure = props.tone === "error" ? failureFacts(props.error) : null;
   const logs = props.tone === "error" ? failureTarget(props.error) : null;
   const onRetry = props.tone === "error" ? props.onRetry : undefined;
@@ -74,8 +75,9 @@ export function StateView(props: StateViewProps) {
       className={`flex h-full w-full min-w-0 flex-col items-center justify-center text-center ${
         compact ? "gap-2.5 px-3" : "gap-4 px-6"
       } ${className}`}
-      initial={{ opacity: 0, y: 6 }}
+      initial={{ opacity: 0, y: reduced ? 0 : 6 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: reduced ? 0 : -4 }}
       transition={{ duration: SLOW_S, ease: EASE }}
     >
       <StateMark tone={tone} className={compact ? "size-9" : "size-16"} />
@@ -95,7 +97,7 @@ export function StateView(props: StateViewProps) {
         {failure ? (
           <>
             <p
-              title={failure.message}
+              title={failure.raw}
               className={`max-w-sm select-text leading-relaxed text-ink-muted [overflow-wrap:anywhere] ${
                 compact ? "line-clamp-3 text-[11.5px]" : "line-clamp-6 text-[12.5px]"
               }`}
@@ -235,6 +237,8 @@ export type StaleBannerProps = {
   error?: unknown;
   /** What happens next, e.g. "Controls come back when it does". */
   detail?: string;
+  /** One truncated line without the detail, for a home tile. */
+  compact?: boolean;
   className?: string;
 };
 
@@ -243,7 +247,7 @@ export type StaleBannerProps = {
  * wrong, how old the shown state is (exact time on hover), the failure's own words when a
  * request failed, and what comes next.
  */
-export function StaleBanner({ label, since, error, detail, className = "" }: StaleBannerProps) {
+export function StaleBanner({ label, since, error, detail, compact = false, className = "" }: StaleBannerProps) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = window.setInterval(() => setNow(Date.now()), STALE_TICK_MS);
@@ -255,11 +259,12 @@ export function StaleBanner({ label, since, error, detail, className = "" }: Sta
   return (
     <motion.div
       role="status"
-      className={`flex min-w-0 items-start gap-2.5 rounded-[var(--radius)] border border-dashed px-3.5 py-2 text-left text-[12px] leading-relaxed ${
-        failure ? "border-error-line" : "border-sage-line"
-      } ${className}`}
+      className={`flex min-w-0 items-start rounded-[var(--radius)] border border-dashed text-left leading-relaxed ${
+        compact ? "gap-2 px-2.5 py-1 text-[11px]" : "gap-2.5 px-3.5 py-2 text-[12px]"
+      } ${failure ? "border-error-line" : "border-sage-line"} ${className}`}
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, y: -4 }}
       transition={{ duration: SLOW_S, ease: EASE }}
     >
       <span
@@ -269,14 +274,14 @@ export function StaleBanner({ label, since, error, detail, className = "" }: Sta
         }`}
       />
       <div className="min-w-0 flex-1">
-        <p className="text-ink-muted">
+        <p className={`text-ink-muted ${compact ? "truncate" : ""}`}>
           <span className={failure ? "text-error" : "text-ink"}>{label}</span>
           {" · "}
           <span title={formatAbsolute(at)}>showing what it reported {formatRelative(at, now)}</span>
-          {detail ? <span className="text-ink-ghost"> · {detail}</span> : null}
+          {detail && !compact ? <span className="text-ink-ghost"> · {detail}</span> : null}
         </p>
         {failure ? (
-          <p title={failure.message} className="truncate select-text text-[11.5px] text-ink-ghost">
+          <p title={failure.raw} className={`truncate select-text text-ink-ghost ${compact ? "text-[10.5px]" : "text-[11.5px]"}`}>
             {failure.origin ? `${failure.origin} · ` : ""}
             {failure.message}
           </p>
