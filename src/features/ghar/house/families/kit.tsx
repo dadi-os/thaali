@@ -153,12 +153,13 @@ export type SliderProps = {
 
 /**
  * One slider. The thumb follows the pointer and the command fires on release, so a drag is
- * one command; the readout stays on the confirmed value until Ghar reports the new one.
+ * one command; the readout stays on the confirmed value until Ghar reports the new one. Before
+ * the device reports a value the track has no thumb, and the first press places one.
  */
 export function Slider({ label: name, min, max, step = 1, value, format, disabled, track, onCommit }: SliderProps) {
   const [draft, setDraft] = useState<number | null>(null);
   const drafting = useRef(false);
-  const confirmed = value ?? min;
+  const shown = draft ?? value;
 
   function finish(next: number): void {
     if (!drafting.current) {
@@ -166,7 +167,7 @@ export function Slider({ label: name, min, max, step = 1, value, format, disable
     }
     drafting.current = false;
     setDraft(null);
-    if (next !== confirmed) {
+    if (next !== value) {
       onCommit(next);
     }
   }
@@ -184,12 +185,13 @@ export function Slider({ label: name, min, max, step = 1, value, format, disable
         min={min}
         max={max}
         step={step}
-        value={draft ?? confirmed}
+        value={shown ?? min}
         disabled={disabled}
         aria-label={name}
+        aria-valuetext={shown === null ? "No reading" : format(shown)}
         onPointerDown={() => {
           drafting.current = true;
-          setDraft(confirmed);
+          setDraft(value);
         }}
         onKeyDown={() => {
           drafting.current = true;
@@ -206,7 +208,7 @@ export function Slider({ label: name, min, max, step = 1, value, format, disable
             finish(Number(event.currentTarget.value));
           }
         }}
-        className={thumb}
+        className={`${thumb} ${shown === null ? "[&::-webkit-slider-thumb]:opacity-0" : ""}`}
         style={{ background: track ?? "linear-gradient(90deg, var(--sage-fill), var(--sage))" }}
       />
     </label>

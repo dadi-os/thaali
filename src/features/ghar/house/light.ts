@@ -79,12 +79,11 @@ export function lampLevel(device: GharDevice): number {
 }
 
 /**
- * roomGlow is a CSS background that washes a room in the light of its lit lamps, or null
- * when none is lit: one soft pool per lamp, stronger the brighter it is. `top` hangs the
- * pools from the top edge of a room panel; `end` gathers them at the right of a widget row,
- * where its lamp dots sit.
+ * roomGlow is a CSS background that washes a room panel from above in the light of its lit
+ * lamps, or null when none is lit: one soft pool per lamp hanging from the top edge, stronger
+ * the brighter it is.
  */
-export function roomGlow(lamps: GharDevice[], at: "top" | "end"): string | null {
+export function roomGlow(lamps: GharDevice[]): string | null {
   const lit = lamps.filter(isLit);
   if (lit.length === 0) {
     return null;
@@ -93,9 +92,7 @@ export function roomGlow(lamps: GharDevice[], at: "top" | "end"): string | null 
     .map((lamp, index) => {
       const color = lampColor(lamp) ?? PLAIN_LAMP;
       const strength = Math.round(14 + 22 * lampLevel(lamp));
-      return at === "top"
-        ? `radial-gradient(120% 90% at ${Math.round(((index + 0.5) / lit.length) * 100)}% -10%, color-mix(in srgb, ${color} ${strength}%, transparent), transparent 70%)`
-        : `radial-gradient(24% 60% at ${Math.round(84 - ((lit.length - index - 0.5) / lit.length) * 20)}% 50%, color-mix(in srgb, ${color} ${strength}%, transparent), transparent 65%)`;
+      return `radial-gradient(120% 90% at ${Math.round(((index + 0.5) / lit.length) * 100)}% -10%, color-mix(in srgb, ${color} ${strength}%, transparent), transparent 70%)`;
     })
     .join(", ");
 }

@@ -6,12 +6,34 @@
  */
 :root {
   --ghar-pool: 74%;
+  /* The house in miniature: an unlit room's dusk, a lamp pool's strongest color, how pools mix. */
+  --ghar-dusk: color-mix(in srgb, var(--sage-deep) 11%, var(--bone));
+  --ghar-pool-max: 88%;
+  --ghar-pool-blend: normal;
+  /* A switch knob overshoots a touch as it lands. */
+  --ghar-snap: cubic-bezier(0.34, 1.45, 0.64, 1);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     --ghar-pool: 70%;
+    --ghar-dusk: color-mix(in srgb, black 34%, var(--bone));
+    --ghar-pool-max: 62%;
+    --ghar-pool-blend: screen;
   }
+}
+
+/* A lamp's color and level, registered so a change of hue or brightness glides instead of jumping. */
+@property --lamp {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: transparent;
+}
+
+@property --lamp-level {
+  syntax: "<number>";
+  inherits: true;
+  initial-value: 0;
 }
 
 .ghar-ledger {
@@ -48,7 +70,8 @@
   box-shadow: var(--shadow);
   transition:
     border-color var(--slow) var(--ease),
-    box-shadow var(--slow) var(--ease);
+    box-shadow var(--slow) var(--ease),
+    background-color var(--slow) var(--ease);
 }
 
 .ghar-room::before {
@@ -73,7 +96,7 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 10px;
+  padding: 8px;
   border-top: 1px dashed color-mix(in srgb, var(--sage-line) 70%, transparent);
 }
 
@@ -90,8 +113,9 @@
 
 .ghar-room--hot {
   border-color: var(--sage);
+  background-color: color-mix(in srgb, var(--sage-faint) 60%, var(--glass-veil));
   box-shadow:
-    0 0 0 3px var(--sage-active),
+    0 0 0 4px var(--sage-active),
     var(--shadow-deep);
 }
 
@@ -126,7 +150,7 @@
   border-radius: 999px;
   background: var(--sage-line);
   transition:
-    transform var(--slow) var(--ease),
+    transform var(--slow) var(--ghar-snap),
     background-color var(--slow) var(--ease);
 }
 
@@ -169,7 +193,9 @@
   background: var(--glass-sheet);
   -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
-  box-shadow: var(--shadow-deep);
+  box-shadow:
+    var(--shadow-deep),
+    0 18px 36px -12px color-mix(in srgb, var(--ink) 22%, transparent);
 }
 
 .ghar-tile__stage {
@@ -222,6 +248,8 @@
   border-radius: 999px;
   background: color-mix(in srgb, var(--bone) 80%, transparent);
   transition:
+    --lamp var(--slower) var(--ease),
+    --lamp-level var(--slower) var(--ease),
     background var(--slow) var(--ease),
     border-color var(--slow) var(--ease),
     box-shadow var(--slower) var(--ease);
@@ -259,28 +287,6 @@
   background: transparent;
 }
 
-.ghar-row {
-  display: flex;
-  min-width: 0;
-  min-height: 0;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 0 10px;
-  border-radius: var(--radius);
-  text-align: left;
-  background-repeat: no-repeat;
-  transition: background-color var(--slow) var(--ease);
-}
-
-.ghar-row:hover:not(:disabled) {
-  background-color: var(--sage-faint);
-}
-
-.ghar-row:disabled {
-  cursor: default;
-}
-
 /* Shared values the forms animate between; registered so transitions interpolate them. */
 @property --ghar-level {
   syntax: "<number>";
@@ -308,6 +314,8 @@
 
 .ghar-tile {
   transition:
+    --lamp var(--slower) var(--ease),
+    --lamp-level var(--slower) var(--ease),
     --ghar-level var(--slower) var(--ease),
     --ghar-open 1.2s var(--ease),
     --ghar-arc var(--slower) var(--ease),
@@ -1294,33 +1302,9 @@
   backdrop-filter: none;
 }
 
-.ghar-horizon {
-  display: flex;
-  height: 112px;
-  gap: 6px;
-  padding: 0 10px 10px;
-}
-
-.ghar-horizon__room {
-  position: relative;
-  min-width: 0;
-  flex: 1 1 0;
-  overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--sage-line) 50%, transparent);
-  border-radius: 10px;
-  background-color: color-mix(in srgb, var(--bone) 40%, transparent);
-  text-align: left;
-  transition: flex-grow var(--slower) var(--ease), border-color var(--slow) var(--ease);
-}
-
-.ghar-horizon__room:hover {
-  border-color: var(--sage);
-}
-
-.ghar-horizon__wash {
-  position: absolute;
-  inset: 0;
-  transition: opacity var(--slower) var(--ease);
+.ghar-overview__map {
+  height: 136px;
+  padding: 0 12px 12px;
 }
 
 .ghar-attention {
@@ -1328,7 +1312,7 @@
   flex-wrap: wrap;
   align-items: center;
   gap: 6px;
-  padding: 10px 14px 12px;
+  padding: 10px 16px 12px;
   border-top: 1px dashed color-mix(in srgb, var(--sage-line) 70%, transparent);
 }
 
@@ -1347,6 +1331,10 @@
 
 .ghar-chip:hover {
   border-color: var(--sage);
+}
+
+.ghar-chip:active {
+  transform: scale(0.97);
 }
 
 .ghar-mark {
@@ -1470,37 +1458,331 @@
   animation: ghar-breath var(--breath) ease-in-out infinite;
 }
 
-/* Home tile: one segment per lamp, lit in its own color. */
-.ghar-spectrum {
+/*
+ * The house in miniature (home tile and the top of the page): rooms side by side in their dusk,
+ * each lamp a pool of its own color breathing slowly, climate rising from the floor, marks in
+ * the corner and the room's other devices along its floor.
+ */
+.ghar-map {
   display: flex;
-  width: 82%;
-  height: 5px;
-  gap: 2px;
-  overflow: hidden;
-  border-radius: 999px;
+  height: 100%;
+  min-height: 0;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.ghar-spectrum i {
+.ghar-map__row {
+  display: flex;
+  min-height: 0;
   flex: 1;
+  gap: 6px;
+}
+
+.ghar-map__room {
+  --pool-size: min(170cqh, calc(170cqw / var(--lamps)));
+  position: relative;
+  min-width: 0;
+  flex-basis: 0;
+  overflow: hidden;
+  container-type: size;
+  border: 1px solid color-mix(in srgb, var(--sage-line) 55%, transparent);
+  border-radius: 10px;
+  background-color: var(--ghar-dusk);
+  box-shadow: inset 0 1px 0 var(--glass-rim-top);
+  transition:
+    flex-grow var(--slower) var(--ease),
+    border-color var(--slow) var(--ease);
+}
+
+.ghar-map__room--lit {
+  border-color: color-mix(in srgb, var(--sage-line) 85%, transparent);
+}
+
+.ghar-map__air,
+.ghar-map__pools {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.ghar-map__air {
+  transition: opacity var(--slower) var(--ease);
+}
+
+.ghar-map__pools {
+  isolation: isolate;
+}
+
+.ghar-pool {
+  position: absolute;
+  width: var(--pool-size);
+  height: var(--pool-size);
+  margin: calc(var(--pool-size) / -2) 0 0 calc(var(--pool-size) / -2);
+  mix-blend-mode: var(--ghar-pool-blend);
+  animation: ghar-pool-breathe 7s ease-in-out infinite;
+}
+
+.ghar-pool--pending {
+  animation:
+    ghar-pool-breathe 7s ease-in-out infinite,
+    ghar-breath var(--breath) ease-in-out infinite;
+}
+
+.ghar-pool__light {
+  position: absolute;
+  inset: 0;
   border-radius: 999px;
-  background: var(--rule);
+  -webkit-mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / 0.66) 26%, rgb(0 0 0 / 0.28) 56%, rgb(0 0 0 / 0.08) 80%, transparent 100%);
+  mask-image: radial-gradient(closest-side, #000 0%, rgb(0 0 0 / 0.66) 26%, rgb(0 0 0 / 0.28) 56%, rgb(0 0 0 / 0.08) 80%, transparent 100%);
   transition: background-color var(--slower) var(--ease);
 }
 
-.ghar-mini {
-  width: 8px;
-  height: 8px;
-  flex-shrink: 0;
-  border: 1px solid var(--sage-line);
-  border-radius: 2px;
+@keyframes ghar-pool-breathe {
+  0%,
+  100% {
+    transform: scale(0.95);
+  }
+  50% {
+    transform: scale(1.05);
+  }
 }
 
-.ghar-mini--alert {
+.ghar-map__ripple {
+  position: absolute;
+  width: 260cqw;
+  height: 260cqw;
+  margin: -130cqw 0 0 -130cqw;
+  border-radius: 999px;
+  pointer-events: none;
+  background: radial-gradient(closest-side, color-mix(in srgb, var(--sage) 30%, transparent), transparent);
+}
+
+.ghar-map__press {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+  transition: background-color var(--slow) var(--ease);
+}
+
+.ghar-map__press:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--sage-faint) 70%, transparent);
+}
+
+.ghar-map__press:focus-visible,
+.ghar-map__lamp:focus-visible {
+  outline: 2px solid var(--sage);
+  outline-offset: -2px;
+}
+
+.ghar-map__press:disabled,
+.ghar-map__lamp:disabled {
+  cursor: default;
+}
+
+.ghar-map__lamp {
+  position: absolute;
+  z-index: 2;
+  display: grid;
+  width: 28px;
+  height: 28px;
+  margin: -14px 0 0 -14px;
+  place-items: center;
+  border-radius: 999px;
+  transition: background-color var(--slow) var(--ease);
+}
+
+.ghar-map__lamp:hover:not(:disabled) {
+  background-color: color-mix(in srgb, var(--bone) 45%, transparent);
+}
+
+.ghar-map__flare {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid var(--sage);
+  border-radius: 999px;
+  pointer-events: none;
+}
+
+.ghar-map__marks {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.ghar-map__temp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-muted);
+  font-family: var(--font-numeric);
+  font-size: 10.5px;
+  line-height: 1;
+}
+
+.ghar-map__temp i {
+  width: 5px;
+  height: 5px;
+  border-radius: 999px;
+  background: var(--sage-line);
+  transition: background-color var(--slower) var(--ease);
+}
+
+.ghar-map__temp i.ghar-map__temp--heat {
+  background: var(--clay);
+}
+
+.ghar-map__temp i.ghar-map__temp--cool {
+  background: var(--tide);
+}
+
+.ghar-map__lock {
+  width: 9px;
+  height: 9px;
+  border: 1.5px solid var(--sage-deep);
+  border-radius: 999px;
+  transition:
+    border-color var(--slow) var(--ease),
+    transform var(--slower) var(--ghar-snap);
+}
+
+.ghar-map__lock--open {
   border-color: var(--clay);
-  background: color-mix(in srgb, var(--clay) 30%, transparent);
+  border-top-color: transparent;
+  transform: rotate(-40deg);
+}
+
+.ghar-map__flag {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--clay);
+  font-family: var(--font-numeric);
+  font-size: 10px;
+  line-height: 1;
+}
+
+.ghar-map__flag i {
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: currentColor;
+}
+
+.ghar-map__flag--error {
+  color: var(--error);
+}
+
+.ghar-map__flag--error i {
+  animation: ghar-flag 1.8s ease-out infinite;
+}
+
+@keyframes ghar-flag {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--error) 55%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 6px transparent;
+  }
+}
+
+.ghar-map__label {
+  position: absolute;
+  right: 40%;
+  bottom: 7px;
+  left: 10px;
+  z-index: 2;
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  pointer-events: none;
+}
+
+.ghar-map__name {
+  overflow: hidden;
+  color: var(--sage-deep);
+  font-size: 9.5px;
+  font-weight: 500;
+  letter-spacing: 0.18em;
+  text-overflow: ellipsis;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.ghar-map__line {
+  color: var(--ink-muted);
+  font-family: var(--font-numeric);
+  font-size: 10.5px;
+  line-height: 1.2;
+}
+
+.ghar-map--page .ghar-map__label {
+  bottom: 10px;
+  left: 12px;
+}
+
+.ghar-map--page .ghar-map__name {
+  font-size: 10px;
+}
+
+.ghar-map--page .ghar-map__line {
+  font-size: 11px;
+}
+
+.ghar-map__things {
+  position: absolute;
+  right: 9px;
+  bottom: 9px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-faint);
+  font-family: var(--font-numeric);
+  font-size: 9.5px;
+  line-height: 1;
+  pointer-events: none;
+}
+
+.ghar-thing {
+  width: 6px;
+  height: 6px;
+  border: 1px solid var(--sage-line);
+  border-radius: 999px;
+  transition:
+    background-color var(--slow) var(--ease),
+    border-color var(--slow) var(--ease);
+}
+
+.ghar-thing--on {
+  border-color: var(--sage);
+  background: var(--sage);
+}
+
+.ghar-thing--warn {
+  border-color: var(--clay);
+  background: var(--clay);
+}
+
+.ghar-thing--error {
+  border-color: var(--error);
+  background: var(--error);
+}
+
+.ghar-thing--offline {
+  border-style: dashed;
+  border-color: var(--ink-ghost);
+  background: transparent;
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .ghar-map *,
   .ghar-tile *,
   .ghar-seek *,
   .ghar-quiet * {

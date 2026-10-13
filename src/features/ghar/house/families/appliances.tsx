@@ -268,7 +268,9 @@ export const cycle: Family = {
     if (state !== "running") {
       return words(state);
     }
-    return [phase, left === null ? null : `${left} min`].filter((part): part is string => part !== null).join(" · ") || "Running";
+    return [phase === null ? words(state) : phase, left === null ? null : `${left} min`]
+      .filter((part): part is string => part !== null)
+      .join(" · ");
   },
   tone: (device) => ({
     run: device.online && str(device, "operational_state") === "running",
@@ -307,10 +309,15 @@ export const oven: Family = {
     const state = str(device, "operational_state");
     const mode = str(device, "mode");
     const temperature = num(device, "temperature");
-    if (state !== "running") {
-      return mode === null ? "Off" : `Off · ${mode}`;
+    if (state === null) {
+      return mode === null ? "No reading yet" : mode;
     }
-    return [mode, temperature === null ? null : `${Math.round(temperature)}°`].filter((part): part is string => part !== null).join(" · ") || "On";
+    if (state !== "running") {
+      return mode === null ? words(state) : `${words(state)} · ${mode}`;
+    }
+    return [mode === null ? words(state) : mode, temperature === null ? null : `${Math.round(temperature)}°`]
+      .filter((part): part is string => part !== null)
+      .join(" · ");
   },
   tone: (device) => ({ on: device.online && str(device, "operational_state") === "running" }),
   primary: () => null,

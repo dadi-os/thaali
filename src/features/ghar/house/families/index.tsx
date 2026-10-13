@@ -53,7 +53,7 @@ const other: Family = {
   Form: PlainForm,
   reading: (device) => {
     const on = bool(device, "on");
-    return on === null ? (device.product_name ?? "No reading yet") : on ? "On" : "Off";
+    return on === null ? "No reading yet" : on ? "On" : "Off";
   },
   tone: (device) => ({ on: device.online && bool(device, "on") === true }),
   primary: (device) => (bool(device, "on") === null ? null : { capability: "on_off", command: "toggle" }),

@@ -1,13 +1,13 @@
 /**
  * Ghar's house, shared by the page and the home tile. The page is the house at a glance (a
- * ledger over a horizon of rooms and what needs a look) over a glass panel per room, each
- * device drawn as its family's abstract form; the tile is how much of the house is lit beside
- * a row per room. Tile rows switch a room's lights and do not navigate.
+ * ledger over the house in miniature and what needs a look) over a glass panel per room, each
+ * device drawn as its family's abstract form; the tile is the house in miniature over a line of
+ * how much of it is lit. On the tile a room or lamp tap switches it and does not navigate.
  */
 
 import { useEffect, useRef, useState, type PointerEvent as ReactPointerEvent } from "react";
 import { createPortal } from "react-dom";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, LayoutGroup, motion, MotionConfig } from "motion/react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ghar, isMeshOnline } from "../../../shared/api";
 import { GHAR_DEVICES_KEY, GHAR_ROOMS_KEY } from "../../../shared/api/ghar";
@@ -16,13 +16,15 @@ import { useConnection } from "../../../shared/hooks/useConnection";
 import { IconPlus } from "../../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
 import { SearchField } from "../../../shared/components/SearchField";
+import { Ticker } from "../../../shared/components/Ticker";
 import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { PairingSheet, shownError } from "../commission";
 import { attention, familyOf } from "./families";
 import { Horizon } from "./horizon";
 import { DevicePopover } from "./inspector";
-import { isLamp, isLit, lampColor, PLAIN_LAMP } from "./light";
-import { DeviceFace, roomTemperature, RoomPanel, RoomRow, Tally } from "./rooms";
+import { isLamp, isLit } from "./light";
+import { HouseMap } from "./map";
+import { DeviceFace, GLIDE, RoomPanel } from "./rooms";
 import { searchHouse, type RoomRef } from "./search";
 
 export type GharHouseProps = {
@@ -95,8 +97,16 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const [query, setQuery] = useState("");
   const [pairing, setPairing] = useState(false);
   const [flashId, setFlashId] = useState<string | null>(null);
+  const [shownId, setShownId] = useState<string | null>(null);
+  const [entering, setEntering] = useState(true);
   const roomButtonRef = useRef<HTMLButtonElement>(null);
   const focusedKey = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (hoverId !== null) {
+      setShownId(hoverId);
+    }
+  }, [hoverId]);
 
   useEffect(() => {
     return () => {
@@ -204,6 +214,13 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     },
   });
 
+  const ready = devicesQuery.data !== undefined && (mode === "preview" || roomsQuery.data !== undefined);
+  useEffect(() => {
+    if (ready) {
+      setEntering(false);
+    }
+  }, [ready]);
+
   useEffect(() => {
     const device = devicesQuery.data?.devices.find((d) => d.id === focus?.deviceId);
     if (!focus || !device || focusedKey.current === focus.key) {
@@ -225,7 +242,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   }
   if (!devicesQuery.data || (mode === "full" && !roomsQuery.data)) {
     return mode === "full" ? (
-      <div aria-label="Loading Ghar" className="flex h-full min-h-0 flex-col gap-5 px-2 pb-3">
+      <div aria-label="Loading Ghar" className="flex h-full min-h-0 flex-col gap-5 px-1 pb-4">
         <span className="h-[220px] animate-pulse rounded-[var(--radius-window)] border border-rule bg-sage-fill/40" />
         <div className="grid gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr))]">
           {[0, 1].map((i) => (
@@ -234,15 +251,11 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
         </div>
       </div>
     ) : (
-      <div aria-label="Loading Ghar" className="flex h-full min-h-0 items-stretch px-2 pb-2.5 pt-0.5">
-        <div className="flex w-[34%] shrink-0 items-center justify-center">
-          <Tally value={null} label="LIGHTS ON" />
-        </div>
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-2 border-l border-dashed border-sage-line/70 pl-3">
-          {[0, 1].map((i) => (
-            <span key={i} className="h-7 animate-pulse rounded-[var(--radius)] bg-sage-fill/50" />
-          ))}
-        </div>
+      <div aria-label="Loading Ghar" className={`h-full ${tileBody}`}>
+        <span className="min-h-0 flex-1 animate-pulse rounded-[10px] bg-sage-fill/50" />
+        <span className={tileLine}>
+          <Ticker value={null} loadingDigits={1} className="text-[12px] text-ink" />
+        </span>
       </div>
     );
   }
@@ -256,7 +269,7 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   const showUnplaced = mode === "full" && unassigned !== null && (unplacedCount > 0 || named.length === 0);
   const panels: RoomRef[] = showUnplaced && unassigned ? [unassigned, ...named] : named;
   const dragged = devices.find((device) => device.id === drag?.id) ?? null;
-  const hovered = devices.find((device) => device.id === hoverId) ?? null;
+  const inspected = devices.find((device) => device.id === (hoverId ?? shownId)) ?? null;
   const search = searchHouse(query, panels, devices);
 
   const trouble =
@@ -303,6 +316,14 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       (lit.length > 0 ? lit : lamps).map((device) => device.id),
       { capability: "on_off", command: lit.length > 0 ? "off" : "on" },
     );
+  }
+
+  /** Switch one lamp, unless Ghar or the lamp is unreachable. */
+  function toggleLamp(device: GharDevice): void {
+    if (!connected || !device.online) {
+      return;
+    }
+    send([device.id], { capability: "on_off", command: "toggle" });
   }
 
   function clearOpenTimer(): void {
@@ -354,7 +375,6 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     closeTimer.current = window.setTimeout(() => {
       closeTimer.current = null;
       setHoverId(null);
-      setAnchor(null);
     }, HOVER_CLOSE_MS);
   }
 
@@ -381,7 +401,6 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
       clearOpenTimer();
       clearCloseTimer();
       setHoverId(null);
-      setAnchor(null);
     }
     current.dragging = true;
     const local = toLocal(event.clientX, event.clientY);
@@ -470,247 +489,282 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
   if (mode === "preview") {
     const lamps = devices.filter(isLamp);
     const lightsOn = lamps.filter(isLit).length;
-    const temperature = roomTemperature(devices);
     const locks = devices.filter((device) => typeof device.state.locked?.value === "boolean");
+    const unlocked = locks.some((device) => device.state.locked?.value === false);
     const flagged = devices.filter((device) => attention(device) !== null).length;
     return (
-      <div className="relative flex h-full min-h-0 flex-col">
-        {!connected ? <p className="px-3 pt-1 text-[12px] text-ink-ghost">Ghar is offline</p> : null}
-        {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
-        <div className="flex min-h-0 flex-1 items-stretch px-2 pb-2.5 pt-0.5">
-          <div className="flex w-[34%] shrink-0 flex-col items-center justify-center gap-2.5">
-            <Tally value={lightsOn} of={lamps.length} label={lightsOn === 1 ? "LIGHT ON" : "LIGHTS ON"} />
-            <span aria-hidden className="ghar-spectrum">
-              {lamps.length === 0 ? (
-                <i />
+      <MotionConfig reducedMotion="user">
+        <div className="relative flex h-full min-h-0 flex-col">
+          {!connected ? <p className="px-3 pt-1 text-[12px] text-ink-ghost">Ghar is offline</p> : null}
+          {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
+          <div className={tileBody}>
+            <div className="min-h-0 flex-1">
+              {named.length === 0 ? (
+                <p className="m-0 flex h-full items-center justify-center rounded-[10px] border border-dashed border-sage-line/70 text-[12.5px] text-ink-ghost">
+                  {devices.length === 0
+                    ? "No devices yet"
+                    : devices.length === 1
+                      ? "1 device unplaced"
+                      : `${devices.length} devices unplaced`}
+                </p>
               ) : (
-                lamps.map((lamp) => <i key={lamp.id} style={isLit(lamp) ? { background: lampColor(lamp) ?? PLAIN_LAMP } : undefined} />)
+                <HouseMap
+                  rooms={named}
+                  devices={devices}
+                  pendingIds={pendingIds}
+                  size="tile"
+                  roomAction="switch"
+                  onRoom={toggleRoom}
+                  onLamp={toggleLamp}
+                  live={connected}
+                />
               )}
-            </span>
-            <span className="flex items-center gap-2.5 text-[11px] text-ink-muted">
-              {temperature !== null ? <span className="font-numeric">{temperature.toFixed(1)}°</span> : null}
-              {locks.length > 0 ? (
-                <span>{locks.every((device) => device.state.locked?.value === true) ? "locked" : "unlocked"}</span>
-              ) : null}
-              {flagged > 0 ? (
-                <span className="flex items-center gap-1">
-                  <span aria-hidden className="ghar-mark" />
-                  {flagged}
+            </div>
+            <div className={tileLine}>
+              {lamps.length > 0 ? (
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <Ticker value={lightsOn} className="text-[12px] tracking-normal text-ink" />
+                  <span className="font-numeric text-[10.5px] tracking-normal text-ink-ghost">/{lamps.length}</span>
+                  <span className="truncate">{lamps.length === 1 ? "light on" : "lights on"}</span>
                 </span>
-              ) : null}
-            </span>
-          </div>
-          <div className="flex min-w-0 flex-1 flex-col justify-center border-l border-dashed border-sage-line/70 pl-2">
-            {named.length === 0 ? (
-              <p className="px-2 text-[13px] text-ink-ghost">
-                {devices.length === 0
-                  ? "No devices yet"
-                  : devices.length === 1
-                    ? "1 device unplaced"
-                    : `${devices.length} devices unplaced`}
-              </p>
-            ) : (
-              <div className={`grid max-h-full min-h-0 gap-0.5 ${named.length > 4 ? "grid-cols-2 gap-x-1" : "grid-cols-1"}`}>
-                {named.map((room) => (
-                  <RoomRow
-                    key={room.id}
-                    room={room}
-                    inRoom={devices.filter((device) => device.room.id === room.id)}
-                    pendingIds={pendingIds}
-                    onToggle={() => toggleRoom(room.id)}
-                  />
-                ))}
-              </div>
-            )}
+              ) : (
+                <span className="flex min-w-0 items-baseline gap-1.5">
+                  <Ticker value={devices.length} className="text-[12px] tracking-normal text-ink" />
+                  <span className="truncate">{devices.length === 1 ? "device" : "devices"}</span>
+                </span>
+              )}
+              <span className="flex shrink-0 items-center gap-3">
+                {locks.length > 0 ? (
+                  <span className={unlocked ? "text-[var(--clay)]" : undefined}>{unlocked ? "Unlocked" : "Locked"}</span>
+                ) : null}
+                {flagged > 0 ? (
+                  <span className="flex items-center gap-1.5 text-[var(--clay)]">
+                    <span aria-hidden className="ghar-mark" />
+                    {flagged} to look at
+                  </span>
+                ) : null}
+              </span>
+            </div>
           </div>
         </div>
-      </div>
+      </MotionConfig>
     );
   }
 
   return (
-    <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col">
-      {!connected ? (
-        <p className="mx-3 mb-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-dashed border-sage-line px-3.5 py-2 text-[12.5px] text-ink-muted">
-          <span aria-hidden className="size-[7px] rounded-full border border-dashed border-ink-faint" />
-          Ghar is offline. This is the last state it reported; controls come back when it does.
-        </p>
-      ) : null}
-      {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
-      {toolbar
-        ? createPortal(
+    <MotionConfig reducedMotion="user">
+      <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col">
+        {!connected ? (
+          <p className="mx-3 mb-3 flex items-center gap-2.5 rounded-[var(--radius)] border border-dashed border-sage-line px-3.5 py-2 text-[12.5px] text-ink-muted">
+            <span aria-hidden className="size-[7px] rounded-full border border-dashed border-ink-faint" />
+            Ghar is offline. This is the last state it reported; controls come back when it does.
+          </p>
+        ) : null}
+        {trouble ? <p className="px-3 pt-1 text-[12px] text-error">{trouble}</p> : null}
+        {toolbar
+          ? createPortal(
+              <>
+                <SearchField
+                  value={query}
+                  onChange={setQuery}
+                  placeholder="Search Ghar"
+                  matches={search.matches}
+                  onPick={() => {
+                    if (search.lonelyDevice) {
+                      showDevice(search.lonelyDevice);
+                    }
+                  }}
+                />
+                <button type="button" onClick={() => setPairing(true)} disabled={!connected} className={toolButton}>
+                  <span className="flex size-4 shrink-0">
+                    <IconPlus />
+                  </span>
+                  Add device
+                </button>
+                <button ref={roomButtonRef} type="button" onClick={openNewRoom} className={toolButton}>
+                  <span className="flex size-4 shrink-0">
+                    <IconPlus />
+                  </span>
+                  New room
+                </button>
+              </>,
+              toolbar,
+            )
+          : null}
+        <motion.div
+          layoutScroll
+          className={`min-h-0 flex-1 overflow-y-auto px-1 pb-4 transition-[opacity,filter] duration-slower ease-dadi ${
+            connected ? "" : "opacity-70 saturate-50"
+          }`}
+        >
+          {devices.length === 0 ? (
+            <div className="flex flex-col items-center gap-5 px-4 pt-14 pb-10 text-center">
+              <div aria-hidden className="ghar-quiet">
+                <span />
+                <span />
+                <b />
+              </div>
+              <h2 className="m-0 text-[12px] font-medium tracking-[0.3em] text-sage-deep uppercase">The house is quiet</h2>
+              <p className="m-0 max-w-[46ch] text-[13.5px] leading-relaxed text-ink-muted">
+                Pair a light, plug, lock or sensor with its Matter code. It lands in Unplaced, and you drag it into a room.
+              </p>
+              <button
+                type="button"
+                disabled={!connected}
+                onClick={() => setPairing(true)}
+                className="rounded-full bg-sage-deep px-4 py-2 text-[12.5px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:opacity-40"
+              >
+                Add the first device
+              </button>
+              {named.length === 0 ? <FirstRooms onCreate={submitRoom} /> : null}
+            </div>
+          ) : (
             <>
-              <SearchField
-                value={query}
-                onChange={setQuery}
-                placeholder="Search Ghar"
-                matches={search.matches}
-                onPick={() => {
-                  if (search.lonelyDevice) {
-                    showDevice(search.lonelyDevice);
+              <Horizon
+                rooms={named}
+                devices={devices}
+                pendingIds={pendingIds}
+                live={connected}
+                onRoom={pointAtRoom}
+                onLamp={toggleLamp}
+                onDevice={(id) => {
+                  const device = devices.find((item) => item.id === id);
+                  if (device) {
+                    showDevice(device);
                   }
                 }}
               />
-              <button type="button" onClick={() => setPairing(true)} disabled={!connected} className={toolButton}>
-                <span className="flex size-4 shrink-0">
-                  <IconPlus />
-                </span>
-                Add device
-              </button>
-              <button ref={roomButtonRef} type="button" onClick={openNewRoom} className={toolButton}>
-                <span className="flex size-4 shrink-0">
-                  <IconPlus />
-                </span>
-                New room
-              </button>
-            </>,
-            toolbar,
-          )
-        : null}
-      <div className={`min-h-0 flex-1 overflow-y-auto px-2 pb-3 ${connected ? "" : "opacity-70 saturate-50"}`}>
-        {devices.length === 0 ? (
-          <div className="flex flex-col items-center gap-5 px-4 pt-14 pb-10 text-center">
-            <div aria-hidden className="ghar-quiet">
-              <span />
-              <span />
-              <b />
-            </div>
-            <h2 className="m-0 text-[12px] font-medium tracking-[0.3em] text-sage-deep uppercase">The house is quiet</h2>
-            <p className="m-0 max-w-[46ch] text-[13.5px] leading-relaxed text-ink-muted">
-              Pair a light, plug, lock or sensor with its Matter code. It lands in Unplaced, and you drag it into a room.
-            </p>
-            <button
-              type="button"
-              disabled={!connected}
-              onClick={() => setPairing(true)}
-              className="rounded-full bg-sage-deep px-4 py-2 text-[12.5px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:opacity-40"
-            >
-              Add the first device
-            </button>
-            {named.length === 0 ? <FirstRooms onCreate={submitRoom} /> : null}
-          </div>
-        ) : (
-          <>
-            <Horizon
-              rooms={named}
-              devices={devices}
-              onRoom={pointAtRoom}
-              onDevice={(id) => {
-                const device = devices.find((item) => item.id === id);
-                if (device) {
-                  showDevice(device);
-                }
-              }}
-            />
-            {search.rooms.length === 0 ? (
-              <p className="py-16 text-center text-[13px] text-ink-ghost">No rooms or devices match “{query.trim()}”</p>
-            ) : (
-              <div className="grid content-start items-start gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr))]">
-                {search.rooms.map(({ room, listed }, index) => (
-                  <RoomPanel
-                    key={room.id}
-                    room={room}
-                    index={index}
-                    inRoom={devices.filter((device) => device.room.id === room.id)}
-                    devices={listed}
-                    hot={drag?.overId === room.id}
-                    wide={room.name === "unassigned" && named.length === 0}
-                    flash={flashId === room.id}
-                    pendingIds={pendingIds}
-                    draggingId={drag?.id ?? null}
-                    onToggleRoom={() => toggleRoom(room.id)}
-                    onPair={() => setPairing(true)}
-                    onHover={scheduleHover}
-                    onHoverEnd={scheduleHoverClose}
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={endPointer}
-                    onPointerCancel={endPointer}
-                  />
-                ))}
-              </div>
-            )}
-            {named.length === 0 ? <FirstRooms onCreate={submitRoom} /> : null}
-          </>
-        )}
-      </div>
-      {hovered && anchor ? (
-        <DevicePopover
-          device={hovered}
-          open
-          anchor={anchor}
-          containerRef={canvasRef}
-          pending={pendingIds.has(hovered.id) || !connected}
-          rooms={rooms}
-          onClose={() => {
-            clearOpenTimer();
-            clearCloseTimer();
-            setHoverId(null);
-            setAnchor(null);
-          }}
-          onHoverStart={clearCloseTimer}
-          onHoverEnd={scheduleHoverClose}
-          onRename={(name) => rename.mutate({ id: hovered.id, name })}
-          onMove={(room) => move.mutate({ id: hovered.id, room })}
-          onIdentify={() => {
-            if (!pendingIds.has(hovered.id)) {
-              identify.mutate(hovered.id);
-            }
-          }}
-          send={(next) => send([hovered.id], next)}
-        />
-      ) : null}
-      <Popover
-        open={naming && roomAnchor !== null}
-        onClose={() => {
-          setNaming(false);
-          setRoomDraft("");
-        }}
-        anchor={roomAnchor ?? { x: 0, y: 0, radius: 0 }}
-        containerRef={canvasRef}
-        aria-label="New room"
-        widthPx={240}
-      >
-        <form
-          className="flex flex-col gap-3 px-3.5 py-3"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitRoom(roomDraft);
-          }}
-        >
-          <span className="text-[10px] font-medium tracking-[0.14em] text-sage-deep uppercase">New room</span>
-          <input
-            value={roomDraft}
-            autoFocus
-            placeholder="Name"
-            aria-label="Room name"
-            onChange={(event) => setRoomDraft(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Escape") {
-                setNaming(false);
-                setRoomDraft("");
+              {search.rooms.length === 0 ? (
+                <p className="py-16 text-center text-[13px] text-ink-ghost">No rooms or devices match “{query.trim()}”</p>
+              ) : (
+                <LayoutGroup>
+                  <div className="mt-5 grid content-start items-start gap-5 [grid-template-columns:repeat(auto-fill,minmax(min(100%,370px),1fr))]">
+                    <AnimatePresence mode="popLayout">
+                      {search.rooms.map(({ room, listed }, index) => (
+                        <RoomPanel
+                          key={room.id}
+                          room={room}
+                          index={index}
+                          entering={entering}
+                          inRoom={devices.filter((device) => device.room.id === room.id)}
+                          devices={listed}
+                          hot={drag?.overId === room.id}
+                          wide={room.name === "unassigned" && named.length === 0}
+                          flash={flashId === room.id}
+                          pendingIds={pendingIds}
+                          draggingId={drag?.id ?? null}
+                          onToggleRoom={() => toggleRoom(room.id)}
+                          onPair={() => setPairing(true)}
+                          onHover={scheduleHover}
+                          onHoverEnd={scheduleHoverClose}
+                          onPointerDown={onPointerDown}
+                          onPointerMove={onPointerMove}
+                          onPointerUp={endPointer}
+                          onPointerCancel={endPointer}
+                        />
+                      ))}
+                    </AnimatePresence>
+                  </div>
+                </LayoutGroup>
+              )}
+              {named.length === 0 ? <FirstRooms onCreate={submitRoom} /> : null}
+            </>
+          )}
+        </motion.div>
+        {inspected && anchor ? (
+          <DevicePopover
+            device={inspected}
+            open={hoverId !== null}
+            anchor={anchor}
+            containerRef={canvasRef}
+            pending={pendingIds.has(inspected.id) || !connected}
+            rooms={rooms}
+            onClose={() => {
+              clearOpenTimer();
+              clearCloseTimer();
+              setHoverId(null);
+            }}
+            onHoverStart={clearCloseTimer}
+            onHoverEnd={scheduleHoverClose}
+            onRename={(name) => rename.mutate({ id: inspected.id, name })}
+            onMove={(room) => move.mutate({ id: inspected.id, room })}
+            onIdentify={() => {
+              if (!pendingIds.has(inspected.id)) {
+                identify.mutate(inspected.id);
               }
             }}
-            className="border-b border-sage-line bg-transparent py-1 text-[14px] text-ink outline-none transition-colors duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage"
+            send={(next) => send([inspected.id], next)}
           />
-          <button
-            type="submit"
-            disabled={roomDraft.trim().length === 0 || create.isPending}
-            className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:cursor-default disabled:opacity-40"
+        ) : null}
+        <Popover
+          open={naming && roomAnchor !== null}
+          onClose={() => {
+            setNaming(false);
+            setRoomDraft("");
+          }}
+          anchor={roomAnchor ?? { x: 0, y: 0, radius: 0 }}
+          containerRef={canvasRef}
+          aria-label="New room"
+          widthPx={240}
+        >
+          <form
+            className="flex flex-col gap-3 px-3.5 py-3"
+            onSubmit={(event) => {
+              event.preventDefault();
+              submitRoom(roomDraft);
+            }}
           >
-            {create.isPending ? "Adding…" : "Add room"}
-          </button>
-        </form>
-      </Popover>
-      {dragged && drag ? (
-        <div className="pointer-events-none absolute z-20" style={{ left: drag.x, top: drag.y, transform: "translate(-50%, -50%)" }}>
-          <DeviceFace device={dragged} ghost pending={false} />
-        </div>
-      ) : null}
-      <AnimatePresence>{pairing ? <PairingSheet rooms={rooms} onClose={() => setPairing(false)} /> : null}</AnimatePresence>
-    </div>
+            <span className="text-[10px] font-medium tracking-[0.14em] text-sage-deep uppercase">New room</span>
+            <input
+              value={roomDraft}
+              autoFocus
+              placeholder="Name"
+              aria-label="Room name"
+              onChange={(event) => setRoomDraft(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") {
+                  setNaming(false);
+                  setRoomDraft("");
+                }
+              }}
+              className="border-b border-sage-line bg-transparent py-1 text-[14px] text-ink outline-none transition-colors duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage"
+            />
+            <button
+              type="submit"
+              disabled={roomDraft.trim().length === 0 || create.isPending}
+              className="self-start rounded-full bg-sage-deep px-3 py-1.5 text-[12px] font-medium text-bone transition-opacity duration-slow ease-dadi hover:bg-sage disabled:cursor-default disabled:opacity-40"
+            >
+              {create.isPending ? "Adding…" : "Add room"}
+            </button>
+          </form>
+        </Popover>
+        <AnimatePresence>
+          {dragged && drag ? (
+            <motion.div
+              key="ghost"
+              className="pointer-events-none absolute z-20"
+              style={{ left: drag.x, top: drag.y, x: "-50%", y: "-50%" }}
+              initial={{ opacity: 0, scale: 0.9, rotate: 0 }}
+              animate={{ opacity: 1, scale: drag.overId && drag.overId !== dragged.room.id ? 1.06 : 1.02, rotate: -2 }}
+              exit={{ opacity: 0, scale: 0.84, rotate: 0 }}
+              transition={GLIDE}
+            >
+              <DeviceFace device={dragged} ghost pending={false} />
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <AnimatePresence>{pairing ? <PairingSheet rooms={rooms} onClose={() => setPairing(false)} /> : null}</AnimatePresence>
+      </div>
+    </MotionConfig>
   );
 }
+
+/** The home tile's body: the house in miniature over its line. */
+const tileBody = "flex min-h-0 flex-1 flex-col gap-1.5 px-2.5 pt-1 pb-2";
+
+/** The home tile's line under the map: lights on at the left, locks and what needs a look at the right. */
+const tileLine =
+  "flex h-4 shrink-0 items-center justify-between gap-3 px-1 text-[10px] font-medium tracking-[0.16em] text-ink-ghost uppercase";
 
 const toolButton =
   "inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-50";

@@ -1,14 +1,17 @@
 /**
  * Device inspector: the device's family and name, where it is and what it is, its family's
  * controls, and what last happened to it and who did it. Values stay at the last confirmed
- * reading until Ghar accepts a command.
+ * reading until Ghar accepts a command. Its sections settle in turn as it opens and new events
+ * slide in at the top.
  */
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { ghar } from "../../../shared/api";
 import type { GharCommand, GharDevice, GharEvent, GharRoom } from "../../../types/ghar";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
+import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { roomTitle, shownError } from "../commission";
 import { familyOf } from "./families";
@@ -16,6 +19,30 @@ import { words } from "./families/kit";
 
 /** How many recent events the inspector lists. */
 const RECENT_EVENTS = 3;
+
+/** Seconds between the inspector's sections settling as it opens. */
+const SECTION_STAGGER_S = 0.05;
+
+type SectionProps = {
+  /** Place from the top, to settle in turn. */
+  order: number;
+  className: string;
+  children: ReactNode;
+};
+
+/** One band of the inspector, rising into place a beat after the one above it. */
+function Section({ order, className, children }: SectionProps) {
+  return (
+    <motion.div
+      className={className}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: SLOW_S, ease: EASE, delay: 0.06 + order * SECTION_STAGGER_S }}
+    >
+      {children}
+    </motion.div>
+  );
+}
 
 export type DevicePopoverProps = {
   device: GharDevice;
@@ -107,7 +134,8 @@ export function DevicePopover({
   const events = useQuery({
     queryKey: ["ghar", "events", device.id],
     queryFn: () => ghar.listDeviceEvents(device.id, RECENT_EVENTS),
-    refetchInterval: POLL_MS,
+    enabled: open,
+    refetchInterval: open ? POLL_MS : false,
   });
 
   function commitName(): void {
@@ -130,7 +158,7 @@ export function DevicePopover({
       contentKey={device.id}
       hover={{ onInside: onHoverStart, onOutside: onHoverEnd }}
     >
-      <div className="flex flex-col gap-1.5 border-b border-dashed border-sage-line/70 px-3.5 pt-3 pb-2.5">
+      <Section order={0} className="flex flex-col gap-1.5 border-b border-dashed border-sage-line/70 px-3.5 pt-3 pb-2.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">{family.label(device)}</span>
           <button type="button" onClick={onClose} className="text-[11px] tracking-wide text-ink-ghost hover:text-ink-muted">
@@ -187,16 +215,18 @@ export function DevicePopover({
             Identify
           </button>
         </div>
-      </div>
-      <div className={`flex flex-col gap-3.5 px-3.5 py-3 ${pending ? "opacity-60" : ""}`}>
-        {!device.online ? (
-          <p className="m-0 text-[11.5px] text-ink-ghost">
-            Offline. Ghar shows its last reading and sends nothing until it is back.
-          </p>
-        ) : null}
-        <Controls device={device} pending={pending} send={send} />
-      </div>
-      <div className="flex flex-col gap-1.5 border-t border-dashed border-sage-line/70 px-3.5 pt-2.5 pb-3">
+      </Section>
+      <Section order={1} className="px-3.5 py-3">
+        <div className={`flex flex-col gap-3.5 transition-opacity duration-slow ease-dadi ${pending ? "opacity-60" : ""}`}>
+          {!device.online ? (
+            <p className="m-0 text-[11.5px] text-ink-ghost">
+              Offline. Ghar shows its last reading and sends nothing until it is back.
+            </p>
+          ) : null}
+          <Controls device={device} pending={pending} send={send} />
+        </div>
+      </Section>
+      <Section order={2} className="flex flex-col gap-1.5 border-t border-dashed border-sage-line/70 px-3.5 pt-2.5 pb-3">
         <span className="text-[10px] font-medium tracking-[0.16em] text-ink-faint uppercase">Recent</span>
         {events.isError ? (
           <p className="m-0 text-[11.5px] text-error">{shownError(events.error)}</p>
@@ -205,25 +235,35 @@ export function DevicePopover({
         ) : events.data.events.length === 0 ? (
           <p className="m-0 text-[11.5px] text-ink-ghost">Nothing has changed yet.</p>
         ) : (
-          events.data.events.map((event) => (
-            <div key={event.id} className="flex min-w-0 items-baseline gap-2 text-[12px] text-ink-muted">
-              <time className="w-7 shrink-0 font-numeric text-[10.5px] text-ink-faint">{ago(event.created_at)}</time>
-              <span className="min-w-0 flex-1 truncate">{eventWords(event)}</span>
-              <span
-                className={`shrink-0 rounded-full border px-1.5 text-[9.5px] tracking-[0.1em] uppercase ${
-                  event.cause === "agent"
-                    ? "border-sage-line bg-sage-faint text-sage-deep"
-                    : event.cause === "external"
-                      ? "border-[color-mix(in_srgb,var(--clay)_40%,transparent)] text-[var(--clay)]"
-                      : "border-[var(--glass-border)] text-ink-faint"
-                }`}
+          <AnimatePresence initial={false}>
+            {events.data.events.map((event) => (
+              <motion.div
+                key={event.id}
+                layout="position"
+                initial={{ opacity: 0, y: -6 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: SLOW_S, ease: EASE }}
+                className="flex min-w-0 items-baseline gap-2 text-[12px] text-ink-muted"
               >
-                {CAUSE[event.cause]}
-              </span>
-            </div>
-          ))
+                <time className="w-7 shrink-0 font-numeric text-[10.5px] text-ink-faint">{ago(event.created_at)}</time>
+                <span className="min-w-0 flex-1 truncate">{eventWords(event)}</span>
+                <span
+                  className={`shrink-0 rounded-full border px-1.5 text-[9.5px] tracking-[0.1em] uppercase ${
+                    event.cause === "agent"
+                      ? "border-sage-line bg-sage-faint text-sage-deep"
+                      : event.cause === "external"
+                        ? "border-[color-mix(in_srgb,var(--clay)_40%,transparent)] text-[var(--clay)]"
+                        : "border-[var(--glass-border)] text-ink-faint"
+                  }`}
+                >
+                  {CAUSE[event.cause]}
+                </span>
+              </motion.div>
+            ))}
+          </AnimatePresence>
         )}
-      </div>
+      </Section>
     </Popover>
   );
 }
