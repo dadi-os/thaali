@@ -4,14 +4,39 @@
  * State and mutations stay in index.tsx.
  */
 
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useState, type PointerEvent as ReactPointerEvent, type Ref } from "react";
 import { motion } from "motion/react";
 import { IconPlus } from "../../shared/components/IconButton";
 import { Ticker } from "../../shared/components/Ticker";
-import { EASE } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S, SLOWER_S } from "../../shared/lib/ux/motion";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, itemSubtitle, TYPE_META, type VaultScope } from "./draft";
 import { IconFolder, IconPencil, IconStar, TypeGlyph } from "./icons";
+
+export type SelectionMarkProps = {
+  /** Shared layout id of the group, so one mark glides between the group's members. */
+  group: string;
+  className?: string;
+};
+
+/**
+ * The plate behind the picked member of a group (a type, a scope, an item). Picking another
+ * member glides the same plate across to it. Its parent must be `relative` and keep its
+ * content positioned above it.
+ */
+export function SelectionMark({ group, className = "rounded-[var(--radius)] bg-sage-active shadow-[var(--shadow)]" }: SelectionMarkProps) {
+  return (
+    <motion.span
+      aria-hidden
+      layoutId={group}
+      className={`absolute inset-0 ${className}`}
+      transition={{ duration: SLOW_S, ease: EASE }}
+    />
+  );
+}
+
+/** A drop that just landed on a rail row, numbered so each landing flashes afresh. */
+export type Landing = { key: string; n: number };
 
 /** Where a dragged item can land: a folder, no folder, or Favorites (which stars it). */
 export type DropTarget = { kind: "folder"; id: string } | { kind: "none" } | { kind: "favorites" };
@@ -52,12 +77,21 @@ export function Ledger({ counts, active, onPick }: LedgerProps) {
             type="button"
             aria-pressed={on}
             onClick={() => onPick(on ? null : type)}
-            className={`flex min-w-[110px] flex-1 flex-col items-center gap-2 rounded-[var(--radius)] px-3 py-1.5 transition-[background-color] duration-slow ease-dadi ${
-              on ? "bg-sage-active" : "hover:bg-sage-faint"
+            className={`relative flex min-w-[110px] flex-1 flex-col items-center gap-2 rounded-[var(--radius)] px-3 py-1.5 transition-[background-color] duration-slow ease-dadi ${
+              on ? "" : "hover:bg-sage-faint"
             }`}
           >
-            <Ticker value={counts ? counts[type] : null} delay={i * 0.06} className="text-[28px] font-medium tracking-tight text-ink" />
-            <span className={`text-[10px] font-medium tracking-[2px] uppercase ${on ? "text-ink" : "text-sage-deep"}`}>
+            {on ? <SelectionMark group="chaavi-type" className="rounded-[var(--radius)] bg-sage-active" /> : null}
+            <Ticker
+              value={counts ? counts[type] : null}
+              delay={i * 0.06}
+              className="relative text-[28px] font-medium tracking-tight text-ink"
+            />
+            <span
+              className={`relative text-[10px] font-medium tracking-[2px] uppercase transition-colors duration-slow ease-dadi ${
+                on ? "text-ink" : "text-sage-deep"
+              }`}
+            >
               {TYPE_META[type].many}
             </span>
           </button>
@@ -74,6 +108,8 @@ export type FolderRailProps = {
   counts: { all: number; favorites: number; none: number; byFolder: Record<string, number> };
   /** The drop target under a dragged item, by {@link dropKey}. */
   hot: string | null;
+  /** The rail row a dropped item last landed on, which flashes as it takes it. */
+  landed: Landing | null;
   /** A folder create, rename or delete is in flight. */
   busy: boolean;
   onScope: (scope: VaultScope) => void;
@@ -86,7 +122,7 @@ export type FolderRailProps = {
  * The folder rail: All items, Favorites, each folder (rename and delete on hover), and No
  * folder. Favorites, folders and No folder are drop targets for a dragged item.
  */
-export function FolderRail({ folders, scope, counts, hot, busy, onScope, onCreate, onRename, onDelete }: FolderRailProps) {
+export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope, onCreate, onRename, onDelete }: FolderRailProps) {
   const [naming, setNaming] = useState(false);
   const [draft, setDraft] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -96,19 +132,40 @@ export function FolderRail({ folders, scope, counts, hot, busy, onScope, onCreat
     scope.kind === next.kind && (scope.kind !== "folder" || (next.kind === "folder" && next.id === scope.id));
 
   const row = (on: boolean, target: DropTarget | null) =>
-    `flex min-h-[38px] w-full items-center gap-2.5 rounded-[var(--radius)] border border-dashed px-2.5 text-left text-[13px] transition-[background-color,border-color,box-shadow] duration-fast ease-dadi ${
+    `relative flex min-h-[38px] w-full items-center gap-2.5 rounded-[var(--radius)] border border-dashed px-3 text-left text-[13px] transition-[background-color,border-color,box-shadow] duration-fast ease-dadi [&>:not([aria-hidden])]:relative ${
       target !== null && hot === dropKey(target)
         ? "border-sage bg-sage-active shadow-[0_0_0_3px_var(--sage-faint)]"
         : on
-          ? "border-transparent bg-sage-active shadow-[var(--shadow)]"
+          ? "border-transparent"
           : "border-transparent hover:bg-sage-faint"
     }`;
 
-  const count = (n: number) => <span className="font-numeric text-[11px] text-ink-ghost group-hover:hidden">{n}</span>;
+  const marks = (on: boolean, target: DropTarget | null) => (
+    <>
+      {on ? <SelectionMark group="chaavi-scope" /> : null}
+      {target !== null && landed !== null && landed.key === dropKey(target) ? (
+        <motion.span
+          key={landed.n}
+          aria-hidden
+          className="absolute inset-0 rounded-[var(--radius)] border border-sage bg-sage-fill"
+          initial={{ opacity: 0.9, scale: 0.97 }}
+          animate={{ opacity: 0, scale: 1.04 }}
+          transition={{ duration: SLOWER_S, ease: EASE }}
+        />
+      ) : null}
+    </>
+  );
+
+  const count = (n: number) => (
+    <span className="text-[11px] text-ink-ghost group-hover:hidden">
+      <Ticker value={n} />
+    </span>
+  );
 
   return (
     <div className="flex flex-col gap-0.5 p-2">
       <button type="button" className={row(isScope({ kind: "all" }), null)} onClick={() => onScope({ kind: "all" })}>
+        {marks(isScope({ kind: "all" }), null)}
         <span className="flex-1 truncate text-ink">All items</span>
         {count(counts.all)}
       </button>
@@ -118,6 +175,7 @@ export function FolderRail({ folders, scope, counts, hot, busy, onScope, onCreat
         className={row(isScope({ kind: "favorites" }), { kind: "favorites" })}
         onClick={() => onScope({ kind: "favorites" })}
       >
+        {marks(isScope({ kind: "favorites" }), { kind: "favorites" })}
         <span className="text-[var(--clay)]">
           <IconStar filled size={14} />
         </span>
@@ -125,7 +183,7 @@ export function FolderRail({ folders, scope, counts, hot, busy, onScope, onCreat
         {count(counts.favorites)}
       </button>
 
-      <div className="mx-1.5 my-2 flex items-center justify-between border-t border-dashed border-sage-line pt-2.5">
+      <div className="mt-2.5 mb-1.5 flex items-center justify-between border-t border-dashed border-sage-line pt-3 pr-1.5 pl-3">
         <span className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">Folders</span>
         <button
           type="button"
@@ -203,6 +261,7 @@ export function FolderRail({ folders, scope, counts, hot, busy, onScope, onCreat
         }
         return (
           <div key={folder.id} data-drop={dropKey(target)} className={`group ${row(isScope(target), target)}`}>
+            {marks(isScope(target), target)}
             <button
               type="button"
               className="flex min-h-[36px] min-w-0 flex-1 items-center gap-2.5 text-left"
@@ -253,13 +312,14 @@ export function FolderRail({ folders, scope, counts, hot, busy, onScope, onCreat
         className={row(isScope({ kind: "none" }), { kind: "none" })}
         onClick={() => onScope({ kind: "none" })}
       >
+        {marks(isScope({ kind: "none" }), { kind: "none" })}
         <span className="text-ink-faint">
           <IconFolder dashed />
         </span>
         <span className="flex-1 truncate text-ink-muted">No folder</span>
         {count(counts.none)}
       </button>
-      <p className="mx-2 mt-4 text-[11px] leading-relaxed text-ink-ghost">
+      <p className="mx-3 mt-4 mb-1 text-[11px] leading-relaxed text-ink-ghost">
         Drag an item onto a folder to move it, or onto Favorites to star it.
       </p>
     </div>
@@ -278,7 +338,7 @@ type NameFormProps = {
 function NameForm({ submitLabel, draft, setDraft, onSubmit, onCancel }: NameFormProps) {
   return (
     <form
-      className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius)] bg-sage-active px-2.5"
+      className="flex min-h-[38px] items-center gap-2 rounded-[var(--radius)] bg-sage-active px-3"
       onSubmit={(event) => {
         event.preventDefault();
         const name = draft.trim();
@@ -315,8 +375,10 @@ export type ItemRowProps = {
   /** Place in the list, to stagger rows in. */
   index: number;
   selected: boolean;
-  /** It is the one being dragged, so its place shows faded. */
+  /** It is the one being dragged, so its place shows lifted out and faded. */
   dragging: boolean;
+  /** The row's list element, which the list's presence measures to pop a leaving row out of flow. */
+  ref?: Ref<HTMLLIElement>;
   onPointerDown: (event: ReactPointerEvent<HTMLButtonElement>, item: ChaaviItem) => void;
   onPointerMove: (event: ReactPointerEvent<HTMLButtonElement>) => void;
   onPointerUp: (event: ReactPointerEvent<HTMLButtonElement>, item: ChaaviItem) => void;
@@ -324,13 +386,23 @@ export type ItemRowProps = {
   onSelect: (item: ChaaviItem) => void;
 };
 
-/** One item in the list: type glyph, name, a public subtitle, a star when it is a favorite. Click selects; a drag moves it. */
-export function ItemRow({ item, index, selected, dragging, onPointerDown, onPointerMove, onPointerUp, onSelect }: ItemRowProps) {
+/**
+ * One item in the list: type glyph, name, a public subtitle, a star when it is a favorite.
+ * Click selects (the list's selection plate glides to it); a drag moves it. Rows ease in
+ * staggered, slide to their new places when the list re-flows, and shrink away when they leave.
+ */
+export function ItemRow({ item, index, selected, dragging, ref, onPointerDown, onPointerMove, onPointerUp, onSelect }: ItemRowProps) {
   return (
     <motion.li
-      initial={{ opacity: 0, y: 4 }}
-      animate={{ opacity: dragging ? 0.35 : 1, y: 0 }}
-      transition={{ duration: 0.18, ease: EASE, delay: Math.min(index, 12) * 0.015 }}
+      ref={ref}
+      layout="position"
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      exit={{ opacity: 0, scale: 0.96, transition: { duration: 0.16, ease: EASE } }}
+      transition={{
+        layout: { duration: SLOW_S, ease: EASE },
+        default: { duration: SLOW_S, ease: EASE, delay: Math.min(index, 12) * 0.022 },
+      }}
     >
       <button
         type="button"
@@ -343,11 +415,14 @@ export function ItemRow({ item, index, selected, dragging, onPointerDown, onPoin
             onSelect(item);
           }
         }}
-        className={`flex w-full touch-none items-center gap-3 rounded-[var(--radius)] px-3 py-2.5 text-left transition-[background-color,box-shadow] duration-fast ease-dadi cursor-grab ${
-          selected ? "bg-sage-active/70 shadow-[var(--shadow)]" : "hover:bg-sage-faint"
-        }`}
+        className={`relative flex w-full cursor-grab touch-none items-center rounded-[var(--radius)] px-3 py-2.5 text-left transition-[background-color,opacity,scale] duration-slow ease-dadi active:cursor-grabbing ${
+          selected ? "" : "hover:bg-sage-faint"
+        } ${dragging ? "scale-[0.97] opacity-35" : ""}`}
       >
-        <ItemFace item={item} />
+        {selected ? <SelectionMark group="chaavi-item" className="rounded-[var(--radius)] bg-sage-active/70 shadow-[var(--shadow)]" /> : null}
+        <span className="relative flex min-w-0 flex-1 items-center gap-3">
+          <ItemFace item={item} />
+        </span>
       </button>
     </motion.li>
   );

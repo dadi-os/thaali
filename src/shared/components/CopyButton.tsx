@@ -1,5 +1,7 @@
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { copyText } from "../lib/platform/clipboard";
+import { EASE, SLOW_S } from "../lib/ux/motion";
 import { IconCheck, IconCopy } from "./IconButton";
 
 /** How long the check mark shows after a copy. */
@@ -18,7 +20,7 @@ export type CopyButtonProps = {
 };
 
 /**
- * Small icon button that copies `text`: the icon turns into a check for a moment, and a
+ * Small icon button that copies `text`: the icon pops into a check for a moment, and a
  * failed copy shows the clipboard's error beside it until the next try.
  */
 export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
@@ -50,7 +52,17 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
           copied ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
         }`}
       >
-        {copied ? <IconCheck /> : <IconCopy />}
+        <AnimatePresence initial={false}>
+          <motion.span
+            key={copied ? "copied" : "copy"}
+            className="inline-flex"
+            initial={{ scale: 0.5, opacity: 0, rotate: copied ? -45 : 0 }}
+            animate={{ scale: 1, opacity: 1, rotate: 0 }}
+            transition={{ duration: SLOW_S, ease: EASE }}
+          >
+            {copied ? <IconCheck /> : <IconCopy />}
+          </motion.span>
+        </AnimatePresence>
       </button>
       {error ? (
         <span role="alert" className="text-[11px] text-error">

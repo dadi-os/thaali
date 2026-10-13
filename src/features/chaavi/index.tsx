@@ -6,13 +6,14 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { animate, AnimatePresence, motion, useMotionValue, useReducedMotion } from "motion/react";
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { CHAAVI_VAULT, chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
 import { IconPlus } from "../../shared/components/IconButton";
 import { SearchField } from "../../shared/components/SearchField";
+import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -20,10 +21,29 @@ import type { ChaaviItem, ChaaviItemType, ChaaviUpdateItem } from "../../types/c
 import { ItemDetail } from "./detail";
 import { createBody, draftFromItem, emptyDraft, inScope, ITEM_TYPES, searchItems, TYPE_META, updateBody, type ItemDraft, type VaultScope } from "./draft";
 import { ItemEditor } from "./editor";
-import { FolderRail, ItemFace, ItemRow, Ledger, parseDrop, type DropTarget } from "./vault";
+import { FolderRail, ItemFace, ItemRow, Ledger, parseDrop, type DropTarget, type Landing } from "./vault";
 
 /** Pointer travel before a press on a row becomes a drag. */
 const DRAG_PX = 4;
+
+/** How far the drag ghost sits right of the pointer, so the pointer holds it by its glyph. */
+const GHOST_GRIP_PX = 24;
+
+/**
+ * The open item's pane as the selection moves: the new item rises from the side of the list
+ * it was picked from (`custom` is +1 for further down, -1 for further up) out of a soft blur,
+ * and the old one leaves the other way, quickly, so a run of clicks still feels immediate.
+ */
+const PANE = {
+  enter: (dir: number) => ({ opacity: 0, y: dir * 18, filter: "blur(4px)" }),
+  center: {
+    opacity: 1,
+    y: 0,
+    filter: "blur(0px)",
+    transition: { duration: SLOW_S, ease: EASE, staggerChildren: 0.03, delayChildren: 0.03 },
+  },
+  exit: (dir: number) => ({ opacity: 0, y: dir * -12, filter: "blur(3px)", transition: { duration: 0.14, ease: EASE } }),
+};
 
 type EditorState =
   | { mode: "closed" }
@@ -32,16 +52,21 @@ type EditorState =
 
 type DragState = {
   id: string;
+  /** The pressed row, where a drop on no target flies back to. */
+  row: HTMLElement;
   startX: number;
   startY: number;
   dragging: boolean;
 };
 
+/**
+ * The lifted copy of a dragged row. It follows the pointer while `drag`, then flies to the
+ * folder that took it and sinks into it (`drop`) or flies back to its row (`return`).
+ */
 type Ghost = {
   id: string;
-  x: number;
-  y: number;
   over: string | null;
+  phase: "drag" | "drop" | "return";
 };
 
 export type PasswordManagerProps = {
@@ -63,6 +88,12 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [editor, setEditor] = useState<EditorState>({ mode: "closed" });
   const [ghost, setGhost] = useState<Ghost | null>(null);
+  const [landed, setLanded] = useState<Landing | null>(null);
+  const [slide, setSlide] = useState(1);
+  const ghostX = useMotionValue(0);
+  const ghostY = useMotionValue(0);
+  const detailRef = useRef<HTMLDivElement>(null);
+  const reduced = useReducedMotion() ?? false;
 
   const healthQuery = useQuery({
     queryKey: CHAAVI_HEALTH_KEY,
@@ -186,12 +217,20 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
 
   const trouble = foldersQuery.isError ? foldersQuery.error : folderOp.isError ? folderOp.error : null;
 
-  function dropAt(clientX: number, clientY: number): string | null {
+  function dropAt(clientX: number, clientY: number): Element | null {
     const hit = document
       .elementsFromPoint(clientX, clientY)
       .map((node) => node.closest("[data-drop]"))
       .find((node): node is Element => node !== null);
-    return hit?.getAttribute("data-drop") ?? null;
+    return hit === undefined ? null : hit;
+  }
+
+  /** Select an item, sliding the open pane in from the side of the list it sits on. */
+  function select(id: string): void {
+    const from = shown.findIndex((item) => item.id === selectedId);
+    const to = shown.findIndex((item) => item.id === id);
+    setSlide(from === -1 || to === -1 ? 1 : Math.sign(to - from));
+    setSelectedId(id);
   }
 
   function moveTo(item: ChaaviItem, target: DropTarget): void {
@@ -212,7 +251,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
       return;
     }
     event.currentTarget.setPointerCapture(event.pointerId);
-    session.current = { id: item.id, startX: event.clientX, startY: event.clientY, dragging: false };
+    session.current = { id: item.id, row: event.currentTarget, startX: event.clientX, startY: event.clientY, dragging: false };
   }
 
   function onPointerMove(event: ReactPointerEvent<HTMLButtonElement>): void {
@@ -225,25 +264,49 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
       return;
     }
     current.dragging = true;
-    setGhost({ id: current.id, x: event.clientX - canvas.left, y: event.clientY - canvas.top, over: dropAt(event.clientX, event.clientY) });
+    ghostX.jump(event.clientX - canvas.left);
+    ghostY.jump(event.clientY - canvas.top);
+    const over = dropAt(event.clientX, event.clientY)?.getAttribute("data-drop");
+    const key = over === undefined ? null : over;
+    setGhost((prev) => (prev !== null && prev.phase === "drag" && prev.id === current.id && prev.over === key ? prev : { id: current.id, over: key, phase: "drag" }));
   }
 
+  /**
+   * End a press: a click selects; a drag drops the item on the folder under the pointer, and
+   * its ghost flies there and sinks in (the folder flashing as it lands), or flies back to its
+   * row when there is no target.
+   */
   function onPointerUp(event: ReactPointerEvent<HTMLButtonElement>, item: ChaaviItem): void {
     const current = session.current;
     session.current = null;
-    setGhost(null);
-    if (!current || current.id !== item.id) {
+    const canvas = canvasRef.current?.getBoundingClientRect();
+    if (!current || current.id !== item.id || !canvas) {
+      setGhost(null);
       return;
     }
     if (!current.dragging) {
-      setSelectedId(item.id);
+      setGhost(null);
+      select(item.id);
       return;
     }
-    const key = dropAt(event.clientX, event.clientY);
+    const landing = dropAt(event.clientX, event.clientY);
+    const key = landing === null ? null : landing.getAttribute("data-drop");
     const target = key === null ? null : parseDrop(key);
     if (target !== null) {
       moveTo(item, target);
     }
+    const rect = (target !== null && landing !== null ? landing : current.row).getBoundingClientRect();
+    setGhost({ id: item.id, over: null, phase: target !== null ? "drop" : "return" });
+    const flight = { duration: reduced ? 0 : SLOW_S, ease: EASE };
+    void Promise.all([
+      animate(ghostX, rect.left - canvas.left + GHOST_GRIP_PX + (target !== null ? 8 : 0), flight),
+      animate(ghostY, rect.top + rect.height / 2 - canvas.top, flight),
+    ]).then(() => {
+      setGhost((prev) => (prev !== null && prev.phase === "drag" ? prev : null));
+      if (key !== null && target !== null) {
+        setLanded((prev) => ({ key, n: prev === null ? 1 : prev.n + 1 }));
+      }
+    });
   }
 
   function openCreate(): void {
@@ -263,7 +326,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
         matches={query.trim() ? searched.length : null}
         onPick={() => {
           if (searched.length === 1) {
-            setSelectedId(searched[0]!.id);
+            select(searched[0]!.id);
           }
         }}
       />
@@ -283,6 +346,8 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
 
   const status = vaultStatus(connected, healthQuery, itemsQuery);
 
+  const listTitle = typeFilter ? `${scopeTitle} · ${TYPE_META[typeFilter].many}` : scopeTitle;
+
   return (
     <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col gap-4">
       {toolbar ? createPortal(toolbarContent, toolbar) : null}
@@ -291,7 +356,10 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
 
       <div className="flex min-h-0 flex-1 gap-4">
         <aside className="widget-frame w-[15.5rem] shrink-0" aria-label="Folders">
-          <div className="widget-frame__body overflow-y-auto">
+          <div className="widget-frame__chrome !justify-between !px-5 !pt-3.5 !pb-3">
+            <span className="widget-frame__title">Vault</span>
+          </div>
+          <motion.div layoutScroll className="widget-frame__body !overflow-y-auto border-t border-dashed border-sage-line">
             <FolderRail
               folders={folders}
               scope={scope}
@@ -301,59 +369,76 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
                 none: searched.filter((item) => item.folderId === null).length,
                 byFolder,
               }}
-              hot={ghost?.over ?? null}
+              hot={ghost === null ? null : ghost.over}
+              landed={landed}
               busy={folderOp.isPending}
               onScope={setScope}
               onCreate={(name) => folderOp.mutate({ op: "create", name })}
               onRename={(id, name) => folderOp.mutate({ op: "rename", id, name })}
               onDelete={(id) => folderOp.mutate({ op: "delete", id })}
             />
-          </div>
+          </motion.div>
         </aside>
 
         <section className="widget-frame w-[min(100%,22rem)] shrink-0" aria-label="Items">
-          <div className="widget-frame__chrome !justify-between !px-4 !pt-3.5 !pb-3">
-            <span className="widget-frame__title">
-              {typeFilter ? `${scopeTitle} · ${TYPE_META[typeFilter].many}` : scopeTitle}
-            </span>
-            <span className="font-numeric text-[11px] text-ink-ghost">{items === null ? "" : shown.length}</span>
+          <div className="widget-frame__chrome !justify-between !px-5 !pt-3.5 !pb-3">
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.span
+                key={listTitle}
+                className="widget-frame__title"
+                initial={{ opacity: 0, y: 4 }}
+                animate={{ opacity: 0.85, y: 0 }}
+                exit={{ opacity: 0, y: -4 }}
+                transition={{ duration: 0.16, ease: EASE }}
+              >
+                {listTitle}
+              </motion.span>
+            </AnimatePresence>
+            {items === null ? null : <Ticker value={shown.length} className="text-[11px] text-ink-ghost" />}
           </div>
-          <div className="widget-frame__body overflow-y-auto border-t border-dashed border-sage-line p-2">
+          <motion.div layoutScroll className="widget-frame__body !overflow-y-auto border-t border-dashed border-sage-line p-2">
             {status !== null ? (
               <ListMessage tone={status.tone}>{status.text}</ListMessage>
             ) : shown.length === 0 ? (
               <ListMessage>{query.trim() ? `Nothing matches “${query.trim()}”` : "Nothing here yet"}</ListMessage>
             ) : (
-              <ul className="flex flex-col gap-0.5">
-                {shown.map((item, i) => (
-                  <ItemRow
-                    key={item.id}
-                    item={item}
-                    index={i}
-                    selected={item.id === selectedId}
-                    dragging={ghost?.id === item.id}
-                    onPointerDown={onPointerDown}
-                    onPointerMove={onPointerMove}
-                    onPointerUp={onPointerUp}
-                    onSelect={(next) => setSelectedId(next.id)}
-                  />
-                ))}
+              <ul className="relative flex flex-col gap-0.5">
+                <AnimatePresence mode="popLayout">
+                  {shown.map((item, i) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      index={i}
+                      selected={item.id === selectedId}
+                      dragging={ghost !== null && ghost.id === item.id}
+                      onPointerDown={onPointerDown}
+                      onPointerMove={onPointerMove}
+                      onPointerUp={onPointerUp}
+                      onSelect={(next) => select(next.id)}
+                    />
+                  ))}
+                </AnimatePresence>
               </ul>
             )}
-          </div>
+          </motion.div>
         </section>
 
         <section className="widget-frame min-w-0 flex-1" aria-label="Item">
-          <div className="widget-frame__body overflow-y-auto">
-            <AnimatePresence mode="wait">
+          <div ref={detailRef} className="widget-frame__body !overflow-y-auto">
+            <AnimatePresence
+              mode="wait"
+              custom={slide}
+              onExitComplete={() => detailRef.current?.scrollTo({ top: 0 })}
+            >
               {selected ? (
                 <motion.div
                   key={selected.id}
                   className="min-h-full"
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={{ duration: SLOW_S, ease: EASE }}
+                  custom={slide}
+                  variants={PANE}
+                  initial="enter"
+                  animate="center"
+                  exit="exit"
                 >
                   <ItemDetail
                     item={selected}
@@ -374,6 +459,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   exit={{ opacity: 0 }}
+                  transition={{ duration: SLOW_S, ease: EASE }}
                   className="flex h-full min-h-[16rem] flex-col items-center justify-center gap-2 px-6 text-center"
                 >
                   <p className="text-[15px] text-ink">Select an item</p>
@@ -424,12 +510,22 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
       </AnimatePresence>
 
       {dragged && ghost ? (
-        <div
-          className="pointer-events-none absolute z-30 flex w-72 items-center gap-3 rounded-[var(--radius)] border border-[var(--glass-border)] bg-[var(--glass-sheet)] px-3 py-2.5 shadow-[var(--shadow-deep)] backdrop-blur-[var(--glass-blur)]"
-          style={{ left: ghost.x, top: ghost.y, transform: "translate(-24px, -50%)" }}
-        >
-          <ItemFace item={dragged} />
-        </div>
+        <motion.div className="pointer-events-none absolute top-0 left-0 z-30" style={{ x: ghostX, y: ghostY }}>
+          <motion.div
+            className="flex w-72 -translate-x-6 -translate-y-1/2 items-center gap-3 rounded-[var(--radius)] border border-[var(--glass-border)] bg-[var(--glass-sheet)] px-3 py-2.5 shadow-[var(--shadow-deep)] backdrop-blur-[var(--glass-blur)]"
+            initial={{ opacity: 0, scale: 0.96, rotate: 0 }}
+            animate={
+              ghost.phase === "drag"
+                ? { opacity: 1, scale: 1.03, rotate: -1.5 }
+                : ghost.phase === "drop"
+                  ? { opacity: 0, scale: 0.55, rotate: 0 }
+                  : { opacity: 1, scale: 1, rotate: 0 }
+            }
+            transition={{ duration: SLOW_S, ease: EASE }}
+          >
+            <ItemFace item={dragged} />
+          </motion.div>
+        </motion.div>
       ) : null}
     </div>
   );

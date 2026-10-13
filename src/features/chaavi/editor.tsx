@@ -3,10 +3,10 @@
  * blank one keeps its value, Reveal loads it to edit, and typing replaces it.
  */
 
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useState, type FormEvent, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S, SLOWER_S } from "../../shared/lib/ux/motion";
 import type { ChaaviFolder, ChaaviReveal } from "../../types/chaavi";
 import {
   draftKey,
@@ -22,6 +22,7 @@ import {
   type ItemDraft,
   type SecretDraft,
 } from "./draft";
+import { SelectionMark } from "./vault";
 
 const FIELD =
   "w-full min-w-0 rounded-[var(--radius)] border border-rule bg-bone/50 px-3 py-2 text-[14px] text-ink outline-none transition-[border-color] duration-slow ease-dadi placeholder:text-ink-ghost focus:border-sage disabled:opacity-50";
@@ -51,7 +52,11 @@ export type ItemEditorProps = {
   onSubmit: (draft: ItemDraft) => void;
 };
 
-/** The item editor sheet over a frosted scrim. */
+/**
+ * The item editor sheet over a frosted scrim: the scrim fades in as the sheet rises and
+ * settles out of a slight shrink, and both go the same way out. On a new item, the type's
+ * plate glides between types and that type's fields cross-fade in.
+ */
 export function ItemEditor({ mode, initial, itemId, folders, pending, error, onClose, onSubmit }: ItemEditorProps) {
   const [draft, setDraft] = useState<ItemDraft>(initial);
   const [tried, setTried] = useState(false);
@@ -110,10 +115,10 @@ export function ItemEditor({ mode, initial, itemId, folders, pending, error, onC
         onSubmit={submit}
         onClick={(event) => event.stopPropagation()}
         aria-label={title}
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: 8 }}
-        transition={{ duration: SLOW_S, ease: EASE }}
+        initial={{ opacity: 0, y: 24, scale: 0.97 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: 14, scale: 0.98, transition: { duration: SLOW_S, ease: EASE } }}
+        transition={{ duration: SLOWER_S, ease: EASE }}
         className="widget-frame flex max-h-full w-full max-w-2xl flex-col shadow-[var(--shadow-deep)]"
       >
         <div className="widget-frame__chrome !justify-between !px-5 !pt-4 !pb-3">
@@ -127,7 +132,7 @@ export function ItemEditor({ mode, initial, itemId, folders, pending, error, onC
             CLOSE
           </button>
         </div>
-        <div className="widget-frame__body flex flex-col gap-4 overflow-y-auto border-t border-dashed border-sage-line px-5 pt-4 pb-5">
+        <div className="widget-frame__body flex flex-col gap-4 !overflow-y-auto border-t border-dashed border-sage-line px-5 pt-4 pb-5">
           {!editing ? (
             <div role="group" aria-label="Item type" className="flex flex-wrap gap-1 rounded-[var(--radius)] border border-dashed border-sage-line p-1">
               {ITEM_TYPES.map((type) => (
@@ -136,11 +141,12 @@ export function ItemEditor({ mode, initial, itemId, folders, pending, error, onC
                   type="button"
                   aria-pressed={draft.type === type}
                   onClick={() => setDraft((current) => retype(current, type))}
-                  className={`h-8 flex-[1_1_90px] rounded-[6px] text-[11px] font-medium tracking-[0.12em] uppercase transition-[background-color,color] duration-fast ease-dadi ${
-                    draft.type === type ? "bg-sage-active text-sage-deep shadow-[var(--shadow)]" : "text-ink-ghost hover:text-sage-deep"
+                  className={`relative h-8 flex-[1_1_90px] rounded-[6px] text-[11px] font-medium tracking-[0.12em] uppercase transition-colors duration-fast ease-dadi ${
+                    draft.type === type ? "text-sage-deep" : "text-ink-ghost hover:text-sage-deep"
                   }`}
                 >
-                  {TYPE_META[type].one}
+                  {draft.type === type ? <SelectionMark group="chaavi-editor-type" className="rounded-[6px] bg-sage-active shadow-[var(--shadow)]" /> : null}
+                  <span className="relative">{TYPE_META[type].one}</span>
                 </button>
               ))}
             </div>
@@ -173,7 +179,18 @@ export function ItemEditor({ mode, initial, itemId, folders, pending, error, onC
             </Labelled>
           </Grid>
 
-          <TypeFields draft={draft} editing={editing} update={update} reveal={reveal} generate={generate} />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={draft.type}
+              className="flex flex-col gap-4"
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6, transition: { duration: 0.12, ease: EASE } }}
+              transition={{ duration: SLOW_S, ease: EASE }}
+            >
+              <TypeFields draft={draft} editing={editing} update={update} reveal={reveal} generate={generate} />
+            </motion.div>
+          </AnimatePresence>
 
           <CustomFields draft={draft} editing={editing} update={update} reveal={reveal} />
 

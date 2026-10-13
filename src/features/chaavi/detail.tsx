@@ -4,15 +4,39 @@
  * Revealed values live in this component's state only and go with it.
  */
 
+import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { CopyButton } from "../../shared/components/CopyButton";
+import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatRelative } from "../../shared/lib/ux/time";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
 import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META } from "./draft";
 import { IconStar, TypeGlyph } from "./icons";
 
 const MASK = "••••••••••••";
+
+/**
+ * How the item's header and each field arrive when the pane opens: they rise into place one
+ * after another, following the pane's `enter` / `center` labels.
+ */
+const RISE = {
+  enter: { opacity: 0, y: 8 },
+  center: { opacity: 1, y: 0, transition: { duration: SLOW_S, ease: EASE } },
+};
+
+/** The field column passes the pane's labels down one field at a time. */
+const STAGGER = {
+  center: { transition: { staggerChildren: 0.028 } },
+};
+
+/** A secret's value as it changes between mask and plain text: it sharpens out of a blur. */
+const UNVEIL = {
+  initial: { opacity: 0, filter: "blur(6px)" },
+  animate: { opacity: 1, filter: "blur(0px)" },
+  exit: { opacity: 0, filter: "blur(6px)" },
+  transition: { duration: 0.2, ease: EASE },
+} as const;
 
 /** A text action in a field's header (Reveal, Hide, Open). */
 const ACT =
@@ -70,7 +94,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
 
   return (
     <div className="flex min-h-full flex-col">
-      <header className="flex items-start justify-between gap-4 px-5 pt-5 pb-4">
+      <motion.header variants={RISE} className="flex items-start justify-between gap-4 px-5 pt-3.5 pb-4">
         <div className="flex min-w-0 gap-3.5">
           <span
             className={`inline-flex size-[46px] shrink-0 items-center justify-center rounded-full border ${
@@ -104,11 +128,16 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
           onClick={onToggleFavorite}
           className="inline-flex size-8 shrink-0 items-center justify-center rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] text-[var(--clay)] shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:opacity-40"
         >
-          <IconStar filled={item.favorite} />
+          <motion.span
+            key={String(item.favorite)}
+            className="inline-flex"
+            initial={{ scale: 0.6, rotate: -30 }} animate={{ scale: 1, rotate: 0 }} transition={{ duration: SLOW_S, ease: EASE }}>
+            <IconStar filled={item.favorite} />
+          </motion.span>
         </button>
-      </header>
+      </motion.header>
 
-      <div className="flex flex-1 flex-col gap-2.5 border-t border-dashed border-sage-line px-5 pt-4 pb-5">
+      <motion.div variants={STAGGER} className="flex flex-1 flex-col gap-2.5 border-t border-dashed border-sage-line px-5 pt-4 pb-5">
         {item.type === "login" ? (
           <>
             <PlainRow label="Username" value={item.login.username} />
@@ -251,7 +280,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
 
         {revealError || error ? <p className="text-[12px] text-error">{revealError ?? error}</p> : null}
 
-        <div className="mt-auto flex flex-wrap items-center gap-2 border-t border-dashed border-sage-line pt-4">
+        <motion.div variants={RISE} className="mt-auto flex flex-wrap items-center gap-2 border-t border-dashed border-sage-line pt-4">
           <button type="button" onClick={onEdit} className={DASH}>
             Edit
           </button>
@@ -270,8 +299,8 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
               Delete
             </button>
           )}
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
     </div>
   );
 }
@@ -304,7 +333,9 @@ type SectionProps = {
 function Section({ label, children }: SectionProps) {
   return (
     <div className="mt-2 flex flex-col gap-2.5">
-      <span className="text-[10px] font-medium tracking-[0.16em] text-ink-ghost uppercase">{label}</span>
+      <motion.span variants={RISE} className="text-[10px] font-medium tracking-[0.16em] text-ink-ghost uppercase">
+        {label}
+      </motion.span>
       {children}
     </div>
   );
@@ -322,7 +353,7 @@ type FieldProps = {
 /** One labelled value box in the house's dashed sage. */
 function Field({ label, kind, actions, children }: FieldProps) {
   return (
-    <div className="rounded-[var(--radius)] border border-dashed border-sage-line/80 bg-bone/30 px-3 py-2.5">
+    <motion.div variants={RISE} className="rounded-[var(--radius)] border border-dashed border-sage-line/80 bg-bone/30 px-3 py-2.5">
       <div className="mb-1.5 flex min-h-6 items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">
           <span className="truncate text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">{label}</span>
@@ -331,7 +362,7 @@ function Field({ label, kind, actions, children }: FieldProps) {
         <span className="flex shrink-0 items-center gap-3">{actions}</span>
       </div>
       {children}
-    </div>
+    </motion.div>
   );
 }
 
@@ -404,20 +435,51 @@ function SecretRow({ label, kind, mono = false, mask = MASK, secret }: SecretRow
             onClick={secret.shown === null ? secret.onReveal : secret.onHide}
             className={ACT}
           >
-            {secret.pending ? "…" : secret.shown === null ? "Reveal" : "Hide"}
+            <ActLabel text={secret.shown === null ? "Reveal" : "Hide"} pending={secret.pending} />
           </button>
           <CopyButton text={secret.copy} label={`Copy ${label.toLowerCase()}`} />
         </>
       }
     >
-      <p
-        className={`text-[14px] break-all whitespace-pre-wrap ${
-          secret.shown === null ? "tracking-[0.12em] text-ink-faint" : "text-ink"
-        } ${mono ? "font-numeric" : ""}`}
-      >
-        {secret.shown ?? mask}
-      </p>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.p
+          key={secret.shown === null ? "masked" : "shown"}
+          {...UNVEIL}
+          className={`text-[14px] break-all whitespace-pre-wrap ${
+            secret.shown === null ? "tracking-[0.12em] text-ink-faint" : "text-ink"
+          } ${mono ? "font-numeric" : ""}`}
+        >
+          {secret.shown === null ? mask : secret.shown}
+        </motion.p>
+      </AnimatePresence>
     </Field>
+  );
+}
+
+type ActLabelProps = {
+  /** The action's word (Reveal, Hide). */
+  text: string;
+  /** The reveal is in flight, so the word breathes until the value arrives. */
+  pending: boolean;
+};
+
+/** A reveal action's word: it rolls over to the next word, and breathes while its fetch runs. */
+function ActLabel({ text, pending }: ActLabelProps) {
+  return (
+    <span className="inline-grid overflow-hidden">
+      <AnimatePresence mode="popLayout" initial={false}>
+        <motion.span
+          key={text}
+          className="col-start-1 row-start-1"
+          initial={{ y: "100%", opacity: 0 }}
+          animate={pending ? { y: 0, opacity: [1, 0.35, 1] } : { y: 0, opacity: 1 }}
+          exit={{ y: "-100%", opacity: 0 }}
+          transition={pending ? { opacity: { duration: 1, repeat: Infinity, ease: "easeInOut" } } : { duration: 0.2, ease: EASE }}
+        >
+          {text}
+        </motion.span>
+      </AnimatePresence>
+    </span>
   );
 }
 
@@ -475,7 +537,7 @@ function TotpRow({ itemId }: TotpRowProps) {
       actions={
         <>
           <button type="button" disabled={loading} onClick={totp ? () => setTotp(null) : load} className={ACT}>
-            {loading && !totp ? "…" : totp ? "Hide" : "Reveal"}
+            <ActLabel text={totp ? "Hide" : "Reveal"} pending={loading && !totp} />
           </button>
           <CopyButton
             text={() => (totp ? Promise.resolve(totp.code) : chaavi.getTotp(itemId).then((next) => next.code))}
@@ -484,9 +546,22 @@ function TotpRow({ itemId }: TotpRowProps) {
         </>
       }
     >
-      <p className={`font-numeric text-[22px] tracking-[0.12em] ${totp ? "text-ink" : "text-ink-faint"}`}>{code}</p>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.p
+          key={code}
+          {...UNVEIL}
+          className={`font-numeric text-[22px] tracking-[0.12em] ${totp ? "text-ink" : "text-ink-faint"}`}
+        >
+          {code}
+        </motion.p>
+      </AnimatePresence>
       {totp ? (
-        <div className="mt-1.5 flex items-center gap-2">
+        <motion.div
+          className="mt-1.5 flex items-center gap-2"
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: SLOW_S, ease: EASE }}
+        >
           <span className="h-[3px] flex-1 overflow-hidden rounded-full bg-rule">
             <span
               className="block h-full bg-sage transition-[width] duration-1000 ease-linear"
@@ -494,7 +569,7 @@ function TotpRow({ itemId }: TotpRowProps) {
             />
           </span>
           <span className="font-numeric text-[11px] text-ink-ghost">{left}s</span>
-        </div>
+        </motion.div>
       ) : null}
       {error ? <p className="mt-1 text-[12px] text-error">{error}</p> : null}
     </Field>

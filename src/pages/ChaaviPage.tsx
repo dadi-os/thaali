@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { motion } from "motion/react";
+import { MotionConfig, motion } from "motion/react";
 import { PageHeader } from "../chrome/PageHeader";
 import { PasswordManager } from "../features/chaavi";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
@@ -7,6 +7,8 @@ import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 /**
  * Chaavi password manager page: every item type, folders, search and reveal on demand.
  * Vaultwarden is the store; Chaavi is the adapter; the Bitwarden extension fills the browser.
+ * The vault's motion follows the system's reduced-motion setting: it keeps its fades and
+ * drops its slides, glides and layout moves.
  */
 export function ChaaviPage() {
   const [toolbar, setToolbar] = useState<HTMLDivElement | null>(null);
@@ -23,7 +25,9 @@ export function ChaaviPage() {
         trailing={<div ref={setToolbar} className="flex items-center gap-2" />}
       />
       <div className="min-h-0 flex-1 px-1 pb-1">
-        <PasswordManager toolbar={toolbar} />
+        <MotionConfig reducedMotion="user">
+          <PasswordManager toolbar={toolbar} />
+        </MotionConfig>
       </div>
     </motion.div>
   );
