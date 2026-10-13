@@ -1,11 +1,9 @@
 import { motion } from "motion/react";
-import type { NodeRecord } from "../../types/yaad";
 import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, formatTime, isSameDay, isSameMonth } from "./dates";
 import { BreathRing, FreshGlow, LiveDot } from "./markers";
 import {
-  memoriesOn,
   occurrenceOf,
   planStartsOn,
   spanOf,
@@ -23,8 +21,6 @@ const SLOTS_SHOWN = 4;
 const HEADER_PX = 32;
 /** Height of one bar or plan line, matching their `h-[18px]`. */
 const SLOT_PX = 18;
-/** Memory dots drawn beside a date. */
-const DOTS_SHOWN = 4;
 
 export type MonthViewProps = {
   /** Every day of the grid, Monday before the month through Sunday after. */
@@ -36,8 +32,6 @@ export type MonthViewProps = {
   /** Ticking clock: fades what already happened and pulses what is happening. */
   now: Date;
   plans: PlanNode[];
-  /** Memories of things that happened, drawn as dots beside their date. */
-  memories: NodeRecord[];
   /** Plans have not loaded yet: days shimmer instead of reading as empty. */
   loading: boolean;
   /** Node ids just created by a quick-add, which glow once. */
@@ -64,7 +58,6 @@ export function MonthView({
   today,
   now,
   plans,
-  memories,
   loading,
   fresh,
   onOpen,
@@ -94,7 +87,6 @@ export function MonthView({
                 const inMonth = isSameMonth(day, anchor);
                 const isToday = isSameDay(day, today);
                 const isPast = day < today;
-                const dayMemories = memoriesOn(memories, day);
                 return (
                   <motion.div
                     key={day.toISOString()}
@@ -131,16 +123,6 @@ export function MonthView({
                         {day.getDate()}
                         {isToday ? <BreathRing /> : null}
                       </span>
-                      {dayMemories.length > 0 ? (
-                        <span
-                          className="flex items-center gap-0.5"
-                          title={`${dayMemories.length} ${dayMemories.length === 1 ? "memory" : "memories"}`}
-                        >
-                          {dayMemories.slice(0, DOTS_SHOWN).map((m) => (
-                            <span key={m.id} aria-hidden className="size-1 rounded-full bg-ink-faint" />
-                          ))}
-                        </span>
-                      ) : null}
                       <button
                         type="button"
                         aria-label={`Add to ${formatDayShort(day)}`}

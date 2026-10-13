@@ -95,7 +95,7 @@ function describeIngest(result: IngestResponse): string {
 }
 
 /**
- * Week / month calendar of Yaad plans and memories. Full mode pages with motion, keeps
+ * Week / month calendar of Yaad plans. Full mode pages with motion, keeps
  * a live now marker and Next up countdown, opens any entry for editing, and quick-adds
  * free text through Yaad ingest. Preview is the compact current-week `RibbonView`, whose
  * plans open the same detail popover in place; the popover's events stay out of the
@@ -172,21 +172,6 @@ export function TimelineCalendar({
     refetchInterval: POLL_MS,
   });
 
-  const memoriesQuery = useQuery({
-    queryKey: ["yaad", "memories", range.occurred_from, range.occurred_to],
-    queryFn: async () => {
-      const { nodes } = await yaad.query({
-        kind: "memory",
-        occurred_from: range.occurred_from,
-        occurred_to: range.occurred_to,
-        limit: 200,
-      });
-      return nodes;
-    },
-    enabled: connected && !preview,
-    refetchInterval: POLL_MS,
-  });
-
   const addEntry = useMutation({
     mutationFn: (add: PendingAdd) =>
       yaad.ingest({
@@ -221,7 +206,6 @@ export function TimelineCalendar({
   }, [notice]);
 
   const plans = plansQuery.data ?? [];
-  const memories = memoriesQuery.data ?? [];
   const labels = weekdayLabels();
 
   const page = (step: 1 | -1) => {
@@ -378,11 +362,6 @@ export function TimelineCalendar({
               </div>
             </motion.div>
           ) : null}
-          {memoriesQuery.isError ? (
-            <motion.p key="memories-error" {...REVEAL} className="mb-2 overflow-hidden text-[12px] text-error">
-              Memories: {memoriesQuery.error.message}
-            </motion.p>
-          ) : null}
         </AnimatePresence>
 
         <div className="relative flex min-h-0 flex-1 flex-col">
@@ -404,7 +383,6 @@ export function TimelineCalendar({
                   today={today}
                   now={now}
                   plans={plans}
-                  memories={memories}
                   loading={plansQuery.isPending}
                   fresh={fresh}
                   pending={pending}
@@ -419,7 +397,6 @@ export function TimelineCalendar({
                   today={today}
                   now={now}
                   plans={plans}
-                  memories={memories}
                   loading={plansQuery.isPending}
                   fresh={fresh}
                   onOpen={openNode}

@@ -73,7 +73,6 @@ export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelec
     onSuccess: (node) => {
       queryClient.setQueryData(["yaad", "node", node.id], node);
       void queryClient.invalidateQueries({ queryKey: ["yaad", "plans"] });
-      void queryClient.invalidateQueries({ queryKey: ["yaad", "memories"] });
     },
   });
   const remove = useMutation({

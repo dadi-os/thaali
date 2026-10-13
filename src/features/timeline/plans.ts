@@ -177,13 +177,6 @@ export function plansOn(plans: PlanNode[], day: Date): PlanNode[] {
     .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
 }
 
-/** Memories that happened on `day`, earliest first. */
-export function memoriesOn(memories: NodeRecord[], day: Date): NodeRecord[] {
-  return memories
-    .filter((m) => m.occurred_at !== null && isSameDay(new Date(m.occurred_at), day))
-    .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
-}
-
 /** Chip classes per status: solid confirmed, dashed tentative, ghosted idea. */
 export function statusClass(status: PlanStatus): string {
   if (status === "tentative") {

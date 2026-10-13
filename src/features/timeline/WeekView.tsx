@@ -1,12 +1,10 @@
 import { AnimatePresence, motion } from "motion/react";
-import type { NodeRecord } from "../../types/yaad";
 import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
 import { BreathRing, FreshGlow, LiveDot } from "./markers";
 import {
   lanesThrough,
-  memoriesOn,
   plansOn,
   planStartsOn,
   runsAsBar,
@@ -34,8 +32,6 @@ export type WeekViewProps = {
   /** Ticking clock: places the now marker and fades what already happened. */
   now: Date;
   plans: PlanNode[];
-  /** Memories of things that happened this week, listed under each day's plans. */
-  memories: NodeRecord[];
   /** Plans have not loaded yet: columns shimmer instead of reading as empty. */
   loading: boolean;
   /** Node ids just created by a quick-add, which glow once. */
@@ -58,7 +54,6 @@ export function WeekView({
   today,
   now,
   plans,
-  memories,
   loading,
   fresh,
   pending,
@@ -70,7 +65,6 @@ export function WeekView({
     <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
       {days.map((day, i) => {
         const dayPlans = plansOn(plans, day).filter((p) => !runsAsBar(p));
-        const dayMemories = memoriesOn(memories, day);
         const dayLanes = lanesThrough(lanes, day);
         const isToday = isSameDay(day, today);
         const isPast = day < today;
@@ -169,26 +163,6 @@ export function WeekView({
                   ))}
                 </AnimatePresence>
               )}
-
-              {dayMemories.length > 0 ? (
-                <div className="mt-1.5 flex flex-col gap-0.5 border-t border-dashed border-rule pt-1.5">
-                  {dayMemories.map((m, j) => (
-                    <motion.button
-                      key={m.id}
-                      type="button"
-                      initial={{ opacity: 0, x: -3 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ duration: SLOW_S, ease: EASE, delay: base + 0.14 + j * CHIP_STAGGER_S }}
-                      onClick={(e) => onOpen(m.id, e.currentTarget)}
-                      className="relative flex items-start gap-1 rounded-[4px] px-1 py-0.5 text-left text-[10.5px] leading-snug text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-ink"
-                    >
-                      <span aria-hidden className="mt-[5px] size-1 shrink-0 rounded-full bg-ink-faint" />
-                      <span className="line-clamp-2">{m.title}</span>
-                      {fresh.has(m.id) ? <FreshGlow radius="rounded-[4px]" /> : null}
-                    </motion.button>
-                  ))}
-                </div>
-              ) : null}
             </div>
           </motion.div>
         );

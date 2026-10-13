@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { NodeRecord, PlanDetail } from "../../types/yaad";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, memoriesOn, occurrenceOf, lanesThrough, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
+import { asPlan, isMultiDay, occurrenceOf, lanesThrough, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
 
 function node(over: Partial<NodeRecord>): NodeRecord {
   return {
@@ -65,14 +65,6 @@ describe("plansOn", () => {
   it("treats a plan without an end as a moment at its start", () => {
     const at = new Date(2026, 9, 3, 13);
     expect(spanOf(plan("p", at, null))).toEqual({ start: at, end: at });
-  });
-});
-
-describe("memoriesOn", () => {
-  it("keeps only memories that happened on the day, skipping undated facts", () => {
-    const lake = node({ id: "lake", kind: "memory", occurred_at: new Date(2026, 9, 3, 16).toISOString() });
-    const fact = node({ id: "fact", kind: "memory", occurred_at: null });
-    expect(memoriesOn([fact, lake], new Date(2026, 9, 3)).map((m) => m.id)).toEqual(["lake"]);
   });
 });
 
