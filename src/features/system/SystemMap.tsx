@@ -4,6 +4,7 @@ import { motion } from "motion/react";
 import { isMeshOnline, nas } from "../../shared/api";
 import type { NasStatus } from "../../shared/api/nas";
 import { ErrorLogCards } from "../logs/LogExplorer";
+import { StateView } from "../../shared/components/states";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useElementSize } from "./useElementSize";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -203,27 +204,24 @@ export function SystemMap({ mode, className }: SystemMapProps) {
   });
 
   if (!connected) {
-    return (
-      <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
-        <p className="text-[13px] text-ink-ghost">No status yet</p>
-      </div>
-    );
+    return <StateView tone="offline" label="dadi is offline" detail="Health comes back when the mesh reconnects" compact={preview} className={className} />;
   }
 
   if (statusQuery.isError) {
     return (
-      <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
-        <p className="text-[13px] text-ink-muted">Could not load status.</p>
-      </div>
+      <StateView
+        tone="error"
+        label="Could not reach nas"
+        error={statusQuery.error}
+        onRetry={() => void statusQuery.refetch()}
+        compact={preview}
+        className={className}
+      />
     );
   }
 
-  if (statusQuery.isLoading || !statusQuery.data) {
-    return (
-      <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
-        <p className="text-[13px] text-ink-ghost">Loading…</p>
-      </div>
-    );
+  if (!statusQuery.data) {
+    return <StateView tone="loading" label="Reading health" compact={preview} className={className} />;
   }
 
   const status = statusQuery.data;
@@ -233,13 +231,14 @@ export function SystemMap({ mode, className }: SystemMapProps) {
   if (preview) {
     if (clientsQuery.isError) {
       return (
-        <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
-          <p className="text-[13px] text-ink-muted">
-            {clientsQuery.error instanceof Error
-              ? clientsQuery.error.message
-              : String(clientsQuery.error)}
-          </p>
-        </div>
+        <StateView
+          tone="error"
+          label="Could not list clients"
+          error={clientsQuery.error}
+          onRetry={() => void clientsQuery.refetch()}
+          compact
+          className={className}
+        />
       );
     }
     if (clientsQuery.isLoading || !clientsQuery.data) {

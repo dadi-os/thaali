@@ -13,7 +13,7 @@ const VISIBLE_MS: Record<Toast["tone"], number> = { info: 6_000, error: 12_000 }
  * Go where a toast points: its chat in the sidebar, or the page for a log line, a device
  * or the timeline. Page targets ride in the URL, so the page focuses them on arrival.
  */
-function openTarget(target: ToastTarget, navigate: NavigateFunction): void {
+export function openTarget(target: ToastTarget, navigate: NavigateFunction): void {
   switch (target.kind) {
     case "chat":
       openAgent(target.agentId);

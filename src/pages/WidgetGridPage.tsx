@@ -9,6 +9,7 @@ import { SystemMap } from "../features/system/SystemMap";
 import { TimelineCalendar } from "../features/timeline/TimelineCalendar";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 import { WidgetFrame } from "../shared/components/WidgetFrame";
+import { ErrorBoundary } from "../shared/components/states";
 
 const tile =
   "min-h-0 w-full cursor-pointer transition-[box-shadow,transform] duration-slow ease-dadi hover:shadow-[var(--shadow-deep)] hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage";
@@ -44,13 +45,15 @@ export function WidgetGridPage() {
         onKeyDown={onActivate("/hath")}
         className={`${tile} md:col-span-2 md:row-span-2 md:col-start-1 md:row-start-1`}
       >
-        <AgentGraph3D
-          entranceKey="home-agents"
-          interactive={false}
-          focusOnEntry={null}
-          onPick={(agentId) => navigate("/hath", { state: { focusAgent: agentId } })}
-          toolbar={null}
-        />
+        <ErrorBoundary label="Hath" compact>
+          <AgentGraph3D
+            entranceKey="home-agents"
+            interactive={false}
+            focusOnEntry={null}
+            onPick={(agentId) => navigate("/hath", { state: { focusAgent: agentId } })}
+            toolbar={null}
+          />
+        </ErrorBoundary>
       </WidgetFrame>
 
       <WidgetFrame
@@ -61,7 +64,9 @@ export function WidgetGridPage() {
         onKeyDown={onActivate("/yaad")}
         className={`${tile} md:col-span-2 md:col-start-1 md:row-start-3`}
       >
-        <MemoryCounters />
+        <ErrorBoundary label="Yaad" compact>
+          <MemoryCounters />
+        </ErrorBoundary>
       </WidgetFrame>
 
       <WidgetFrame
@@ -72,7 +77,9 @@ export function WidgetGridPage() {
         onKeyDown={onActivate("/timeline")}
         className={`${tile} md:col-span-2 md:col-start-3 md:row-span-2 md:row-start-1`}
       >
-        <TimelineCalendar mode="preview" hideIdeas />
+        <ErrorBoundary label="Timeline" compact>
+          <TimelineCalendar mode="preview" hideIdeas />
+        </ErrorBoundary>
       </WidgetFrame>
 
       <WidgetFrame
@@ -83,7 +90,9 @@ export function WidgetGridPage() {
         onKeyDown={onActivate("/ghar")}
         className={`${tile} md:col-span-2 md:col-start-1 md:row-start-4`}
       >
-        <GharHouse mode="preview" toolbar={null} />
+        <ErrorBoundary label="Ghar" compact>
+          <GharHouse mode="preview" toolbar={null} />
+        </ErrorBoundary>
       </WidgetFrame>
 
       <WidgetFrame
@@ -94,7 +103,9 @@ export function WidgetGridPage() {
         onKeyDown={onActivate("/chaavi")}
         className={`${tile} md:col-span-1 md:col-start-3 md:row-span-2 md:row-start-3`}
       >
-        <ChaaviTile />
+        <ErrorBoundary label="Chaavi" compact>
+          <ChaaviTile />
+        </ErrorBoundary>
       </WidgetFrame>
 
       <WidgetFrame
@@ -105,7 +116,9 @@ export function WidgetGridPage() {
         onKeyDown={onActivate("/system")}
         className={`${tile} md:col-span-1 md:col-start-4 md:row-span-2 md:row-start-3`}
       >
-        <SystemMap mode="preview" />
+        <ErrorBoundary label="System" compact>
+          <SystemMap mode="preview" />
+        </ErrorBoundary>
       </WidgetFrame>
     </motion.div>
   );

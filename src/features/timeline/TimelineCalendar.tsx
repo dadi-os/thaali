@@ -5,6 +5,7 @@ import { isMeshOnline, yaad } from "../../shared/api";
 import type { IngestResponse } from "../../types/yaad";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { Glider } from "../../shared/components/Glider";
+import { StateView } from "../../shared/components/states";
 import { IconPlus } from "../../shared/components/IconButton";
 import type { PopoverAnchor } from "../../shared/components/Popover";
 import { EASE, REVEAL, SLOW_S } from "../../shared/lib/ux/motion";
@@ -251,18 +252,19 @@ export function TimelineCalendar({
   };
 
   if (!connected) {
-    return (
-      <div className={`flex h-full items-center justify-center ${className}`}>
-        <p className="text-[13px] text-ink-ghost">Connect to load timeline</p>
-      </div>
-    );
+    return <StateView tone="offline" label="Timeline is offline" detail="Plans come back when dadi reconnects" compact={preview} className={className} />;
   }
 
   if (plansQuery.isError) {
     return (
-      <div className={`flex h-full items-center justify-center ${className}`}>
-        <p className="text-[13px] text-error">{plansQuery.error.message}</p>
-      </div>
+      <StateView
+        tone="error"
+        label="Could not load plans"
+        error={plansQuery.error}
+        onRetry={() => void plansQuery.refetch()}
+        compact={preview}
+        className={className}
+      />
     );
   }
 

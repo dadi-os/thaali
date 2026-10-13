@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import type { ReactNode } from "react";
 import { isMeshOnline, yaad } from "../../shared/api";
 import type { NodeKind } from "../../types/yaad";
+import { StateView } from "../../shared/components/states";
 import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -134,23 +135,11 @@ export function MemoryCounters({ className }: MemoryCountersProps) {
   const failed = countQueries.find((query) => query.isError);
 
   if (!connected) {
-    return (
-      <div
-        className={`flex h-full items-center justify-center ${className ?? ""}`}
-      >
-        <p className="text-[13px] text-ink-ghost">Connect to load memory</p>
-      </div>
-    );
+    return <StateView tone="offline" label="Yaad is offline" detail="Counts come back when dadi reconnects" compact className={className} />;
   }
 
-  if (failed?.error) {
-    return (
-      <div
-        className={`flex h-full items-center justify-center px-3 ${className ?? ""}`}
-      >
-        <p className="text-center text-[13px] text-ink-muted">{failed.error.message}</p>
-      </div>
-    );
+  if (failed) {
+    return <StateView tone="error" label="Could not count Yaad" error={failed.error} onRetry={() => void failed.refetch()} compact className={className} />;
   }
 
   return (

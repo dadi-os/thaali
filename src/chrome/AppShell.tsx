@@ -16,6 +16,7 @@ import { useDeviceRemote } from "./useDeviceRemote";
 import { useNeedsProvisioning } from "./useNeedsProvisioning";
 import { usingMesh } from "../shared/api";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
+import { ErrorBoundary } from "../shared/components/states";
 
 /**
  * Persistent chrome. Desktop: short title bar + chat rail + widget outlet.
@@ -84,7 +85,9 @@ export function AppShell() {
               key={location.pathname}
               className="h-full min-h-0 overflow-hidden"
             >
-              <Outlet />
+              <ErrorBoundary label={location.pathname === "/" ? "Home" : location.pathname.slice(1)}>
+                <Outlet />
+              </ErrorBoundary>
             </div>
           </div>
         </motion.main>

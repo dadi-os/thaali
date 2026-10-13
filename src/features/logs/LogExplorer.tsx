@@ -6,6 +6,7 @@ import type { NasLogEntry, NasLogLevel } from "../../shared/api/nas";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useHoverDetails, type DetailsAnchor } from "../../shared/hooks/useHoverDetails";
 import { Glider } from "../../shared/components/Glider";
+import { StateView } from "../../shared/components/states";
 import { IconDismiss, IconSearch } from "../../shared/components/IconButton";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -528,11 +529,7 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
   };
 
   if (!connected) {
-    return (
-      <div className={`flex h-full items-center justify-center ${className ?? ""}`}>
-        <p className="text-[13px] text-ink-ghost">Connect to search logs</p>
-      </div>
-    );
+    return <StateView tone="offline" label="Logs are offline" detail="Search comes back when dadi reconnects" compact className={className} />;
   }
 
   return (
@@ -591,13 +588,11 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-rule">
         <div className="min-h-0 flex-1 overflow-y-auto" onScroll={() => (pinned ? undefined : details.close())}>
           {logsQuery.isLoading ? (
-            <p className="px-3 py-6 text-[13px] text-ink-ghost">Loading logs…</p>
+            <StateView tone="loading" label="Reading logs" compact />
           ) : logsQuery.isError ? (
-            <p className="px-3 py-6 text-[13px] text-ink-muted">Could not load logs.</p>
+            <StateView tone="error" label="Could not load logs" error={logsQuery.error} onRetry={() => void logsQuery.refetch()} compact />
           ) : rows.length === 0 ? (
-            <div className="flex h-full items-center justify-center px-3 py-6">
-              <p className="text-[13px] text-ink-ghost">No log lines</p>
-            </div>
+            <StateView tone="empty" label="No log lines" detail="Nothing matches these filters in this range" compact />
           ) : (
             <ul
               ref={listRef}
@@ -712,18 +707,19 @@ export function ErrorLogCards({ className, limit = 8 }: ErrorLogCardsProps) {
   });
 
   if (!connected) {
-    return (
-      <div className={className}>
-        <p className="text-[13px] text-ink-ghost">Connect to load errors</p>
-      </div>
-    );
+    return <StateView tone="offline" label="Errors are offline" detail="Recent errors come back when dadi reconnects" compact className={className} />;
   }
 
   if (errorsQuery.isError) {
     return (
-      <div className={className}>
-        <p className="text-[13px] text-ink-muted">Could not load errors.</p>
-      </div>
+      <StateView
+        tone="error"
+        label="Could not load errors"
+        error={errorsQuery.error}
+        onRetry={() => void errorsQuery.refetch()}
+        compact
+        className={className}
+      />
     );
   }
 
