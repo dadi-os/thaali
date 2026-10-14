@@ -661,6 +661,8 @@ fn win_shell_path(path: &Path) -> String {
 /// Unelevated listen always fails with ERROR_INVALID_OWNER (`O:BA` pipe SDDL).
 /// Elevates the exe via `RunAs` with WorkingDirectory set so `wintun.dll` loads;
 /// paths are stripped of Rust's `\\?\` prefix (`cmd` cannot open those).
+/// Like the macOS LaunchDaemon, it runs a copy under `sysmesh\bin` so the
+/// unelevated app updater never has to replace an exe an elevated process holds.
 #[cfg(windows)]
 fn start_daemon_windows(
     bins: &Bins,
@@ -674,8 +676,16 @@ fn start_daemon_windows(
             bins.tailscaled.display()
         )
     })?;
-    let exe = win_shell_path(&bins.tailscaled);
-    let workdir = win_shell_path(bin_dir);
+    let daemon_dir = state_dir.join("bin");
+    fs::create_dir_all(&daemon_dir)
+        .map_err(|e| format!("create {}: {e}", daemon_dir.display()))?;
+    for name in ["tailscaled.exe", "wintun.dll"] {
+        let dest = daemon_dir.join(name);
+        fs::copy(bin_dir.join(name), &dest)
+            .map_err(|e| format!("copy {name} to {}: {e}", dest.display()))?;
+    }
+    let exe = win_shell_path(&daemon_dir.join("tailscaled.exe"));
+    let workdir = win_shell_path(&daemon_dir);
     let statedir = win_shell_path(state_dir);
     let sock = win_shell_path(socket);
 
