@@ -11,7 +11,17 @@ mod meshproxy;
 mod sysmesh;
 
 use net::MeshState;
-use tauri::{Manager, RunEvent, WindowEvent};
+use std::sync::atomic::{AtomicU64, Ordering};
+use std::time::Duration;
+use tauri::{AppHandle, Manager, RunEvent, WindowEvent};
+
+/// How long the main window may stay hidden before its page reloads. The close button hides
+/// the window rather than quitting, so without this the page's memory only grows.
+const RECYCLE_AFTER: Duration = Duration::from_secs(20 * 60);
+
+/// Counts hide and show changes so a pending recycle can tell it is stale.
+#[derive(Default)]
+struct HideCycle(AtomicU64);
 
 pub fn run() {
     logutil::emit("info", "thaali starting");
@@ -28,6 +38,7 @@ pub fn run() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(MeshState::default())
         .manage(radio::RadioState::default())
+        .manage(HideCycle::default())
         .invoke_handler(tauri::generate_handler![
             net::mesh_start,
             net::mesh_stop,
@@ -68,6 +79,7 @@ pub fn run() {
                 if let Err(e) = window.hide() {
                     logutil::emit("error", format!("hide window on close: {e}"));
                 }
+                schedule_recycle(window.app_handle());
             }
         })
         .build(tauri::generate_context!())
@@ -81,7 +93,8 @@ pub fn run() {
 }
 
 /// Shows and focuses the main window after it was closed to the background.
-fn show_main_window(app: &tauri::AppHandle) {
+fn show_main_window(app: &AppHandle) {
+    app.state::<HideCycle>().0.fetch_add(1, Ordering::SeqCst);
     let Some(window) = app.get_webview_window("main") else {
         logutil::emit("error", "main window is missing");
         return;
@@ -89,4 +102,28 @@ fn show_main_window(app: &tauri::AppHandle) {
     if let Err(e) = window.unminimize().and_then(|_| window.show()).and_then(|_| window.set_focus()) {
         logutil::emit("error", format!("show main window: {e}"));
     }
+}
+
+/// After RECYCLE_AFTER hidden, reload the main page while it is still out of sight, so its
+/// memory is released and the next show starts fresh. A show or another hide in the meantime
+/// bumps the cycle and this check does nothing.
+fn schedule_recycle(app: &AppHandle) {
+    let generation = app.state::<HideCycle>().0.fetch_add(1, Ordering::SeqCst) + 1;
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(RECYCLE_AFTER);
+        if app.state::<HideCycle>().0.load(Ordering::SeqCst) != generation {
+            return;
+        }
+        let Some(window) = app.get_webview_window("main") else {
+            return;
+        };
+        if window.is_visible().unwrap_or(true) {
+            return;
+        }
+        match window.reload() {
+            Ok(()) => logutil::emit("info", "main window reloaded after staying hidden"),
+            Err(e) => logutil::emit("error", format!("reload hidden main window: {e}")),
+        }
+    });
 }
