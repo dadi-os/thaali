@@ -24,8 +24,9 @@ const WAKE_GAP_MS = 10 * 60_000;
 const RUNTIME_REPORT_PREFIX = "[runtime] ";
 
 /**
- * Tools that hand work to the other lane, which then runs once the caller stops:
- * thinking steers working, and working asks thinking to message someone.
+ * Tools that handed work to the other lane in rows without a wake id (see guessWakes),
+ * which then ran once the caller stopped: conversation steers reasoning, and reasoning's
+ * send_message then asked conversation to send the message.
  */
 const HANDOFF: Partial<Record<string, Lane>> = {
   steer_reasoning: "reasoning",
@@ -142,11 +143,16 @@ function resultsById(logs: LogRecord[]): Map<string, ToolOutcome> {
 
 /**
  * Whether a tool call is left off the timeline: yield ends every lane turn, and a
- * delivered dispatch_message already shows as its own sent message. Failures always show.
+ * delivered dispatch_message or send_message already shows as its own sent message. A
+ * send_message from before reasoning sent its own messages only handed the message to
+ * conversation, so it still shows. Failures always show.
  */
 function isHiddenTool(tool: ActivityTool): boolean {
   if (tool.result?.isError) {
     return false;
+  }
+  if (tool.name === "send_message") {
+    return tool.result !== null && !tool.result.content.includes('"handed_off":true');
   }
   return tool.name === "yield" || tool.name === "dispatch_message";
 }
