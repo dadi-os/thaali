@@ -17,9 +17,9 @@ import type { Lane, LogRecord } from "../../../types/hath";
 const WAKE_GAP_MS = 10 * 60_000;
 
 /**
- * How every message Hath sends on an agent's behalf opens: a lane that died
- * (`reportLaneFailure`, hath `src/runtime/engine.ts`) or a wake a restart cut short
- * (hath `src/runtime/recovery.ts`). It is the only logged sign either happened.
+ * How hath's reports that an agent's work stopped opened before they became notices
+ * (`kind: "notice"` on the log row): a lane that died, a job left unfinished, or a wake a
+ * restart cut short. Kept for rows logged before notices.
  */
 const RUNTIME_REPORT_PREFIX = "[runtime] ";
 
@@ -244,7 +244,8 @@ function parseMessage(log: LogRecord): MessageStep | null {
     direction,
     peer: typeof peer === "string" ? peer : null,
     scheduled: typeof log.payload.schedule_id === "string",
-    wakeStopped: direction === "send" && content.startsWith(RUNTIME_REPORT_PREFIX),
+    wakeStopped:
+      direction === "send" && (log.payload.kind === "notice" || content.startsWith(RUNTIME_REPORT_PREFIX)),
     content,
   };
 }

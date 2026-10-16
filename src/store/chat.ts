@@ -34,6 +34,8 @@ export type ChatMessage = {
   files?: AttachmentSummary[];
   /** Loaded from durable REST history; skip typewriter on open. */
   historical?: boolean;
+  /** Hath's notice that the agent's work stopped: a system line, not something the agent said. */
+  notice?: boolean;
 };
 
 export type Conversation = {
@@ -545,6 +547,7 @@ export function hydrateThreadMessages(
       files: row.attachments,
       at: row.created_at,
       historical: seen ? seen.historical : opts?.live ? undefined : true,
+      ...(row.kind === "notice" ? { notice: true } : {}),
     });
   }
   for (const [seq, m] of confirmed) {

@@ -134,6 +134,7 @@ export function useEvents(): void {
           content: data.content,
           files: data.attachments,
           at: data.at,
+          ...(data.kind === "notice" ? { notice: true } : {}),
         });
         upsertConversation({
           agent_id: data.agent_id,

@@ -51,6 +51,8 @@ export type DurableMessage = {
   to_agent_id: string | null;
   content: string;
   attachments: AttachmentSummary[];
+  /** notice: hath's word that the agent's work stopped, shown as a system line; absent from an older hath. */
+  kind?: "message" | "notice";
   created_at: string;
 };
 
@@ -147,6 +149,8 @@ export type HathEvent =
       content: string;
       attachments: AttachmentSummary[];
       seq: number;
+      /** notice for hath's word that an agent's work stopped; absent on a message someone wrote. */
+      kind?: "message" | "notice";
       at: string;
     }
   | { type: "lane_started"; agent_id: string; lane: Lane; at: string }

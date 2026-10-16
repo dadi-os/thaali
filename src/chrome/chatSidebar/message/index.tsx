@@ -33,6 +33,9 @@ export function MessageBubble({
   onRetry,
   onCancel,
 }: MessageBubbleProps) {
+  if (message.notice) {
+    return <NoticeLine message={message} />;
+  }
   if (message.from_user) {
     return (
       <UserBubble
@@ -221,3 +224,19 @@ const SettledMarkdown = memo(function SettledMarkdown({
 }) {
   return <MarkdownBody content={content} />;
 });
+
+/**
+ * NoticeLine is hath's notice that the agent's work stopped (an error, a restart, a job left
+ * unfinished): a quiet centered system line with its time, never a bubble, since the agent
+ * did not say it.
+ */
+function NoticeLine({ message }: { message: ChatMessage }) {
+  return (
+    <div role="note" className="mx-auto flex max-w-[85%] flex-col items-center gap-0.5 py-1 text-center">
+      <p className="text-[12px] leading-relaxed text-ink-muted">{message.content}</p>
+      <time dateTime={message.at} title={formatAbsolute(message.at)} className="text-[11px] text-ink-ghost">
+        {formatMessageTime(message.at)}
+      </time>
+    </div>
+  );
+}
