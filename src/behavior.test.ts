@@ -1253,6 +1253,25 @@ describe("buildActivity", () => {
     });
   });
 
+  it("groups rows by hath's wake id across long waits and interleaved wakes, guessing only for unstamped rows", () => {
+    const stamped = (record: LogRecord, wakeId: string): LogRecord => ({ ...record, wake_id: wakeId });
+    const logs = [
+      message("old", -3600, { direction: "receive", from_agent_id: null }),
+      stamped(message("w1-in", 0, { direction: "receive", from_agent_id: null }), "w1"),
+      stamped(response("w1-r1", "reasoning", 5, [tool("w1-wait", "wait")]), "w1"),
+      stamped(result("w1-r1r", "reasoning", 6, "w1-wait", "wait"), "w1"),
+      stamped(message("w2-in", 60, { direction: "receive", from_agent_id: "career-manager" }), "w2"),
+      stamped(response("w2-c1", "conversation", 61, [{ type: "text", text: "on it" }, tool("w2-y", "yield")]), "w2"),
+      stamped(response("w1-r2", "reasoning", 20 * 60, [{ type: "text", text: "resumed after the wait" }, tool("w1-y", "yield")]), "w1"),
+    ].reverse();
+
+    const wakes = buildActivity(logs);
+
+    expect(wakes.map((wake) => wake.key)).toEqual(["w2-in", "w1-in", "old"]);
+    expect(wakes[1]!.steps.map((step) => step.key)).toEqual(["w1-in", "w1-r1", "w1-r2"]);
+    expect(wakes[1]!.toolCount).toBe(1);
+  });
+
   it("starts a new wake when a message or call arrives after both lanes stopped, or after a long gap", () => {
     const logs = [
       message("a", 0, { direction: "receive", from_agent_id: "browser-manager" }),

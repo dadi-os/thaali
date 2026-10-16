@@ -120,10 +120,13 @@ export function createHathClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /agents/:id/logs — optional event filter and limit. */
+    /**
+     * GET /agents/:id/logs — optional event filter and limit, or `wakes` for every row of
+     * the agent's newest that many wakes.
+     */
     getAgentLogs(
       id: string,
-      query?: { event?: LogEvent; limit?: number },
+      query?: { event?: LogEvent; limit?: number; wakes?: number },
     ): Promise<{ logs: LogRecord[] }> {
       return transport.request({
         baseUrl,

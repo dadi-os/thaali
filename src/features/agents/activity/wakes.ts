@@ -2,14 +2,17 @@
  * Shape an agent's durable logs into wakes for the agent popover's activity feed. A wake
  * is one stretch of work: from a received message (or a lane starting cold) until both
  * lanes have yielded, with the thinking and working lanes' turns interleaved in the
- * order they happened.
+ * order they happened. Hath stamps every row a wake writes with its `wake_id`, so rows
+ * are grouped by it; only rows from before wake ids fall back to guessing wakes from
+ * lane state and gaps.
  */
 
 import type { Lane, LogRecord } from "../../../types/hath";
 
 /**
- * Longest quiet stretch inside one wake. Lane failures and restarts are logged as
- * runtime reports, but a gap this long ends a wake regardless of how it stopped.
+ * Longest quiet stretch inside one guessed wake (rows without a wake id). Lane failures
+ * and restarts are logged as runtime reports, but a gap this long ends a wake regardless
+ * of how it stopped.
  */
 const WAKE_GAP_MS = 10 * 60_000;
 
@@ -240,19 +243,97 @@ function parseMessage(log: LogRecord): MessageStep | null {
   };
 }
 
+/** An empty wake that starts at `log`. */
+function openWake(log: LogRecord): ActivityWake {
+  return {
+    key: log.id,
+    startedAt: log.created_at,
+    at: log.created_at,
+    steps: [],
+    lanes: [],
+    toolCount: 0,
+    errorCount: 0,
+  };
+}
+
+/** addTurn adds a parsed model call's lane, tool counts and step to `wake`. */
+function addTurn(wake: ActivityWake, log: LogRecord, turn: ParsedTurn): void {
+  if (!wake.lanes.includes(log.lane)) {
+    wake.lanes.push(log.lane);
+  }
+  for (const tool of turn.tools) {
+    if (tool.name !== "yield") {
+      wake.toolCount += 1;
+    }
+    if (tool.result?.isError) {
+      wake.errorCount += 1;
+    }
+  }
+  if (turn.step) {
+    wake.steps.push(turn.step);
+    wake.at = turn.step.at;
+  }
+}
+
+/** addMessage adds a message row's step to `wake`, returning the step (null when malformed). */
+function addMessage(wake: ActivityWake, log: LogRecord): MessageStep | null {
+  const step = parseMessage(log);
+  if (step) {
+    wake.steps.push(step);
+    wake.at = step.at;
+  }
+  return step;
+}
+
 /**
  * buildActivity turns logs (any order) into wakes, newest first, each with its steps
- * oldest first. A received message or a model call starts a new wake when both lanes
- * are idle; sent messages and tool results never do, since they only follow a call. A
- * handoff leaves its target lane pending, so the turn it causes joins the same wake,
- * while a message that arrives first, because that lane never ran, starts a new one.
- * Wakes with nothing to show are dropped.
+ * oldest first. Rows carrying a wake id form the wake hath ran, whatever its gaps (a
+ * long wait) or the order its lanes ran in. Rows without one (logged before hath
+ * stamped wake ids) are grouped by guessing (see guessWakes). Wakes with nothing to
+ * show are dropped.
  */
 export function buildActivity(logs: LogRecord[]): ActivityWake[] {
   const results = resultsById(logs);
   const chronological = [...logs]
     .reverse()
     .sort((a, b) => Date.parse(a.created_at) - Date.parse(b.created_at));
+  const byId = new Map<string, ActivityWake>();
+  const stamped: ActivityWake[] = [];
+  const unstamped: LogRecord[] = [];
+  for (const log of chronological) {
+    const wakeId = log.wake_id;
+    if (typeof wakeId !== "string") {
+      unstamped.push(log);
+      continue;
+    }
+    if (log.event === "tool_result") {
+      continue;
+    }
+    let wake = byId.get(wakeId);
+    if (wake === undefined) {
+      wake = openWake(log);
+      byId.set(wakeId, wake);
+      stamped.push(wake);
+    }
+    if (log.event === "message") {
+      addMessage(wake, log);
+    } else {
+      addTurn(wake, log, parseTurn(log, results));
+    }
+  }
+  return [...stamped, ...guessWakes(unstamped, results)]
+    .filter((wake) => wake.steps.length > 0)
+    .sort((a, b) => Date.parse(b.startedAt) - Date.parse(a.startedAt));
+}
+
+/**
+ * guessWakes groups rows without a wake id (oldest first) into wakes, oldest first. A
+ * received message or a model call starts a new wake when both lanes are idle; sent
+ * messages and tool results never do, since they only follow a call. A handoff leaves
+ * its target lane pending, so the turn it causes joins the same wake, while a message
+ * that arrives first, because that lane never ran, starts a new one.
+ */
+function guessWakes(chronological: LogRecord[], results: Map<string, ToolOutcome>): ActivityWake[] {
   const wakes: ActivityWake[] = [];
   const busy: Record<Lane, boolean> = { conversation: false, reasoning: false };
   const pending: Record<Lane, boolean> = { conversation: false, reasoning: false };
@@ -268,15 +349,7 @@ export function buildActivity(logs: LogRecord[]): ActivityWake[] {
       (log.event === "response" && !pending[log.lane]) || log.payload.direction === "receive";
     const idle = !busy.conversation && !busy.reasoning;
     if (current === null || at - lastAt > WAKE_GAP_MS || (opens && idle)) {
-      current = {
-        key: log.id,
-        startedAt: log.created_at,
-        at: log.created_at,
-        steps: [],
-        lanes: [],
-        toolCount: 0,
-        errorCount: 0,
-      };
+      current = openWake(log);
       wakes.push(current);
       busy.conversation = false;
       busy.reasoning = false;
@@ -286,11 +359,7 @@ export function buildActivity(logs: LogRecord[]): ActivityWake[] {
     lastAt = at;
 
     if (log.event === "message") {
-      const step = parseMessage(log);
-      if (step) {
-        current.steps.push(step);
-        current.at = step.at;
-      }
+      const step = addMessage(current, log);
       if (log.payload.direction === "receive") {
         busy.conversation = true;
       }
@@ -306,28 +375,16 @@ export function buildActivity(logs: LogRecord[]): ActivityWake[] {
     const turn = parseTurn(log, results);
     busy[log.lane] = !turn.ends;
     pending[log.lane] = false;
-    if (!current.lanes.includes(log.lane)) {
-      current.lanes.push(log.lane);
-    }
     for (const tool of turn.tools) {
-      if (tool.name !== "yield") {
-        current.toolCount += 1;
-      }
-      if (tool.result?.isError) {
-        current.errorCount += 1;
-      }
       const target = HANDOFF[tool.name];
       if (target && !tool.result?.isError && !busy[target]) {
         pending[target] = true;
       }
     }
-    if (turn.step) {
-      current.steps.push(turn.step);
-      current.at = turn.step.at;
-    }
+    addTurn(current, log, turn);
   }
 
-  return wakes.filter((wake) => wake.steps.length > 0).reverse();
+  return wakes;
 }
 
 /**

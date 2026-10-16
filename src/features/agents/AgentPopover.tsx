@@ -32,10 +32,16 @@ export function agentDetailQuery(agentId: string | null) {
   });
 }
 
+/** How many of an agent's newest wakes the activity feed loads, every row of each. */
+const ACTIVITY_WAKES = 10;
+
 /**
  * Recent logs, shown as activity and read for "last active" (the last log, not
- * agents.updated_at, which only moves on modify_agent). Shared with the graph's prefetch;
- * lane SSE events invalidate it under `["agent-logs", agentId]`.
+ * agents.updated_at, which only moves on modify_agent): every row of the agent's newest
+ * wakes, so a long wake never loses the message that started it off the end of a fixed
+ * row window. A hath without the `wakes` read refuses it, and then the newest 80 rows
+ * serve. Shared with the graph's prefetch; lane SSE events invalidate it under
+ * `["agent-logs", agentId]`.
  */
 export function agentActivityQuery(agentId: string | null) {
   return queryOptions({
@@ -44,8 +50,14 @@ export function agentActivityQuery(agentId: string | null) {
       if (!agentId) {
         throw new Error("agentId required");
       }
-      const { logs } = await hath.getAgentLogs(agentId, { limit: 80 });
-      return logs;
+      try {
+        const { logs } = await hath.getAgentLogs(agentId, { wakes: ACTIVITY_WAKES });
+        return logs;
+      } catch (err) {
+        console.warn("hath refused the wake log read; reading the newest rows instead", err);
+        const { logs } = await hath.getAgentLogs(agentId, { limit: 80 });
+        return logs;
+      }
     },
   });
 }

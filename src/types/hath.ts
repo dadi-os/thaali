@@ -122,6 +122,11 @@ export type LogRecord = {
   lane: Lane;
   event: LogEvent;
   payload: Record<string, unknown>;
+  /**
+   * The wake that wrote the row; null for rows outside any wake or from before wake ids,
+   * and absent from a hath that does not stamp them yet.
+   */
+  wake_id?: string | null;
   created_at: string;
 };
 
