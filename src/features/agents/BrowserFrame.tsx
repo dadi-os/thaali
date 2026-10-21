@@ -10,7 +10,13 @@ import {
 } from "react";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { createInputSender, keyInput, pointerInput, wheelInput } from "./browserInput";
-import { DRIVE_FPS, retryBrowserStream, subscribeBrowserStream, WATCH_FPS } from "./browserStream";
+import {
+  DRIVE_PROFILE,
+  retryBrowserStream,
+  type StreamProfile,
+  subscribeBrowserStream,
+  WATCH_PROFILE,
+} from "./browserStream";
 
 export type BrowserFrameProps = {
   /** Nas browser id whose virtual display to stream. */
@@ -20,9 +26,9 @@ export type BrowserFrameProps = {
   variant: "peek" | "rail" | "detail" | "full";
 };
 
-/** Frames a second each variant watches at: the expanded view is driven, the rest only watch. */
-function fpsFor(variant: BrowserFrameProps["variant"]): number {
-  return variant === "full" ? DRIVE_FPS : WATCH_FPS;
+/** The stream each variant draws: the expanded view is driven, the rest only watch. */
+function profileFor(variant: BrowserFrameProps["variant"]): StreamProfile {
+  return variant === "full" ? DRIVE_PROFILE : WATCH_PROFILE;
 }
 
 /** What the frame shows over (or instead of) the picture. */
@@ -73,7 +79,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
   const [overlay, setOverlay] = useState<Overlay>({ kind: "caption" });
   const [inputError, setInputError] = useState<string | null>(null);
   const driving = variant === "full";
-  const fps = fpsFor(variant);
+  const profile = profileFor(variant);
   const sender = useMemo(() => createInputSender(browserId, setInputError), [browserId]);
 
   useEffect(() => {
@@ -81,7 +87,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
       return;
     }
     let painted = false;
-    return subscribeBrowserStream(browserId, fps, (state) => {
+    return subscribeBrowserStream(browserId, profile, (state) => {
       if (state.phase === "live") {
         const canvas = canvasRef.current;
         if (!canvas) {
@@ -104,7 +110,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
           : { kind: "retrying", error: state.error },
       );
     });
-  }, [browserId, fps, live]);
+  }, [browserId, profile, live]);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -200,7 +206,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
           </p>
           <button
             type="button"
-            onClick={() => retryBrowserStream(browserId, fps)}
+            onClick={() => retryBrowserStream(browserId, profile)}
             className="rounded-full bg-sage-fill px-2.5 py-0.5 text-[11px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/60"
           >
             Retry

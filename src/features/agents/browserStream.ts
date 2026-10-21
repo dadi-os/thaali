@@ -1,6 +1,6 @@
 /**
- * One shared, watched connection per Nas browser stream and frame rate. Every view of a
- * browser at that rate (sidebar pin and agent panel; the expanded view runs faster) draws
+ * One shared, watched connection per Nas browser stream and profile. Every view of a
+ * browser with that profile (sidebar pin and agent panel; the expanded view runs faster) draws
  * from the same connection, so views never queue
  * behind each other for the webview's few connections per host, and the connection closes
  * when the last view leaves. A stream that errors, ends or stops sending frames reconnects
@@ -12,11 +12,18 @@ import { nas } from "../../shared/api";
 import { ApiError } from "../../shared/api/errors";
 import { logLine } from "../../shared/lib/platform/log";
 
-/** Frames a second for a view that only watches; Nas's default. */
-export const WATCH_FPS = 5;
+/** How a view wants its frames: `fps` frames a second, `width` pixels wide, JPEG `quality` (2 best to 31 worst). */
+export type StreamProfile = { fps: number; width: number; quality: number };
 
-/** Frames a second for a view the user drives, so the picture keeps up with the pointer. */
-export const DRIVE_FPS = 15;
+/** A view that only watches: Nas's own defaults, cheap enough to leave on every pin. */
+export const WATCH_PROFILE: StreamProfile = { fps: 5, width: 960, quality: 7 };
+
+/**
+ * A view the user drives. Sized to the mesh link, which sustains about 0.7 MB/s to the box:
+ * a 1440 px frame is 50 to 125 KB at this quality, so 10 fps fits an ordinary page and a
+ * photo-heavy one stays close.
+ */
+export const DRIVE_PROFILE: StreamProfile = { fps: 10, width: 1440, quality: 5 };
 
 /** Longest wait for the next frame before the stream counts as stalled; Nas sends 5 fps. */
 const STALL_MS = 6_000;
@@ -36,7 +43,7 @@ type Listener = (state: BrowserStreamState) => void;
 /** One browser's connection at one frame rate and the views drawing it. */
 type Hub = {
   id: number;
-  fps: number;
+  profile: StreamProfile;
   listeners: Set<Listener>;
   state: BrowserStreamState;
   /** Aborted when the last view leaves. */
@@ -45,9 +52,9 @@ type Hub = {
 
 const hubs = new Map<string, Hub>();
 
-/** Key of the hub for browser `id` at `fps`. */
-function hubKey(id: number, fps: number): string {
-  return `${id}@${fps}`;
+/** Key of the hub for browser `id` at `profile`. */
+function hubKey(id: number, profile: StreamProfile): string {
+  return `${id}@${profile.fps}x${profile.width}q${profile.quality}`;
 }
 
 /** Byte offset of the first CRLFCRLF at or after `from`, or -1. */
@@ -138,7 +145,7 @@ async function pump(hub: Hub, onFrame: () => void): Promise<void> {
   };
   arm();
   try {
-    const reader = (await nas.browserStream(hub.id, hub.fps, connection.signal)).getReader();
+    const reader = (await nas.browserStream(hub.id, hub.profile, connection.signal)).getReader();
     let buffer = new Uint8Array(0);
     for (;;) {
       const { done, value } = await reader.read();
@@ -210,15 +217,15 @@ async function run(hub: Hub): Promise<void> {
 }
 
 /**
- * Watch browser `id`'s stream at `fps`: `listener` gets the current state now and every change
+ * Watch browser `id`'s stream at `profile`: `listener` gets the current state now and every change
  * after, including each frame, which it must draw before returning (the frame is released
  * when the next one arrives). Returns the unsubscribe; the last one closes the connection.
  */
-export function subscribeBrowserStream(id: number, fps: number, listener: Listener): () => void {
-  const key = hubKey(id, fps);
+export function subscribeBrowserStream(id: number, profile: StreamProfile, listener: Listener): () => void {
+  const key = hubKey(id, profile);
   let hub = hubs.get(key);
   if (!hub) {
-    const created: Hub = { id, fps, listeners: new Set(), state: { phase: "opening" }, closed: new AbortController() };
+    const created: Hub = { id, profile, listeners: new Set(), state: { phase: "opening" }, closed: new AbortController() };
     hubs.set(key, created);
     void run(created);
     hub = created;
@@ -239,9 +246,9 @@ export function subscribeBrowserStream(id: number, fps: number, listener: Listen
   };
 }
 
-/** Start a failed stream over for every view of browser `id` at `fps`. */
-export function retryBrowserStream(id: number, fps: number): void {
-  const hub = hubs.get(hubKey(id, fps));
+/** Start a failed stream over for every view of browser `id` at `profile`. */
+export function retryBrowserStream(id: number, profile: StreamProfile): void {
+  const hub = hubs.get(hubKey(id, profile));
   if (!hub || hub.state.phase !== "failed") {
     return;
   }

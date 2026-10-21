@@ -250,9 +250,17 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /browsers/:id/stream — the virtual monitor as an MJPEG (multipart/x-mixed-replace) body at `fps` frames a second. */
-    browserStream(id: number, fps: number, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-      return transport.openStream({ baseUrl, path: `/browsers/${id}/stream?fps=${fps}`, signal });
+    /** GET /browsers/:id/stream — the virtual monitor as an MJPEG (multipart/x-mixed-replace) body at the given frame rate, pixel width and JPEG quality (2 best to 31 worst). */
+    browserStream(
+      id: number,
+      { fps, width, quality }: { fps: number; width: number; quality: number },
+      signal: AbortSignal,
+    ): Promise<ReadableStream<Uint8Array>> {
+      return transport.openStream({
+        baseUrl,
+        path: `/browsers/${id}/stream?fps=${fps}&width=${width}&quality=${quality}`,
+        signal,
+      });
     },
 
     /** POST /browsers/:id/input — replay pointer and key events on the browser's page, in order. */
