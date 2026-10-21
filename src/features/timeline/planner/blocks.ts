@@ -1,0 +1,126 @@
+/** Pure planner logic: a day's blocks as segments on a minute axis, their lanes, gaps, and what is now and next. */
+
+import { addDays, endOfDay, startOfDay } from "../dates";
+import type { PlannerBlock } from "../../../types/planner";
+
+/** The least unclaimed time between two blocks that the planner draws as a gap (travel). */
+export const GAP_MIN = 10;
+
+/** Hours the axis shows on a day with no blocks. */
+const EMPTY_FROM_HOUR = 7;
+const EMPTY_TO_HOUR = 22;
+
+/** One block's part of one day, in minutes after local midnight, with its side-by-side lane. */
+export type Segment = {
+  block: PlannerBlock;
+  startMin: number;
+  endMin: number;
+  /** Lane among the blocks it overlaps, and how many lanes that overlapping group has. */
+  lane: number;
+  lanes: number;
+};
+
+/** Unclaimed time between two blocks, in minutes after local midnight. */
+export type Gap = { startMin: number; endMin: number };
+
+const minutesOf = (at: Date, dayStart: number) => Math.round((at.getTime() - dayStart) / 60_000);
+
+/**
+ * `day`'s part of every block that touches it, earliest first, with overlapping blocks (only
+ * those that said `overlap_ok` can) in side-by-side lanes.
+ */
+export function segmentsOn(blocks: PlannerBlock[], day: Date): Segment[] {
+  const dayStart = startOfDay(day).getTime();
+  const dayEnd = addDays(startOfDay(day), 1).getTime();
+  const segments = blocks
+    .filter((block) => new Date(block.start_at).getTime() < dayEnd && new Date(block.end_at).getTime() > dayStart)
+    .map((block) => ({
+      block,
+      startMin: Math.max(0, minutesOf(new Date(block.start_at), dayStart)),
+      endMin: Math.min(1440, minutesOf(new Date(block.end_at), dayStart)),
+      lane: 0,
+      lanes: 1,
+    }))
+    .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
+
+  let group: Segment[] = [];
+  let laneEnds: number[] = [];
+  let groupEnd = 0;
+  const closeGroup = () => {
+    for (const segment of group) {
+      segment.lanes = laneEnds.length;
+    }
+    group = [];
+    laneEnds = [];
+  };
+  for (const segment of segments) {
+    if (group.length > 0 && segment.startMin >= groupEnd) {
+      closeGroup();
+    }
+    let lane = laneEnds.findIndex((end) => end <= segment.startMin);
+    if (lane === -1) {
+      lane = laneEnds.length;
+    }
+    laneEnds[lane] = segment.endMin;
+    segment.lane = lane;
+    groupEnd = group.length === 0 ? segment.endMin : Math.max(groupEnd, segment.endMin);
+    group.push(segment);
+  }
+  closeGroup();
+  return segments;
+}
+
+/** The unclaimed stretches between consecutive segments that last at least {@link GAP_MIN}. */
+export function gapsBetween(segments: Segment[]): Gap[] {
+  const gaps: Gap[] = [];
+  let reach = segments[0]?.endMin ?? 0;
+  for (const segment of segments.slice(1)) {
+    if (segment.startMin - reach >= GAP_MIN) {
+      gaps.push({ startMin: reach, endMin: segment.startMin });
+    }
+    reach = Math.max(reach, segment.endMin);
+  }
+  return gaps;
+}
+
+/** The whole hours the axis spans: the blocks' extent, or a default window when there are none. */
+export function axisRange(columns: Segment[][]): { from: number; to: number } {
+  const all = columns.flat();
+  if (all.length === 0) {
+    return { from: EMPTY_FROM_HOUR, to: EMPTY_TO_HOUR };
+  }
+  return {
+    from: Math.floor(Math.min(...all.map((s) => s.startMin)) / 60),
+    to: Math.ceil(Math.max(...all.map((s) => s.endMin)) / 60),
+  };
+}
+
+/** The block happening at `nowMin` and the first one starting after it. */
+export function nowAndNext(segments: Segment[], nowMin: number): { current: Segment | null; next: Segment | null } {
+  return {
+    current: segments.find((s) => s.startMin <= nowMin && nowMin < s.endMin) ?? null,
+    next: segments.find((s) => s.startMin > nowMin) ?? null,
+  };
+}
+
+/** True once a block was marked done or its time has passed. */
+export function isSettled(block: PlannerBlock, now: Date): boolean {
+  return block.done_at !== null || new Date(block.end_at).getTime() <= now.getTime();
+}
+
+/** Minutes as "1 h 20 min", "45 min", or "2 h". */
+export function formatSpan(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = Math.round(minutes % 60);
+  return [h > 0 ? `${h} h` : "", m > 0 ? `${m} min` : ""].filter(Boolean).join(" ") || "0 min";
+}
+
+/** Local clock time for minutes after midnight, e.g. "2:30 PM". */
+export function formatMinuteOfDay(minutes: number): string {
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, 0, minutes));
+}
+
+/** ISO bounds of a local day, for a planner query. */
+export function dayBounds(day: Date): { from: string; to: string } {
+  return { from: startOfDay(day).toISOString(), to: endOfDay(day).toISOString() };
+}
