@@ -34,7 +34,8 @@ export type PlannerDayProps = {
  * The planner: one day drawn straight on the page, with no panel around it. The day is named
  * large, with what is happening now and what comes next beneath it; below, the blocks sit on
  * an hour axis as tall as their time, fixed commitments solid and the rest quiet, with the
- * time between them left as open space. The region scrolls as the page does.
+ * time between them left as open space. On a wide window the day's tasks also run down the
+ * right as a plain list that stays in view. The region scrolls as the page does.
  */
 export function PlannerDay({ day, today, now, blocks, loading, onOpen }: PlannerDayProps) {
   const isToday = isSameDay(day, today);
@@ -52,7 +53,8 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
 
   return (
     <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
-      <div className="mx-auto w-full max-w-[46rem] px-2 pt-4 pb-20">
+      <div className="mx-auto grid w-full max-w-[76rem] grid-cols-1 gap-x-20 px-2 pt-4 pb-20 lg:grid-cols-[minmax(0,46rem)_minmax(14rem,1fr)]">
+        <div>
         <header className="mb-9">
           <p className="text-[11px] font-medium tracking-[0.16em] text-ink-ghost uppercase">
             {new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric" }).format(day)}
@@ -143,8 +145,53 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
             </div>
           </div>
         )}
+        </div>
+
+        {!loading && segments.length > 0 ? <DayList segments={segments} current={current} now={now} onOpen={onOpen} /> : null}
       </div>
     </div>
+  );
+}
+
+type DayListProps = {
+  segments: Segment[];
+  /** The block happening now, if the day is today. */
+  current: Segment | null;
+  now: Date;
+  onOpen: (block: PlannerBlock, el: Element) => void;
+};
+
+/** The day's tasks in order as a plain list beside the timeline, shown on wide windows; done ones fade. */
+function DayList({ segments, current, now, onOpen }: DayListProps) {
+  const planned = segments.reduce((sum, s) => sum + s.endMin - s.startMin, 0);
+  return (
+    <aside className="sticky top-4 hidden self-start lg:block" aria-label="The day's tasks">
+      <p className="text-[11px] font-medium tracking-[0.16em] text-ink-ghost uppercase">The day</p>
+      <p className="font-numeric mt-2 text-[12.5px] text-ink-muted">
+        {segments.length} {segments.length === 1 ? "task" : "tasks"} · {formatSpan(planned)} planned
+      </p>
+      <ul className="mt-6 flex flex-col gap-1">
+        {segments.map((segment) => {
+          const settled = isSettled(segment.block, now);
+          const live = current?.block.id === segment.block.id;
+          return (
+            <li key={segment.block.id}>
+              <button
+                type="button"
+                onClick={(e) => onOpen(segment.block, e.currentTarget)}
+                className="-mx-2 flex w-[calc(100%+1rem)] items-baseline gap-3 rounded-[8px] px-2 py-1.5 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
+              >
+                <span className="font-numeric w-[4.25rem] shrink-0 text-[11.5px] text-ink-ghost">{formatMinuteOfDay(segment.startMin)}</span>
+                <span className={`min-w-0 flex-1 truncate text-[13px] ${settled ? "text-ink-ghost line-through decoration-ink-ghost/50" : live ? "font-medium text-ink" : "text-ink"}`}>
+                  {segment.block.title}
+                </span>
+                {live ? <span className="size-1.5 shrink-0 self-center rounded-full bg-[var(--clay)]" /> : null}
+              </button>
+            </li>
+          );
+        })}
+      </ul>
+    </aside>
   );
 }
 
