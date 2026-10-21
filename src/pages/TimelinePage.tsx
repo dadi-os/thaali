@@ -1,12 +1,18 @@
 import { motion } from "motion/react";
+import { useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
-import { TimelineCalendar } from "../features/timeline/TimelineCalendar";
+import { TimelineCalendar, type TimelineView } from "../features/timeline/TimelineCalendar";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
 /**
- * Full Timeline page: week / month plan calendar with a Someday ideas rail.
+ * Full Timeline page: the day planner, plus week and month plan calendars with a Someday
+ * ideas rail. `?view=week` (the home tile's link) opens the week.
  */
 export function TimelinePage() {
+  const [params] = useSearchParams();
+  const requested = params.get("view");
+  const [view, setView] = useState<TimelineView>(requested === "week" || requested === "month" ? requested : "planner");
   return (
     <motion.div
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden"
@@ -16,10 +22,10 @@ export function TimelinePage() {
     >
       <PageHeader
         title="TIMELINE"
-        hint="Plans by week and month · ideas live in Someday"
+        hint="The day planner · plans by week and month · ideas live in Someday"
       />
       <div className="min-h-0 flex-1 px-1 pb-1">
-        <TimelineCalendar mode="full" />
+        <TimelineCalendar mode="full" view={view} onViewChange={setView} />
       </div>
     </motion.div>
   );

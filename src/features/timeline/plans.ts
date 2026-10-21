@@ -193,3 +193,11 @@ export function anchorOf(el: Element): PopoverAnchor {
   const r = el.getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + 12, radius: r.width / 2 };
 }
+
+/** A quick-add Yaad is still filing, drawn as a ghost chip until it lands. */
+export type PendingAdd = {
+  key: string;
+  /** Day it was added to; null means the header composer (drawn on today). */
+  day: Date | null;
+  text: string;
+};

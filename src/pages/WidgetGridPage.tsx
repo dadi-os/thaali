@@ -73,8 +73,8 @@ export function WidgetGridPage() {
         title="TIMELINE"
         role="link"
         tabIndex={0}
-        onClick={open("/timeline")}
-        onKeyDown={onActivate("/timeline")}
+        onClick={open("/timeline?view=week")}
+        onKeyDown={onActivate("/timeline?view=week")}
         className={`${tile} md:col-span-2 md:col-start-3 md:row-span-2 md:row-start-1`}
       >
         <ErrorBoundary label="Timeline" compact>
