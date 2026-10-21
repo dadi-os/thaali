@@ -47,7 +47,7 @@ export function DadiHome({
       style={{ paddingBottom: composerPad }}
     >
       <motion.span
-        className="font-gujarati text-[52px] leading-none text-sage-text"
+        className="relative top-[0.2em] font-gujarati text-[52px] leading-none text-sage-text"
         animate={
           busy
             ? { scale: 0.74, opacity: reduced ? 1 : [0.55, 1, 0.55] }

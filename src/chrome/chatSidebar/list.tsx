@@ -20,7 +20,7 @@ export interface ConversationListProps {
   unread: Record<string, number>;
   onOpenAgent: (agentId: string) => void;
   onDismissKeyboard: () => void;
-  /** Pinned Talk to Dadi control — the sole new-chat entry, marked દ with a ring pulsing out while it routes. */
+  /** Pinned Talk to Dadi control — the sole new-chat entry, marked દ with a ring pulsing out while it routes. Noto Sans Gujarati sets a lone દ 0.0525em above its line box's center, so the circle pads it down by twice that. */
   dadi: {
     available: boolean;
     selected: boolean;
@@ -161,7 +161,7 @@ export function ConversationList({
               <span className="animate-pulse-out absolute inset-0 rounded-full bg-sage/45 [--pulse-scale:1.55]" />
             ) : null}
             <span
-              className={`relative flex size-full items-center justify-center rounded-full pt-[0.4em] font-gujarati leading-none ${
+              className={`relative flex size-full items-center justify-center rounded-full pt-[0.105em] font-gujarati leading-none ${
                 dadi.busy ? "bg-sage-active text-sage-deep" : "bg-sage-fill text-sage-text"
               }`}
             >
