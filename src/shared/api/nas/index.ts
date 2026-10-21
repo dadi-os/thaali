@@ -1,5 +1,38 @@
 import type { Transport } from "../transport";
 
+/** One pointer or key event for Nas POST /browsers/:id/input; `x`/`y` are fractions (0 to 1) of the display. */
+export type NasBrowserInputEvent =
+  | {
+      type: "move" | "down" | "up";
+      x: number;
+      y: number;
+      button: "none" | "left" | "middle" | "right";
+      /** Held-button bitmask: left 1, right 2, middle 4. */
+      buttons: number;
+      click_count: number;
+      modifiers: number;
+    }
+  | {
+      type: "wheel";
+      x: number;
+      y: number;
+      button: "none";
+      buttons: number;
+      delta_x: number;
+      delta_y: number;
+      modifiers: number;
+    }
+  | {
+      type: "key_down" | "key_up";
+      key: string;
+      code: string;
+      key_code: number;
+      /** The character the key types, empty for keys that type none. */
+      text: string;
+      /** Held-modifier bitmask: alt 1, ctrl 2, meta 4, shift 8. */
+      modifiers: number;
+    };
+
 /** Per-CPU sample from Nas GET /status. */
 export type NasCpuStatus = {
   name: string;
@@ -217,9 +250,19 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /browsers/:id/stream — the virtual monitor as an MJPEG (multipart/x-mixed-replace) body. */
-    browserStream(id: number, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
-      return transport.openStream({ baseUrl, path: `/browsers/${id}/stream`, signal });
+    /** GET /browsers/:id/stream — the virtual monitor as an MJPEG (multipart/x-mixed-replace) body at `fps` frames a second. */
+    browserStream(id: number, fps: number, signal: AbortSignal): Promise<ReadableStream<Uint8Array>> {
+      return transport.openStream({ baseUrl, path: `/browsers/${id}/stream?fps=${fps}`, signal });
+    },
+
+    /** POST /browsers/:id/input — replay pointer and key events on the browser's page, in order. */
+    browserInput(id: number, events: NasBrowserInputEvent[]): Promise<void> {
+      return transport.request({
+        baseUrl,
+        path: `/browsers/${id}/input`,
+        method: "POST",
+        body: { events },
+      });
     },
 
     /** GET /terminals — live host terminal panes on Nas. */

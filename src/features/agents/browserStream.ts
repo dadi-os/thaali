@@ -1,6 +1,7 @@
 /**
- * One shared, watched connection per Nas browser stream. Every view of a browser (sidebar
- * pin, expanded view, agent panel) draws from the same connection, so views never queue
+ * One shared, watched connection per Nas browser stream and frame rate. Every view of a
+ * browser at that rate (sidebar pin and agent panel; the expanded view runs faster) draws
+ * from the same connection, so views never queue
  * behind each other for the webview's few connections per host, and the connection closes
  * when the last view leaves. A stream that errors, ends or stops sending frames reconnects
  * on a bounded, logged backoff; a frame resets it, and running out fails the view with the
@@ -10,6 +11,12 @@
 import { nas } from "../../shared/api";
 import { ApiError } from "../../shared/api/errors";
 import { logLine } from "../../shared/lib/platform/log";
+
+/** Frames a second for a view that only watches; Nas's default. */
+export const WATCH_FPS = 5;
+
+/** Frames a second for a view the user drives, so the picture keeps up with the pointer. */
+export const DRIVE_FPS = 15;
 
 /** Longest wait for the next frame before the stream counts as stalled; Nas sends 5 fps. */
 const STALL_MS = 6_000;
@@ -26,15 +33,22 @@ export type BrowserStreamState =
 
 type Listener = (state: BrowserStreamState) => void;
 
-/** One browser's connection and the views drawing it. */
+/** One browser's connection at one frame rate and the views drawing it. */
 type Hub = {
+  id: number;
+  fps: number;
   listeners: Set<Listener>;
   state: BrowserStreamState;
   /** Aborted when the last view leaves. */
   closed: AbortController;
 };
 
-const hubs = new Map<number, Hub>();
+const hubs = new Map<string, Hub>();
+
+/** Key of the hub for browser `id` at `fps`. */
+function hubKey(id: number, fps: number): string {
+  return `${id}@${fps}`;
+}
 
 /** Byte offset of the first CRLFCRLF at or after `from`, or -1. */
 function headerEnd(buffer: Uint8Array, from: number): number {
@@ -109,7 +123,7 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
  * Read one connection until it ends, decoding and publishing each frame and calling
  * `onFrame` after it. Throws why it dropped; a gap over STALL_MS aborts it as stalled.
  */
-async function pump(id: number, hub: Hub, onFrame: () => void): Promise<void> {
+async function pump(hub: Hub, onFrame: () => void): Promise<void> {
   const connection = new AbortController();
   const close = () => connection.abort();
   hub.closed.signal.addEventListener("abort", close);
@@ -124,7 +138,7 @@ async function pump(id: number, hub: Hub, onFrame: () => void): Promise<void> {
   };
   arm();
   try {
-    const reader = (await nas.browserStream(id, connection.signal)).getReader();
+    const reader = (await nas.browserStream(hub.id, hub.fps, connection.signal)).getReader();
     let buffer = new Uint8Array(0);
     for (;;) {
       const { done, value } = await reader.read();
@@ -160,15 +174,15 @@ async function pump(id: number, hub: Hub, onFrame: () => void): Promise<void> {
 }
 
 /**
- * Keep browser `id`'s hub streaming until its last view leaves: reconnect after each drop
+ * Keep the hub's browser streaming until its last view leaves: reconnect after each drop
  * on RETRY_MS, and fail once those run out without a frame or Nas says the browser is gone.
  */
-async function run(id: number, hub: Hub): Promise<void> {
+async function run(hub: Hub): Promise<void> {
   let attempt = 0;
   while (!hub.closed.signal.aborted) {
     let error: string;
     try {
-      await pump(id, hub, () => {
+      await pump(hub, () => {
         attempt = 0;
       });
       return;
@@ -178,17 +192,17 @@ async function run(id: number, hub: Hub): Promise<void> {
       }
       error = err instanceof Error ? err.message : String(err);
       if (err instanceof ApiError && err.status === 404) {
-        publish(hub, { phase: "failed", error: `browser ${id} is not running` });
+        publish(hub, { phase: "failed", error: `browser ${hub.id} is not running` });
         return;
       }
     }
     const delay = RETRY_MS[attempt];
     if (delay === undefined) {
-      logLine("error", `browser ${id} stream failed: ${error}`, "browser_stream_failed");
+      logLine("error", `browser ${hub.id} stream failed: ${error}`, "browser_stream_failed");
       publish(hub, { phase: "failed", error });
       return;
     }
-    logLine("warn", `browser ${id} stream dropped: ${error}; retrying in ${delay}ms`, "browser_stream_retry");
+    logLine("warn", `browser ${hub.id} stream dropped: ${error}; retrying in ${delay}ms`, "browser_stream_retry");
     publish(hub, { phase: "retrying", error });
     attempt += 1;
     await pause(delay, hub.closed.signal);
@@ -196,16 +210,17 @@ async function run(id: number, hub: Hub): Promise<void> {
 }
 
 /**
- * Watch browser `id`'s stream: `listener` gets the current state now and every change
+ * Watch browser `id`'s stream at `fps`: `listener` gets the current state now and every change
  * after, including each frame, which it must draw before returning (the frame is released
  * when the next one arrives). Returns the unsubscribe; the last one closes the connection.
  */
-export function subscribeBrowserStream(id: number, listener: Listener): () => void {
-  let hub = hubs.get(id);
+export function subscribeBrowserStream(id: number, fps: number, listener: Listener): () => void {
+  const key = hubKey(id, fps);
+  let hub = hubs.get(key);
   if (!hub) {
-    const created: Hub = { listeners: new Set(), state: { phase: "opening" }, closed: new AbortController() };
-    hubs.set(id, created);
-    void run(id, created);
+    const created: Hub = { id, fps, listeners: new Set(), state: { phase: "opening" }, closed: new AbortController() };
+    hubs.set(key, created);
+    void run(created);
     hub = created;
   }
   const joined = hub;
@@ -217,19 +232,19 @@ export function subscribeBrowserStream(id: number, listener: Listener): () => vo
       return;
     }
     joined.closed.abort();
-    hubs.delete(id);
+    hubs.delete(key);
     if (joined.state.phase === "live") {
       joined.state.frame.close();
     }
   };
 }
 
-/** Start a failed stream over for every view of browser `id`. */
-export function retryBrowserStream(id: number): void {
-  const hub = hubs.get(id);
+/** Start a failed stream over for every view of browser `id` at `fps`. */
+export function retryBrowserStream(id: number, fps: number): void {
+  const hub = hubs.get(hubKey(id, fps));
   if (!hub || hub.state.phase !== "failed") {
     return;
   }
   publish(hub, { phase: "opening" });
-  void run(id, hub);
+  void run(hub);
 }

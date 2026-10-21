@@ -1,6 +1,16 @@
-import { useEffect, useRef, useState, useSyncExternalStore } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type PointerEvent,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { retryBrowserStream, subscribeBrowserStream } from "./browserStream";
+import { createInputSender, keyInput, pointerInput, wheelInput } from "./browserInput";
+import { DRIVE_FPS, retryBrowserStream, subscribeBrowserStream, WATCH_FPS } from "./browserStream";
 
 export type BrowserFrameProps = {
   /** Nas browser id whose virtual display to stream. */
@@ -9,6 +19,11 @@ export type BrowserFrameProps = {
   /** `peek` thumbnail, `rail` sidebar pin, `detail` the agent panel, `full` the whole 16:9 display at its parent's width (the expanded view). */
   variant: "peek" | "rail" | "detail" | "full";
 };
+
+/** Frames a second each variant watches at: the expanded view is driven, the rest only watch. */
+function fpsFor(variant: BrowserFrameProps["variant"]): number {
+  return variant === "full" ? DRIVE_FPS : WATCH_FPS;
+}
 
 /** What the frame shows over (or instead of) the picture. */
 type Overlay =
@@ -42,11 +57,13 @@ function paintCover(canvas: HTMLCanvasElement, frame: ImageBitmap): void {
 }
 
 /**
- * View-only live view of the virtual display from Nas `GET /browsers/:id/stream`, drawn
+ * Live view of the virtual display from Nas `GET /browsers/:id/stream`, drawn
  * on a canvas from the browser's shared stream (see browserStream.ts). It watches only
  * while the mesh is connected and the webview is visible, so a hidden window or an
  * unmounted frame lets the connection close. The caption shows until the first frame; a
  * reconnect keeps the last frame under a badge; a failure shows the error and a retry.
+ * The `full` variant is also a remote control: pointer, wheel and key events go to the
+ * browser through Nas with no lock, so the agent keeps working alongside.
  */
 export function BrowserFrame({ browserId, className, variant }: BrowserFrameProps) {
   const { state: connection } = useConnection();
@@ -54,13 +71,17 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
   const live = connection === "connected" && visible;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [overlay, setOverlay] = useState<Overlay>({ kind: "caption" });
+  const [inputError, setInputError] = useState<string | null>(null);
+  const driving = variant === "full";
+  const fps = fpsFor(variant);
+  const sender = useMemo(() => createInputSender(browserId, setInputError), [browserId]);
 
   useEffect(() => {
     if (!live) {
       return;
     }
     let painted = false;
-    return subscribeBrowserStream(browserId, (state) => {
+    return subscribeBrowserStream(browserId, fps, (state) => {
       if (state.phase === "live") {
         const canvas = canvasRef.current;
         if (!canvas) {
@@ -83,7 +104,45 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
           : { kind: "retrying", error: state.error },
       );
     });
-  }, [browserId, live]);
+  }, [browserId, fps, live]);
+
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!driving || !canvas) {
+      return;
+    }
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      sender.push(wheelInput(canvas, e));
+    };
+    canvas.addEventListener("wheel", onWheel, { passive: false });
+    return () => canvas.removeEventListener("wheel", onWheel);
+  }, [driving, sender]);
+
+  const driveHandlers = {
+    onPointerDown: (e: PointerEvent<HTMLCanvasElement>) => {
+      e.currentTarget.focus();
+      e.currentTarget.setPointerCapture(e.pointerId);
+      setInputError(null);
+      sender.push(pointerInput("down", e.currentTarget, e));
+    },
+    onPointerMove: (e: PointerEvent<HTMLCanvasElement>) => sender.push(pointerInput("move", e.currentTarget, e)),
+    onPointerUp: (e: PointerEvent<HTMLCanvasElement>) => {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+      sender.push(pointerInput("up", e.currentTarget, e));
+    },
+    onContextMenu: (e: MouseEvent<HTMLCanvasElement>) => e.preventDefault(),
+    onKeyDown: (e: KeyboardEvent<HTMLCanvasElement>) => forwardKey("key_down", e),
+    onKeyUp: (e: KeyboardEvent<HTMLCanvasElement>) => forwardKey("key_up", e),
+  };
+
+  const forwardKey = (kind: "key_down" | "key_up", e: KeyboardEvent<HTMLCanvasElement>) => {
+    const event = keyInput(kind, e);
+    if (event) {
+      e.preventDefault();
+      sender.push(event);
+    }
+  };
 
   const size =
     variant === "peek"
@@ -104,10 +163,20 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
       <canvas
         ref={canvasRef}
         aria-label={`Browser ${browserId}`}
-        className={`absolute inset-0 h-full w-full transition-opacity duration-slow ease-dadi ${
+        tabIndex={driving ? 0 : undefined}
+        {...(driving ? driveHandlers : {})}
+        className={`absolute inset-0 h-full w-full touch-none outline-none transition-opacity duration-slow ease-dadi ${
           overlay.kind === "caption" || overlay.kind === "failed" ? "opacity-0" : "opacity-100"
         }`}
       />
+      {inputError !== null ? (
+        <span
+          title={inputError}
+          className="absolute top-1.5 left-1.5 rounded-full bg-glass-sheet px-2 py-0.5 text-[10px] text-error backdrop-blur-md"
+        >
+          input failed
+        </span>
+      ) : null}
       {overlay.kind === "caption" ? (
         <div className="absolute inset-0 flex items-center justify-center px-2 text-[11px] tracking-wide text-ink-ghost">
           <span className="animate-breath">Browser {browserId}</span>
@@ -131,7 +200,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
           </p>
           <button
             type="button"
-            onClick={() => retryBrowserStream(browserId)}
+            onClick={() => retryBrowserStream(browserId, fps)}
             className="rounded-full bg-sage-fill px-2.5 py-0.5 text-[11px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/60"
           >
             Retry
