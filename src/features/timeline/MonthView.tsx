@@ -1,4 +1,5 @@
 import { motion } from "motion/react";
+import { useLayoutEffect, useRef, useState } from "react";
 import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatDayShort, formatTime, isSameDay, isSameMonth } from "./dates";
@@ -15,12 +16,12 @@ import {
 
 /** Delay per diagonal step as the grid washes in from the top-left. */
 const WAVE_STEP_S = 0.018;
-/** Lines a day holds before its last one becomes "+N more" into its week. */
-const SLOTS_SHOWN = 4;
 /** Height of the date strip atop each day, matching its `h-8`. */
 const HEADER_PX = 32;
 /** Height of one bar or plan line, matching their `h-[18px]`. */
 const SLOT_PX = 18;
+/** Gap between a week's slot lines and its bottom padding, in pixels, that a row keeps clear. */
+const ROW_PAD_PX = 8;
 
 export type MonthViewProps = {
   /** Every day of the grid, Monday before the month through Sunday after. */
@@ -47,9 +48,10 @@ export type MonthViewProps = {
  * Month grid laid out as week rows, each one grid of slot lines under the dates (see
  * `weekSlots`). All-day and multi-day plans are single bars spanning their days; each
  * day's timed plans fill the slots its bars leave free as time-and-title lines that open
- * their popover, and a full day ends on "+N more" into its week. Rows share the height
- * and grow with a busy week, scrolling the grid. Clicking a day opens its week, its +
- * quick-adds to it, and today breathes.
+ * their popover, and a full day ends on "+N more" into its week. Week rows share the grid's
+ * height and the lines each can hold follow from it, so a busy week folds into "+N more"
+ * and the grid never scrolls. Clicking a day opens its week, its + quick-adds to it, and
+ * today breathes.
  */
 export function MonthView({
   days,
@@ -65,6 +67,20 @@ export function MonthView({
   onAdd,
 }: MonthViewProps) {
   const weeks = Array.from({ length: days.length / 7 }, (_, w) => days.slice(w * 7, w * 7 + 7));
+  const grid = useRef<HTMLDivElement>(null);
+  const [gridPx, setGridPx] = useState(0);
+  useLayoutEffect(() => {
+    const el = grid.current;
+    if (el === null) {
+      return;
+    }
+    const observer = new ResizeObserver(() => setGridPx(el.clientHeight));
+    observer.observe(el);
+    setGridPx(el.clientHeight);
+    return () => observer.disconnect();
+  }, []);
+  const rowPx = gridPx / weeks.length;
+  const slotsFit = Math.max(Math.floor((rowPx - HEADER_PX - ROW_PAD_PX) / (SLOT_PX + 2)), 1);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="grid grid-cols-7 pb-1">
@@ -74,13 +90,13 @@ export function MonthView({
           </span>
         ))}
       </div>
-      <div className="grid min-h-0 flex-1 auto-rows-[1fr] overflow-y-auto overflow-x-hidden border-b border-rule/80">
+      <div ref={grid} className="grid min-h-0 flex-1 auto-rows-[1fr] overflow-hidden border-b border-rule/80">
         {weeks.map((week, w) => {
-          const layout = weekSlots(plans, week, SLOTS_SHOWN);
+          const layout = weekSlots(plans, week, slotsFit);
           return (
             <div
               key={week[0]!.toISOString()}
-              className="grid min-h-[88px] grid-cols-7 gap-y-0.5 border-t border-rule/80 pb-1.5"
+              className="grid min-h-0 grid-cols-7 gap-y-0.5 overflow-hidden border-t border-rule/80 pb-1.5"
               style={{ gridTemplateRows: `${HEADER_PX}px ${`${SLOT_PX}px `.repeat(layout.slots)}1fr` }}
             >
               {week.map((day, i) => {

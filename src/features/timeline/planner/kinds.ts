@@ -17,11 +17,11 @@ export const KIND_TONE: Record<PlannerKind, BlockTone> = {
   free: "quiet",
 };
 
-/** A block's fill and edge by tone. */
+/** A block's soft fill by tone; blocks carry no outline. */
 export const TONE_CLASS: Record<BlockTone, string> = {
-  solid: "bg-sage-active border-sage-line",
-  warm: "bg-[color-mix(in_srgb,var(--clay)_14%,transparent)] border-[color-mix(in_srgb,var(--clay)_45%,transparent)]",
-  quiet: "bg-bone-raised border-rule",
+  solid: "bg-sage-active",
+  warm: "bg-[color-mix(in_srgb,var(--clay)_15%,transparent)]",
+  quiet: "bg-[color-mix(in_srgb,var(--sage)_7%,transparent)]",
 };
 
 /** Words for a kind in the block card. */

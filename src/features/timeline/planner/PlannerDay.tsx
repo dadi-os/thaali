@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef } from "react";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import type { PlannerBlock } from "../../../types/planner";
-import { formatDayLong, isSameDay, startOfDay } from "../dates";
+import { isSameDay, startOfDay } from "../dates";
 import { axisRange, formatMinuteOfDay, formatSpan, gapsBetween, isSettled, nowAndNext, segmentsOn, type Segment } from "./blocks";
 import { PlannerGlyph } from "./glyphs";
 import { KIND_TONE, TONE_CLASS } from "./kinds";
@@ -10,12 +10,12 @@ import { KIND_TONE, TONE_CLASS } from "./kinds";
 /** Pixels per minute on the axis. */
 const PPM = 0.9;
 /** Gutter holding the hour labels, in pixels. */
-const GUTTER_PX = 56;
+const GUTTER_PX = 52;
 /** Block heights (px) below which a block shows one line, and above which it shows its note. */
 const ONE_LINE_PX = 46;
 const NOTE_ROOM_PX = 72;
-/** Gap height (px) that has room for its minute count. */
-const GAP_LABEL_PX = 24;
+/** Gap length (minutes) from which the open time is named. */
+const GAP_NAMED_MIN = 30;
 
 export type PlannerDayProps = {
   /** The shown day. */
@@ -31,10 +31,10 @@ export type PlannerDayProps = {
 };
 
 /**
- * The planner: one surface for one day. A quiet header names the day and, on today, what
- * is happening now and what comes next; below it the blocks sit on an hour axis as tall as
- * their time, fixed commitments solid and the rest quiet, with the unclaimed time between
- * them left as open space that reads as stretch or travel.
+ * The planner: one day drawn straight on the page, with no panel around it. The day is named
+ * large, with what is happening now and what comes next beneath it; below, the blocks sit on
+ * an hour axis as tall as their time, fixed commitments solid and the rest quiet, with the
+ * time between them left as open space. The region scrolls as the page does.
  */
 export function PlannerDay({ day, today, now, blocks, loading, onOpen }: PlannerDayProps) {
   const isToday = isSameDay(day, today);
@@ -47,105 +47,104 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
 
   useEffect(() => {
     const focus = isToday ? nowMin : (segments[0]?.startMin ?? from * 60);
-    scroller.current?.scrollTo({ top: Math.max(0, top(focus) - 80) });
+    scroller.current?.scrollTo({ top: Math.max(0, top(focus) - 140) });
   }, []);
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius-window)] border border-[var(--glass-border)] bg-[var(--glass-veil)]">
-      <header className="flex shrink-0 flex-wrap items-end justify-between gap-x-8 gap-y-3 border-b border-dashed border-sage-line px-7 pt-6 pb-5">
-        <div>
-          <h2 className="text-[26px] leading-none font-medium tracking-tight text-ink">
+    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+      <div className="mx-auto w-full max-w-[46rem] px-2 pt-4 pb-20">
+        <header className="mb-9">
+          <p className="text-[11px] font-medium tracking-[0.16em] text-ink-ghost uppercase">
+            {new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric" }).format(day)}
+          </p>
+          <h2 className="mt-2 text-[36px] leading-none font-light tracking-tight text-ink">
             {new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(day)}
           </h2>
-          <p className="mt-2 text-[12px] text-ink-muted">{formatDayLong(day).replace(/^\w+, /, "")}</p>
-        </div>
-        {isToday && !loading ? (
-          <div className="flex min-w-0 flex-col gap-1 text-right max-sm:text-left">
-            {current !== null ? (
-              <p className="flex items-center gap-2 text-[13px] text-ink max-sm:justify-start sm:justify-end">
-                <span className="relative size-[7px] shrink-0 rounded-full bg-[var(--clay)]">
-                  <span className="animate-pulse-out absolute inset-0 rounded-full bg-[var(--clay)]" />
-                </span>
-                <span className="truncate font-medium">{current.block.title}</span>
-                <span className="font-numeric shrink-0 text-[12px] text-ink-muted">{formatSpan(current.endMin - nowMin)} left</span>
-              </p>
-            ) : null}
-            {next !== null ? (
-              <p className="truncate text-[12px] text-ink-muted">
-                Next · {next.block.title} · <span className="font-numeric">{formatMinuteOfDay(next.startMin)}</span> · in {formatSpan(next.startMin - nowMin)}
-              </p>
-            ) : current === null ? (
-              <p className="text-[12px] text-ink-muted">Nothing left today</p>
-            ) : null}
-          </div>
-        ) : null}
-      </header>
+          {isToday && !loading ? (
+            <div className="mt-4 flex flex-col gap-1 text-[13px]">
+              {current !== null ? (
+                <p className="flex items-center gap-2 text-ink">
+                  <span className="relative size-[7px] shrink-0 rounded-full bg-[var(--clay)]">
+                    <span className="animate-pulse-out absolute inset-0 rounded-full bg-[var(--clay)]" />
+                  </span>
+                  <span className="font-medium">{current.block.title}</span>
+                  <span className="font-numeric text-ink-muted">{formatSpan(current.endMin - nowMin)} left</span>
+                </p>
+              ) : null}
+              {next !== null ? (
+                <p className="text-ink-muted">
+                  Next · {next.block.title} · <span className="font-numeric">{formatMinuteOfDay(next.startMin)}</span> · in {formatSpan(next.startMin - nowMin)}
+                </p>
+              ) : current === null ? (
+                <p className="text-ink-muted">Nothing left today</p>
+              ) : null}
+            </div>
+          ) : null}
+        </header>
 
-      <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto">
         {loading ? (
-          <div className="mx-auto flex max-w-[52rem] flex-col gap-3 px-7 py-8">
+          <div className="flex flex-col gap-3">
             {[0, 1, 2].map((k) => (
               <motion.div
                 key={k}
-                className="h-14 rounded-[10px] bg-sage-fill"
+                className="h-14 rounded-[14px] bg-sage-fill"
                 animate={{ opacity: [0.35, 0.8, 0.35] }}
                 transition={{ duration: 1.4, repeat: Infinity, delay: k * 0.12 }}
               />
             ))}
           </div>
         ) : segments.length === 0 ? (
-          <div className="flex h-full min-h-[14rem] flex-col items-center justify-center gap-1.5 px-6 text-center">
+          <div className="flex min-h-[12rem] flex-col gap-1.5 pt-6">
             <p className="text-[15px] text-ink">Nothing planned</p>
-            <p className="max-w-sm text-[12px] leading-relaxed text-ink-ghost">What needs to happen on this day shows here once it is planned.</p>
+            <p className="max-w-sm text-[12.5px] leading-relaxed text-ink-ghost">What needs to happen on this day shows here once it is planned.</p>
           </div>
         ) : (
-          <div className="relative mx-auto max-w-[52rem] px-7 py-6" style={{ height: (to - from) * 60 * PPM + 48 }}>
-            <div className="relative h-full">
-              {Array.from({ length: to - from + 1 }, (_, i) => from + i).map((hour) => (
-                <div key={hour} aria-hidden className="absolute inset-x-0" style={{ top: top(hour * 60) }}>
-                  <span className="font-numeric absolute left-0 -translate-y-1/2 text-[10px] text-ink-ghost">
-                    {hour % 12 || 12} {hour >= 12 && hour < 24 ? "PM" : "AM"}
+          <div className="relative" style={{ height: (to - from) * 60 * PPM }}>
+            {Array.from({ length: to - from + 1 }, (_, i) => from + i).map((hour) => (
+              <span
+                key={hour}
+                aria-hidden
+                className="font-numeric absolute left-0 -translate-y-1/2 text-[10.5px] text-ink-ghost"
+                style={{ top: top(hour * 60) }}
+              >
+                {hour % 12 || 12} {hour >= 12 && hour < 24 ? "PM" : "AM"}
+              </span>
+            ))}
+            <div className="absolute inset-y-0 right-0" style={{ left: GUTTER_PX }}>
+              {gapsBetween(segments)
+                .filter((gap) => gap.endMin - gap.startMin >= GAP_NAMED_MIN)
+                .map((gap) => (
+                  <span
+                    key={gap.startMin}
+                    aria-hidden
+                    className="font-numeric absolute left-4 -translate-y-1/2 text-[10.5px] text-ink-ghost"
+                    style={{ top: top((gap.startMin + gap.endMin) / 2) }}
+                  >
+                    {formatSpan(gap.endMin - gap.startMin)} open
                   </span>
-                  <span className="absolute right-0 border-t border-rule/60" style={{ left: GUTTER_PX }} />
-                </div>
-              ))}
-              <div className="absolute inset-y-0 right-0" style={{ left: GUTTER_PX }}>
-                {gapsBetween(segments)
-                  .filter((gap) => (gap.endMin - gap.startMin) * PPM >= GAP_LABEL_PX)
-                  .map((gap) => (
-                    <span
-                      key={gap.startMin}
-                      aria-hidden
-                      className="font-numeric absolute inset-x-0 flex -translate-y-1/2 justify-center text-[10.5px] text-ink-ghost"
-                      style={{ top: top((gap.startMin + gap.endMin) / 2) }}
-                    >
-                      <span className="rounded-full bg-[var(--glass-solid)] px-2">{gap.endMin - gap.startMin} min</span>
-                    </span>
-                  ))}
-                {segments.map((segment, k) => (
-                  <BlockRow
-                    key={segment.block.id}
-                    segment={segment}
-                    top={top(segment.startMin)}
-                    settled={isSettled(segment.block, now)}
-                    current={current?.block.id === segment.block.id}
-                    delay={k * 0.02}
-                    onOpen={onOpen}
-                  />
                 ))}
-                {isToday && nowMin >= from * 60 && nowMin <= to * 60 ? (
-                  <div aria-hidden className="pointer-events-none absolute inset-x-0 z-10 flex items-center" style={{ top: top(nowMin) }}>
-                    <span className="-ml-1 size-2 shrink-0 rounded-full bg-[var(--clay)]" />
-                    <span className="h-px flex-1 bg-[color-mix(in_srgb,var(--clay)_55%,transparent)]" />
-                    <span className="font-numeric rounded-[4px] bg-[var(--clay)] px-1.5 text-[10px] text-bone">{formatMinuteOfDay(Math.round(nowMin))}</span>
-                  </div>
-                ) : null}
-              </div>
+              {segments.map((segment, k) => (
+                <BlockRow
+                  key={segment.block.id}
+                  segment={segment}
+                  top={top(segment.startMin)}
+                  settled={isSettled(segment.block, now)}
+                  current={current?.block.id === segment.block.id}
+                  delay={k * 0.02}
+                  onOpen={onOpen}
+                />
+              ))}
+              {isToday && nowMin >= from * 60 && nowMin <= to * 60 ? (
+                <div aria-hidden className="pointer-events-none absolute inset-x-0 z-10 flex items-center" style={{ top: top(nowMin) }}>
+                  <span className="-ml-[3px] size-1.5 shrink-0 rounded-full bg-[var(--clay)]" />
+                  <span className="h-px flex-1 bg-[color-mix(in_srgb,var(--clay)_50%,transparent)]" />
+                </div>
+              ) : null}
             </div>
           </div>
         )}
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -165,33 +164,33 @@ type BlockRowProps = {
 /** One block: its glyph, title and time, with its note when the height allows. */
 function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowProps) {
   const { block, startMin, endMin, lane, lanes } = segment;
-  const height = Math.max((endMin - startMin) * PPM - 3, 24);
+  const height = Math.max((endMin - startMin) * PPM - 4, 24);
   const oneLine = height < ONE_LINE_PX;
   return (
     <motion.button
       type="button"
       initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: settled && !current ? 0.5 : 1, y: 0 }}
+      animate={{ opacity: settled && !current ? 0.45 : 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.995 }}
       onClick={(e) => onOpen(block, e.currentTarget)}
       aria-label={`${block.title}, ${formatMinuteOfDay(startMin)} to ${formatMinuteOfDay(endMin)}`}
-      className={`absolute flex overflow-hidden rounded-[10px] border px-3.5 text-left transition-shadow duration-slow ease-dadi hover:z-10 hover:shadow-[var(--shadow)] ${
+      className={`absolute flex overflow-hidden rounded-[14px] px-4 text-left transition-shadow duration-slow ease-dadi hover:z-10 hover:shadow-[var(--shadow)] ${
         TONE_CLASS[KIND_TONE[block.kind]]
-      } ${current ? "!border-sage shadow-[var(--shadow)]" : ""} ${oneLine ? "items-center gap-3" : "items-start gap-3 py-2.5"}`}
-      style={{ top: top + 1.5, height, left: `calc(${(lane / lanes) * 100}% + 0px)`, width: `calc(${100 / lanes}% - 6px)` }}
+      } ${current ? "ring-1 ring-sage" : ""} ${oneLine ? "items-center gap-3" : "items-start gap-3 py-3"}`}
+      style={{ top: top + 2, height, left: `calc(${(lane / lanes) * 100}% + 0px)`, width: `calc(${100 / lanes}% - 6px)` }}
     >
-      <span className="shrink-0 text-sage-deep/80">
+      <span className="shrink-0 text-sage-deep/70">
         <PlannerGlyph icon={block.icon} size={15} />
       </span>
       <span className={`flex min-w-0 flex-1 ${oneLine ? "items-baseline justify-between gap-3" : "flex-col gap-0.5"}`}>
-        <span className="truncate text-[13.5px] font-medium text-ink">{block.title}</span>
-        <span className="font-numeric shrink-0 text-[11px] text-ink-muted">
+        <span className="truncate text-[14px] font-medium text-ink">{block.title}</span>
+        <span className="font-numeric shrink-0 text-[11.5px] text-ink-muted">
           {formatMinuteOfDay(startMin)} to {formatMinuteOfDay(endMin)}
         </span>
         {!oneLine && block.note && height >= NOTE_ROOM_PX ? (
-          <span className="mt-0.5 line-clamp-2 text-[12px] leading-snug text-ink-muted">{block.note}</span>
+          <span className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-ink-muted">{block.note}</span>
         ) : null}
       </span>
     </motion.button>

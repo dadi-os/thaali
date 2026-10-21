@@ -159,6 +159,14 @@ describe("weekSlots", () => {
     expect(layout.more[2]).toEqual({ slot: 3, count: 2 });
     expect(layout.slots).toBe(4);
   });
+
+  it("never holds more than the limit: bars past it are left out and counted in +N more", () => {
+    const bars = ["a", "b", "c"].map((id) => plan(id, new Date(2026, 9, 7), new Date(2026, 9, 7), true));
+    const layout = weekSlots(bars, week, 2);
+    expect(layout.bars).toHaveLength(1);
+    expect(layout.more[2]).toEqual({ slot: 1, count: 2 });
+    expect(layout.slots).toBeLessThanOrEqual(2);
+  });
 });
 
 describe("lanesThrough", () => {
