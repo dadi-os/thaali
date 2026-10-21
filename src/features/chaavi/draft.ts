@@ -8,12 +8,14 @@ import type {
   ChaaviCreateItem,
   ChaaviSecretField,
   ChaaviFieldInput,
+  ChaaviFolder,
   ChaaviItem,
   ChaaviItemType,
   ChaaviLinkedTarget,
   ChaaviUpdateItem,
   ChaaviUriMatch,
 } from "../../types/chaavi";
+import { isWithin } from "./folders";
 
 /** Display names per item type. */
 export const TYPE_META: Record<ChaaviItemType, { one: string; many: string }> = {
@@ -165,10 +167,10 @@ export type VaultScope =
   | { kind: "all" }
   | { kind: "favorites" }
   | { kind: "none" }
-  | { kind: "folder"; id: string };
+  | { kind: "folder"; path: string };
 
-/** True when `item` belongs to `scope`. */
-export function inScope(item: ChaaviItem, scope: VaultScope): boolean {
+/** True when `item` belongs to `scope`; a folder scope takes its subfolders too. */
+export function inScope(item: ChaaviItem, scope: VaultScope, folders: ChaaviFolder[]): boolean {
   if (scope.kind === "all") {
     return true;
   }
@@ -178,7 +180,8 @@ export function inScope(item: ChaaviItem, scope: VaultScope): boolean {
   if (scope.kind === "none") {
     return item.folderId === null;
   }
-  return item.folderId === scope.id;
+  const own = folders.find((folder) => folder.id === item.folderId);
+  return own !== undefined && isWithin(own.name, scope.path);
 }
 
 /**

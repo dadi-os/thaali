@@ -107,3 +107,51 @@ export function IconPencil() {
     </svg>
   );
 }
+
+/** An open eye: reveal a hidden value. */
+export function IconEye() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M1.8 9S4.5 4.2 9 4.2 16.2 9 16.2 9 13.5 13.8 9 13.8 1.8 9 1.8 9Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <circle cx="9" cy="9" r="2.1" stroke="currentColor" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
+/** A struck eye: hide a revealed value. */
+export function IconEyeOff() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M1.8 9S4.5 4.2 9 4.2 16.2 9 16.2 9 13.5 13.8 9 13.8 1.8 9 1.8 9Z" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round" />
+      <path d="m3 15 12-12" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** A turning arc: the action is in flight. */
+export function IconSpinner() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 18 18" fill="none" aria-hidden className="animate-spin">
+      <circle cx="9" cy="9" r="6" stroke="currentColor" strokeWidth="1.5" opacity="0.25" />
+      <path d="M9 3a6 6 0 0 1 6 6" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** An arrow leaving a box: open in a new tab. */
+export function IconExternal() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M7.5 4.2H4.2v9.6h9.6v-3.3M10.5 3h4.5v4.5M15 3 8.6 9.4" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** A bin: delete. */
+export function IconTrash() {
+  return (
+    <svg width="13" height="13" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M3.4 5h11.2M7.2 5V3.4h3.6V5M5 5l.6 9.2h6.8L13 5M7.6 7.8v3.6M10.4 7.8v3.6" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}

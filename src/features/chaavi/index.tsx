@@ -22,6 +22,7 @@ import type { ChaaviItem, ChaaviItemType, ChaaviUpdateItem } from "../../types/c
 import { ItemDetail } from "./detail";
 import { createBody, draftFromItem, emptyDraft, inScope, ITEM_TYPES, searchItems, TYPE_META, updateBody, type ItemDraft, type VaultScope } from "./draft";
 import { ItemEditor } from "./editor";
+import { buildFolderTree, isWithin, subtreeRenames } from "./folders";
 import { FolderRail, ItemFace, ItemRow, Ledger, parseDrop, type DropTarget, type Landing } from "./vault";
 
 /** Pointer travel before a press on a row becomes a drag. */
@@ -174,13 +175,13 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
 
   const folderOp = useMutation({
     mutationFn: (
-      input: { op: "create"; name: string } | { op: "rename"; id: string; name: string } | { op: "delete"; id: string },
+      input: { op: "create"; name: string } | { op: "rename"; renames: { id: string; name: string }[] } | { op: "delete"; id: string },
     ): Promise<unknown> => {
       if (input.op === "create") {
         return chaavi.createFolder(input.name);
       }
       if (input.op === "rename") {
-        return chaavi.renameFolder(input.id, input.name);
+        return Promise.all(input.renames.map((entry) => chaavi.renameFolder(entry.id, entry.name)));
       }
       return chaavi.deleteFolder(input.id);
     },
@@ -190,9 +191,9 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
   const items = itemsQuery.data?.items ?? null;
   const folders = foldersQuery.data?.folders ?? [];
   const scope: VaultScope =
-    pickedScope.kind === "folder" && !folders.some((folder) => folder.id === pickedScope.id) ? { kind: "all" } : pickedScope;
+    pickedScope.kind === "folder" && !folders.some((folder) => isWithin(folder.name, pickedScope.path)) ? { kind: "all" } : pickedScope;
   const searched = items === null ? [] : searchItems(items, query);
-  const scoped = searched.filter((item) => inScope(item, scope));
+  const scoped = searched.filter((item) => inScope(item, scope, folders));
   const shown = scoped.filter((item) => typeFilter === null || item.type === typeFilter);
   const selected = items?.find((item) => item.id === selectedId) ?? null;
   const dragged = ghost === null ? null : (items?.find((item) => item.id === ghost.id) ?? null);
@@ -201,12 +202,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
     items === null
       ? null
       : (Object.fromEntries(ITEM_TYPES.map((type) => [type, scoped.filter((item) => item.type === type).length])) as Record<ChaaviItemType, number>);
-  const byFolder: Record<string, number> = {};
-  for (const item of searched) {
-    if (item.folderId !== null) {
-      byFolder[item.folderId] = (byFolder[item.folderId] ?? 0) + 1;
-    }
-  }
+  const tree = buildFolderTree(folders, searched);
   const scopeTitle =
     scope.kind === "all"
       ? "All items"
@@ -214,7 +210,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
         ? "Favorites"
         : scope.kind === "none"
           ? "No folder"
-          : folders.find((folder) => folder.id === scope.id)!.name;
+          : scope.path;
 
   const trouble = foldersQuery.isError ? foldersQuery.error : folderOp.isError ? folderOp.error : null;
 
@@ -314,7 +310,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
     save.reset();
     setEditor({
       mode: "create",
-      draft: emptyDraft(typeFilter ?? "login", scope.kind === "folder" ? scope.id : null),
+      draft: emptyDraft(typeFilter ?? "login", scope.kind === "folder" ? (folders.find((folder) => folder.name === scope.path)?.id ?? null) : null),
     });
   }
 
@@ -356,26 +352,25 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
       <Ledger counts={typeCounts} active={typeFilter} onPick={setTypeFilter} />
 
       <div className="flex min-h-0 flex-1 gap-4">
-        <aside className="widget-frame w-[15.5rem] shrink-0" aria-label="Folders">
+        <aside className="widget-frame w-[17rem] shrink-0" aria-label="Folders">
           <div className="widget-frame__chrome !justify-between !px-5 !pt-3.5 !pb-3">
             <span className="widget-frame__title">Vault</span>
           </div>
           <motion.div layoutScroll className="widget-frame__body !overflow-y-auto border-t border-dashed border-sage-line">
             <FolderRail
-              folders={folders}
+              tree={tree}
               scope={scope}
               counts={{
                 all: searched.length,
                 favorites: searched.filter((item) => item.favorite).length,
                 none: searched.filter((item) => item.folderId === null).length,
-                byFolder,
               }}
               hot={ghost === null ? null : ghost.over}
               landed={landed}
               busy={folderOp.isPending}
               onScope={setScope}
               onCreate={(name) => folderOp.mutate({ op: "create", name })}
-              onRename={(id, name) => folderOp.mutate({ op: "rename", id, name })}
+              onRename={(from, to) => folderOp.mutate({ op: "rename", renames: subtreeRenames(folders, from, to) })}
               onDelete={(id) => folderOp.mutate({ op: "delete", id })}
             />
           </motion.div>

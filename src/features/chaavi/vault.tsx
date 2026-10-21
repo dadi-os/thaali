@@ -4,13 +4,14 @@
  * State and mutations stay in index.tsx.
  */
 
-import { useState, type PointerEvent as ReactPointerEvent, type Ref } from "react";
+import { Fragment, useState, type PointerEvent as ReactPointerEvent, type ReactNode, type Ref } from "react";
 import { motion } from "motion/react";
 import { IconPlus } from "../../shared/components/IconButton";
 import { Ticker } from "../../shared/components/Ticker";
 import { EASE, SLOW_S, SLOWER_S } from "../../shared/lib/ux/motion";
-import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
+import type { ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, itemSubtitle, TYPE_META, type VaultScope } from "./draft";
+import { joinPath, parentPath, type FolderNode } from "./folders";
 import { IconFolder, IconPencil, IconStar, TypeGlyph } from "./icons";
 
 export type SelectionMarkProps = {
@@ -102,10 +103,10 @@ export function Ledger({ counts, active, onPick }: LedgerProps) {
 }
 
 export type FolderRailProps = {
-  folders: ChaaviFolder[];
+  tree: FolderNode[];
   scope: VaultScope;
-  /** Item counts in the current search: every item, favorites, no folder, and per folder id. */
-  counts: { all: number; favorites: number; none: number; byFolder: Record<string, number> };
+  /** Item counts in the current search: every item, favorites and no folder. */
+  counts: { all: number; favorites: number; none: number };
   /** The drop target under a dragged item, by {@link dropKey}. */
   hot: string | null;
   /** The rail row a dropped item last landed on, which flashes as it takes it. */
@@ -113,23 +114,39 @@ export type FolderRailProps = {
   /** A folder create, rename or delete is in flight. */
   busy: boolean;
   onScope: (scope: VaultScope) => void;
-  onCreate: (name: string) => void;
-  onRename: (id: string, name: string) => void;
+  /** Create the folder at this full path. */
+  onCreate: (path: string) => void;
+  /** Move the folder at `from`, with the folders under it, to the path `to`. */
+  onRename: (from: string, to: string) => void;
+  /** Delete the vault folder with this id; folders under it stay. */
   onDelete: (id: string) => void;
 };
 
+/** A row of the folder tree in display order. */
+type RailRow = { node: FolderNode; depth: number };
+
+/** The tree's visible rows, skipping the children of collapsed folders. */
+function railRows(nodes: FolderNode[], collapsed: Set<string>, depth = 0): RailRow[] {
+  return nodes.flatMap((node) => [
+    { node, depth },
+    ...(collapsed.has(node.path) ? [] : railRows(node.children, collapsed, depth + 1)),
+  ]);
+}
+
 /**
- * The folder rail: All items, Favorites, each folder (rename and delete on hover), and No
- * folder. Favorites, folders and No folder are drop targets for a dragged item.
+ * The folder rail: All items, Favorites, the folder tree (collapse, add a subfolder, rename
+ * and delete on hover), and No folder. Favorites, folders and No folder are drop targets for a
+ * dragged item.
  */
-export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope, onCreate, onRename, onDelete }: FolderRailProps) {
-  const [naming, setNaming] = useState(false);
+export function FolderRail({ tree, scope, counts, hot, landed, busy, onScope, onCreate, onRename, onDelete }: FolderRailProps) {
+  const [naming, setNaming] = useState<{ parent: string | null } | null>(null);
   const [draft, setDraft] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
   const [confirming, setConfirming] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const isScope = (next: VaultScope) =>
-    scope.kind === next.kind && (scope.kind !== "folder" || (next.kind === "folder" && next.id === scope.id));
+    scope.kind === next.kind && (scope.kind !== "folder" || (next.kind === "folder" && next.path === scope.path));
 
   const row = (on: boolean, target: DropTarget | null) =>
     `relative flex min-h-[38px] w-full items-center gap-2.5 rounded-[var(--radius)] border border-dashed px-3 text-left text-[13px] transition-[background-color,border-color,box-shadow] duration-fast ease-dadi [&>:not([aria-hidden])]:relative ${
@@ -162,6 +179,35 @@ export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope,
     </span>
   );
 
+  const startNaming = (parent: string | null) => {
+    if (parent !== null) {
+      setCollapsed((current) => {
+        const next = new Set(current);
+        next.delete(parent);
+        return next;
+      });
+    }
+    setNaming({ parent });
+    setDraft("");
+  };
+
+  const indent = (depth: number) => ({ paddingLeft: 12 + depth * 16 });
+
+  const addForm = (parent: string | null, depth: number) => (
+    <div key={`new:${parent ?? ""}`} style={indent(depth)} className="rounded-[var(--radius)] bg-sage-active pr-3">
+      <NameForm
+        submitLabel="Add"
+        onSubmit={(name) => {
+          setNaming(null);
+          onCreate(joinPath(parent, name));
+        }}
+        onCancel={() => setNaming(null)}
+        draft={draft}
+        setDraft={setDraft}
+      />
+    </div>
+  );
+
   return (
     <div className="flex flex-col gap-0.5 p-2">
       <button type="button" className={row(isScope({ kind: "all" }), null)} onClick={() => onScope({ kind: "all" })}>
@@ -189,53 +235,42 @@ export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope,
           type="button"
           aria-label="New folder"
           disabled={busy}
-          onClick={() => {
-            setNaming(true);
-            setDraft("");
-          }}
+          onClick={() => startNaming(null)}
           className="inline-flex size-6 items-center justify-center rounded-[6px] text-ink-ghost transition-colors duration-fast ease-dadi hover:bg-sage-active hover:text-sage-deep [&_svg]:size-3.5"
         >
           <IconPlus />
         </button>
       </div>
 
-      {naming ? (
-        <NameForm
-          submitLabel="Add"
-          onSubmit={(name) => {
-            setNaming(false);
-            onCreate(name);
-          }}
-          onCancel={() => setNaming(false)}
-          draft={draft}
-          setDraft={setDraft}
-        />
-      ) : null}
+      {naming !== null && naming.parent === null ? addForm(null, 0) : null}
 
-      {folders.map((folder) => {
-        const target: DropTarget = { kind: "folder", id: folder.id };
-        if (renaming === folder.id) {
+      {railRows(tree, collapsed).map(({ node, depth }) => {
+        const target: DropTarget | null = node.id === null ? null : { kind: "folder", id: node.id };
+        const scopeOf: VaultScope = { kind: "folder", path: node.path };
+        if (renaming === node.path) {
           return (
-            <NameForm
-              key={folder.id}
-              submitLabel="Save"
-              onSubmit={(name) => {
-                setRenaming(null);
-                if (name !== folder.name) {
-                  onRename(folder.id, name);
-                }
-              }}
-              onCancel={() => setRenaming(null)}
-              draft={draft}
-              setDraft={setDraft}
-            />
+            <div key={node.path} style={indent(depth)} className="rounded-[var(--radius)] bg-sage-active pr-3">
+              <NameForm
+                submitLabel="Save"
+                onSubmit={(name) => {
+                  setRenaming(null);
+                  if (name !== node.name) {
+                    onRename(node.path, joinPath(parentPath(node.path), name));
+                  }
+                }}
+                onCancel={() => setRenaming(null)}
+                draft={draft}
+                setDraft={setDraft}
+              />
+            </div>
           );
         }
-        if (confirming === folder.id) {
+        if (confirming === node.path && node.id !== null) {
           return (
-            <div key={folder.id} className="my-0.5 rounded-[var(--radius)] border border-dashed border-error-line bg-error-fill/40 px-3 py-2.5">
+            <div key={node.path} style={indent(depth)} className="my-0.5 rounded-[var(--radius)] border border-dashed border-error-line bg-error-fill/40 py-2.5 pr-3">
               <p className="text-[12px] text-ink">
-                Delete {folder.name}? Its {counts.byFolder[folder.id] ?? 0} items move to No folder.
+                Delete {node.name}? Its {node.own} items move to No folder
+                {node.children.length > 0 ? "; the folders inside it stay." : "."}
               </p>
               <div className="mt-2 flex gap-3">
                 <button
@@ -243,7 +278,7 @@ export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope,
                   className="text-[10px] font-medium tracking-[0.14em] text-error uppercase"
                   onClick={() => {
                     setConfirming(null);
-                    onDelete(folder.id);
+                    onDelete(node.id!);
                   }}
                 >
                   Delete folder
@@ -259,50 +294,78 @@ export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope,
             </div>
           );
         }
+        const open = !collapsed.has(node.path);
         return (
-          <div key={folder.id} data-drop={dropKey(target)} className={`group ${row(isScope(target), target)}`}>
-            {marks(isScope(target), target)}
-            <button
-              type="button"
-              className="flex min-h-[36px] min-w-0 flex-1 items-center gap-2.5 text-left"
-              onClick={() => onScope(target)}
-              onDoubleClick={() => {
-                setRenaming(folder.id);
-                setDraft(folder.name);
-              }}
+          <Fragment key={node.path}>
+            <div
+              {...(target !== null ? { "data-drop": dropKey(target) } : {})}
+              style={indent(depth)}
+              className={`group ${row(isScope(scopeOf), target)}`}
             >
-              <span className="text-sage">
-                <IconFolder />
-              </span>
-              <span className="truncate text-ink">{folder.name}</span>
-            </button>
-            {count(counts.byFolder[folder.id] ?? 0)}
-            <span className="hidden gap-0.5 group-hover:inline-flex">
+              {marks(isScope(scopeOf), target)}
+              {node.children.length > 0 ? (
+                <button
+                  type="button"
+                  aria-label={open ? `Collapse ${node.name}` : `Expand ${node.name}`}
+                  aria-expanded={open}
+                  onClick={() =>
+                    setCollapsed((current) => {
+                      const next = new Set(current);
+                      if (!next.delete(node.path)) {
+                        next.add(node.path);
+                      }
+                      return next;
+                    })
+                  }
+                  className="-ml-1 inline-flex size-5 shrink-0 items-center justify-center rounded-[5px] text-ink-ghost hover:text-sage-deep"
+                >
+                  <motion.svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden animate={{ rotate: open ? 90 : 0 }} transition={{ duration: 0.16, ease: EASE }}>
+                    <path d="m3.5 2 3 3-3 3" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" />
+                  </motion.svg>
+                </button>
+              ) : (
+                <span aria-hidden className="-ml-1 size-5 shrink-0" />
+              )}
               <button
                 type="button"
-                aria-label={`Rename ${folder.name}`}
-                disabled={busy}
-                onClick={() => {
-                  setRenaming(folder.id);
-                  setDraft(folder.name);
+                className="flex min-h-[36px] min-w-0 flex-1 items-center gap-2.5 text-left"
+                onClick={() => onScope(scopeOf)}
+                onDoubleClick={() => {
+                  setRenaming(node.path);
+                  setDraft(node.name);
                 }}
-                className="inline-flex size-6 items-center justify-center rounded-[6px] text-ink-ghost hover:bg-sage-active hover:text-sage-deep"
               >
-                <IconPencil />
+                <span className={target === null ? "text-ink-faint" : "text-sage"}>
+                  <IconFolder dashed={target === null} />
+                </span>
+                <span className={`truncate ${target === null ? "text-ink-muted" : "text-ink"}`}>{node.name}</span>
               </button>
-              <button
-                type="button"
-                aria-label={`Delete ${folder.name}`}
-                disabled={busy}
-                onClick={() => setConfirming(folder.id)}
-                className="inline-flex size-6 items-center justify-center rounded-[6px] text-ink-ghost hover:bg-sage-active hover:text-sage-deep"
-              >
-                <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden>
-                  <path d="M4 4l7 7M11 4l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-                </svg>
-              </button>
-            </span>
-          </div>
+              {count(node.count)}
+              <span className="hidden gap-0.5 group-hover:inline-flex">
+                <RailAction label={`Add a folder inside ${node.name}`} disabled={busy} onClick={() => startNaming(node.path)}>
+                  <IconPlus />
+                </RailAction>
+                <RailAction
+                  label={`Rename ${node.name}`}
+                  disabled={busy}
+                  onClick={() => {
+                    setRenaming(node.path);
+                    setDraft(node.name);
+                  }}
+                >
+                  <IconPencil />
+                </RailAction>
+                {node.id !== null ? (
+                  <RailAction label={`Delete ${node.name}`} disabled={busy} onClick={() => setConfirming(node.path)}>
+                    <svg width="12" height="12" viewBox="0 0 15 15" fill="none" aria-hidden>
+                      <path d="M4 4l7 7M11 4l-7 7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+                    </svg>
+                  </RailAction>
+                ) : null}
+              </span>
+            </div>
+            {naming !== null && naming.parent === node.path ? addForm(node.path, depth + 1) : null}
+          </Fragment>
         );
       })}
 
@@ -323,6 +386,30 @@ export function FolderRail({ folders, scope, counts, hot, landed, busy, onScope,
         Drag an item onto a folder to move it, or onto Favorites to star it.
       </p>
     </div>
+  );
+}
+
+type RailActionProps = {
+  /** Accessible name and tooltip. */
+  label: string;
+  disabled: boolean;
+  onClick: () => void;
+  children: ReactNode;
+};
+
+/** A small icon action on a folder row, shown on hover. */
+function RailAction({ label, disabled, onClick, children }: RailActionProps) {
+  return (
+    <button
+      type="button"
+      aria-label={label}
+      title={label}
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex size-6 items-center justify-center rounded-[6px] text-ink-ghost hover:bg-sage-active hover:text-sage-deep disabled:opacity-40 [&_svg]:size-3"
+    >
+      {children}
+    </button>
   );
 }
 

@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ChaaviItem } from "../../types/chaavi";
+import type { ChaaviFolder, ChaaviItem } from "../../types/chaavi";
 import { createBody, draftFromItem, draftProblem, emptyDraft, inScope, itemSubtitle, retype, searchItems, updateBody } from "./draft";
+
+const folders: ChaaviFolder[] = [{ id: "dev", name: "development/fliks-gg" }];
 
 const login: ChaaviItem = {
   id: "l1",
@@ -67,10 +69,12 @@ describe("vault search and scopes", () => {
   });
 
   it("scopes by folder, no folder and favorites", () => {
-    expect(inScope(login, { kind: "folder", id: "dev" })).toBe(true);
-    expect(inScope(card, { kind: "none" })).toBe(true);
-    expect(inScope(login, { kind: "none" })).toBe(false);
-    expect(inScope(card, { kind: "favorites" })).toBe(false);
+    expect(inScope(login, { kind: "folder", path: "development" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "folder", path: "development/fliks-gg" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "folder", path: "dev" }, folders)).toBe(false);
+    expect(inScope(card, { kind: "none" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "none" }, folders)).toBe(false);
+    expect(inScope(card, { kind: "favorites" }, folders)).toBe(false);
   });
 
   it("subtitles show public fields only", () => {

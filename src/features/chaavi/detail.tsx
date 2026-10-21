@@ -12,7 +12,7 @@ import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatRelative } from "../../shared/lib/ux/time";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
 import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META } from "./draft";
-import { IconStar, TypeGlyph } from "./icons";
+import { IconExternal, IconEye, IconEyeOff, IconPencil, IconSpinner, IconStar, IconTrash, TypeGlyph } from "./icons";
 
 const MASK = "••••••••••••";
 
@@ -38,9 +38,9 @@ const UNVEIL = {
   transition: { duration: 0.2, ease: EASE },
 } as const;
 
-/** A text action in a field's header (Reveal, Hide, Open). */
+/** A field header action (Reveal, Hide, Open): a small outlined button of fixed width. */
 const ACT =
-  "text-[10px] font-medium tracking-[0.14em] uppercase text-sage-deep transition-colors duration-fast ease-dadi hover:text-sage disabled:opacity-40";
+  "inline-flex h-6 min-w-[4.75rem] items-center justify-center gap-1.5 rounded-[7px] border border-sage-line/80 bg-bone/40 px-2 text-[10px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase transition-[background-color,border-color,transform] duration-fast ease-dadi hover:border-sage hover:bg-sage-active/50 active:scale-[0.97] disabled:cursor-progress";
 
 export type ItemDetailProps = {
   item: ChaaviItem;
@@ -282,13 +282,15 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
 
         <motion.div variants={RISE} className="mt-auto flex flex-wrap items-center gap-2 border-t border-dashed border-sage-line pt-4">
           <button type="button" onClick={onEdit} className={DASH}>
+            <IconPencil />
             Edit
           </button>
           {confirming ? (
             <>
               <span className="text-[12px] text-ink-muted">Move to the vault's trash?</span>
               <button type="button" disabled={busy} onClick={onDelete} className={DASH_DANGER}>
-                {busy ? "Deleting…" : "Delete"}
+                {busy ? <IconSpinner /> : <IconTrash />}
+                {busy ? "Deleting" : "Delete"}
               </button>
               <button type="button" onClick={() => setConfirming(false)} className={DASH}>
                 Keep
@@ -296,6 +298,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
             </>
           ) : (
             <button type="button" onClick={() => setConfirming(true)} className={DASH_DANGER}>
+              <IconTrash />
               Delete
             </button>
           )}
@@ -311,7 +314,7 @@ export const DASH =
 
 /** Dashed action button for a destructive step. */
 export const DASH_DANGER =
-  "inline-flex h-9 items-center rounded-[7px] border border-dashed border-error-line bg-error-fill/40 px-3 text-[11px] font-medium tracking-[0.14em] text-error uppercase transition-[border-color] duration-slow ease-dadi hover:border-error disabled:opacity-40";
+  "inline-flex h-9 items-center gap-1.5 rounded-[7px] border border-dashed border-error-line bg-error-fill/40 px-3 text-[11px] font-medium tracking-[0.14em] text-error uppercase transition-[border-color] duration-slow ease-dadi hover:border-error disabled:opacity-40";
 
 /** Address lines, city/state/postal code and country, one per line. */
 function identityAddress(item: ChaaviItem): string | null {
@@ -389,6 +392,7 @@ function PlainRow({ label, value, kind, mono = false, link = false }: PlainRowPr
           <>
             {link ? (
               <a href={value} target="_blank" rel="noreferrer" className={ACT}>
+                <IconExternal />
                 Open
               </a>
             ) : null}
@@ -435,7 +439,8 @@ function SecretRow({ label, kind, mono = false, mask = MASK, secret }: SecretRow
             onClick={secret.shown === null ? secret.onReveal : secret.onHide}
             className={ACT}
           >
-            <ActLabel text={secret.shown === null ? "Reveal" : "Hide"} pending={secret.pending} />
+            {secret.pending ? <IconSpinner /> : secret.shown === null ? <IconEye /> : <IconEyeOff />}
+            {secret.shown === null ? "Reveal" : "Hide"}
           </button>
           <CopyButton text={secret.copy} label={`Copy ${label.toLowerCase()}`} />
         </>
@@ -453,33 +458,6 @@ function SecretRow({ label, kind, mono = false, mask = MASK, secret }: SecretRow
         </motion.p>
       </AnimatePresence>
     </Field>
-  );
-}
-
-type ActLabelProps = {
-  /** The action's word (Reveal, Hide). */
-  text: string;
-  /** The reveal is in flight, so the word breathes until the value arrives. */
-  pending: boolean;
-};
-
-/** A reveal action's word: it rolls over to the next word, and breathes while its fetch runs. */
-function ActLabel({ text, pending }: ActLabelProps) {
-  return (
-    <span className="inline-grid overflow-hidden">
-      <AnimatePresence mode="popLayout" initial={false}>
-        <motion.span
-          key={text}
-          className="col-start-1 row-start-1"
-          initial={{ y: "100%", opacity: 0 }}
-          animate={pending ? { y: 0, opacity: [1, 0.35, 1] } : { y: 0, opacity: 1 }}
-          exit={{ y: "-100%", opacity: 0 }}
-          transition={pending ? { opacity: { duration: 1, repeat: Infinity, ease: "easeInOut" } } : { duration: 0.2, ease: EASE }}
-        >
-          {text}
-        </motion.span>
-      </AnimatePresence>
-    </span>
   );
 }
 
@@ -537,7 +515,8 @@ function TotpRow({ itemId }: TotpRowProps) {
       actions={
         <>
           <button type="button" disabled={loading} onClick={totp ? () => setTotp(null) : load} className={ACT}>
-            <ActLabel text={totp ? "Hide" : "Reveal"} pending={loading && !totp} />
+            {loading && !totp ? <IconSpinner /> : totp ? <IconEyeOff /> : <IconEye />}
+            {totp ? "Hide" : "Reveal"}
           </button>
           <CopyButton
             text={() => (totp ? Promise.resolve(totp.code) : chaavi.getTotp(itemId).then((next) => next.code))}

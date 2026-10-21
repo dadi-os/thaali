@@ -9,10 +9,9 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { countNoun } from "../../shared/lib/ux/plural";
-import { formatRelative } from "../../shared/lib/ux/time";
 import type { ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, TYPE_META } from "./draft";
-import { TypeGlyph } from "./icons";
+import { buildFolderTree } from "./folders";
 
 /** Bar and swatch color per item type, from the house palette. */
 const TYPE_TONE: Record<ChaaviItemType, string> = {
@@ -26,13 +25,13 @@ const TYPE_TONE: Record<ChaaviItemType, string> = {
   passport: "color-mix(in srgb, var(--sage-deep) 50%, var(--bone))",
 };
 
-/** Folders and recent items the tile lists at most. */
-const LIST_MAX = 5;
+/** Top-level folders the tile lists at most. */
+const LIST_MAX = 7;
 
 /**
  * Home Chaavi tile, two rows tall: passwords and secrets on odometers, the vault's make-up
- * by type, its biggest folders, the items edited last, and how many logins carry a passkey
- * or a one-time code. Names and counts only; never a secret value.
+ * by type, its top-level folders with everything nested under them, and how many logins carry
+ * a passkey or a one-time code. Names and counts only; never a secret value.
  */
 export function ChaaviTile() {
   const { state: connection } = useConnection();
@@ -76,18 +75,11 @@ export function ChaaviTile() {
   const byType = ITEM_TYPES.map((type) => ({ type, n: items ? items.filter((item) => item.type === type).length : 0 }));
   const folderRows =
     items && folders
-      ? folders
-          .map((folder) => ({ folder, n: items.filter((item) => item.folderId === folder.id).length }))
-          .sort((a, b) => b.n - a.n || a.folder.name.localeCompare(b.folder.name))
+      ? buildFolderTree(folders, items)
+          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
           .slice(0, LIST_MAX)
       : null;
-  const widest = folderRows ? Math.max(1, ...folderRows.map((row) => row.n)) : 1;
-  const recent = items
-    ? items
-        .filter((item) => item.revisionDate !== null)
-        .sort((a, b) => b.revisionDate!.localeCompare(a.revisionDate!))
-        .slice(0, LIST_MAX)
-    : null;
+  const widest = folderRows ? Math.max(1, ...folderRows.map((row) => row.count)) : 1;
   const passkeys = items ? items.filter((item) => item.type === "login" && item.login.passkeys.length > 0).length : null;
   const codes = items ? items.filter((item) => item.type === "login" && item.login.hasTotp).length : null;
 
@@ -132,43 +124,22 @@ export function ChaaviTile() {
         </div>
       </Section>
 
-      <Section label="Folders">
+      <Section label="Folders" grow>
         {folderRows === null ? (
-          <Skeleton rows={3} />
+          <Skeleton rows={4} />
         ) : folderRows.length === 0 ? (
           <p className="text-[12px] text-ink-ghost">No folders yet</p>
         ) : (
-          folderRows.map(({ folder, n }) => (
-            <div key={folder.id} className="flex items-center gap-2 text-[12px]">
-              <span className="w-20 truncate text-ink">{folder.name}</span>
+          folderRows.map((node) => (
+            <div key={node.path} className="flex items-center gap-2 text-[12px]">
+              <span className="w-24 shrink-0 truncate text-ink">{node.name}</span>
               <span className="h-1 flex-1 overflow-hidden rounded-full bg-rule">
-                <span className="block h-full rounded-full bg-sage" style={{ width: `${(n / widest) * 100}%` }} />
+                <span className="block h-full rounded-full bg-sage" style={{ width: `${(node.count / widest) * 100}%` }} />
               </span>
-              <span className="font-numeric w-5 text-right text-[11px] text-ink-ghost">{n}</span>
-            </div>
-          ))
-        )}
-      </Section>
-
-      <Section label="Recently edited" grow>
-        {recent === null ? (
-          <Skeleton rows={4} />
-        ) : recent.length === 0 ? (
-          <p className="text-[12px] text-ink-ghost">Nothing yet</p>
-        ) : (
-          recent.map((item) => (
-            <div key={item.id} className="flex items-center gap-2.5 text-[12px]">
-              <span
-                className={`inline-flex size-6 shrink-0 items-center justify-center rounded-full border ${
-                  item.type === "card"
-                    ? "border-[color-mix(in_srgb,var(--clay)_60%,transparent)] bg-[color-mix(in_srgb,var(--clay)_14%,var(--bone))] text-[var(--clay)]"
-                    : "border-sage-line bg-bone text-sage-deep"
-                }`}
-              >
-                <TypeGlyph type={item.type} size={12} />
+              <span className="w-16 shrink-0 text-right text-[11px] text-ink-ghost">
+                <span className="font-numeric text-ink">{node.count}</span>
+                {node.children.length > 0 ? ` · ${node.children.length} sub` : ""}
               </span>
-              <span className="min-w-0 flex-1 truncate text-ink">{item.name}</span>
-              <span className="font-numeric shrink-0 text-[10px] text-ink-ghost">{formatRelative(item.revisionDate!)}</span>
             </div>
           ))
         )}
