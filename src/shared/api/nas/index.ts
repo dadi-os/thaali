@@ -250,15 +250,15 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /browsers/:id/stream — the virtual monitor as an MJPEG (multipart/x-mixed-replace) body at the given frame rate, pixel width and JPEG quality (2 best to 31 worst). */
+    /** GET /browsers/:id/stream — the virtual monitor as a raw H.264 (Annex B) body at the given frame rate, pixel width and bitrate. */
     browserStream(
       id: number,
-      { fps, width, quality }: { fps: number; width: number; quality: number },
+      { fps, width, kbps }: { fps: number; width: number; kbps: number },
       signal: AbortSignal,
     ): Promise<ReadableStream<Uint8Array>> {
       return transport.openStream({
         baseUrl,
-        path: `/browsers/${id}/stream?fps=${fps}&width=${width}&quality=${quality}`,
+        path: `/browsers/${id}/stream?fps=${fps}&width=${width}&kbps=${kbps}`,
         signal,
       });
     },

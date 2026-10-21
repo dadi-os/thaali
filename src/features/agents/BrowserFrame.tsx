@@ -50,16 +50,16 @@ function visibleSnapshot(): boolean {
 }
 
 /** Draw `frame` over the whole canvas, cropped to fill it from the top (CSS object-fit: cover, top). */
-function paintCover(canvas: HTMLCanvasElement, frame: ImageBitmap): void {
+function paintCover(canvas: HTMLCanvasElement, frame: VideoFrame): void {
   const width = Math.round(canvas.clientWidth * window.devicePixelRatio);
   const height = Math.round(canvas.clientHeight * window.devicePixelRatio);
   if (canvas.width !== width || canvas.height !== height) {
     canvas.width = width;
     canvas.height = height;
   }
-  const scale = Math.max(width / frame.width, height / frame.height);
-  const drawn = frame.width * scale;
-  canvas.getContext("2d")?.drawImage(frame, (width - drawn) / 2, 0, drawn, frame.height * scale);
+  const scale = Math.max(width / frame.displayWidth, height / frame.displayHeight);
+  const drawn = frame.displayWidth * scale;
+  canvas.getContext("2d")?.drawImage(frame, (width - drawn) / 2, 0, drawn, frame.displayHeight * scale);
 }
 
 /**

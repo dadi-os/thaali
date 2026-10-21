@@ -40,14 +40,14 @@ export interface Transport {
   }): () => void;
 
   /**
-   * Absolute URL the webview loads itself (`<img src>`), for long-lived media such as
-   * Nas's MJPEG browser stream that `request` cannot hand over as one response.
+   * Absolute URL the webview loads itself (`<img src>`), for long-lived media that
+   * `request` cannot hand over as one response.
    * @throws When not connected, like `request`.
    */
   mediaUrl(opts: { baseUrl: string; path: string }): string;
 
   /**
-   * Open a long-lived binary response (Nas's MJPEG browser stream) through the transport's
+   * Open a long-lived binary response (Nas's H.264 browser stream) through the transport's
    * own HTTP client and hand back its body. Aborting `signal` closes it.
    * @throws ApiError with the service's message on a non-2xx; "Not connected" like `request`.
    */

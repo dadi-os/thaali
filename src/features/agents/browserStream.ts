@@ -1,31 +1,31 @@
 /**
  * One shared, watched connection per Nas browser stream and profile. Every view of a
- * browser with that profile (sidebar pin and agent panel; the expanded view runs faster) draws
- * from the same connection, so views never queue
- * behind each other for the webview's few connections per host, and the connection closes
- * when the last view leaves. A stream that errors, ends or stops sending frames reconnects
- * on a bounded, logged backoff; a frame resets it, and running out fails the view with the
- * last error.
+ * browser with that profile (sidebar pin and agent panel; the expanded view runs faster)
+ * draws from the same connection and the same decoder, so views never queue behind each
+ * other for the webview's few connections per host, and the connection closes when the last
+ * view leaves. A stream that errors, ends or stops producing frames reconnects on a
+ * bounded, logged backoff; a frame resets it, and running out fails the view with the last
+ * error.
  */
 
 import { nas } from "../../shared/api";
 import { ApiError } from "../../shared/api/errors";
 import { logLine } from "../../shared/lib/platform/log";
+import { H264Splitter } from "./h264";
 
-/** How a view wants its frames: `fps` frames a second, `width` pixels wide, JPEG `quality` (2 best to 31 worst). */
-export type StreamProfile = { fps: number; width: number; quality: number };
+/** How a view wants its stream: `fps` frames a second, `width` pixels wide, `kbps` H.264 bitrate. */
+export type StreamProfile = { fps: number; width: number; kbps: number };
 
 /** A view that only watches: Nas's own defaults, cheap enough to leave on every pin. */
-export const WATCH_PROFILE: StreamProfile = { fps: 5, width: 960, quality: 7 };
+export const WATCH_PROFILE: StreamProfile = { fps: 5, width: 960, kbps: 600 };
 
 /**
- * A view the user drives. Sized to the mesh link, which sustains about 0.7 MB/s to the box:
- * a 1440 px frame is 50 to 125 KB at this quality, so 10 fps fits an ordinary page and a
- * photo-heavy one stays close.
+ * A view the user drives: 720p at 30 fps, with a bitrate ceiling under the mesh link's
+ * measured 0.7 MB/s. A still page costs a small fraction of it.
  */
-export const DRIVE_PROFILE: StreamProfile = { fps: 10, width: 1440, quality: 5 };
+export const DRIVE_PROFILE: StreamProfile = { fps: 30, width: 1280, kbps: 3000 };
 
-/** Longest wait for the next frame before the stream counts as stalled; Nas sends 5 fps. */
+/** Longest wait for the next frame before the stream counts as stalled; the slowest profile is 5 fps. */
 const STALL_MS = 6_000;
 
 /** Delays before each reconnect after a drop; a received frame starts the list over. */
@@ -34,13 +34,13 @@ const RETRY_MS = [1_000, 2_000, 4_000, 8_000];
 /** What a view of a browser shows: its newest frame, or why it has none. */
 export type BrowserStreamState =
   | { phase: "opening" }
-  | { phase: "live"; frame: ImageBitmap }
+  | { phase: "live"; frame: VideoFrame }
   | { phase: "retrying"; error: string }
   | { phase: "failed"; error: string };
 
 type Listener = (state: BrowserStreamState) => void;
 
-/** One browser's connection at one frame rate and the views drawing it. */
+/** One browser's connection at one profile and the views drawing it. */
 type Hub = {
   id: number;
   profile: StreamProfile;
@@ -54,49 +54,7 @@ const hubs = new Map<string, Hub>();
 
 /** Key of the hub for browser `id` at `profile`. */
 function hubKey(id: number, profile: StreamProfile): string {
-  return `${id}@${profile.fps}x${profile.width}q${profile.quality}`;
-}
-
-/** Byte offset of the first CRLFCRLF at or after `from`, or -1. */
-function headerEnd(buffer: Uint8Array, from: number): number {
-  for (let i = from; i + 3 < buffer.length; i++) {
-    if (buffer[i] === 13 && buffer[i + 1] === 10 && buffer[i + 2] === 13 && buffer[i + 3] === 10) {
-      return i;
-    }
-  }
-  return -1;
-}
-
-/**
- * takeFrames splits the complete JPEG parts off the front of an mpjpeg buffer (ffmpeg's
- * `--frame` parts, each with a Content-Length header) and returns them with the incomplete
- * remainder. A part without a Content-Length throws, since its end cannot be found.
- */
-export function takeFrames(buffer: Uint8Array): {
-  frames: Uint8Array<ArrayBuffer>[];
-  rest: Uint8Array<ArrayBuffer>;
-} {
-  const frames: Uint8Array<ArrayBuffer>[] = [];
-  let offset = 0;
-  for (;;) {
-    const end = headerEnd(buffer, offset);
-    if (end < 0) {
-      break;
-    }
-    const headers = new TextDecoder().decode(buffer.subarray(offset, end));
-    const length = /content-length:\s*(\d+)/i.exec(headers);
-    if (!length) {
-      throw new Error(`stream part has no Content-Length: ${headers.trim()}`);
-    }
-    const start = end + 4;
-    const stop = start + Number(length[1]);
-    if (buffer.length < stop) {
-      break;
-    }
-    frames.push(buffer.slice(start, stop));
-    offset = stop;
-  }
-  return { frames, rest: buffer.slice(offset) };
+  return `${id}@${profile.fps}x${profile.width}k${profile.kbps}`;
 }
 
 /** Hand every view the hub's new state, then release the frame it replaced. */
@@ -128,9 +86,13 @@ function pause(ms: number, signal: AbortSignal): Promise<void> {
 
 /**
  * Read one connection until it ends, decoding and publishing each frame and calling
- * `onFrame` after it. Throws why it dropped; a gap over STALL_MS aborts it as stalled.
+ * `onFrame` after it. Throws why it dropped; a gap over STALL_MS without a decoded frame
+ * aborts it as stalled.
  */
 async function pump(hub: Hub, onFrame: () => void): Promise<void> {
+  if (typeof VideoDecoder === "undefined") {
+    throw new Error("this webview cannot decode H.264 (no WebCodecs)");
+  }
   const connection = new AbortController();
   const close = () => connection.abort();
   hub.closed.signal.addEventListener("abort", close);
@@ -143,32 +105,54 @@ async function pump(hub: Hub, onFrame: () => void): Promise<void> {
       connection.abort();
     }, STALL_MS);
   };
+  const decodeFault: { error?: Error } = {};
+  const splitter = new H264Splitter();
+  let decoder: VideoDecoder | null = null;
+  let awaitingKey = true;
+  let timestamp = 0;
+  const frameUs = 1_000_000 / hub.profile.fps;
+  const output = (frame: VideoFrame) => {
+    if (hub.closed.signal.aborted) {
+      frame.close();
+      return;
+    }
+    arm();
+    onFrame();
+    publish(hub, { phase: "live", frame });
+  };
   arm();
   try {
     const reader = (await nas.browserStream(hub.id, hub.profile, connection.signal)).getReader();
-    let buffer = new Uint8Array(0);
     for (;;) {
       const { done, value } = await reader.read();
       if (done) {
         throw new Error("Nas ended the stream");
       }
-      const joined = new Uint8Array(buffer.length + value.length);
-      joined.set(buffer);
-      joined.set(value, buffer.length);
-      const { frames, rest } = takeFrames(joined);
-      buffer = rest;
-      for (const jpeg of frames) {
-        const frame = await createImageBitmap(new Blob([jpeg], { type: "image/jpeg" }));
-        if (hub.closed.signal.aborted) {
-          frame.close();
-          return;
+      for (const event of splitter.push(value)) {
+        if (event.kind === "config") {
+          decoder?.close();
+          decoder = new VideoDecoder({
+            output,
+            error: (error) => {
+              decodeFault.error = error;
+              connection.abort();
+            },
+          });
+          decoder.configure({ ...event.config, optimizeForLatency: true });
+          awaitingKey = true;
+        } else if (decoder && (!awaitingKey || event.frame.key)) {
+          awaitingKey = false;
+          decoder.decode(
+            new EncodedVideoChunk({ type: event.frame.key ? "key" : "delta", timestamp, data: event.frame.data }),
+          );
+          timestamp += frameUs;
         }
-        arm();
-        onFrame();
-        publish(hub, { phase: "live", frame });
       }
     }
   } catch (err) {
+    if (decodeFault.error) {
+      throw new Error(`decoder failed: ${decodeFault.error.message}`);
+    }
     if (stalled) {
       throw new Error(`no frame for ${STALL_MS / 1000}s`);
     }
@@ -177,6 +161,9 @@ async function pump(hub: Hub, onFrame: () => void): Promise<void> {
     window.clearTimeout(watchdog);
     hub.closed.signal.removeEventListener("abort", close);
     connection.abort();
+    if (decoder && decoder.state !== "closed") {
+      decoder.close();
+    }
   }
 }
 
