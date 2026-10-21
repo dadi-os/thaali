@@ -11,9 +11,9 @@ import { KIND_TONE, TONE_CLASS } from "./kinds";
 const PPM = 0.9;
 /** Gutter holding the hour labels, in pixels. */
 const GUTTER_PX = 52;
-/** Block heights (px) below which a block shows one line, and above which it shows its note. */
-const ONE_LINE_PX = 46;
-const NOTE_ROOM_PX = 72;
+/** Block heights (px) below which a block shows one line, and from which it shows its note. */
+const ONE_LINE_PX = 60;
+const NOTE_ROOM_PX = 92;
 /** Gap length (minutes) from which the open time is named. */
 const GAP_NAMED_MIN = 30;
 
@@ -66,8 +66,8 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
             <div className="mt-4 flex flex-col gap-1 text-[13px]">
               {current !== null ? (
                 <p className="flex items-center gap-2 text-ink">
-                  <span className="relative size-[7px] shrink-0 rounded-full bg-[var(--clay)]">
-                    <span className="animate-pulse-out absolute inset-0 rounded-full bg-[var(--clay)]" />
+                  <span className="relative size-[7px] shrink-0 rounded-full bg-sage-deep">
+                    <span className="animate-pulse-out absolute inset-0 rounded-full bg-sage-deep" />
                   </span>
                   <span className="font-medium">{current.block.title}</span>
                   <span className="font-numeric text-ink-muted">{formatSpan(current.endMin - nowMin)} left</span>
@@ -137,9 +137,11 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
                 />
               ))}
               {isToday && nowMin >= from * 60 && nowMin <= to * 60 ? (
-                <div aria-hidden className="pointer-events-none absolute inset-x-0 z-10 flex items-center" style={{ top: top(nowMin) }}>
-                  <span className="-ml-[3px] size-1.5 shrink-0 rounded-full bg-[var(--clay)]" />
-                  <span className="h-px flex-1 bg-[color-mix(in_srgb,var(--clay)_50%,transparent)]" />
+                <div aria-hidden className="pointer-events-none absolute right-0 z-10 flex -translate-y-1/2 items-center" style={{ top: top(nowMin), left: -GUTTER_PX }}>
+                  <span className="font-numeric w-[46px] shrink-0 rounded-full bg-ink py-[3px] text-center text-[10.5px] font-medium text-bone shadow-[var(--shadow)]">
+                    {formatMinuteOfDay(Math.round(nowMin)).replace(" ", "")}
+                  </span>
+                  <span className="ml-1.5 h-[2px] flex-1 rounded-full bg-gradient-to-r from-ink/80 via-ink/25 to-transparent" />
                 </div>
               ) : null}
             </div>
@@ -211,7 +213,7 @@ type BlockRowProps = {
 /** One block: its glyph, title and time, with its note when the height allows. */
 function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowProps) {
   const { block, startMin, endMin, lane, lanes } = segment;
-  const height = Math.max((endMin - startMin) * PPM - 4, 24);
+  const height = Math.max((endMin - startMin) * PPM - 4, 26);
   const oneLine = height < ONE_LINE_PX;
   return (
     <motion.button
@@ -225,19 +227,19 @@ function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowPro
       aria-label={`${block.title}, ${formatMinuteOfDay(startMin)} to ${formatMinuteOfDay(endMin)}`}
       className={`absolute flex overflow-hidden rounded-[14px] px-4 text-left transition-shadow duration-slow ease-dadi hover:z-10 hover:shadow-[var(--shadow)] ${
         TONE_CLASS[KIND_TONE[block.kind]]
-      } ${current ? "ring-1 ring-sage" : ""} ${oneLine ? "items-center gap-3" : "items-start gap-3 py-3"}`}
+      } ${current ? "ring-1 ring-sage-deep/60" : ""} ${oneLine ? "items-center gap-3.5" : "items-start gap-3.5 pt-3 pb-2.5"}`}
       style={{ top: top + 2, height, left: `calc(${(lane / lanes) * 100}% + 0px)`, width: `calc(${100 / lanes}% - 6px)` }}
     >
-      <span className="shrink-0 text-sage-deep/70">
-        <PlannerGlyph icon={block.icon} size={15} />
+      <span className={`shrink-0 text-sage-deep/70 ${oneLine ? "" : "mt-px"}`}>
+        <PlannerGlyph icon={block.icon} size={16} />
       </span>
-      <span className={`flex min-w-0 flex-1 ${oneLine ? "items-baseline justify-between gap-3" : "flex-col gap-0.5"}`}>
-        <span className="truncate text-[14px] font-medium text-ink">{block.title}</span>
-        <span className="font-numeric shrink-0 text-[11.5px] text-ink-muted">
+      <span className={`flex min-w-0 flex-1 ${oneLine ? "items-center justify-between gap-4" : "flex-col"}`}>
+        <span className="truncate text-[14px] leading-[1.25] font-medium text-ink">{block.title}</span>
+        <span className={`font-numeric shrink-0 text-[11.5px] leading-none text-ink-muted ${oneLine ? "" : "mt-1.5"}`}>
           {formatMinuteOfDay(startMin)} to {formatMinuteOfDay(endMin)}
         </span>
         {!oneLine && block.note && height >= NOTE_ROOM_PX ? (
-          <span className="mt-0.5 line-clamp-2 text-[12.5px] leading-snug text-ink-muted">{block.note}</span>
+          <span className="mt-2.5 line-clamp-2 text-[12.5px] leading-[1.45] text-ink-muted">{block.note}</span>
         ) : null}
       </span>
     </motion.button>
