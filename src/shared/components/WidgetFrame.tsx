@@ -11,8 +11,8 @@ export type WidgetFrameProps = {
 };
 
 /**
- * Glass widget panel with a quiet title row — light type over the veil, no
- * heavy chrome, so the frosted frame stays the visual lead.
+ * A home widget: a quiet title row over its content, sitting straight on the
+ * window's field with no card around it, so the grid reads as one canvas.
  */
 export function WidgetFrame({
   title,

@@ -119,7 +119,7 @@ export function ItemEditor({ mode, initial, itemId, folders, pending, error, onC
         animate={{ opacity: 1, y: 0, scale: 1 }}
         exit={{ opacity: 0, y: 14, scale: 0.98, transition: { duration: SLOW_S, ease: EASE } }}
         transition={{ duration: SLOWER_S, ease: EASE }}
-        className="widget-frame flex max-h-full w-full max-w-2xl flex-col shadow-[var(--shadow-deep)]"
+        className="glass-sheet widget-frame flex max-h-full w-full max-w-2xl flex-col"
       >
         <div className="widget-frame__chrome !justify-between !px-5 !pt-4 !pb-3">
           <span className="widget-frame__title">{title}</span>
