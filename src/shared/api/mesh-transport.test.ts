@@ -72,6 +72,57 @@ describe("MeshTransport.connect onboarding", () => {
   });
 });
 
+describe("MeshTransport.forget", () => {
+  beforeEach(() => {
+    invoke.mockReset();
+  });
+
+  it("returns a connected device to onboarding once mesh_forget succeeds", async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "mesh_start") {
+        return 4242;
+      }
+      if (cmd === "mesh_forget") {
+        return;
+      }
+      throw new Error(`unexpected invoke ${cmd}`);
+    });
+    const transport = new MeshTransport();
+    await transport.connect(creds);
+
+    await transport.forget();
+
+    expect(transport.needsProvisioningKey()).toBe(true);
+    expect(transport.isActive()).toBe(false);
+    expect(transport.connectionState()).toBe("disconnected");
+    expect(() => transport.mediaUrl({ baseUrl: NAS, path: "/x" })).toThrow(/Not connected/);
+  });
+
+  it("keeps the device joined and provisioned when mesh_forget fails", async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "mesh_start") {
+        return 4242;
+      }
+      if (cmd === "mesh_forget") {
+        throw new Error("tailscale down failed: access denied");
+      }
+      if (cmd === "mesh_stop") {
+        return;
+      }
+      throw new Error(`unexpected invoke ${cmd}`);
+    });
+    const transport = new MeshTransport();
+    await transport.connect(creds);
+
+    await expect(transport.forget()).rejects.toThrow(/tailscale down failed/);
+
+    expect(transport.needsProvisioningKey()).toBe(false);
+    expect(transport.isActive()).toBe(true);
+    expect(transport.connectionState()).toBe("connected");
+    await transport.disconnect();
+  });
+});
+
 describe("MeshTransport.request", () => {
   beforeEach(() => {
     invoke.mockReset();

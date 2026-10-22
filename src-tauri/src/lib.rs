@@ -47,6 +47,7 @@ pub fn run() {
             net::mesh_load_credentials,
             net::mesh_save_credentials,
             net::mesh_clear_credentials,
+            net::mesh_forget,
             device::device_get_battery,
             device::device_get_location,
             download::save_download,

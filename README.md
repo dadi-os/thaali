@@ -135,6 +135,7 @@ Lifecycle (Tauri):
 - Connected → app UI; chrome power control leaves the mesh
 - Power on starts bundled `tailscaled` (TUN + MagicDNS `--accept-dns`) against the provisioned Headscale control URL — same model as the Nas host node `os`. Thaali reaches `*.dadi` through a local `/@host` proxy that queries MagicDNS (`100.100.100.100`) so Compose `/etc/hosts` loopbacks cannot hijack service names. On macOS, join also writes `/etc/resolver/dadi` → `100.100.100.100` so Terminal `ssh user@os.dadi` uses MagicDNS (libc will not). macOS prompts for admin (osascript); Linux uses `pkexec`/`sudo`; Windows elevates via UAC for Wintun.
 - Leave → `tailscale down`; mesh names stop resolving
+- Forget this device (Dadi menu on macOS/Linux, the tray on Windows, and the can't-connect screen; always confirmed) → `mesh_forget`: `tailscale down` through thaali's own socket, the proxy stops and `credentials.json` is deleted, so onboarding asks for a fresh setup code. It never runs `tailscale logout`, which asks the control server and fails for a node the box already deleted; the next join's `up --force-reauth --reset` replaces the old identity. A `down` that fails is shown on the confirmation and nothing is cleared.
 
 Header shows ONLINE / JOINING… / OFFLINE.
 

@@ -49,6 +49,8 @@ function trayListState<T>(query: {
 export function useDesktopTray(opts: {
   /** Open the provision client modal. */
   onProvision: () => void;
+  /** Open the Forget this device confirmation. */
+  onForget: () => void;
 }): void {
   const navigate = useNavigate();
   const { state, disconnect } = useConnection();
@@ -57,6 +59,7 @@ export function useDesktopTray(opts: {
   const [running, setRunning] = useState<RunningMap>(() => getRunning());
 
   const onProvision = useEffectEvent(opts.onProvision);
+  const onForget = useEffectEvent(opts.onForget);
   const checkUpdate = useEffectEvent(() => {
     void update.check();
   });
@@ -94,6 +97,9 @@ export function useDesktopTray(opts: {
         case "leave_mesh":
           leaveMesh();
           break;
+        case "forget_device":
+          onForget();
+          break;
         case "navigate":
           navigate(action.path);
           break;
@@ -109,7 +115,7 @@ export function useDesktopTray(opts: {
         }
       }
     });
-  }, [navigate, onProvision, checkUpdate, leaveMesh, update]);
+  }, [navigate, onProvision, onForget, checkUpdate, leaveMesh, update]);
 
   useEffect(() => {
     const list = trayListState(agentsQuery);

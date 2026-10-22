@@ -141,6 +141,23 @@ export class MeshTransport implements Transport {
     }
   }
 
+  /**
+   * Forget this device (`mesh_forget`): off dadi, proxy stopped, credentials deleted, so
+   * onboarding asks for a fresh setup code. A failure leaves everything as it was.
+   */
+  async forget(): Promise<void> {
+    await invoke("mesh_forget");
+    this.active = false;
+    this.stopHealthWatch();
+    for (const abort of this.streamAborts) {
+      abort.abort();
+    }
+    this.streamAborts.clear();
+    this.port = null;
+    this.setProvisioningNeeded(true);
+    this.setState("disconnected");
+  }
+
   /** Immediate probe after laptop wake / window focus. */
   nudgeHealth(): void {
     if (!this.active || this.recovering) {

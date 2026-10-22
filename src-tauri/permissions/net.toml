@@ -8,5 +8,6 @@ commands.allow = [
   "mesh_port",
   "mesh_load_credentials",
   "mesh_save_credentials",
-  "mesh_clear_credentials"
+  "mesh_clear_credentials",
+  "mesh_forget"
 ]

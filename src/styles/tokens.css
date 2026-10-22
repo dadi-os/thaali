@@ -676,3 +676,69 @@
   flex: 1;
   overflow: hidden;
 }
+
+/* Glass card: the onboarding and confirm surfaces, khisso's 32 pt glass. */
+.glass-card {
+  background: color-mix(in srgb, var(--glass-sheet) 82%, transparent);
+  -webkit-backdrop-filter: blur(28px) saturate(1.35);
+  backdrop-filter: blur(28px) saturate(1.35);
+  border: 1px solid var(--glass-border);
+  border-radius: 28px;
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim-top),
+    var(--shadow-deep),
+    0 30px 60px -30px rgba(20, 22, 18, 0.3);
+}
+
+/* Glass buttons: a quiet one and a prominent sage one; danger tints the quiet one's text. */
+.glass-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.45rem;
+  min-height: 2.5rem;
+  padding: 0 1.15rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sage-line) 60%, transparent);
+  background: color-mix(in srgb, var(--bone) 62%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: var(--ink);
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: inset 0 1px 0 var(--glass-rim-top), 0 1px 2px rgb(92 107 82 / 0.08);
+  transition:
+    background var(--fast) var(--ease),
+    border-color var(--fast) var(--ease),
+    opacity var(--fast) var(--ease),
+    transform var(--fast) var(--ease);
+}
+
+.glass-button:hover:not(:disabled) {
+  border-color: var(--sage);
+  background: color-mix(in srgb, var(--bone) 80%, transparent);
+}
+
+.glass-button:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+.glass-button:disabled {
+  opacity: 0.5;
+}
+
+.glass-button--prominent {
+  border-color: transparent;
+  background: var(--sage-deep);
+  color: var(--bone);
+  font-weight: 600;
+}
+
+.glass-button--prominent:hover:not(:disabled) {
+  border-color: transparent;
+  background: color-mix(in srgb, var(--sage-deep) 88%, var(--sage));
+}
+
+.glass-button--danger {
+  color: var(--error);
+}

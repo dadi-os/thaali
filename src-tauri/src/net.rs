@@ -125,11 +125,31 @@ pub fn mesh_load_credentials(app: AppHandle) -> Result<Option<Credentials>, Stri
 /// Delete persisted mesh credentials (forces onboarding on next prepare).
 #[tauri::command]
 pub fn mesh_clear_credentials(app: AppHandle) -> Result<(), String> {
-    let path = credentials_path(&app)?;
+    clear_credentials(&app)
+}
+
+fn clear_credentials(app: &AppHandle) -> Result<(), String> {
+    let path = credentials_path(app)?;
     if path.exists() {
         std::fs::remove_file(&path).map_err(|e| format!("clear credentials: {e}"))?;
     }
     Ok(())
+}
+
+/// Forget this device: takes it off dadi with `tailscale down`, stops the mesh proxy and
+/// deletes its credentials, leaving it ready for a fresh setup code. Nothing is cleared
+/// when `down` fails.
+#[tauri::command]
+pub async fn mesh_forget(app: AppHandle, state: State<'_, MeshState>) -> Result<(), String> {
+    let app2 = app.clone();
+    tauri::async_runtime::spawn_blocking(move || crate::sysmesh::forget(&app2))
+        .await
+        .map_err(|e| format!("mesh_forget join: {e}"))??;
+    {
+        let mut guard = state.port.lock().map_err(|e| e.to_string())?;
+        *guard = None;
+    }
+    clear_credentials(&app)
 }
 
 /// Persists provisioning credentials; incomplete credentials are rejected.

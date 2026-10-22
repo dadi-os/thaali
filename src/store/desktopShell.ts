@@ -6,6 +6,7 @@ export type DesktopShellAction =
   | { type: "check_update" }
   | { type: "install_update" }
   | { type: "leave_mesh" }
+  | { type: "forget_device" }
   | { type: "navigate"; path: string }
   | { type: "open_agent"; agentId: string }
   | { type: "quit" };

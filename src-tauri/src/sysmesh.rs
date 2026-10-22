@@ -99,6 +99,40 @@ pub fn stop(app: &AppHandle) -> Result<(), String> {
     Ok(())
 }
 
+/// Forget this device's dadi identity so it is ready for a fresh setup code:
+/// `tailscale down` through thaali's own socket, then the local proxy stops.
+///
+/// Never runs `tailscale logout`, which asks the control server and fails for a node it
+/// has already deleted; the next join's `up --force-reauth --reset` replaces the identity.
+/// A daemon that does not answer has nothing up to take down; a `down` that fails is an error.
+pub fn forget(app: &AppHandle) -> Result<(), String> {
+    let state_dir = sysmesh_dir(app)?;
+    let socket = local_api_path(&state_dir);
+    let bins = resolve_bins(app)?;
+    if socket_live(&socket) || daemon_reports_via_cli(&bins, &socket) {
+        let mut args = socket_cli_args(&socket);
+        args.push("down".into());
+        let mut cmd = Command::new(&bins.tailscale);
+        hide_console(&mut cmd);
+        let output = cmd
+            .args(&args)
+            .output()
+            .map_err(|e| format!("tailscale down: {e}"))?;
+        if !output.status.success() {
+            return Err(format!(
+                "tailscale down failed: {} {}",
+                String::from_utf8_lossy(&output.stderr).trim(),
+                String::from_utf8_lossy(&output.stdout).trim()
+            ));
+        }
+    } else {
+        logutil::emit("info", "sysmesh forget: tailscaled not answering, nothing to take down");
+    }
+    crate::meshproxy::stop();
+    logutil::emit("info", "sysmesh forgotten: down and proxy stopped");
+    Ok(())
+}
+
 /// `2` connected / `0` disconnected (matches mesh_status shape).
 pub fn status(app: &AppHandle) -> u8 {
     let Ok(state_dir) = sysmesh_dir(app) else {

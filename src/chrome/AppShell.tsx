@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { motion } from "motion/react";
 import { ChatSidebar } from "./chatSidebar";
 import { DisconnectedState } from "./DisconnectedState";
+import { ForgetDeviceDialog } from "./ForgetDevice";
 import { Header } from "./Header";
 import { MeshPowerOverlay } from "./MeshPowerOverlay";
 import { ProvisionOverlay } from "./ProvisionOverlay";
@@ -28,6 +29,7 @@ export function AppShell() {
   const location = useLocation();
   const [sessionKey, setSessionKey] = useState(0);
   const [provisionOpen, setProvisionOpen] = useState(false);
+  const [forgetOpen, setForgetOpen] = useState(false);
   const needsProvisioning = useNeedsProvisioning();
 
   useEvents();
@@ -36,6 +38,9 @@ export function AppShell() {
   useDesktopTray({
     onProvision: () => {
       setProvisionOpen(true);
+    },
+    onForget: () => {
+      setForgetOpen(true);
     },
   });
 
@@ -100,6 +105,7 @@ export function AppShell() {
         open={provisionOpen}
         onClose={() => setProvisionOpen(false)}
       />
+      <ForgetDeviceDialog open={forgetOpen} onClose={() => setForgetOpen(false)} />
     </div>
   );
 }

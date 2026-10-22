@@ -298,6 +298,7 @@ async function buildMenu(
         live.update,
         { item: "Separator" as const },
         live.mesh,
+        live.forget,
         { item: "Separator" as const },
         live.agentsMenu,
         viewSubmenu(),
@@ -320,6 +321,7 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
   provision: MenuItem;
   update: MenuItem;
   mesh: MenuItem;
+  forget: MenuItem;
   quit: MenuItem;
   agentsMenu: Submenu;
   items: LiveItems;
@@ -339,6 +341,14 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
     enabled: snapshot.meshConnected,
     action: () => {
       dispatchDesktopShell({ type: "leave_mesh" });
+    },
+  });
+  const forget = await MenuItem.new({
+    id: "dadi-forget",
+    text: "Forget This Device…",
+    action: () => {
+      void focusMainWindow();
+      dispatchDesktopShell({ type: "forget_device" });
     },
   });
   const update = await MenuItem.new({
@@ -370,7 +380,7 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
   const dadi = await Submenu.new({
     id: "menu-dadi",
     text: "Dadi",
-    items: [show, provision, update, { item: "Separator" }, mesh, quit],
+    items: [show, provision, update, { item: "Separator" }, mesh, forget, quit],
   });
 
   const openAgents = await MenuItem.new({
@@ -410,6 +420,7 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
     provision,
     update,
     mesh,
+    forget,
     quit,
     agentsMenu,
     items: { provision, mesh, update, agentsStatus, agentsMenu, agentRows },

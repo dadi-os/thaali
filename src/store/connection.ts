@@ -78,3 +78,16 @@ export async function disconnectTransport(): Promise<void> {
   ensureSubscribed();
   await transport.disconnect();
 }
+
+/**
+ * Forget this device: takes it off dadi and deletes its setup code so onboarding runs
+ * again. Desktop only; the browser build has no device identity to forget.
+ */
+export async function forgetDevice(): Promise<void> {
+  ensureSubscribed();
+  const mesh = transport as { forget?: () => Promise<void> };
+  if (!usingMesh || typeof mesh.forget !== "function") {
+    throw new Error("Forget this device is only available in the desktop app.");
+  }
+  await mesh.forget();
+}

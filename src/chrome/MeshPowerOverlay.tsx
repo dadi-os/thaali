@@ -1,33 +1,15 @@
 import { useState } from "react";
 import { motion } from "motion/react";
-import { clearCredentials } from "../shared/api/credentials";
-import { transport } from "../shared/api";
+import { dispatchDesktopShell } from "../store/desktopShell";
 import { useConnection } from "../shared/hooks/useConnection";
 import { IconPower } from "../shared/components/IconButton";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
-/** Mesh transport surface that can re-run first-launch credential detection. */
-type ProvisioningPrepare = {
-  prepareProvisioning(): Promise<void>;
-};
-
-function asPrepare(t: unknown): ProvisioningPrepare | null {
-  if (
-    t &&
-    typeof t === "object" &&
-    "prepareProvisioning" in t &&
-    typeof (t as ProvisioningPrepare).prepareProvisioning === "function"
-  ) {
-    return t as ProvisioningPrepare;
-  }
-  return null;
-}
-
 /**
  * Frosted full-screen power control shown when provisioned but disconnected from dadi.
- * Tap joins the mesh; leave is handled from chrome while connected. "Use a new setup
- * code" is always offered, so a device whose code no longer works (a removed device, a
- * moved control URL) can be provisioned again without waiting for an error.
+ * Tap joins the mesh; leave is handled from chrome while connected. Forget this device
+ * is always offered, so a device whose code no longer works (a removed device, a moved
+ * control URL) can take a fresh setup code without waiting for an error.
  */
 export function MeshPowerOverlay() {
   const { state, connect } = useConnection();
@@ -43,26 +25,6 @@ export function MeshPowerOverlay() {
     setError(null);
     try {
       await connect();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLocalBusy(false);
-    }
-  };
-
-  const onResetSetup = async () => {
-    if (localBusy) {
-      return;
-    }
-    setLocalBusy(true);
-    setError(null);
-    try {
-      await clearCredentials();
-      const api = asPrepare(transport);
-      if (!api) {
-        throw new Error("Mesh transport is not available.");
-      }
-      await api.prepareProvisioning();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -114,11 +76,11 @@ export function MeshPowerOverlay() {
         type="button"
         disabled={localBusy}
         onClick={() => {
-          void onResetSetup();
+          dispatchDesktopShell({ type: "forget_device" });
         }}
         className="mt-5 text-[12px] font-medium tracking-[2px] text-sage-deep disabled:opacity-50"
       >
-        USE NEW SETUP CODE
+        FORGET THIS DEVICE
       </button>
     </motion.div>
   );
