@@ -14,7 +14,6 @@ import type { GharCommand, GharDevice } from "../../../types/ghar";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { StaleBanner, StateView } from "../../../shared/components/states";
 import { EASE, SLOW_S, SLOWER_S } from "../../../shared/lib/ux/motion";
-import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { shownError } from "../commission";
 import { familyOf } from "../house/families";
 import { lampLevel } from "../house/light";
@@ -46,7 +45,6 @@ export function GharTiles() {
     queryKey: GHAR_DEVICES_KEY,
     queryFn: () => ghar.listDevices(),
     enabled: connected,
-    refetchInterval: connected ? POLL_MS : false,
   });
   const roomsQuery = useQuery({
     queryKey: GHAR_ROOMS_KEY,

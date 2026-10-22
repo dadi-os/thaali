@@ -1,6 +1,6 @@
 import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
-import { YAAD_URL, isMeshOnline, transport } from "../api";
+import { CHAAVI_URL, GHAR_URL, NAS_URL, YAAD_URL, isMeshOnline, transport } from "../api";
 import { logLine } from "../lib/platform/log";
 import { pushToast } from "../../store/toasts";
 import { useConnection } from "./useConnection";
@@ -10,19 +10,23 @@ const MAX_BACKOFF_MS = 30_000;
 /** Changes that land within this window refetch once, so a burst of writes costs one round trip. */
 const COALESCE_MS = 300;
 
-/** A service whose `/events` stream says "changed", and the React Query keys that hold its data. */
+/** A service whose event stream at `path` says "changed", and the React Query keys that hold its data. */
 export type LiveSource = {
   name: string;
   baseUrl: string;
+  path: string;
   keys: ReadonlyArray<readonly string[]>;
 };
 
 const LIVE_SOURCES: readonly LiveSource[] = [
-  { name: "yaad", baseUrl: YAAD_URL, keys: [["yaad"], ["planner"]] },
+  { name: "yaad", baseUrl: YAAD_URL, path: "/events", keys: [["yaad"], ["planner"]] },
+  { name: "chaavi", baseUrl: CHAAVI_URL, path: "/v1/events", keys: [["chaavi"]] },
+  { name: "ghar", baseUrl: GHAR_URL, path: "/changes", keys: [["ghar"]] },
+  { name: "nas", baseUrl: NAS_URL, path: "/events", keys: [["nas", "browsers"], ["nas", "terminals"]] },
 ];
 
 /**
- * Follow one service's `/events` stream: every event refetches that service's active
+ * Follow one service's event stream: every event refetches that service's active
  * queries. The stream has no replay and a suspended phone drops it silently, so each
  * (re)open and each return to a visible window refetches too. A drop toasts and reopens
  * with backoff (doubling up to MAX_BACKOFF_MS, reset once a stream has lived that long).
@@ -59,7 +63,7 @@ export function follow(source: LiveSource, queryClient: QueryClient): () => void
     const openedAt = Date.now();
     stopStream = transport.stream({
       baseUrl: source.baseUrl,
-      path: "/events",
+      path: source.path,
       onEvent: onChange,
       onClose: () => {
         if (disposed) {
@@ -108,7 +112,8 @@ export function follow(source: LiveSource, queryClient: QueryClient): () => void
 /**
  * Keep service data fresh from the services' event streams instead of polling: while the
  * mesh is online, each source in LIVE_SOURCES refetches its queries when its service reports
- * a change.
+ * a change. Nas announces only its browser and terminal lists; its status, clients and logs
+ * are live readings the System page polls while it is open.
  */
 export function useLiveQueries(): void {
   const queryClient = useQueryClient();

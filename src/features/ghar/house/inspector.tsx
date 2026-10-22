@@ -12,7 +12,6 @@ import { ghar } from "../../../shared/api";
 import type { GharCommand, GharDevice, GharEvent, GharRoom } from "../../../types/ghar";
 import { Popover, type PopoverAnchor } from "../../../shared/components/Popover";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
-import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { roomTitle, shownError } from "../commission";
 import { familyOf } from "./families";
 import { words } from "./families/kit";
@@ -135,7 +134,6 @@ export function DevicePopover({
     queryKey: ["ghar", "events", device.id],
     queryFn: () => ghar.listDeviceEvents(device.id, RECENT_EVENTS),
     enabled: open,
-    refetchInterval: open ? POLL_MS : false,
   });
 
   function commitName(): void {

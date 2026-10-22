@@ -7,7 +7,6 @@ import { StateView } from "../../shared/components/states";
 import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import { countNoun } from "../../shared/lib/ux/plural";
 import type { ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, TYPE_META } from "./draft";
@@ -41,20 +40,17 @@ export function ChaaviTile() {
     queryKey: CHAAVI_HEALTH_KEY,
     queryFn: () => chaavi.getHealth(),
     enabled: connected,
-    refetchInterval: POLL_MS,
   });
   const ready = healthQuery.data?.vault === "ready";
   const itemsQuery = useQuery({
     queryKey: CHAAVI_ITEMS_KEY,
     queryFn: () => chaavi.listItems(),
     enabled: connected && ready,
-    refetchInterval: POLL_MS,
   });
   const foldersQuery = useQuery({
     queryKey: CHAAVI_FOLDERS_KEY,
     queryFn: () => chaavi.listFolders(),
     enabled: connected && ready,
-    refetchInterval: POLL_MS,
   });
 
   if (!connected) {

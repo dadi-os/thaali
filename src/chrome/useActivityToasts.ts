@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { ghar, yaad } from "../shared/api";
 import { GHAR_DEVICES_KEY } from "../shared/api/ghar";
 import { useConnection } from "../shared/hooks/useConnection";
-import { POLL_MS } from "../shared/lib/ux/poll";
 import { failureTarget, pushToast } from "../store/toasts";
 import { formatTime, toIsoBounds } from "../features/timeline/dates";
 import { asPlan, isMultiDay, spanOf, type PlanNode } from "../features/timeline/plans";
@@ -29,7 +28,6 @@ export function useActivityToasts(): void {
     queryKey: GHAR_DEVICES_KEY,
     queryFn: () => ghar.listDevices(),
     enabled: connected,
-    refetchInterval: connected ? POLL_MS : false,
   });
   const lastOn = useRef<Map<string, boolean> | null>(null);
 

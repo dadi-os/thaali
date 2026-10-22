@@ -124,14 +124,12 @@ export function AgentGraph3D({
     queryKey: ["nas", "browsers"],
     queryFn: () => nas.listBrowsers(),
     enabled: connected && interactive,
-    refetchInterval: POLL_MS,
   });
 
   const terminalsQuery = useQuery({
     queryKey: ["nas", "terminals"],
     queryFn: () => nas.listTerminals(),
     enabled: connected && interactive,
-    refetchInterval: POLL_MS,
   });
 
   const agents = useMemo(() => agentsQuery.data?.filter((a) => a.active), [agentsQuery.data]);

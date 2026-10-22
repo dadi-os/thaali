@@ -5,13 +5,16 @@ const stream = vi.fn();
 
 vi.mock("../api", () => ({
   YAAD_URL: "http://yaad.dadi",
+  CHAAVI_URL: "http://chaavi.dadi",
+  GHAR_URL: "http://ghar.dadi",
+  NAS_URL: "http://nas.dadi",
   isMeshOnline: () => true,
   transport: { stream: (opts: unknown) => stream(opts) },
 }));
 
 import { follow, type LiveSource } from "./useLiveQueries";
 
-const source: LiveSource = { name: "yaad", baseUrl: "http://yaad.dadi", keys: [["yaad"], ["planner"]] };
+const source: LiveSource = { name: "yaad", baseUrl: "http://yaad.dadi", path: "/events", keys: [["yaad"], ["planner"]] };
 
 type StreamOpts = { baseUrl: string; path: string; onEvent: (data: unknown) => void; onClose: () => void };
 

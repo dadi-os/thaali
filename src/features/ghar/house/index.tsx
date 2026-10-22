@@ -18,7 +18,6 @@ import { Popover, type PopoverAnchor } from "../../../shared/components/Popover"
 import { SearchField } from "../../../shared/components/SearchField";
 import { StaleBanner, StateView, type StaleBannerProps } from "../../../shared/components/states";
 import { Ticker } from "../../../shared/components/Ticker";
-import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { PairingSheet, shownError } from "../commission";
 import { attention, familyOf } from "./families";
 import { Horizon } from "./horizon";
@@ -123,7 +122,6 @@ export function GharHouse({ mode, toolbar, focus }: GharHouseProps) {
     queryKey: GHAR_DEVICES_KEY,
     queryFn: () => ghar.listDevices(),
     enabled: connected,
-    refetchInterval: connected ? POLL_MS : false,
   });
   const roomsQuery = useQuery({
     queryKey: GHAR_ROOMS_KEY,

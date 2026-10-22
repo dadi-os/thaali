@@ -59,7 +59,6 @@ import {
   type DraftAttachment,
 } from "../../shared/lib/content/attachments";
 import { EASE } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import { logLine } from "../../shared/lib/platform/log";
 import { FloatingComposer } from "./composer";
 import {
@@ -170,14 +169,12 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     queryKey: ["nas", "browsers"],
     queryFn: () => nas.listBrowsers(),
     enabled: connected,
-    refetchInterval: POLL_MS,
   });
 
   const terminalsQuery = useQuery({
     queryKey: ["nas", "terminals"],
     queryFn: () => nas.listTerminals(),
     enabled: connected,
-    refetchInterval: POLL_MS,
   });
 
   useEffect(() => {
@@ -281,8 +278,8 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   /**
    * Load the open thread, then keep it fresh. SSE has no replay, so a dropped
    * stream or tunnel flap would otherwise hide replies until the thread is
-   * reopened. Refreshes run on an interval, when the agent's conversation lane
-   * goes idle, and when the window regains focus.
+   * reopened. Refreshes run on a slow interval, when the agent's conversation lane
+   * goes idle, and when the window regains focus or becomes visible.
    */
   useEffect(() => {
     if (!connected || !openAgentId) {
@@ -326,16 +323,19 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     };
     load();
     refreshThreadRef.current = load;
-    const timer = setInterval(() => {
+    const loadWhenVisible = () => {
       if (document.visibilityState === "visible") {
         load();
       }
-    }, THREAD_REFRESH_MS);
+    };
+    const timer = setInterval(loadWhenVisible, THREAD_REFRESH_MS);
     window.addEventListener("focus", load);
+    document.addEventListener("visibilitychange", loadWhenVisible);
     return () => {
       cancelled = true;
       clearInterval(timer);
       window.removeEventListener("focus", load);
+      document.removeEventListener("visibilitychange", loadWhenVisible);
       if (refreshThreadRef.current === load) {
         refreshThreadRef.current = null;
       }
@@ -372,9 +372,11 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
     };
     const timer = setInterval(refresh, LIST_REFRESH_MS);
     window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", refresh);
     return () => {
       clearInterval(timer);
       window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", refresh);
     };
   }, [connected]);
 
