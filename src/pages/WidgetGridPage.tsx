@@ -12,7 +12,7 @@ import { WidgetFrame } from "../shared/components/WidgetFrame";
 import { ErrorBoundary } from "../shared/components/states";
 
 const tile =
-  "min-h-0 w-full cursor-pointer transition-colors duration-slow ease-dadi hover:bg-[var(--sage-faint)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage";
+  "min-h-0 w-full cursor-pointer transition-[border-color,transform] duration-slow ease-dadi hover:border-sage hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage";
 
 /**
  * Home widget grid — 4×4 on desktop.

@@ -30,7 +30,7 @@ export function SystemPage() {
 
       <div className="@container min-h-0 flex-1 px-1 pb-1">
         <div className="grid h-full min-h-0 grid-cols-1 gap-4 @min-[720px]:grid-cols-2 @min-[720px]:gap-5">
-          <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden px-1 py-1">
+          <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden rounded-[var(--radius)] border border-dashed border-sage-line bg-bone/40 px-3 py-3">
             <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
               <span className="mb-3 shrink-0 text-[11px] font-medium tracking-[2px] text-sage-deep">
                 DADI
@@ -41,7 +41,7 @@ export function SystemPage() {
             </div>
           </section>
 
-          <section className="flex min-h-[min(420px,48vh)] min-w-0 flex-col overflow-hidden px-1 py-1 @min-[720px]:min-h-0">
+          <section className="flex min-h-[min(420px,48vh)] min-w-0 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-sage-line bg-bone/40 px-3 py-3 @min-[720px]:min-h-0">
             <span className="mb-3 shrink-0 text-[11px] font-medium tracking-[2px] text-sage-deep">
               LOGS
             </span>

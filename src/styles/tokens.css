@@ -155,17 +155,52 @@
   box-shadow: var(--shadow-deep);
 }
 
+.widget-surface {
+  position: relative;
+  background: var(--glass-veil);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-window);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+.widget-surface::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--glass-rim-top);
+  opacity: 0.9;
+  z-index: 1;
+}
+
 /*
- * A widget or page section: its title over its content, straight on the window's field
- * with no card of its own, so the home grid and pages read as one canvas, not panels
- * plugged into it. Floating surfaces (sheets, popovers, dialogs) keep their glass.
+ * A widget: a bounded glass card with no shadow of its own, so nothing pools dark in the
+ * gaps and padding around it and the cards sit on the field as one surface.
  */
 .widget-frame {
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  background: var(--glass-veil);
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  backdrop-filter: blur(var(--glass-blur));
+  border: 1px solid var(--glass-border);
   border-radius: var(--radius-window);
+}
+
+.widget-frame::before {
+  content: "";
+  pointer-events: none;
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 1px;
+  background: var(--glass-rim-top);
+  z-index: 2;
 }
 
 /* Floating popover: one clean sheet of translucent glass; content fades across when it changes. */
