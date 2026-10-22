@@ -174,7 +174,7 @@ const code: CodeHighlighterPlugin = {
 
 const plugins: PluginConfig = {
   code,
-  math: createMathPlugin({ singleDollarTextMath: true, errorColor: "var(--error)" }),
+  math: createMathPlugin({ singleDollarTextMath: false, errorColor: "var(--error)" }),
   mermaid,
 };
 

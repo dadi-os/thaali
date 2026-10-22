@@ -2,8 +2,19 @@ import { describe, expect, it } from "vitest";
 import { normalizeMathDelimiters } from "./math";
 
 describe("normalizeMathDelimiters", () => {
+  it("turns LaTeX-looking single-dollar spans into inline $$", () => {
+    expect(normalizeMathDelimiters("ship it $\\rightarrow$ done, $x^2$ too")).toBe(
+      "ship it $$\\rightarrow$$ done, $$x^2$$ too",
+    );
+  });
+
+  it("leaves money alone", () => {
+    const money = "That's $412 left, $5 and $10, or $ 20 total; costs $x each.";
+    expect(normalizeMathDelimiters(money)).toBe(money);
+  });
+
   it("rewrites \\( \\) as inline dollars", () => {
-    expect(normalizeMathDelimiters("so \\( a \\rightarrow b \\) holds")).toBe("so $a \\rightarrow b$ holds");
+    expect(normalizeMathDelimiters("so \\( a \\rightarrow b \\) holds")).toBe("so $$a \\rightarrow b$$ holds");
   });
 
   it("rewrites a \\[ \\] on its own lines as a $$ block", () => {

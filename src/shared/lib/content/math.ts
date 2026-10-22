@@ -10,6 +10,13 @@ const DISPLAY = /(?<!\\)\\\[([\s\S]+?)(?<!\\)\\\]/g;
 /** `\( … \)` not preceded by a backslash. */
 const INLINE = /(?<!\\)\\\(([\s\S]+?)(?<!\\)\\\)/g;
 
+/**
+ * `$ … $` that reads as LaTeX, not money: no space or digit just inside the opening `$`,
+ * no space before the closing one, a `\`, `^` or `_` inside, and not touching a word or
+ * another `$` on either side. `$\rightarrow$` and `$x^2$` match; `$5 and $10` does not.
+ */
+const SINGLE_DOLLAR = /(?<![\\$\w])\$(?![\s\d$])([^$\n]*?[\\^_][^$\n]*?)(?<![\s\\])\$(?![\w$])/g;
+
 type Segment = { code: boolean; text: string };
 
 /** The source cut into prose and code (fenced blocks and inline code spans), in order. */
@@ -83,11 +90,12 @@ function displayMath(match: string, inner: string, offset: number, prose: string
 }
 
 /**
- * Markdown with LaTeX's `\( … \)` and `\[ … \]` delimiters rewritten as the `$ … $` and
- * `$$ … $$` that remark-math reads, leaving code blocks and code spans untouched.
+ * Markdown with its math in the `$$ … $$` that remark-math reads (single-dollar math is
+ * off, so a price stays a price): `\[ … \]` as a block or inline `$$`, and `\( … \)` and
+ * LaTeX-looking `$ … $` as inline `$$`, leaving code blocks and code spans untouched.
  */
 export function normalizeMathDelimiters(source: string): string {
-  if (!source.includes("\\(") && !source.includes("\\[")) {
+  if (!source.includes("\\(") && !source.includes("\\[") && !source.includes("$")) {
     return source;
   }
   return segments(source)
@@ -96,7 +104,8 @@ export function normalizeMathDelimiters(source: string): string {
         ? segment.text
         : segment.text
             .replace(DISPLAY, displayMath)
-            .replace(INLINE, (_match, inner: string) => `$${inner.trim()}$`),
+            .replace(INLINE, (_match, inner: string) => `$$${inner.trim()}$$`)
+            .replace(SINGLE_DOLLAR, (_match, inner: string) => `$$${inner}$$`),
     )
     .join("");
 }

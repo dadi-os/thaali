@@ -56,6 +56,12 @@ describe("MarkdownBody", () => {
     expect(el.textContent).not.toContain("\\(");
   });
 
+  it("keeps prices as text, not math", async () => {
+    const el = await render("That's $412 left, $5 and $10 this week.");
+    expect(el.querySelectorAll(".katex").length).toBe(0);
+    expect(el.textContent).toContain("$412 left, $5 and $10");
+  });
+
   it("renders GFM tables, strikethrough, task lists and link chips", async () => {
     const el = await render(FIXTURE);
     expect(el.querySelector(".chat-md__table table th")?.textContent).toBe("Name");
