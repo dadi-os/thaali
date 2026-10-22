@@ -476,7 +476,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
 
       <footer className="flex shrink-0 items-center justify-between gap-3 px-1">
         <p className={`text-[11px] ${trouble ? "text-error" : "text-ink-ghost"}`}>
-          {trouble ? messageOf(trouble) : "Vaultwarden store · Chaavi adapter · Bitwarden extension fills the browser"}
+          {trouble ? messageOf(trouble) : "Chaavi vault · Bitwarden extension fills the browser"}
         </p>
         <a
           href={CHAAVI_VAULT}
@@ -559,7 +559,7 @@ function vaultStatus(
     return {
       tone: "empty",
       label: "Vault unconfigured",
-      detail: "Sign up at the Bitwarden vault, set BW_* in Preferences, then restart Chaavi",
+      detail: "Sign up at the Bitwarden vault, then set that account's email and master password in Preferences → Chaavi",
     };
   }
   if (items.isError) {

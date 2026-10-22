@@ -61,7 +61,7 @@ export function ChaaviTile() {
     return <StateView tone="error" label="Could not reach Chaavi" error={failed.error} onRetry={() => void failed.refetch()} compact />;
   }
   if (healthQuery.data?.vault === "unconfigured") {
-    return <StateView tone="empty" label="Vault unconfigured" detail="Set BW_* in Preferences, then restart Chaavi" compact />;
+    return <StateView tone="empty" label="Vault unconfigured" detail="Set the vault account in Preferences → Chaavi" compact />;
   }
 
   const items = itemsQuery.data?.items ?? null;

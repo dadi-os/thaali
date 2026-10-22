@@ -6,7 +6,7 @@ import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
 /**
  * Chaavi password manager page: every item type, folders, search and reveal on demand.
- * Vaultwarden is the store; Chaavi is the adapter; the Bitwarden extension fills the browser.
+ * Chaavi is the vault (a Vaultwarden fork that also serves /v1); the Bitwarden extension fills the browser.
  * The vault's motion follows the system's reduced-motion setting: it keeps its fades and
  * drops its slides, glides and layout moves.
  */
