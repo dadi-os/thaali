@@ -164,7 +164,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
       return agents;
     },
     enabled: connected,
-    refetchInterval: POLL_MS,
   });
 
   const browsersQuery = useQuery({

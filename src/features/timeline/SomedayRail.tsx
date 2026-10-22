@@ -2,7 +2,6 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { yaad } from "../../shared/api";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import { asPlan, type PlanNode } from "./plans";
 
 export type SomedayRailProps = {
@@ -24,7 +23,6 @@ export function SomedayRail({ onOpen }: SomedayRailProps) {
       });
       return nodes.map(asPlan).filter((n): n is PlanNode => n !== null);
     },
-    refetchInterval: POLL_MS,
   });
 
   return (

@@ -9,7 +9,6 @@ import { StateView } from "../../shared/components/states";
 import { IconPlus } from "../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { EASE, REVEAL, SLOW_S } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import {
   addDays,
   endOfDay,
@@ -181,7 +180,6 @@ export function TimelineCalendar({
         .filter((n) => n.detail.status !== "idea");
     },
     enabled: connected && (preview || view !== "planner"),
-    refetchInterval: POLL_MS,
   });
 
   const planned = !preview && view === "planner";
@@ -189,7 +187,6 @@ export function TimelineCalendar({
     queryKey: ["planner", "blocks", range.occurred_from, range.occurred_to],
     queryFn: async () => (await planner.query({ from: range.occurred_from, to: range.occurred_to })).blocks,
     enabled: connected && planned,
-    refetchInterval: POLL_MS,
   });
 
   const toggleDone = useMutation({

@@ -7,7 +7,6 @@ import { StateView } from "../../shared/components/states";
 import { Ticker } from "../../shared/components/Ticker";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import { countNoun } from "../../shared/lib/ux/plural";
 
 const KINDS: Array<{
@@ -129,7 +128,6 @@ export function MemoryCounters({ className }: MemoryCountersProps) {
       queryKey: ["yaad", "memory-kind-count", kind],
       queryFn: () => countKind(kind),
       enabled: connected,
-      refetchInterval: POLL_MS,
     })),
   });
   const failed = countQueries.find((query) => query.isError);

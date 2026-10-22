@@ -20,9 +20,6 @@ import {
   type RunningMap,
 } from "../store/running";
 
-/** Background agent roster cadence — patches the menu, never rebuilds it. */
-const TRAY_AGENTS_MS = 5_000;
-
 /**
  * Map a React Query result into an explicit tray list state (no silent empty arrays).
  */
@@ -75,7 +72,6 @@ export function useDesktopTray(opts: {
       return agents;
     },
     enabled: online,
-    refetchInterval: TRAY_AGENTS_MS,
   });
 
   useEffect(() => subscribeRunning(setRunning), []);

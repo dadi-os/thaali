@@ -12,6 +12,7 @@ import { useConnection } from "../shared/hooks/useConnection";
 import { useActivityToasts } from "./useActivityToasts";
 import { useDesktopTray } from "./useDesktopTray";
 import { useEvents } from "../shared/hooks/useEvents";
+import { useLiveQueries } from "../shared/hooks/useLiveQueries";
 import { useDeviceRemote } from "./useDeviceRemote";
 import { useNeedsProvisioning } from "./useNeedsProvisioning";
 import { usingMesh } from "../shared/api";
@@ -46,6 +47,7 @@ export function AppShell() {
   const [boot, setBoot] = useState<BootState>({ status: usingMesh ? "pending" : "ready" });
 
   useEvents();
+  useLiveQueries();
   useActivityToasts();
   useDeviceRemote();
   useDesktopTray({

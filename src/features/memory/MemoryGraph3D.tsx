@@ -10,7 +10,6 @@ import { ForceGraph, syncForceSimulation } from "../../shared/components/ForceGr
 import { GraphPlaceholder } from "../../shared/components/GraphPlaceholder";
 import { GraphSpace } from "../../shared/components/GraphSpace";
 import { SearchField } from "../../shared/components/SearchField";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import {
   KIND_TOKEN,
   createMemorySimulation,
@@ -54,7 +53,6 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
     queryKey: ["yaad", "graph", entranceKey],
     queryFn: () => yaad.graph({}),
     enabled: connected,
-    refetchInterval: POLL_MS,
   });
 
   useEffect(() => {

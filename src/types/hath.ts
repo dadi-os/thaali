@@ -177,6 +177,10 @@ export type HathEvent =
   | { type: "router_started"; at: string }
   | { type: "router_finished"; at: string }
   | { type: "router_failed"; message: string; at: string }
+  /** A scheduled message was created, edited, cancelled, delivered or advanced; names no schedule. */
+  | { type: "schedules_changed"; at: string }
+  /** The browsers or terminals an agent is remembered to use changed; `sessions` on GET /agents is out of date. */
+  | { type: "sessions_changed"; at: string }
   | {
       type: "agent_spawned";
       agent_id: string;

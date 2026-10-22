@@ -118,7 +118,6 @@ export function AgentGraph3D({
       return agents;
     },
     enabled: connected,
-    refetchInterval: POLL_MS,
   });
 
   const browsersQuery = useQuery({

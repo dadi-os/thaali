@@ -41,7 +41,9 @@ function isHathEvent(data: unknown): data is HathEvent {
     type === "router_failed" ||
     type === "agent_spawned" ||
     type === "agent_modified" ||
-    type === "thread_read"
+    type === "thread_read" ||
+    type === "schedules_changed" ||
+    type === "sessions_changed"
   );
 }
 
@@ -90,7 +92,8 @@ async function hydrateHistory(): Promise<void> {
 
 /**
  * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
- * GET /agents plus GET /threads on reconnect (the stream has no replay).
+ * GET /agents plus GET /threads on reconnect (the stream has no replay), and refetches
+ * agent schedules and the agent list (whose `sessions` move without any other event) when Hath says they changed.
  * An agent → user message is counted unread (unless its chat is open in a visible window) and
  * toasted (unless its chat is open), a `thread_read` from any device takes Hath's count, and,
  * while the window is hidden or unfocused, raises a native notification. Failed lanes and
@@ -165,6 +168,16 @@ export function useEvents(): void {
 
       if (data.type === "thread_read") {
         applyThreadRead(data.agent_id, data.read_seq, data.unread);
+        return;
+      }
+
+      if (data.type === "schedules_changed") {
+        void queryClient.invalidateQueries({ queryKey: ["agent-schedules"] });
+        return;
+      }
+
+      if (data.type === "sessions_changed") {
+        void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
         return;
       }
 

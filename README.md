@@ -40,7 +40,7 @@ thaali/
         content/           attachments, branded QR
         ux/                motion (incl. REVEAL preset), poll intervals, time formatting
       components/          IconButton, Popover/ (index + hover zone), ForceGraph/, Tooltip, WidgetFrame
-      hooks/               useConnection, useEvents, useHoverDetails, useThemeTokens
+      hooks/               useConnection, useEvents, useLiveQueries, useHoverDetails, useThemeTokens
     store/                 chat, connection, drafts, running, desktopShell
     types/                 API contracts per service (hath, yaad, chaavi, ghar) + d3-force-3d.d.ts
     styles/
@@ -127,7 +127,7 @@ macOS and Linux get the dadi menu bar (Edit is macOS-only); Windows, which has n
 
 ## Transport / the dadi network
 
-All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the browser loads `BrowserTransport` (fetch + EventSource, Nas `/health` for ONLINE/OFFLINE). Media the webview loads itself (attachment images) takes its URL from `Transport.mediaUrl` (the `/@host` proxy under Tauri). Nas's H.264 browser stream is read through `Transport.openStream` (Tauri's HTTP client, so it never queues behind the webview's per-host connection limit) by `features/agents/browserStream.ts`: one watched connection per browser and profile shared by every view with it (960 px at 5 fps to watch, 1280 px at 30 fps in the expanded view), split into frames by `features/agents/h264.ts`, decoded with WebCodecs (macOS and Windows webviews; Linux WebKitGTK may not decode it, and then the preview shows the error) and drawn on canvases, reconnecting on a logged, bounded backoff when it errors, ends or stalls. Browser Thaali is for Nas compose on-box UI only — it does not join Headscale.
+Service data stays fresh from event streams, not timers: Hath's `/events` refetches agents and schedules (`useEvents`), and each service in `LIVE_SOURCES` (`shared/hooks/useLiveQueries.ts`; Yaad so far) has its `/events` say `changed`, which refetches the queries under its keys, with a refetch on every reopen and when the window becomes visible again since the streams have no replay. Services without a stream (Nas, Ghar, Chaavi) are still polled every `POLL_MS`. All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the browser loads `BrowserTransport` (fetch + EventSource, Nas `/health` for ONLINE/OFFLINE). Media the webview loads itself (attachment images) takes its URL from `Transport.mediaUrl` (the `/@host` proxy under Tauri). Nas's H.264 browser stream is read through `Transport.openStream` (Tauri's HTTP client, so it never queues behind the webview's per-host connection limit) by `features/agents/browserStream.ts`: one watched connection per browser and profile shared by every view with it (960 px at 5 fps to watch, 1280 px at 30 fps in the expanded view), split into frames by `features/agents/h264.ts`, decoded with WebCodecs (macOS and Windows webviews; Linux WebKitGTK may not decode it, and then the preview shows the error) and drawn on canvases, reconnecting on a logged, bounded backoff when it errors, ends or stalls. Browser Thaali is for Nas compose on-box UI only — it does not join Headscale.
 
 Lifecycle (Tauri):
 

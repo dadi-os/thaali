@@ -5,7 +5,6 @@ import { hath } from "../../shared/api";
 import type { PatchScheduleRequest, ScheduledMessage } from "../../types/hath";
 import { Glider } from "../../shared/components/Glider";
 import { REVEAL } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
 
 /** Repeat choices in the editor, as minutes; "once" is a one-shot. */
@@ -65,7 +64,6 @@ export function ScheduleSection({ agentId, enabled, onEditingChange }: ScheduleS
     queryKey: ["agent-schedules", agentId],
     queryFn: async () => (await hath.listSchedules(agentId)).schedules,
     enabled,
-    refetchInterval: POLL_MS,
   });
 
   useEffect(() => {

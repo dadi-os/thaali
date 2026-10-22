@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { yaad } from "../../shared/api";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import { addDays, formatTime, formatUntil, toIsoBounds } from "./dates";
 import { LiveDot } from "./markers";
 import { asPlan, isMultiDay, occurrenceOf, spanOf, type PlanNode, type PlanOccurrence } from "./plans";
@@ -41,7 +40,6 @@ export function NextUp({ now, onOpen }: NextUpProps) {
         .filter((n): n is PlanNode => n !== null)
         .filter((n) => n.detail.status !== "idea");
     },
-    refetchInterval: POLL_MS,
   });
 
   const next = useMemo(() => {
