@@ -76,6 +76,7 @@ import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
 import { PaneHeader } from "./PaneHeader";
 import { ThreadView } from "./thread";
+import { useMarkRead } from "./useMarkRead";
 
 /** What the open thread can show of its agent, from GET /agents, the one source of its name and record. */
 type OpenAgent =
@@ -194,6 +195,13 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   const threadMessages = openAgentId
     ? (chat.threads[openAgentId] ?? [])
     : [];
+
+  useMarkRead(
+    openAgentId,
+    threadMessages,
+    openAgentId ? chat.readSeq[openAgentId] : undefined,
+    connected,
+  );
 
   const draftKey = openAgentId ?? DADI_DRAFT_KEY;
   const draftKeyRef = useRef(draftKey);

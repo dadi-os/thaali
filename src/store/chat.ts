@@ -61,8 +61,10 @@ type ChatState = {
   open: ChatOpen;
   historyStatus: HistoryStatus;
   historyError: string | null;
-  /** Agent messages to you that arrived while their chat was not open, per agent; cleared when it opens. */
+  /** Hath's count of each agent's messages to you after its read mark, raised live as they arrive. */
   unread: Record<string, number>;
+  /** Hath's read mark per agent: the last message seq read on any device, null until one is read. */
+  readSeq: Record<string, number | null>;
 };
 
 type Listener = (state: ChatState) => void;
@@ -74,6 +76,7 @@ let state: ChatState = {
   historyStatus: "idle",
   historyError: null,
   unread: {},
+  readSeq: {},
 };
 const listeners = new Set<Listener>();
 let nextTempSeq = -1;
@@ -170,28 +173,72 @@ export function openList(): void {
   emit();
 }
 
-/** Open a user-thread for the given agent, clearing its unread count. */
+/** Open a user-thread for the given agent; Hath clears its unread count once it is marked read. */
 export function openAgent(agentId: string): void {
-  const here = state.open.kind === "agent" && state.open.agentId === agentId;
-  if (here && state.unread[agentId] === undefined) {
+  if (state.open.kind === "agent" && state.open.agentId === agentId) {
     return;
   }
-  const { [agentId]: _read, ...unread } = state.unread;
-  state = { ...state, open: here ? state.open : { kind: "agent", agentId }, unread };
+  state = { ...state, open: { kind: "agent", agentId } };
   emit();
 }
 
 /**
- * An agent's message to you arrived. Unless its chat is open, count it unread and toast
- * it (repeats from one agent fold into one toast); clicking the toast opens the chat.
- * The open chat never changes on its own.
+ * Newest confirmed message seq in a thread when it is past `readSeq`, the seq to mark the
+ * thread read through; null when every confirmed message is already read.
+ */
+export function seqToMark(messages: ChatMessage[], readSeq: number | null | undefined): number | null {
+  let newest: number | null = null;
+  for (const m of messages) {
+    if (m.seq >= 0 && !m.pending && !m.queued && !m.failed && (newest === null || m.seq > newest)) {
+      newest = m.seq;
+    }
+  }
+  if (newest === null || (readSeq !== null && readSeq !== undefined && newest <= readSeq)) {
+    return null;
+  }
+  return newest;
+}
+
+/**
+ * Take a read mark from Hath (a `thread_read` event or a mark this device made). Marks only
+ * move forward, so one no newer than the mark already held is ignored: a reply counted
+ * since that mark stays counted.
+ */
+export function applyThreadRead(agentId: string, readSeq: number, unread: number): void {
+  const known = state.readSeq[agentId];
+  if (known !== null && known !== undefined && readSeq <= known) {
+    return;
+  }
+  state = {
+    ...state,
+    unread: { ...state.unread, [agentId]: unread },
+    readSeq: { ...state.readSeq, [agentId]: readSeq },
+  };
+  emit();
+}
+
+/**
+ * Count an agent's message to you that arrived live, as Hath counts it, unless it is a
+ * notice or lands in the chat that is open while the window is visible, which marks it read.
+ */
+export function countAgentMessage(agentId: string, opts: { notice: boolean; windowVisible: boolean }): void {
+  const open = state.open.kind === "agent" && state.open.agentId === agentId;
+  if (opts.notice || (open && opts.windowVisible)) {
+    return;
+  }
+  state = { ...state, unread: { ...state.unread, [agentId]: (state.unread[agentId] ?? 0) + 1 } };
+  emit();
+}
+
+/**
+ * An agent's message to you arrived. Unless its chat is open, toast it (repeats from one
+ * agent fold into one toast); clicking the toast opens the chat. The open chat never
+ * changes on its own.
  */
 export function announceAgentMessage(agentId: string, agentName: string, content: string): void {
   if (state.open.kind === "agent" && state.open.agentId === agentId) {
     return;
   }
-  state = { ...state, unread: { ...state.unread, [agentId]: (state.unread[agentId] ?? 0) + 1 } };
-  emit();
   pushToast({
     key: `message:${agentId}`,
     tone: "info",
@@ -253,17 +300,61 @@ export function resetChatStore(): void {
     historyStatus: "idle",
     historyError: null,
     unread: {},
+    readSeq: {},
   };
   emit();
 }
 
-/** Replace conversation list from GET /threads, announcing agent messages it shows that live events missed. */
+function toConversation(t: ThreadSummary): Conversation {
+  return {
+    agent_id: t.agent_id,
+    agent_name: t.agent_name,
+    last_message: t.last_message,
+    last_at: t.last_at,
+    from_user: t.from_user,
+  };
+}
+
+/**
+ * Unread counts and read marks after a GET /threads. A summary's count wins unless the
+ * list already holds a newer message for that thread (counted live) or a newer read mark
+ * (from an event or a mark that landed after the summary was read).
+ */
+function readStateFrom(threads: ThreadSummary[]): Pick<ChatState, "unread" | "readSeq"> {
+  const ours = new Map(state.conversations.map((c) => [c.agent_id, c]));
+  const unread = { ...state.unread };
+  const readSeq = { ...state.readSeq };
+  for (const t of threads) {
+    const mine = ours.get(t.agent_id);
+    const known = state.readSeq[t.agent_id];
+    const staleMessages = mine !== undefined && mine.last_at > t.last_at;
+    const staleMark = known !== null && known !== undefined && (t.read_seq === null || t.read_seq < known);
+    if (staleMessages || staleMark) {
+      continue;
+    }
+    unread[t.agent_id] = t.unread;
+    readSeq[t.agent_id] = t.read_seq;
+  }
+  return { unread, readSeq };
+}
+
+function sameCounts(a: Record<string, number | null>, b: Record<string, number | null>): boolean {
+  const keys = Object.keys(a);
+  return keys.length === Object.keys(b).length && keys.every((k) => k in b && a[k] === b[k]);
+}
+
+/**
+ * Replace conversation list from GET /threads with Hath's unread counts, toasting agent
+ * messages it shows that live events missed.
+ */
 export function seedConversations(threads: ThreadSummary[]): void {
   const missed = missedAgentMessages(threads);
+  const read = readStateFrom(threads);
   threadsSeeded = true;
   state = {
     ...state,
-    conversations: sortConversations(threads.map((t) => ({ ...t }))),
+    ...read,
+    conversations: sortConversations(threads.map(toConversation)),
   };
   emit();
   for (const t of missed) {
@@ -290,26 +381,29 @@ function missedAgentMessages(threads: ThreadSummary[]): ThreadSummary[] {
 /**
  * Merge a fresh GET /threads into the list. Hath decides which conversations exist; for
  * each, whichever of its summary or ours is newer wins, so a refresh catches previews a
- * dropped SSE event missed without undoing one SSE just delivered. An agent's message
- * found this way is announced as if it had arrived live.
+ * dropped SSE event missed without undoing one SSE just delivered. Unread counts follow
+ * the same rule. An agent's message found this way is toasted as if it had arrived live.
  */
 export function mergeConversations(threads: ThreadSummary[]): void {
   const ours = new Map(state.conversations.map((c) => [c.agent_id, c]));
   const missed = missedAgentMessages(threads);
+  const read = readStateFrom(threads);
   const next = threads.map((t) => {
     const mine = ours.get(t.agent_id);
-    return mine && mine.last_at > t.last_at ? mine : { ...t };
+    return mine && mine.last_at > t.last_at ? mine : toConversation(t);
   });
   const changed =
     next.length !== state.conversations.length ||
     next.some((c) => {
       const mine = ours.get(c.agent_id);
       return !mine || mine.last_at !== c.last_at || mine.last_message !== c.last_message || mine.agent_name !== c.agent_name;
-    });
+    }) ||
+    !sameCounts(read.unread, state.unread) ||
+    !sameCounts(read.readSeq, state.readSeq);
   if (!changed) {
     return;
   }
-  state = { ...state, conversations: sortConversations(next) };
+  state = { ...state, ...read, conversations: sortConversations(next) };
   emit();
   for (const t of missed) {
     announceAgentMessage(t.agent_id, t.agent_name, t.last_message);

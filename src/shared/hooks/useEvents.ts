@@ -6,6 +6,8 @@ import type { ConnectionState } from "../api/transport";
 import { subscribeConnection } from "../../store/connection";
 import {
   announceAgentMessage,
+  applyThreadRead,
+  countAgentMessage,
   ingestLiveMessage,
   isUserThreadMessage,
   removeConversation,
@@ -38,7 +40,8 @@ function isHathEvent(data: unknown): data is HathEvent {
     type === "router_finished" ||
     type === "router_failed" ||
     type === "agent_spawned" ||
-    type === "agent_modified"
+    type === "agent_modified" ||
+    type === "thread_read"
   );
 }
 
@@ -88,7 +91,8 @@ async function hydrateHistory(): Promise<void> {
 /**
  * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay).
- * An agent → user message is announced (unread and a toast unless its chat is open) and,
+ * An agent → user message is counted unread (unless its chat is open in a visible window) and
+ * toasted (unless its chat is open), a `thread_read` from any device takes Hath's count, and,
  * while the window is hidden or unfocused, raises a native notification. Failed lanes and
  * routing, and a dropped stream, toast as errors.
  */
@@ -145,6 +149,10 @@ export function useEvents(): void {
         });
         if (data.from_agent_id !== null) {
           const name = agentNameFromCache(queryClient, data.agent_id);
+          countAgentMessage(data.agent_id, {
+            notice: data.kind === "notice",
+            windowVisible: document.visibilityState === "visible",
+          });
           announceAgentMessage(data.agent_id, name, data.content);
           notifyAgentMessage(name, data.content).catch((err: unknown) => {
             const message = err instanceof Error ? err.message : String(err);
@@ -152,6 +160,11 @@ export function useEvents(): void {
             pushToast({ key: "notification_failed", tone: "error", title: "Notification failed", body: message });
           });
         }
+        return;
+      }
+
+      if (data.type === "thread_read") {
+        applyThreadRead(data.agent_id, data.read_seq, data.unread);
         return;
       }
 

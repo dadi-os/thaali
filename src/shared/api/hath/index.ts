@@ -11,6 +11,7 @@ import type {
   PostRouterResponse,
   PostMessageResponse,
   ScheduledMessage,
+  ThreadReadMark,
   ThreadSummary,
 } from "../../../types/hath";
 
@@ -47,6 +48,16 @@ export function createHathClient(transport: Transport, baseUrl: string) {
         baseUrl,
         path: `/agents/${agentId}/messages${messagesQuery(query)}`,
         method: "GET",
+      });
+    },
+
+    /** POST /agents/:id/read — mark the thread read through `seq`; the mark only moves forward. */
+    markThreadRead(agentId: string, seq: number): Promise<ThreadReadMark> {
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/read`,
+        method: "POST",
+        body: { seq },
       });
     },
 

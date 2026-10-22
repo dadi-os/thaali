@@ -28,6 +28,8 @@ import {
   ingestLiveMessage,
   isUserThreadMessage,
   announceAgentMessage,
+  applyThreadRead,
+  countAgentMessage,
   markPending,
   queuedAgentIds,
   resolveOptimistic,
@@ -36,6 +38,7 @@ import {
   openAgent,
   resetChatStore,
   seedConversations,
+  seqToMark,
   threadAgentId,
   upsertConversation,
 } from "./store/chat";
@@ -236,6 +239,8 @@ describe("conversation list refresh", () => {
     last_message,
     last_at,
     from_user: false,
+    unread: 0,
+    read_seq: null,
   });
 
   it("takes newer previews from Hath, keeps newer local ones, and follows Hath's membership", () => {
@@ -319,6 +324,8 @@ describe("user-thread history", () => {
         last_message: "on it",
         last_at: "2026-03-10T11:00:03Z",
         from_user: false,
+        unread: 0,
+        read_seq: null,
       },
     ]);
     const snap = getChatState();
@@ -484,15 +491,17 @@ describe("user-thread history", () => {
 });
 
 describe("agent message announcements", () => {
-  const row = (agent_id: string, last_at: string, from_user = false) => ({
+  const row = (agent_id: string, last_at: string, from_user = false, unread = 0, read_seq: number | null = null) => ({
     agent_id,
     agent_name: agent_id.toUpperCase(),
     last_message: `msg ${agent_id}`,
     last_at,
     from_user,
+    unread,
+    read_seq,
   });
 
-  it("counts and toasts a message unless its chat is open, never switching chats", () => {
+  it("toasts a message unless its chat is open, never switching chats", () => {
     resetChatStore();
     resetToasts();
     openAgent("a");
@@ -500,30 +509,118 @@ describe("agent message announcements", () => {
     announceAgentMessage("b", "B", "one");
     announceAgentMessage("b", "B", "two");
     expect(getChatState().open).toEqual({ kind: "agent", agentId: "a" });
-    expect(getChatState().unread).toEqual({ b: 2 });
     expect(getToasts().map((t) => [t.key, t.count, t.body])).toEqual([["message:b", 2, "two"]]);
     expect(getToasts()[0]!.target).toEqual({ kind: "chat", agentId: "b" });
-    openAgent("b");
-    expect(getChatState().unread).toEqual({});
   });
 
-  it("announces agent messages a thread refresh finds that live events missed, once history has loaded", () => {
+  it("toasts agent messages a thread refresh finds that live events missed, once history has loaded", () => {
     resetChatStore();
     resetToasts();
     mergeConversations([row("a", "2026-10-06T10:00:00.000Z")]);
-    expect(getChatState().unread).toEqual({});
     seedConversations([row("a", "2026-10-06T10:00:00.000Z"), row("b", "2026-10-06T10:00:00.000Z")]);
-    expect(getChatState().unread).toEqual({});
+    expect(getToasts()).toEqual([]);
     mergeConversations([
       row("a", "2026-10-06T11:00:00.000Z"),
       row("b", "2026-10-06T11:00:00.000Z", true),
       row("c", "2026-10-06T11:00:00.000Z"),
     ]);
-    expect(getChatState().unread).toEqual({ a: 1, c: 1 });
-    mergeConversations([row("a", "2026-10-06T11:00:00.000Z"), row("c", "2026-10-06T11:00:00.000Z")]);
-    expect(getChatState().unread).toEqual({ a: 1, c: 1 });
-    seedConversations([row("a", "2026-10-06T12:00:00.000Z")]);
-    expect(getChatState().unread).toEqual({ a: 2, c: 1 });
+    expect(getToasts().map((t) => t.key).sort()).toEqual(["message:a", "message:c"]);
+  });
+});
+
+describe("Hath read state", () => {
+  const row = (agent_id: string, last_at: string, unread: number, read_seq: number | null) => ({
+    agent_id,
+    agent_name: agent_id,
+    last_message: `msg ${agent_id}`,
+    last_at,
+    from_user: false,
+    unread,
+    read_seq,
+  });
+  const msg = (seq: number, extra: Partial<ChatMessage> = {}): ChatMessage => ({
+    seq,
+    from_user: false,
+    content: `m${seq}`,
+    at: "2026-10-22T10:00:00.000Z",
+    ...extra,
+  });
+
+  it("takes unread counts and read marks from GET /threads", () => {
+    resetChatStore();
+    seedConversations([row("a", "2026-10-22T10:00:00.000Z", 3, 10), row("b", "2026-10-22T09:00:00.000Z", 0, null)]);
+    expect(getChatState().unread).toEqual({ a: 3, b: 0 });
+    expect(getChatState().readSeq).toEqual({ a: 10, b: null });
+  });
+
+  it("applies a thread_read only when it moves the mark forward", () => {
+    resetChatStore();
+    seedConversations([row("a", "2026-10-22T10:00:00.000Z", 3, 10)]);
+    applyThreadRead("a", 14, 0);
+    expect(getChatState().unread.a).toBe(0);
+    expect(getChatState().readSeq.a).toBe(14);
+    countAgentMessage("a", { notice: false, windowVisible: true });
+    applyThreadRead("a", 14, 0);
+    applyThreadRead("a", 12, 2);
+    expect(getChatState().unread.a).toBe(1);
+    expect(getChatState().readSeq.a).toBe(14);
+  });
+
+  it("takes a thread_read for a thread it has no mark for", () => {
+    resetChatStore();
+    applyThreadRead("new", 5, 0);
+    expect(getChatState().readSeq).toEqual({ new: 5 });
+    expect(getChatState().unread).toEqual({ new: 0 });
+  });
+
+  it("counts a live reply unless it is a notice or lands in the open chat while the window is visible", () => {
+    resetChatStore();
+    openAgent("a");
+    countAgentMessage("a", { notice: false, windowVisible: true });
+    countAgentMessage("b", { notice: true, windowVisible: true });
+    expect(getChatState().unread).toEqual({});
+    countAgentMessage("a", { notice: false, windowVisible: false });
+    countAgentMessage("b", { notice: false, windowVisible: true });
+    countAgentMessage("b", { notice: false, windowVisible: true });
+    expect(getChatState().unread).toEqual({ a: 1, b: 2 });
+  });
+
+  it("keeps a live count and a newer mark over an older GET /threads summary", () => {
+    resetChatStore();
+    seedConversations([row("a", "2026-10-22T10:00:00.000Z", 0, 10), row("b", "2026-10-22T10:00:00.000Z", 2, 10)]);
+    upsertConversation({
+      agent_id: "a",
+      agent_name: "a",
+      last_message: "live",
+      last_at: "2026-10-22T11:00:00.000Z",
+      from_user: false,
+    });
+    countAgentMessage("a", { notice: false, windowVisible: true });
+    applyThreadRead("b", 12, 0);
+    mergeConversations([row("a", "2026-10-22T10:00:00.000Z", 0, 10), row("b", "2026-10-22T10:00:00.000Z", 2, 10)]);
+    expect(getChatState().unread).toEqual({ a: 1, b: 0 });
+    mergeConversations([row("a", "2026-10-22T11:00:00.000Z", 1, 10), row("b", "2026-10-22T10:00:00.000Z", 0, 12)]);
+    expect(getChatState().unread).toEqual({ a: 1, b: 0 });
+    expect(getChatState().readSeq).toEqual({ a: 10, b: 12 });
+  });
+
+  it("takes another device's read from GET /threads when the thread has no newer messages", () => {
+    resetChatStore();
+    seedConversations([row("a", "2026-10-22T10:00:00.000Z", 2, 10)]);
+    mergeConversations([row("a", "2026-10-22T10:00:00.000Z", 0, 13)]);
+    expect(getChatState().unread).toEqual({ a: 0 });
+    expect(getChatState().readSeq).toEqual({ a: 13 });
+  });
+
+  it("marks through the newest confirmed message past the read mark", () => {
+    const thread = [msg(3), msg(7, { from_user: true }), msg(5), msg(-1, { pending: true }), msg(9, { failed: true })];
+    expect(seqToMark(thread, null)).toBe(7);
+    expect(seqToMark(thread, undefined)).toBe(7);
+    expect(seqToMark(thread, 6)).toBe(7);
+    expect(seqToMark(thread, 7)).toBeNull();
+    expect(seqToMark(thread, 8)).toBeNull();
+    expect(seqToMark([msg(-2, { pending: true, queued: true })], null)).toBeNull();
+    expect(seqToMark([], null)).toBeNull();
   });
 });
 

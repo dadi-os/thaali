@@ -41,6 +41,17 @@ export type ThreadSummary = {
   last_message: string;
   last_at: string;
   from_user: boolean;
+  /** The agent's messages to you after `read_seq`; notices are not counted. */
+  unread: number;
+  /** The last message seq read in this thread on any device; null until one is read. */
+  read_seq: number | null;
+};
+
+/** POST /agents/:id/read — where the thread's read mark now stands. */
+export type ThreadReadMark = {
+  agent_id: string;
+  read_seq: number;
+  unread: number;
 };
 
 /** One durable human-thread message from GET /agents/:id/messages. */
@@ -162,6 +173,7 @@ export type HathEvent =
       message: string;
       at: string;
     }
+  | { type: "thread_read"; agent_id: string; read_seq: number; unread: number; at: string }
   | { type: "router_started"; at: string }
   | { type: "router_finished"; at: string }
   | { type: "router_failed"; message: string; at: string }
