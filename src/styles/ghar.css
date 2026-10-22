@@ -1789,3 +1789,203 @@
     animation: none !important;
   }
 }
+
+/* Ghar tiles (the default view): glass tiles that glow in their light's color when on. */
+.ghar-chip {
+  display: inline-flex;
+  align-items: center;
+  height: 2.1rem;
+  padding: 0 0.95rem;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--sage-line) 55%, transparent);
+  background: color-mix(in srgb, var(--glass-veil) 90%, transparent);
+  -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 600;
+  transition: color var(--slow) var(--ease), border-color var(--fast) var(--ease);
+}
+
+.ghar-chip:hover {
+  border-color: var(--sage);
+}
+
+.ghar-chip--on {
+  border-color: transparent;
+  color: var(--bone);
+}
+
+.ghar-glow-tile {
+  position: relative;
+  min-height: 132px;
+  padding: 16px;
+  border-radius: 24px;
+  border: 1px solid var(--glass-border);
+  background: color-mix(in srgb, var(--glass-veil) 92%, transparent);
+  -webkit-backdrop-filter: blur(20px) saturate(1.2);
+  backdrop-filter: blur(20px) saturate(1.2);
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim-top),
+    var(--shadow);
+  transition:
+    border-color var(--slower) var(--ease),
+    box-shadow var(--slower) var(--ease),
+    opacity var(--slower) var(--ease);
+}
+
+.ghar-glow-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: radial-gradient(
+    130% 120% at 0% 0%,
+    color-mix(in srgb, var(--glow) 40%, transparent),
+    color-mix(in srgb, var(--glow) 7%, transparent) 72%,
+    transparent
+  );
+  opacity: 0;
+  transition: opacity var(--slower) var(--ease);
+}
+
+.ghar-glow-tile:hover {
+  border-color: color-mix(in srgb, var(--sage) 70%, var(--glass-border));
+}
+
+.ghar-glow-tile--on {
+  border-color: color-mix(in srgb, var(--glow) 45%, var(--glass-border));
+  box-shadow:
+    inset 0 1px 0 var(--glass-rim-top),
+    0 12px 32px -16px color-mix(in srgb, var(--glow) 75%, transparent);
+}
+
+.ghar-glow-tile--on::before {
+  opacity: calc(0.5 + 0.5 * var(--level, 1));
+}
+
+.ghar-glow-tile--offline {
+  opacity: 0.55;
+}
+
+.ghar-glow-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ink-faint) 14%, transparent);
+  color: var(--ink-muted);
+  transition:
+    background var(--slower) var(--ease),
+    color var(--slower) var(--ease),
+    box-shadow var(--slower) var(--ease);
+}
+
+.ghar-glow-tile--on .ghar-glow-icon {
+  background: color-mix(in srgb, var(--glow) 82%, #fff);
+  color: #2c302a;
+  box-shadow: 0 0 22px color-mix(in srgb, var(--glow) 65%, transparent);
+}
+
+.ghar-glow-tile__more {
+  opacity: 0;
+  background: color-mix(in srgb, var(--bone) 70%, transparent);
+  transition: opacity var(--fast) var(--ease), color var(--fast) var(--ease);
+}
+
+.ghar-glow-tile:hover .ghar-glow-tile__more,
+.ghar-glow-tile:focus-within .ghar-glow-tile__more {
+  opacity: 1;
+}
+
+.ghar-glow-tile__more:hover {
+  color: var(--ink);
+}
+
+/* Brightness pill: Control Center's tall pill, filling with the lamp's light. */
+.ghar-pill {
+  position: relative;
+  width: 96px;
+  height: 210px;
+  overflow: hidden;
+  border-radius: 32px;
+  background: color-mix(in srgb, var(--ink-faint) 20%, transparent);
+  cursor: ns-resize;
+  touch-action: none;
+  outline: none;
+}
+
+.ghar-pill:focus-visible {
+  box-shadow: 0 0 0 2px var(--sage);
+}
+
+.ghar-pill__fill {
+  position: absolute;
+  inset: auto 0 0;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--glow) 40%, transparent),
+    color-mix(in srgb, var(--glow) 25%, transparent)
+  );
+}
+
+.ghar-pill__fill--on {
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--glow) 95%, transparent),
+    color-mix(in srgb, var(--glow) 62%, transparent)
+  );
+}
+
+.ghar-pill__sun {
+  position: absolute;
+  bottom: 18px;
+  left: 50%;
+  width: 24px;
+  height: 24px;
+  transform: translateX(-50%);
+  color: #fafaf7;
+  filter: drop-shadow(0 1px 2px rgb(44 48 42 / 0.35));
+  pointer-events: none;
+}
+
+.ghar-pill__value {
+  position: absolute;
+  top: 14px;
+  left: 0;
+  right: 0;
+  text-align: center;
+  font-family: "Geist Mono", ui-monospace, monospace;
+  font-size: 11px;
+  color: var(--ink-muted);
+  pointer-events: none;
+}
+
+/* Gradient slider: the track is the gradient, the thumb a white glass bead. */
+.ghar-track {
+  position: relative;
+  height: 30px;
+  border-radius: 999px;
+  cursor: ew-resize;
+  touch-action: none;
+  outline: none;
+  box-shadow: inset 0 0 0 1px rgb(44 48 42 / 0.08);
+}
+
+.ghar-track:focus-visible {
+  box-shadow: 0 0 0 2px var(--sage);
+}
+
+.ghar-track__thumb {
+  position: absolute;
+  top: 0;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  background: #fff;
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.25);
+  pointer-events: none;
+}
