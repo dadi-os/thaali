@@ -51,6 +51,15 @@ export async function bootstrapMesh(): Promise<void> {
     await connectTransport();
     return;
   }
+  await prepareMesh();
+}
+
+/**
+ * Reads this device's saved setup code and sets the onboarding flag, without joining.
+ * Throws when the credentials file cannot be read; calling it again retries.
+ */
+export async function prepareMesh(): Promise<void> {
+  ensureSubscribed();
   const mesh = transport as {
     prepareProvisioning?: () => Promise<void>;
   };

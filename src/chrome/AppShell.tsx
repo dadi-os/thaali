@@ -1,14 +1,13 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation } from "react-router-dom";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { ChatSidebar } from "./chatSidebar";
-import { DisconnectedState } from "./DisconnectedState";
 import { ForgetDeviceDialog } from "./ForgetDevice";
 import { Header } from "./Header";
-import { MeshPowerOverlay } from "./MeshPowerOverlay";
+import { Onboarding, type BootState } from "./onboarding";
 import { ProvisionOverlay } from "./ProvisionOverlay";
 import { Toaster } from "./Toaster";
-import { bootstrapMesh } from "../store/connection";
+import { bootstrapMesh, prepareMesh } from "../store/connection";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useActivityToasts } from "./useActivityToasts";
 import { useDesktopTray } from "./useDesktopTray";
@@ -18,11 +17,24 @@ import { useNeedsProvisioning } from "./useNeedsProvisioning";
 import { usingMesh } from "../shared/api";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 import { ErrorBoundary } from "../shared/components/states";
+import { logLine } from "../shared/lib/platform/log";
+
+/** Settles launch's read of the saved setup code into a boot state. */
+function settleBoot(run: Promise<void>, set: (boot: BootState) => void): void {
+  run.then(
+    () => set({ status: "ready" }),
+    (err: unknown) => {
+      const error = err instanceof Error ? err.message : String(err);
+      logLine("error", `mesh bootstrap failed: ${error}`, "mesh_bootstrap_failed");
+      set({ status: "failed", error });
+    },
+  );
+}
 
 /**
  * Persistent chrome. Desktop: short title bar + chat rail + widget outlet.
- * Both unprovisioned and provisioned-disconnected frost the same content
- * plane.
+ * Until this device is on dadi (launch, first run, off, joining, failed) onboarding covers
+ * the rail and the outlet under the title bar.
  */
 export function AppShell() {
   const { state } = useConnection();
@@ -31,6 +43,7 @@ export function AppShell() {
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [forgetOpen, setForgetOpen] = useState(false);
   const needsProvisioning = useNeedsProvisioning();
+  const [boot, setBoot] = useState<BootState>({ status: usingMesh ? "pending" : "ready" });
 
   useEvents();
   useActivityToasts();
@@ -45,18 +58,22 @@ export function AppShell() {
   });
 
   useEffect(() => {
-    void bootstrapMesh();
+    settleBoot(bootstrapMesh(), setBoot);
   }, []);
+
+  useEffect(() => {
+    if (needsProvisioning) {
+      setBoot((current) => (current.status === "failed" ? { status: "ready" } : current));
+    }
+  }, [needsProvisioning]);
 
   useEffect(() => {
     setSessionKey((k) => k + 1);
   }, [location.pathname]);
 
-  const showOnboarding = usingMesh && needsProvisioning;
-  const showPower =
+  const showOnboarding =
     usingMesh &&
-    !needsProvisioning &&
-    (state === "disconnected" || state === "connecting");
+    (boot.status !== "ready" || needsProvisioning || state === "disconnected" || state === "connecting");
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
@@ -66,7 +83,7 @@ export function AppShell() {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: SLOW_S, ease: EASE }}
       >
-        <Header />
+        <Header wordmark={!showOnboarding} />
       </motion.div>
 
       <div className="relative flex min-h-0 flex-1">
@@ -97,8 +114,18 @@ export function AppShell() {
           </div>
         </motion.main>
 
-        {showOnboarding ? <DisconnectedState /> : null}
-        {showPower ? <MeshPowerOverlay /> : null}
+        <AnimatePresence>
+          {showOnboarding ? (
+            <Onboarding
+              key="onboarding"
+              boot={boot}
+              onRetryBoot={() => {
+                setBoot({ status: "pending" });
+                settleBoot(prepareMesh(), setBoot);
+              }}
+            />
+          ) : null}
+        </AnimatePresence>
         <Toaster />
       </div>
       <ProvisionOverlay

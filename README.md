@@ -114,7 +114,7 @@ Plain HTTP on the WireGuard mesh. No localhost fallback.
 
 ## Provisioning
 
-On the box: **Preferences → Devices** mints a Nas `POST /provision` setup QR. The bundle embeds the live LAN Headscale URL (`http://<lan>:8080`). New Tauri Thaali: camera scan (or paste) on that LAN → connect to dadi. Credentials store in app data. Browser Thaali has no provisioning.
+On the box: **Preferences → Devices** mints a Nas `POST /provision` setup QR. The bundle embeds the live LAN Headscale URL (`http://<lan>:8080`). New Tauri Thaali: paste the code (or scan it with the camera) on that LAN → connect to dadi. Credentials store in app data. Browser Thaali has no provisioning.
 
 Upgrading from the app when it was named Hath: the bundle ID is now `com.dadi.thaali`, so its app data (credentials) starts empty; add this computer as a device again. The first connect boots out and deletes the old `com.dadi.hath.sysmesh` LaunchDaemon so only one `tailscaled` owns the TUN.
 
@@ -130,8 +130,9 @@ All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTra
 
 Lifecycle (Tauri):
 
-- Unprovisioned → onboarding (scan/paste)
-- Provisioned + mesh down → glassy power overlay (tap to join); no silent auto-start
+- Onboarding (`chrome/onboarding/`, stages in `stage.ts`) covers the rail and pages on the field bloom (`shared/components/FieldBloom.tsx`) until this device is on dadi, with one દાદી (`shared/components/Wordmark.tsx`) laid out once at its largest size that glides and scales between stages and never re-lays out. Launch → the wordmark breathes while the saved code is read (an unreadable `credentials.json` is the Can't reach dadi card)
+- Unprovisioned → દાદી resolves cluster by cluster, then the glass paste card (Join dadi, a dashed setup-code field, Join; paste anywhere also joins), with Scan the code instead for the camera; a join that fails returns to the card with its error
+- Provisioned + mesh down → Connect to dadi (one tap joins; no silent auto-start) with Forget this device at the foot; joining → the wordmark breathes over Connecting to dadi; a failed join → the glass Can't reach dadi card with the real error, Try again and Forget this device. Reduced motion holds the field still and skips the resolve, breath and glide
 - Connected → app UI; chrome power control leaves the mesh
 - Power on starts bundled `tailscaled` (TUN + MagicDNS `--accept-dns`) against the provisioned Headscale control URL — same model as the Nas host node `os`. Thaali reaches `*.dadi` through a local `/@host` proxy that queries MagicDNS (`100.100.100.100`) so Compose `/etc/hosts` loopbacks cannot hijack service names. On macOS, join also writes `/etc/resolver/dadi` → `100.100.100.100` so Terminal `ssh user@os.dadi` uses MagicDNS (libc will not). macOS prompts for admin (osascript); Linux uses `pkexec`/`sudo`; Windows elevates via UAC for Wintun.
 - Leave → `tailscale down`; mesh names stop resolving

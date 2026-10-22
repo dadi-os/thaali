@@ -16,8 +16,13 @@ function toggleMaximize() {
   void getCurrentWindow().toggleMaximize();
 }
 
+export interface HeaderProps {
+  /** Show the centered દાદી; onboarding hides it while its own wordmark is on screen. */
+  wordmark: boolean;
+}
+
 /** Short desktop title bar — centered wordmark, drag regions, window chrome. */
-export function Header() {
+export function Header({ wordmark }: HeaderProps) {
   const navigate = useNavigate();
   const desktopOs = detectDesktopOs();
   const frameless = desktopOs === "windows" || desktopOs === "linux";
@@ -42,8 +47,11 @@ export function Header() {
       <button
         type="button"
         onClick={() => navigate("/")}
-        className="absolute inset-y-0 left-1/2 z-10 flex -translate-x-1/2 items-center"
+        className={`absolute inset-y-0 left-1/2 z-10 flex -translate-x-1/2 items-center transition-opacity duration-[var(--slower)] ${
+          wordmark ? "opacity-100" : "pointer-events-none opacity-0"
+        }`}
         aria-label="Dadi home"
+        tabIndex={wordmark ? undefined : -1}
       >
         <span className="font-gujarati text-[18px] leading-none text-sage-text translate-y-[0.2em]">
           દાદી
