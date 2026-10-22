@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { PlannerBlock } from "../../../types/planner";
-import { axisRange, formatSpan, gapsBetween, isSettled, nowAndNext, segmentsOn } from "./blocks";
+import { axisRange, formatClockCompact, formatRange, formatSpan, gapsBetween, isSettled, nowAndNext, segmentsOn } from "./blocks";
 
 const day = new Date(2026, 9, 21);
 const at = (hour: number, minute = 0, dayOffset = 0) => new Date(2026, 9, 21 + dayOffset, hour, minute).toISOString();
@@ -73,6 +73,12 @@ describe("planner segments", () => {
     expect(isSettled(block("Past", at(9), at(10)), now)).toBe(true);
     expect(isSettled(block("Ahead", at(13), at(14)), now)).toBe(false);
     expect(isSettled(block("Marked", at(13), at(14), { done_at: at(11) }), now)).toBe(true);
+  });
+
+  it("writes a range with the period once when both ends share it, and a compact clock", () => {
+    expect(formatRange(14 * 60 + 30, 15 * 60 + 50)).toMatch(/^2:30 – 3:50.PM$/);
+    expect(formatRange(11 * 60 + 30, 12 * 60 + 20)).toMatch(/^11:30.AM – 12:20.PM$/);
+    expect(formatClockCompact(14 * 60 + 41)).toBe("2:41PM");
   });
 
   it("writes a span in hours and minutes", () => {

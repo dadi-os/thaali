@@ -120,6 +120,24 @@ export function formatMinuteOfDay(minutes: number): string {
   return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, 0, minutes));
 }
 
+const PERIOD = /[\s\u202f\u00a0]*(AM|PM)$/i;
+
+/** A time range as "2:30 – 3:50 PM", the period written once when both ends share it. */
+export function formatRange(startMin: number, endMin: number): string {
+  const start = formatMinuteOfDay(startMin);
+  const end = formatMinuteOfDay(endMin);
+  const a = PERIOD.exec(start);
+  const b = PERIOD.exec(end);
+  return a !== null && b !== null && a[1]!.toUpperCase() === b[1]!.toUpperCase()
+    ? `${start.replace(PERIOD, "")} – ${end}`
+    : `${start} – ${end}`;
+}
+
+/** A clock time with no space before the period, e.g. "2:41PM". */
+export function formatClockCompact(minutes: number): string {
+  return formatMinuteOfDay(minutes).replace(/[\s\u202f\u00a0]+/g, "");
+}
+
 /** ISO bounds of a local day, for a planner query. */
 export function dayBounds(day: Date): { from: string; to: string } {
   return { from: startOfDay(day).toISOString(), to: endOfDay(day).toISOString() };

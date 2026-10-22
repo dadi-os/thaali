@@ -153,7 +153,7 @@ export function TimelineCalendar({
   const range = useMemo(() => {
     if (view === "planner" && !preview) {
       const start = startOfDay(anchor);
-      const end = endOfDay(anchor);
+      const end = endOfDay(addDays(start, 1));
       return { start, end, ...toIsoBounds(start, end) };
     }
     if (view === "week" || preview) {
