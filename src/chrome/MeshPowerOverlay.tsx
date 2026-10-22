@@ -25,7 +25,9 @@ function asPrepare(t: unknown): ProvisioningPrepare | null {
 
 /**
  * Frosted full-screen power control shown when provisioned but disconnected from dadi.
- * Tap joins the mesh; leave is handled from chrome while connected.
+ * Tap joins the mesh; leave is handled from chrome while connected. "Use a new setup
+ * code" is always offered, so a device whose code no longer works (a removed device, a
+ * moved control URL) can be provisioned again without waiting for an error.
  */
 export function MeshPowerOverlay() {
   const { state, connect } = useConnection();
@@ -49,7 +51,7 @@ export function MeshPowerOverlay() {
   };
 
   const onResetSetup = async () => {
-    if (busy) {
+    if (localBusy) {
       return;
     }
     setLocalBusy(true);
@@ -106,20 +108,18 @@ export function MeshPowerOverlay() {
           : "Tap to connect to dadi system-wide."}
       </p>
       {error ? (
-        <div className="mt-3 flex max-w-sm flex-col items-center gap-2">
-          <p className="text-center text-[13px] text-[#b56b5c]">{error}</p>
-          <button
-            type="button"
-            disabled={busy}
-            onClick={() => {
-              void onResetSetup();
-            }}
-            className="text-[12px] font-medium tracking-[2px] text-sage-deep disabled:opacity-50"
-          >
-            USE NEW SETUP CODE
-          </button>
-        </div>
+        <p className="mt-3 max-w-sm text-center text-[13px] text-[#b56b5c]">{error}</p>
       ) : null}
+      <button
+        type="button"
+        disabled={localBusy}
+        onClick={() => {
+          void onResetSetup();
+        }}
+        className="mt-5 text-[12px] font-medium tracking-[2px] text-sage-deep disabled:opacity-50"
+      >
+        USE NEW SETUP CODE
+      </button>
     </motion.div>
   );
 }

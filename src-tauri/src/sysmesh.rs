@@ -742,8 +742,11 @@ fn windows_daemon_ready_timeout(log_path: &Path) -> String {
     )
 }
 
-/// Joins the mesh with `tailscale up`. `--timeout` bounds the CLI's own wait for
-/// Running so a stalled `up` returns an error instead of hanging the app. On Windows,
+/// Joins the mesh with `tailscale up`. `--force-reauth` lets a new setup code log
+/// in even while the daemon still runs an earlier identity, which `up` otherwise
+/// refuses when the code's control URL differs ("can't change --login-server
+/// without --force-reauth"). `--timeout` bounds the CLI's own wait for Running so
+/// a stalled `up` returns an error instead of hanging the app. On Windows,
 /// tailscaled ties the session to the CLI client that started it and resets to NoState
 /// when that client exits, so `--unattended` (ForceDaemon) keeps the node up after
 /// `up` returns.
@@ -763,6 +766,7 @@ fn tailscale_up(
         format!("--hostname={hostname}"),
         "--accept-dns=true".into(),
         "--reset".into(),
+        "--force-reauth".into(),
         format!("--timeout={}s", JOIN_TIMEOUT.as_secs()),
     ]);
     #[cfg(windows)]
@@ -811,27 +815,66 @@ fn ensure_unattended(bins: &Bins, socket: &Path) -> Result<(), String> {
 fn wait_until_running(bins: &Bins, socket: &Path) -> Result<(), String> {
     let deadline = Instant::now() + JOIN_TIMEOUT;
     while Instant::now() < deadline {
-        if backend_running(bins, socket) {
-            return Ok(());
+        match backend_state(bins, socket) {
+            Backend::Running => return Ok(()),
+            Backend::LoggedOut(reason) => {
+                return Err(format!(
+                    "dadi did not accept this setup code ({reason}). Make a new one in Preferences → Devices."
+                ))
+            }
+            Backend::Down => thread::sleep(Duration::from_millis(400)),
         }
-        thread::sleep(Duration::from_millis(400));
     }
     Err("Connecting to dadi timed out. Check the setup code or network.".into())
 }
 
-/// True when `tailscale status --json` reports BackendState Running. The exit code is
-/// ignored: it is often non-zero before the backend is running.
+/// The join state read from `tailscale status --json`.
+#[derive(Debug, PartialEq)]
+enum Backend {
+    Running,
+    /// BackendState is Running only on a cached netmap while control refuses the login;
+    /// holds tailscaled's login-state health message.
+    LoggedOut(String),
+    Down,
+}
+
 fn backend_running(bins: &Bins, socket: &Path) -> bool {
+    backend_state(bins, socket) == Backend::Running
+}
+
+/// Reads `tailscale status --json`. The exit code is ignored: it is often non-zero
+/// before the backend is running.
+fn backend_state(bins: &Bins, socket: &Path) -> Backend {
     let mut args = socket_cli_args(socket);
     args.extend(["status".into(), "--json".into()]);
     let mut cmd = Command::new(&bins.tailscale);
     hide_console(&mut cmd);
     let Ok(output) = cmd.args(&args).output() else {
-        return false;
+        return Backend::Down;
     };
-    let body = String::from_utf8_lossy(&output.stdout);
-    body.contains("\"BackendState\":\"Running\"")
-        || body.contains("\"BackendState\": \"Running\"")
+    parse_backend(&output.stdout)
+}
+
+/// Classifies status JSON. tailscaled keeps reporting Running from the previous
+/// identity's cached netmap after a login is refused (for example "authkey already
+/// used"), so a login-state health warning overrides BackendState.
+fn parse_backend(stdout: &[u8]) -> Backend {
+    let Ok(status) = serde_json::from_slice::<serde_json::Value>(stdout) else {
+        return Backend::Down;
+    };
+    if status["BackendState"] != "Running" {
+        return Backend::Down;
+    }
+    let logged_out = status["Health"].as_array().and_then(|health| {
+        health
+            .iter()
+            .filter_map(|h| h.as_str())
+            .find(|h| h.starts_with("You are logged out"))
+    });
+    match logged_out {
+        Some(message) => Backend::LoggedOut(message.to_string()),
+        None => Backend::Running,
+    }
 }
 
 fn ensure_magic_dns_resolver() -> Result<(), String> {
@@ -1093,7 +1136,30 @@ fn apple_escape(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::local_api_status_json_ok;
+    use super::{local_api_status_json_ok, parse_backend, Backend};
+
+    #[test]
+    fn backend_running_when_logged_in() {
+        let stdout = br#"{"BackendState":"Running","Health":[]}"#;
+        assert_eq!(parse_backend(stdout), Backend::Running);
+    }
+
+    #[test]
+    fn backend_logged_out_on_cached_netmap() {
+        let stdout = br#"{"BackendState":"Running","Health":["Unable to connect to the Tailscale coordination server to synchronize the state of your tailnet. Peer reachability might degrade over time.","You are logged out. The last login error was: authkey already used"]}"#;
+        assert_eq!(
+            parse_backend(stdout),
+            Backend::LoggedOut(
+                "You are logged out. The last login error was: authkey already used".into()
+            )
+        );
+    }
+
+    #[test]
+    fn backend_down_when_needs_login() {
+        let stdout = br#"{"BackendState":"NeedsLogin","AuthURL":""}"#;
+        assert_eq!(parse_backend(stdout), Backend::Down);
+    }
 
     #[test]
     fn local_api_ready_when_logged_out_json() {
