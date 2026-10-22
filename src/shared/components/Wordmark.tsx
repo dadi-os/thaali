@@ -14,9 +14,9 @@ const CLUSTERS = ["દા", "દી"] as const;
 /** One resolve: a smooth (unbouncy) spring of 0.9 s per cluster, 0.22 s apart. */
 const RESOLVE = { duration: 0.9, delay: 0.15, stagger: 0.22 } as const;
 
-/** The sage glow the breath pulses between, as text shadows. */
-const GLOW_LOW = "0 0 6px rgba(143, 163, 130, 0.05)";
-const GLOW_HIGH = "0 0 28px rgba(143, 163, 130, 0.55)";
+/** The sage glow the breath pulses between, as text shadows sized to the mark (khisso's 6 and 28 pt at 112). */
+const GLOW_LOW = "0 0 0.054em rgba(143, 163, 130, 0.05)";
+const GLOW_HIGH = "0 0 0.25em rgba(143, 163, 130, 0.55)";
 
 export interface WordmarkProps {
   /** Font size in px. Callers moving the mark between sizes scale it with a transform instead. */

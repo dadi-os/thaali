@@ -1,6 +1,8 @@
 import { useNavigate } from "react-router-dom";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { isTauriRuntime } from "../shared/api/runtime";
+import { Wordmark } from "../shared/components/Wordmark";
+import { useConnection } from "../shared/hooks/useConnection";
 import { detectDesktopOs } from "../target";
 import { WindowControls } from "./WindowControls";
 
@@ -21,9 +23,13 @@ export interface HeaderProps {
   wordmark: boolean;
 }
 
-/** Short desktop title bar — centered wordmark, drag regions, window chrome. */
+/**
+ * Short desktop title bar — centered wordmark, drag regions, window chrome. The wordmark
+ * breathes while the mesh is reconnecting, as it does on the phone while dadi is out of reach.
+ */
 export function Header({ wordmark }: HeaderProps) {
   const navigate = useNavigate();
+  const { state } = useConnection();
   const desktopOs = detectDesktopOs();
   const frameless = desktopOs === "windows" || desktopOs === "linux";
   const pad =
@@ -50,12 +56,10 @@ export function Header({ wordmark }: HeaderProps) {
         className={`absolute inset-y-0 left-1/2 z-10 flex -translate-x-1/2 items-center transition-opacity duration-[var(--slower)] ${
           wordmark ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
-        aria-label="Dadi home"
+        aria-label={state === "reconnecting" ? "Dadi home, reconnecting" : "Dadi home"}
         tabIndex={wordmark ? undefined : -1}
       >
-        <span className="font-gujarati text-[18px] leading-none text-sage-text translate-y-[0.2em]">
-          દાદી
-        </span>
+        <Wordmark size={18} breathe={state === "reconnecting"} className="text-sage-text" />
       </button>
       <div
         className="titlebar-drag min-h-0 min-w-[24px] flex-1"

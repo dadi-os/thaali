@@ -164,7 +164,7 @@ Pin is `TS_VER` (default `v1.82.0`). Required before `tauri build` / `tauri dev`
 
 ## Chrome and routes
 
-Glass header + chat sidebar; `<Outlet />` swaps. Routes: `/`, `/hath`, `/yaad`, `/timeline`, `/system`, `/chaavi`, `/ghar`.
+Glass header + chat sidebar; `<Outlet />` swaps. The header's દાદી is the shared `Wordmark` (ink-centered Noto Sans Gujarati), which breathes, a sage glow and a 0.98 ↔ 1.02 scale every 2.4 s, wherever dadi waits: in the header while the mesh reconnects, on Talk to Dadi while a message is routed, and on onboarding while launching and joining. Routes: `/`, `/hath`, `/yaad`, `/timeline`, `/system`, `/chaavi`, `/ghar`.
 
 ## Agents / chat / memory
 

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { Wordmark } from "../../shared/components/Wordmark";
 
 /** A Talk to Dadi send waiting on POST /router to pick a thread. */
 export type DadiRouting = {
@@ -30,7 +31,7 @@ const ROUTING_PHASES: Array<{ at: number; label: string }> = [
  * Empty Talk-to-Dadi surface. Motion is owned by the sidebar stage so this
  * mark doesn't animate a second time on the way in or out.
  *
- * While routing, the mark settles and breathes, the sent message sits under it,
+ * While routing, the mark settles and breathes (the shared sage glow and scale), the sent message sits under it,
  * and a thread line runs down to the status until the agent's chat opens.
  */
 export function DadiHome({
@@ -47,22 +48,11 @@ export function DadiHome({
       style={{ paddingBottom: composerPad }}
     >
       <motion.span
-        className="relative top-[0.2em] font-gujarati text-[52px] leading-none text-sage-text"
-        animate={
-          busy
-            ? { scale: 0.74, opacity: reduced ? 1 : [0.55, 1, 0.55] }
-            : { scale: 1, opacity: 1 }
-        }
-        transition={
-          busy && !reduced
-            ? {
-                scale: { duration: SLOW_S, ease: EASE },
-                opacity: { duration: 2.2, repeat: Infinity, ease: EASE },
-              }
-            : { duration: SLOW_S, ease: EASE }
-        }
+        className="inline-block"
+        animate={{ scale: busy ? 0.74 : 1 }}
+        transition={{ duration: SLOW_S, ease: EASE }}
       >
-        દાદી
+        <Wordmark size={52} breathe={busy} className="text-sage-text" />
       </motion.span>
       <AnimatePresence mode="wait" initial={false}>
         {routing ? (
