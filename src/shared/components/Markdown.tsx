@@ -1,8 +1,24 @@
-import type { ReactNode } from "react";
+import "katex/dist/katex.min.css";
+import { cloneElement, createElement, isValidElement } from "react";
+import type { HTMLAttributes, ReactNode } from "react";
 import type { ElementContent } from "hast";
-import type { Components } from "react-markdown";
+import type { Components as InlineComponents } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import { Streamdown } from "streamdown";
+import type {
+  CodeHighlighterPlugin,
+  Components,
+  ControlsConfig,
+  DiagramPlugin,
+  ExtraProps,
+  PluginConfig,
+} from "streamdown";
+import type { ThemeInput } from "@streamdown/code";
+import { createMathPlugin } from "@streamdown/math";
+import type { MermaidConfig, createMermaidPlugin } from "@streamdown/mermaid";
+import { normalizeMathDelimiters } from "../lib/content/math";
+import { logLine } from "../lib/platform/log";
 import { CopyButton } from "./CopyButton";
 
 export interface MarkdownBodyProps {
@@ -13,30 +29,215 @@ export interface MarkdownBodyProps {
 }
 
 /**
- * Markdown body — GFM prose with Cursor-style link chips (favicon + domain), and a copy
- * button on every code block.
+ * Markdown body rendered by Streamdown: GFM prose, KaTeX math (`$…$`, `\(…\)`, `$$…$$`,
+ * `\[…\]`), Shiki-colored code with a copy button, Mermaid diagrams, and Cursor-style
+ * link chips (favicon + domain). Replies reach thaali whole, so it renders in static
+ * mode without repairing unterminated syntax.
  */
 export function MarkdownBody({ content, compact = false }: MarkdownBodyProps) {
   return (
-    <div className={compact ? "chat-md chat-md--compact" : "chat-md"}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]} components={components}>
-        {content}
-      </ReactMarkdown>
-    </div>
+    <Streamdown
+      className={compact ? "chat-md chat-md--compact space-y-0" : "chat-md space-y-0"}
+      mode="static"
+      parseIncompleteMarkdown={false}
+      plugins={plugins}
+      components={components}
+      controls={controls}
+      lineNumbers={false}
+      codeBlockMaxHeight={0}
+    >
+      {normalizeMathDelimiters(content)}
+    </Streamdown>
   );
 }
 
+const DARK = "(prefers-color-scheme: dark)";
+
+/** A `:root` token's current value. @throws When the token is not defined. */
+function token(style: CSSStyleDeclaration, name: string): string {
+  const value = style.getPropertyValue(name).trim();
+  if (!value) {
+    throw new Error(`theme token ${name} is not defined`);
+  }
+  return value;
+}
+
+/** Mermaid's base theme in thaali's current light or dark tokens. */
+function mermaidTheme(): MermaidConfig {
+  const style = getComputedStyle(document.documentElement);
+  const font = '"Inter", sans-serif';
+  return {
+    theme: "base",
+    darkMode: window.matchMedia(DARK).matches,
+    fontFamily: font,
+    themeVariables: {
+      fontFamily: font,
+      background: token(style, "--bone"),
+      mainBkg: token(style, "--bone-raised"),
+      primaryColor: token(style, "--bone-raised"),
+      primaryTextColor: token(style, "--ink"),
+      primaryBorderColor: token(style, "--sage-line"),
+      secondaryColor: token(style, "--bone"),
+      tertiaryColor: token(style, "--bone"),
+      nodeBorder: token(style, "--sage-line"),
+      lineColor: token(style, "--sage-deep"),
+      textColor: token(style, "--ink"),
+      edgeLabelBackground: token(style, "--bone"),
+    },
+  };
+}
+
+type MermaidPlugin = ReturnType<typeof createMermaidPlugin>;
+
+let mermaidLoad: Promise<MermaidPlugin> | null = null;
+
+/** Streamdown's Mermaid plugin, imported on the first diagram; a failed import is retried next time. */
+function loadMermaid(): Promise<MermaidPlugin> {
+  mermaidLoad ??= import("@streamdown/mermaid").then(
+    (module) => module.createMermaidPlugin(),
+    (err: unknown) => {
+      mermaidLoad = null;
+      throw err;
+    },
+  );
+  return mermaidLoad;
+}
+
+/** Mermaid that loads with the first diagram and draws in the theme current at that moment. */
+const mermaid: DiagramPlugin = {
+  name: "mermaid",
+  type: "diagram",
+  language: "mermaid",
+  getMermaid(initial?: MermaidConfig) {
+    let config = initial;
+    return {
+      initialize(next: MermaidConfig) {
+        config = next;
+      },
+      async render(id: string, source: string) {
+        const plugin = await loadMermaid();
+        return plugin.getMermaid({ ...config, ...mermaidTheme() }).render(id, source);
+      },
+    };
+  },
+};
+
+/** Shiki themes for code, light then dark; the file viewer colors source in the same pair. */
+const CODE_THEMES: [ThemeInput, ThemeInput] = ["vitesse-light", "vitesse-dark"];
+
+let codeLoad: Promise<CodeHighlighterPlugin> | null = null;
+let codeReady: CodeHighlighterPlugin | null = null;
+
+/** Streamdown's Shiki plugin, imported with the first code block; a failed import is retried next time. */
+function loadCode(): Promise<CodeHighlighterPlugin> {
+  codeLoad ??= import("@streamdown/code").then(
+    (module) => (codeReady = module.createCodePlugin({ themes: CODE_THEMES })),
+    (err: unknown) => {
+      codeLoad = null;
+      throw err;
+    },
+  );
+  return codeLoad;
+}
+
+/** The highlighter that has not loaded yet. @throws Always. */
+function codeNotLoaded(): never {
+  throw new Error("code highlighter is not loaded yet");
+}
+
+/**
+ * Shiki that loads with the first code block: until then a block shows plain and is
+ * colored when the import lands, as it would while a grammar loads.
+ */
+const code: CodeHighlighterPlugin = {
+  name: "shiki",
+  type: "code-highlighter",
+  getThemes: () => CODE_THEMES,
+  getSupportedLanguages: () => (codeReady ?? codeNotLoaded()).getSupportedLanguages(),
+  supportsLanguage: (language) => (codeReady ?? codeNotLoaded()).supportsLanguage(language),
+  highlight(options, callback) {
+    if (codeReady !== null) {
+      return codeReady.highlight(options, callback);
+    }
+    loadCode().then(
+      (plugin) => {
+        const result = plugin.highlight(options, callback);
+        if (result !== null && callback) {
+          callback(result);
+        }
+      },
+      (err: unknown) => logLine("error", `code highlighter failed to load: ${String(err)}`, "markdown_code_load_failed"),
+    );
+    return null;
+  },
+};
+
+const plugins: PluginConfig = {
+  code,
+  math: createMathPlugin({ singleDollarTextMath: true, errorColor: "var(--error)" }),
+  mermaid,
+};
+
+const controls: ControlsConfig = {
+  code: false,
+  table: false,
+  image: false,
+  mermaid: { copy: false, download: false, fullscreen: true, panZoom: true },
+};
+
+/** A tag rendered bare, so `.chat-md` alone styles it instead of Streamdown's defaults. */
+function bare(tag: string) {
+  return function Bare({ node: _node, ...props }: HTMLAttributes<HTMLElement> & ExtraProps) {
+    return createElement(tag, props);
+  };
+}
+
 const components: Components = {
+  h1: bare("h1"),
+  h2: bare("h2"),
+  h3: bare("h3"),
+  h4: bare("h4"),
+  h5: bare("h5"),
+  h6: bare("h6"),
+  ul: bare("ul"),
+  ol: bare("ol"),
+  li: bare("li"),
+  blockquote: bare("blockquote"),
+  hr: bare("hr"),
+  strong: bare("strong"),
+  thead: bare("thead"),
+  tbody: bare("tbody"),
+  tr: bare("tr"),
+  th: bare("th"),
+  td: bare("td"),
+  sup: bare("sup"),
+  sub: bare("sub"),
+  inlineCode: bare("code"),
   a({ href, children }) {
     if (!href) {
       return <span>{children}</span>;
     }
     return <LinkChip href={href}>{children}</LinkChip>;
   },
+  table({ node: _node, ...props }) {
+    return (
+      <div className="chat-md__table">
+        <table {...props} />
+      </div>
+    );
+  },
   pre({ node, children }) {
+    const block = isValidElement<Record<string, unknown>>(children)
+      ? cloneElement(children, { "data-block": "true" })
+      : children;
+    const code = node!.children[0];
+    const language = code?.type === "element" ? code.properties.className : undefined;
+    if (Array.isArray(language) && language.includes("language-mermaid")) {
+      return block;
+    }
     return (
       <div className="chat-md__code group/code relative">
-        <pre>{children}</pre>
+        {block}
         <CopyButton
           text={hastText(node!.children).replace(/\n$/, "")}
           label="Copy code"
@@ -88,7 +289,7 @@ function Group({ children }: { children?: ReactNode }) {
   return <span>{children}</span>;
 }
 
-const inlineComponents: Components = {
+const inlineComponents: InlineComponents = {
   p: Run,
   h1: Run,
   h2: Run,

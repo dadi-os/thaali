@@ -2,6 +2,10 @@
 @import "./tokens.css";
 @import "./ghar.css";
 @import "tailwindcss";
+@source "../../node_modules/streamdown/dist/*.js";
+@source "../../node_modules/@streamdown/code/dist/*.js";
+@source "../../node_modules/@streamdown/math/dist/*.js";
+@source "../../node_modules/@streamdown/mermaid/dist/*.js";
 
 @theme {
   --color-bone: var(--bone);
@@ -37,6 +41,16 @@
   --duration-slower: var(--slower);
   --duration-fast: var(--fast);
   --duration-breath: var(--breath);
+
+  /* Streamdown's shadcn color names, in thaali's tokens. */
+  --color-background: var(--bone);
+  --color-foreground: var(--ink);
+  --color-border: var(--rule);
+  --color-muted: var(--sage-fill);
+  --color-muted-foreground: var(--ink-muted);
+  --color-sidebar: var(--bone-raised);
+  --color-primary: var(--sage-deep);
+  --color-primary-foreground: var(--bone);
 
   --font-sans: "Inter", sans-serif;
   --font-gujarati: "Noto Sans Gujarati", sans-serif;
@@ -206,20 +220,58 @@ body {
   font-size: 0.86em;
 }
 
-.chat-md pre {
+.chat-md [data-streamdown="code-block"] {
   margin: 0;
-  overflow-x: auto;
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
   border-radius: 10px;
   border: 1px solid color-mix(in srgb, var(--sage-line) 55%, transparent);
   background: color-mix(in srgb, var(--sage-fill) 70%, var(--bone));
-  padding: 0.75em 0.9em;
 }
 
-.chat-md pre code {
+.chat-md [data-streamdown="code-block-header"] {
+  height: auto;
+  padding: 0.5em 0.9em 0;
+  font-size: 0.72em;
+  color: var(--ink-ghost);
+}
+
+.chat-md [data-streamdown="code-block-header"] > span {
+  margin: 0;
+}
+
+.chat-md [data-streamdown="code-block-body"] {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  padding: 0.35em 0.9em 0.75em;
+  font-size: inherit;
+}
+
+.chat-md [data-streamdown="code-block-body"] pre {
+  margin: 0;
+  background: transparent;
+}
+
+.chat-md [data-streamdown="code-block-body"] code {
   padding: 0;
   background: transparent;
   font-size: 0.82em;
   line-height: 1.5;
+}
+
+.chat-md [data-streamdown="mermaid-block"] {
+  margin: 0;
+  border-radius: 10px;
+  border-color: color-mix(in srgb, var(--sage-line) 55%, transparent);
+  background: color-mix(in srgb, var(--sage-fill) 70%, var(--bone));
+}
+
+.chat-md .katex-display {
+  margin: 0.15em 0;
+  overflow-x: auto;
+  overflow-y: hidden;
 }
 
 .chat-md blockquote {
@@ -233,6 +285,11 @@ body {
   margin: 0.4em 0;
   border: none;
   border-top: 1px solid var(--rule);
+}
+
+.chat-md__table {
+  max-width: 100%;
+  overflow-x: auto;
 }
 
 .chat-md table {
@@ -260,9 +317,16 @@ body {
   font-size: 1em;
 }
 
-.chat-md--compact pre {
+.chat-md--compact [data-streamdown="code-block"] {
   border-radius: 8px;
-  padding: 0.5em 0.65em;
+}
+
+.chat-md--compact [data-streamdown="code-block-header"] {
+  padding: 0.4em 0.65em 0;
+}
+
+.chat-md--compact [data-streamdown="code-block-body"] {
+  padding: 0.25em 0.65em 0.5em;
 }
 
 /* One-line previews (InlineMarkdown): inline marks only, color inherited. */

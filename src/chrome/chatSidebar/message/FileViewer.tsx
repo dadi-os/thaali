@@ -45,15 +45,18 @@ const MARKDOWN_MODES: Array<{ value: MarkdownMode; label: string }> = [
   { value: "source", label: "Source" },
 ];
 
-/** Which body the sheet renders for a media type. */
-function viewKind(mediaType: string): ViewKind {
+/** Extensions read as Markdown whatever media type the file was stored with. */
+const MARKDOWN_EXTS = new Set(["md", "markdown"]);
+
+/** Which body the sheet renders for a file, by its media type and, for Markdown, its extension. */
+function viewKind(mediaType: string, filename: string): ViewKind {
   if (mediaType.startsWith("image/")) {
     return "image";
   }
   if (mediaType === "application/pdf") {
     return "pdf";
   }
-  if (mediaType === "text/markdown") {
+  if (mediaType === "text/markdown" || MARKDOWN_EXTS.has(extensionOf(filename))) {
     return "markdown";
   }
   return isTextMediaType(mediaType) ? "text" : "binary";
@@ -134,7 +137,7 @@ type SheetProps = {
 
 /** The open file's sheet: header with its actions over the body for its kind. */
 function Sheet({ file, onClose }: SheetProps) {
-  const kind = viewKind(file.media_type);
+  const kind = viewKind(file.media_type, file.filename);
   const textual = kind === "text" || kind === "markdown";
   const [mode, setMode] = useState<MarkdownMode>("rendered");
   const text = useQuery({
