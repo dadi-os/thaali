@@ -92,7 +92,9 @@ export function keyInput(kind: "key_down" | "key_up", e: KeyEventFields): NasBro
 
 /**
  * Queue of input events for one browser. `push` sends immediately when idle, otherwise the
- * event waits and goes out with everything queued behind the request in flight. A failed
+ * event waits and goes out with everything queued behind the request in flight. A move
+ * queued right after another move replaces it, so a fast pointer sends where it is and not
+ * every step on the way, which Nas could not replay as fast as it arrives. A failed
  * request drops its batch and reports through `onError`; there is no retry.
  */
 export function createInputSender(browserId: number, onError: (message: string) => void) {
@@ -118,7 +120,11 @@ export function createInputSender(browserId: number, onError: (message: string) 
 
   return {
     push(event: NasBrowserInputEvent): void {
-      queue.push(event);
+      if (event.type === "move" && queue[queue.length - 1]?.type === "move") {
+        queue[queue.length - 1] = event;
+      } else {
+        queue.push(event);
+      }
       void flush();
     },
   };

@@ -34,6 +34,19 @@ describe("createInputSender", () => {
     release?.();
     await vi.waitFor(() => expect(sent).toEqual([["down"], ["move", "up"]]));
   });
+
+  it("keeps only the latest of consecutive moves while a request is in flight", async () => {
+    const sender = createInputSender(10, () => {});
+    const event = (type: "move" | "down" | "up", x: number) => ({ type, x, y: 0, button: "none" as const, buttons: 0, click_count: 0, modifiers: 0 });
+    sender.push(event("down", 0));
+    sender.push(event("move", 0.1));
+    sender.push(event("move", 0.2));
+    sender.push(event("up", 0.2));
+    sender.push(event("move", 0.3));
+    sender.push(event("move", 0.4));
+    release?.();
+    await vi.waitFor(() => expect(sent).toEqual([["down"], ["move", "up", "move"]]));
+  });
 });
 
 describe("keyInput", () => {
