@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
 import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { ChaaviTile } from "../features/chaavi/ChaaviTile";
-import { GharHouse } from "../features/ghar/house";
+import { GharWidget } from "../features/ghar/widget";
 import { MemoryCounters } from "../features/memory/MemoryCounters";
 import { SystemMap } from "../features/system/SystemMap";
 import { TimelineCalendar } from "../features/timeline/TimelineCalendar";
@@ -91,7 +91,7 @@ export function WidgetGridPage() {
         className={`${tile} md:col-span-2 md:col-start-1 md:row-start-4`}
       >
         <ErrorBoundary label="Ghar" compact>
-          <GharHouse mode="preview" toolbar={null} />
+          <GharWidget />
         </ErrorBoundary>
       </WidgetFrame>
 

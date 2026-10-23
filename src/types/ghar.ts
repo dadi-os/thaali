@@ -110,6 +110,8 @@ export type GharDevice = {
   /** The bridge's product name when the device sits behind a bridge. */
   bridge_name: string | null;
   room: { id: string; name: string };
+  /** The Ghar tags (shown as groups) the device carries. */
+  tags: GharTag[];
   capabilities: Array<{
     capability: GharCapabilityName;
     /** Capability config from Ghar: color `modes`, setpoint support, mode and area choices, sensor `measurements`. */
@@ -122,6 +124,12 @@ export type GharDevice = {
 
 /** Room row from Ghar GET /rooms. */
 export type GharRoom = {
+  id: string;
+  name: string;
+};
+
+/** A Ghar tag: a named group of devices that crosses rooms. */
+export type GharTag = {
   id: string;
   name: string;
 };

@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import type { GharKind } from "../../../types/ghar";
+import type { GharKind } from "../../types/ghar";
 
 /** Line glyphs (24 viewBox) for each kind of device a tile shows. */
 const GLYPH: Partial<Record<GharKind, ReactNode>> & { other: ReactNode } = {
@@ -119,7 +119,7 @@ export function KindIcon({ kind }: { kind: GharKind }) {
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.7"
+      strokeWidth="2"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden
@@ -148,6 +148,63 @@ export function IconSliders() {
       <circle cx="6" cy="4" r="1.6" fill="currentColor" />
       <circle cx="10.5" cy="8" r="1.6" fill="currentColor" />
       <circle cx="5" cy="12" r="1.6" fill="currentColor" />
+    </svg>
+  );
+}
+
+/** Two rings: a group, on its chip. */
+export function IconGroup() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden className="size-full">
+      <circle cx="8" cy="12" r="4" />
+      <circle cx="16" cy="12" r="4" />
+    </svg>
+  );
+}
+
+/** A crescent, on Evening. */
+export function IconMoon() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden className="size-full">
+      <path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z" />
+    </svg>
+  );
+}
+
+/** A plus, on the add tiles and New room. */
+export function IconAdd() {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden className="size-full">
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
+/** Three dots: a room's options. */
+export function IconMore() {
+  return (
+    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-full">
+      <circle cx="5" cy="12" r="1.8" />
+      <circle cx="12" cy="12" r="1.8" />
+      <circle cx="19" cy="12" r="1.8" />
+    </svg>
+  );
+}
+
+/** A chevron pointing right, on the inspector's pickers. */
+export function IconChevron({ open }: { open: boolean }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+      className={`size-full transition-transform duration-slow ease-dadi ${open ? "rotate-90" : ""}`}
+    >
+      <path d="M9 6l6 6-6 6" />
     </svg>
   );
 }

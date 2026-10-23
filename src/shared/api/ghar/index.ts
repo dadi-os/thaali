@@ -57,6 +57,25 @@ export function createGharClient(transport: Transport, baseUrl: string) {
       });
     },
 
+    /** PATCH /rooms/:id — rename a room. Ghar refuses the unassigned room and a taken name (409). */
+    renameRoom(id: string, name: string): Promise<GharRoom> {
+      return transport.request({
+        baseUrl,
+        path: `/rooms/${id}`,
+        method: "PATCH",
+        body: { name },
+      });
+    },
+
+    /** DELETE /rooms/:id — delete an empty room. Ghar refuses one that still has devices (409). */
+    deleteRoom(id: string): Promise<void> {
+      return transport.request({
+        baseUrl,
+        path: `/rooms/${id}`,
+        method: "DELETE",
+      });
+    },
+
     /** PATCH /devices/:id — move a device into a room. */
     moveDevice(id: string, roomId: string): Promise<GharDevice> {
       return transport.request({
@@ -74,6 +93,16 @@ export function createGharClient(transport: Transport, baseUrl: string) {
         path: `/devices/${id}`,
         method: "PATCH",
         body: { name },
+      });
+    },
+
+    /** PATCH /devices/:id — replace a device's tags (its groups); Ghar drops tags no device carries. */
+    setDeviceTags(id: string, tags: string[]): Promise<GharDevice> {
+      return transport.request({
+        baseUrl,
+        path: `/devices/${id}`,
+        method: "PATCH",
+        body: { tags },
       });
     },
 

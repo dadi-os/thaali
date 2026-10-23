@@ -1,6 +1,6 @@
 /**
- * Pair a Matter device from a sheet over the Ghar page, and the room and error words the
- * house shares. Nearby pairing uses this computer as the Bluetooth radio.
+ * Pair a Matter device from a sheet over the Ghar page, and the error words the page shares.
+ * Nearby pairing uses this computer as the Bluetooth radio.
  */
 
 import { useEffect, useState } from "react";
@@ -12,8 +12,9 @@ import { isTauriRuntime } from "../../shared/api/runtime";
 import type { GharRoom } from "../../types/ghar";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { DeviceFace } from "./house/rooms";
+import { UNASSIGNED_ROOM } from "./model";
 import { startDeviceRadio } from "./radio";
+import { TilePreview } from "./tile";
 
 type RadioMode = "network" | "nearby";
 
@@ -21,11 +22,6 @@ const caps = "text-[10px] font-medium tracking-[0.14em] text-ink-faint uppercase
 
 const field =
   "rounded-[var(--radius)] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 py-2.5 text-ink outline-none transition-[border-color,background-color] duration-slow ease-dadi placeholder:text-ink-ghost hover:border-sage focus:border-sage disabled:cursor-default disabled:opacity-50";
-
-/** Human label for a room. The seeded room is the unplaced pile. */
-export function roomTitle(name: string): string {
-  return name === "unassigned" ? "Unplaced" : name;
-}
 
 /** First sentence of a transport or Ghar error, for the sheet. */
 export function shownError(err: unknown): string {
@@ -42,6 +38,8 @@ export function shownError(err: unknown): string {
 export type PairingSheetProps = {
   /** Every room, so a device can land straight in one. */
   rooms: GharRoom[];
+  /** The room the sheet opens on; empty for Unplaced. */
+  startRoom: string;
   onClose: () => void;
 };
 
@@ -50,14 +48,14 @@ export type PairingSheetProps = {
  * rings reaching out while Ghar looks for it and closing in while it pairs, then the device
  * itself. Nearby pairing makes this computer the Bluetooth radio.
  */
-export function PairingSheet({ rooms, onClose }: PairingSheetProps) {
+export function PairingSheet({ rooms, startRoom, onClose }: PairingSheetProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const queryClient = useQueryClient();
-  const named = rooms.filter((room) => room.name !== "unassigned");
+  const named = rooms.filter((room) => room.name !== UNASSIGNED_ROOM);
   const [code, setCode] = useState("");
   /** The room picked for the device; empty lands it in Unplaced. */
-  const [roomId, setRoomId] = useState("");
+  const [roomId, setRoomId] = useState(startRoom);
   const [radio, setRadio] = useState<RadioMode>("network");
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
@@ -305,11 +303,11 @@ export function PairingSheet({ rooms, onClose }: PairingSheetProps) {
                   {devicesQuery.isError ? (
                     <p className="m-0 text-[12px] text-error">{shownError(devicesQuery.error)}</p>
                   ) : landed === null ? (
-                    <span className="h-32 w-32 animate-pulse rounded-[var(--radius)] bg-sage-fill/50" />
+                    <span className="h-[150px] w-[150px] animate-pulse rounded-[var(--radius)] bg-sage-fill/50" />
                   ) : (
                     landed.map((device) => (
-                      <div key={device.id} className="w-[132px]">
-                        <DeviceFace device={device} pending={false} />
+                      <div key={device.id} className="w-[150px]">
+                        <TilePreview device={device} />
                       </div>
                     ))
                   )}
@@ -331,7 +329,7 @@ export function PairingSheet({ rooms, onClose }: PairingSheetProps) {
                   : step === "pair"
                     ? "Found it. Exchanging certificates and joining the house."
                     : step === "done"
-                      ? `In ${landedIn ? landedIn.name : "Unplaced"}. Drag it to another room any time.`
+                      ? `In ${landedIn ? landedIn.name : "Unplaced"}. Move it to another room from its controls any time.`
                       : `${failure} Check the device is in pairing mode (power-cycle it if it was paired before) and try again.`}
               </p>
               {step === "failed" || step === "done" ? (
