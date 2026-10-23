@@ -26,11 +26,12 @@ const RUNTIME_REPORT_PREFIX = "[runtime] ";
 /**
  * Tools that handed work to the other lane in rows without a wake id (see guessWakes),
  * which then ran once the caller stopped: conversation steers reasoning, and reasoning's
- * send_message then asked conversation to send the message.
+ * hand_off (and, before that, its send_message) asked conversation to send the message.
  */
 const HANDOFF: Partial<Record<string, Lane>> = {
   steer_reasoning: "reasoning",
   send_message: "conversation",
+  hand_off: "conversation",
 };
 
 /** A tool call's logged result. */
