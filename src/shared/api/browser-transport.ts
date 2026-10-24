@@ -153,10 +153,9 @@ export class BrowserTransport implements Transport {
     };
 
     es.onerror = () => {
-      if (es.readyState === EventSource.CLOSED) {
-        this.eventSources.delete(es);
-        opts.onClose?.();
-      }
+      es.close();
+      this.eventSources.delete(es);
+      opts.onClose?.();
     };
 
     return () => {

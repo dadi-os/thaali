@@ -91,7 +91,7 @@ async function hydrateHistory(): Promise<void> {
 }
 
 /**
- * Subscribe to Hath SSE. Reconnects with backoff on drop and refetches
+ * Subscribe to Hath SSE. The stream opens before the refetch so no event falls in the gap between them. Reconnects with backoff on drop, reopens (and so refetches) whenever the window becomes visible, and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay), and refetches
  * agent schedules and the agent list (whose `sessions` move without any other event) when Hath says they changed.
  * An agent → user message is counted unread (unless its chat is open in a visible window) and
@@ -262,19 +262,7 @@ export function useEvents(): void {
         return;
       }
 
-      try {
-        await refetchAgents(queryClient);
-        if (gen !== generation) {
-          return;
-        }
-        backoff = INITIAL_BACKOFF_MS;
-      } catch (err: unknown) {
-        scheduleReconnect(gen, "events_open_failed", err instanceof Error ? err.message : String(err));
-        return;
-      }
-
       teardownStream();
-      void hydrateHistory();
       stopStream = transport.stream({
         baseUrl: HATH_URL,
         path: "/events",
@@ -287,6 +275,19 @@ export function useEvents(): void {
           scheduleReconnect(gen, "events_stream_closed", "event stream closed");
         },
       });
+
+      try {
+        await refetchAgents(queryClient);
+        if (gen !== generation) {
+          return;
+        }
+        backoff = INITIAL_BACKOFF_MS;
+      } catch (err: unknown) {
+        teardownStream();
+        scheduleReconnect(gen, "events_open_failed", err instanceof Error ? err.message : String(err));
+        return;
+      }
+      void hydrateHistory();
 
       unwatchStream = transport.onConnectionChange((state) => {
         if (gen !== generation) {
@@ -334,12 +335,24 @@ export function useEvents(): void {
       }
     };
 
+    const onVisibility = () => {
+      if (document.visibilityState !== "visible" || !transport.isActive()) {
+        return;
+      }
+      generation += 1;
+      clearTimer();
+      backoff = INITIAL_BACKOFF_MS;
+      void open(generation);
+    };
+
     const unsub = subscribeConnection(onConnection);
+    document.addEventListener("visibilitychange", onVisibility);
     onConnection();
 
     return () => {
       generation += 1;
       unsub();
+      document.removeEventListener("visibilitychange", onVisibility);
       clearTimer();
       teardownStream();
     };

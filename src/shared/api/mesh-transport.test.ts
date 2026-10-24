@@ -397,6 +397,61 @@ describe("MeshTransport.stream concurrency", () => {
   });
 });
 
+describe("MeshTransport.stream idle watchdog", () => {
+  beforeEach(() => {
+    invoke.mockReset();
+    vi.mocked(fetch).mockReset();
+  });
+
+  it("closes a stream that goes silent so its owner reconnects", async () => {
+    invoke.mockImplementation(async (cmd: string) => {
+      if (cmd === "mesh_start") {
+        return 4242;
+      }
+      if (cmd === "mesh_status") {
+        return 2;
+      }
+      if (cmd === "mesh_load_credentials") {
+        return creds;
+      }
+      if (cmd === "mesh_stop") {
+        return;
+      }
+      throw new Error(`unexpected invoke ${cmd}`);
+    });
+    vi.mocked(fetch).mockImplementation(async (_url, init) => {
+      const signal = init?.signal;
+      return {
+        ok: true,
+        body: {
+          getReader: () => ({
+            read: () =>
+              new Promise<{ done: boolean; value?: Uint8Array }>((_resolve, reject) => {
+                signal?.addEventListener("abort", () => reject(new Error("aborted")));
+              }),
+          }),
+        },
+      } as Response;
+    });
+
+    const transport = new MeshTransport();
+    await transport.connect(creds);
+
+    vi.useFakeTimers();
+    try {
+      const onClose = vi.fn();
+      transport.stream({ baseUrl: HATH, path: "/events", onEvent: () => {}, onClose });
+      await vi.advanceTimersByTimeAsync(44_000);
+      expect(onClose).not.toHaveBeenCalled();
+      await vi.advanceTimersByTimeAsync(2_000);
+      expect(onClose).toHaveBeenCalledTimes(1);
+    } finally {
+      vi.useRealTimers();
+    }
+    await transport.disconnect();
+  });
+});
+
 function waitMs(ms: number): Promise<void> {
   return new Promise((resolve) => {
     setTimeout(resolve, ms);

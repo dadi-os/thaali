@@ -19,6 +19,8 @@ const SYSTEM_MESH_PORT = 0;
 
 /** Probe often so sleep/wake and brief flaps are caught quickly. */
 const HEALTH_MS = 2_000;
+/** Hath pings its event stream every 20s; an SSE stream silent this long is half-open and is dropped so its owner reconnects. */
+const SSE_IDLE_MS = 45_000;
 /** Require consecutive bad probes before flipping to reconnecting. */
 const FAIL_STREAK_BEFORE_RECOVER = 2;
 const RECOVER_INITIAL_MS = 500;
@@ -514,13 +516,21 @@ export class MeshTransport implements Transport {
       }
     };
 
+    const idle = new AbortController();
+    let idleTimer: ReturnType<typeof setTimeout> | undefined;
+    const armIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => idle.abort(new Error(`no data for ${SSE_IDLE_MS / 1000}s`)), SSE_IDLE_MS);
+    };
+    armIdle();
+
     try {
       const response = await fetch(url, {
         method: "GET",
         headers: {
           Accept: "text/event-stream",
         },
-        signal,
+        signal: AbortSignal.any([signal, idle.signal]),
       });
 
       if (!response.ok || !response.body) {
@@ -541,6 +551,7 @@ export class MeshTransport implements Transport {
         if (done) {
           break;
         }
+        armIdle();
         buffer += decoder.decode(value, { stream: true });
         buffer = consumeSseBuffer(buffer, onEvent);
       }
@@ -552,6 +563,8 @@ export class MeshTransport implements Transport {
         void this.probeHealth();
         onClose?.();
       }
+    } finally {
+      clearTimeout(idleTimer);
     }
   }
 
