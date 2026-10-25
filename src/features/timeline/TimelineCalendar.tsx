@@ -1,19 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { isMeshOnline, planner, yaad } from "../../shared/api";
-import type { IngestResponse } from "../../types/yaad";
+import { isMeshOnline, timeline } from "../../shared/api";
+import { openDadi } from "../../store/chat";
+import type { TimelineItem, TimelineViewName } from "../../types/timeline";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { Glider } from "../../shared/components/Glider";
 import { StateView } from "../../shared/components/states";
-import { IconPlus } from "../../shared/components/IconButton";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
-import { EASE, REVEAL, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import {
   addDays,
   endOfDay,
   endOfMonth,
-  formatDayLong,
   formatMonthTitle,
   formatWeekTitle,
   monthGridDays,
@@ -27,12 +26,10 @@ import {
 import { MonthView } from "./MonthView";
 import { NextUp } from "./NextUp";
 import { NodePopover } from "./NodePopover";
-import { anchorOf, asPlan, type PendingAdd, type PlanNode, type PlanOccurrence } from "./plans";
-import { BlockCard } from "./planner/BlockCard";
+import { anchorOf, itemKey } from "./plans";
 import { isSettled } from "./planner/blocks";
 import { PlannerDay } from "./planner/PlannerDay";
-import type { PlannerBlock } from "../../types/planner";
-import { QuickAdd } from "./QuickAdd";
+import { SessionCard } from "./planner/SessionCard";
 import { RibbonView } from "./RibbonView";
 import { SomedayRail } from "./SomedayRail";
 import { WeekView } from "./WeekView";
@@ -57,10 +54,6 @@ const VIEW_OPTIONS: Array<{ value: TimelineView; label: string }> = [
 
 /** How often live markers (now line, countdowns, ongoing pulses) re-read the clock. */
 const TICK_MS = 30_000;
-/** How long a quick-add's new entries glow. */
-const FRESH_MS = 4_000;
-/** How long a success notice stays; errors stay until dismissed. */
-const NOTICE_MS = 6_000;
 
 /**
  * Page motion: pages slide the way time moved (`1` later, `-1` earlier) and a view
@@ -72,9 +65,6 @@ const PAGE = {
   exit: (d: number) => ({ opacity: 0, x: d * -32, scale: d === 0 ? 1.01 : 1 }),
 };
 
-/** A line under the header: what a quick-add or delete did, or why it failed. */
-type Notice = { tone: "info" | "error"; text: string };
-
 /** Wall clock that re-renders every `ms`, so live markers keep moving. */
 function useNow(ms: number): Date {
   const [now, setNow] = useState(() => new Date());
@@ -85,24 +75,12 @@ function useNow(ms: number): Date {
   return now;
 }
 
-/** What a quick-add changed, in words: the entries it created, else what it updated, else why it kept nothing. */
-function describeIngest(result: IngestResponse): string {
-  const created = result.operations.flatMap((op) => (op.op === "create_node" ? [`“${op.title}”`] : []));
-  if (created.length > 0) {
-    return `Added ${created.join(", ")}`;
-  }
-  if (result.counts.update_node > 0) {
-    return `Updated ${result.counts.update_node} ${result.counts.update_node === 1 ? "entry" : "entries"}`;
-  }
-  const reasons = result.operations.flatMap((op) => (op.op === "noop" ? [op.reason] : []));
-  return `Nothing new to keep — ${reasons.join("; ")}`;
-}
-
 /**
- * Planner (one day of timed blocks) / week / month calendar; week and month show Yaad plans. Full mode pages with motion, keeps
- * a live now marker and Next up countdown, opens any entry for editing, and quick-adds
- * free text through Yaad ingest. Preview is the compact current-week `RibbonView`, whose
- * plans open the same detail popover in place; the popover's events stay out of the
+ * Planner (one day of timed sessions) / week / month calendar over Yaad's timeline views.
+ * Full mode pages with motion, keeps a live now marker and Next up countdown, and opens any
+ * session to mark it Completed or message its owner; Tell Dadi opens the Dadi composer for
+ * anything else. Preview is the compact current-week `RibbonView` of commitments, whose
+ * sessions open the same detail popover in place; the popover's events stay out of the
  * surrounding tile, which opens the full timeline.
  */
 export function TimelineCalendar({
@@ -115,7 +93,6 @@ export function TimelineCalendar({
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const preview = mode === "preview";
-  const queryClient = useQueryClient();
 
   const [internalView, setInternalView] = useState<TimelineView>("planner");
   const view = viewProp ?? internalView;
@@ -136,18 +113,9 @@ export function TimelineCalendar({
     id: string;
     anchor: PopoverAnchor;
     open: boolean;
-    occurrence?: PlanOccurrence;
+    session?: TimelineItem;
   } | null>(null);
-  const [composer, setComposer] = useState<{
-    key: string;
-    day: Date | null;
-    anchor: PopoverAnchor;
-    open: boolean;
-  } | null>(null);
-  const [pending, setPending] = useState<PendingAdd[]>([]);
-  const [openedBlock, setOpenedBlock] = useState<{ id: string; anchor: PopoverAnchor; open: boolean } | null>(null);
-  const [fresh, setFresh] = useState<Set<string>>(() => new Set());
-  const [notice, setNotice] = useState<Notice | null>(null);
+  const [openedBlock, setOpenedBlock] = useState<{ key: string; anchor: PopoverAnchor; open: boolean } | null>(null);
 
   const range = useMemo(() => {
     if (view === "planner" && !preview) {
@@ -165,67 +133,25 @@ export function TimelineCalendar({
     return { start, end, ...toIsoBounds(start, end) };
   }, [anchor, view, preview]);
 
+  const views: TimelineViewName[] = preview ? ["tile"] : view === "week" ? ["planner", "tile"] : ["month"];
   const plansQuery = useQuery({
-    queryKey: ["yaad", "plans", range.occurred_from, range.occurred_to, preview ? "preview" : "full"],
+    queryKey: ["yaad", "timeline", views.join("+"), range.occurred_from, range.occurred_to],
     queryFn: async () => {
-      const { nodes } = await yaad.query({
-        kind: "plan",
-        occurred_from: range.occurred_from,
-        occurred_to: range.occurred_to,
-        limit: 200,
-      });
-      return nodes
-        .map(asPlan)
-        .filter((n): n is PlanNode => n !== null)
-        .filter((n) => n.detail.status !== "idea");
+      const results = await Promise.all(
+        views.map((name) => timeline.query({ from: range.occurred_from, to: range.occurred_to, view: name })),
+      );
+      const byKey = new Map(results.flatMap(({ items }) => items).map((item) => [itemKey(item), item] as const));
+      return [...byKey.values()];
     },
     enabled: connected && (preview || view !== "planner"),
   });
 
   const planned = !preview && view === "planner";
   const blocksQuery = useQuery({
-    queryKey: ["planner", "blocks", range.occurred_from, range.occurred_to],
-    queryFn: async () => (await planner.query({ from: range.occurred_from, to: range.occurred_to })).blocks,
+    queryKey: ["yaad", "timeline", "planner", range.occurred_from, range.occurred_to],
+    queryFn: async () => (await timeline.query({ from: range.occurred_from, to: range.occurred_to, view: "planner" })).items,
     enabled: connected && planned,
   });
-
-  const toggleDone = useMutation({
-    mutationFn: (block: PlannerBlock) => planner.setDone(block.id, block.done_at === null),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["planner"] }),
-  });
-
-  const addEntry = useMutation({
-    mutationFn: (add: PendingAdd) =>
-      yaad.ingest({
-        text: add.day ? `On ${formatDayLong(add.day)}: ${add.text}` : add.text,
-        occurred_at: new Date().toISOString(),
-        source: "ingest",
-      }),
-    onMutate: (add) => setPending((list) => [...list, add]),
-    onSettled: (_result, _error, add) => setPending((list) => list.filter((p) => p.key !== add.key)),
-    onSuccess: (result) => {
-      void queryClient.invalidateQueries({ queryKey: ["yaad"] });
-      setFresh(new Set(result.operations.flatMap((op) => (op.op === "create_node" ? [op.id] : []))));
-      setNotice({ tone: "info", text: describeIngest(result) });
-    },
-    onError: (error) => setNotice({ tone: "error", text: error.message }),
-  });
-
-  useEffect(() => {
-    if (fresh.size === 0) {
-      return;
-    }
-    const id = window.setTimeout(() => setFresh(new Set()), FRESH_MS);
-    return () => window.clearTimeout(id);
-  }, [fresh]);
-
-  useEffect(() => {
-    if (notice?.tone !== "info") {
-      return;
-    }
-    const id = window.setTimeout(() => setNotice(null), NOTICE_MS);
-    return () => window.clearTimeout(id);
-  }, [notice]);
 
   const plans = plansQuery.data ?? [];
   const blocks = blocksQuery.data ?? [];
@@ -250,16 +176,9 @@ export function TimelineCalendar({
 
   const closeNode = () => setOpened((o) => (o ? { ...o, open: false } : o));
   const closeBlock = () => setOpenedBlock((o) => (o ? { ...o, open: false } : o));
-  const closeComposer = () => setComposer((c) => (c ? { ...c, open: false } : c));
 
-  const openNode = (id: string, el: Element, occurrence?: PlanOccurrence) => {
-    closeComposer();
-    setOpened({ id, anchor: anchorOf(el), open: true, ...(occurrence ? { occurrence } : {}) });
-  };
-
-  const openComposer = (day: Date | null, el: Element) => {
-    closeNode();
-    setComposer({ key: crypto.randomUUID(), day, anchor: anchorOf(el), open: true });
+  const openNode = (session: TimelineItem, el: Element) => {
+    setOpened({ id: session.id, anchor: anchorOf(el), open: true, session });
   };
 
   if (!connected) {
@@ -297,11 +216,10 @@ export function TimelineCalendar({
             <NodePopover
               open={opened.open}
               nodeId={opened.id}
-              {...(opened.occurrence ? { occurrence: opened.occurrence } : {})}
+              {...(opened.session ? { session: opened.session } : {})}
               anchor={opened.anchor}
               onClose={closeNode}
               onSelect={(id) => setOpened((o) => (o ? { id, anchor: o.anchor, open: o.open } : o))}
-              onDeleted={closeNode}
             />
           </div>
         ) : null}
@@ -310,7 +228,7 @@ export function TimelineCalendar({
   }
 
   const title = view === "planner" ? "" : view === "week" ? formatWeekTitle(anchor) : formatMonthTitle(anchor);
-  const openBlock = openedBlock === null ? null : (blocks.find((b) => b.id === openedBlock.id) ?? null);
+  const openBlock = openedBlock === null ? null : (blocks.find((b) => itemKey(b) === openedBlock.key) ?? null);
 
   return (
     <div className={`flex h-full min-h-0 gap-3 ${className}`}>
@@ -359,43 +277,16 @@ export function TimelineCalendar({
           </div>
 
           <div className="ml-auto flex min-w-0 items-center gap-2">
-            {planned ? null : (
-              <>
-                <NextUp now={now} onOpen={openNode} />
-                <button
-                  type="button"
-                  onClick={(e) => openComposer(null, e.currentTarget)}
-                  className="flex shrink-0 items-center gap-1 rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/50 [&>svg]:size-3.5"
-                >
-                  <IconPlus />
-                  Add
-                </button>
-              </>
-            )}
+            {planned ? null : <NextUp now={now} onOpen={openNode} />}
+            <button
+              type="button"
+              onClick={openDadi}
+              className="flex shrink-0 items-center gap-1 rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/50"
+            >
+              Tell Dadi
+            </button>
           </div>
         </div>
-
-        <AnimatePresence initial={false}>
-          {notice ? (
-            <motion.div key="notice" {...REVEAL} className="overflow-hidden">
-              <div
-                className={`mb-2 flex items-center gap-2 rounded-full px-3 py-1 text-[12px] ${
-                  notice.tone === "error" ? "bg-error-fill text-error" : "bg-sage-fill text-sage-deep"
-                }`}
-              >
-                <span className="min-w-0 flex-1 truncate">{notice.text}</span>
-                <button
-                  type="button"
-                  onClick={() => setNotice(null)}
-                  className="shrink-0 text-[11px] opacity-70 hover:opacity-100"
-                  aria-label="Dismiss"
-                >
-                  ✕
-                </button>
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
 
         <div className="relative flex min-h-0 flex-1 flex-col">
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>
@@ -418,8 +309,7 @@ export function TimelineCalendar({
                   loading={blocksQuery.isPending}
                   onOpen={(block, el) => {
                     closeNode();
-                    closeComposer();
-                    setOpenedBlock({ id: block.id, anchor: anchorOf(el), open: true });
+                    setOpenedBlock({ key: itemKey(block), anchor: anchorOf(el), open: true });
                   }}
                 />
               ) : view === "week" ? (
@@ -430,10 +320,7 @@ export function TimelineCalendar({
                   now={now}
                   plans={plans}
                   loading={plansQuery.isPending}
-                  fresh={fresh}
-                  pending={pending}
                   onOpen={openNode}
-                  onAdd={openComposer}
                 />
               ) : (
                 <MonthView
@@ -444,13 +331,11 @@ export function TimelineCalendar({
                   now={now}
                   plans={plans}
                   loading={plansQuery.isPending}
-                  fresh={fresh}
                   onOpen={openNode}
                   onSelectDay={(day) => {
                     setAnchor(day);
                     setView("week");
                   }}
-                  onAdd={openComposer}
                 />
               )}
             </motion.div>
@@ -467,14 +352,9 @@ export function TimelineCalendar({
           anchor={openedBlock.anchor}
           aria-label={`${openBlock.title} details`}
           widthPx={300}
-          contentKey={openBlock.id}
+          contentKey={itemKey(openBlock)}
         >
-          <BlockCard
-            block={openBlock}
-            busy={toggleDone.isPending}
-            settled={isSettled(openBlock, now)}
-            onToggleDone={() => toggleDone.mutate(openBlock)}
-          />
+          <SessionCard block={openBlock} settled={isSettled(openBlock, now)} />
         </Popover>
       ) : null}
 
@@ -482,34 +362,10 @@ export function TimelineCalendar({
         <NodePopover
           open={opened.open}
           nodeId={opened.id}
-          {...(opened.occurrence ? { occurrence: opened.occurrence } : {})}
+          {...(opened.session ? { session: opened.session } : {})}
           anchor={opened.anchor}
           onClose={closeNode}
           onSelect={(id) => setOpened((o) => (o ? { id, anchor: o.anchor, open: o.open } : o))}
-          onDeleted={(result, deletedTitle) => {
-            closeNode();
-            const swept = result.orphans.length;
-            setNotice({
-              tone: "info",
-              text: `Deleted “${deletedTitle}”${
-                swept > 0 ? ` · cleared ${swept} unlinked ${swept === 1 ? "entry" : "entries"}` : ""
-              }`,
-            });
-          }}
-        />
-      ) : null}
-
-      {composer ? (
-        <QuickAdd
-          key={composer.key}
-          open={composer.open}
-          day={composer.day}
-          anchor={composer.anchor}
-          onClose={closeComposer}
-          onSubmit={(text) => {
-            addEntry.mutate({ key: composer.key, day: composer.day, text });
-            closeComposer();
-          }}
         />
       ) : null}
     </div>

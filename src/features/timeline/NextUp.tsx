@@ -1,11 +1,12 @@
 import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
-import { yaad } from "../../shared/api";
+import { timeline } from "../../shared/api";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { addDays, formatTime, formatUntil, toIsoBounds } from "./dates";
+import type { TimelineItem } from "../../types/timeline";
+import { addDays, formatTime, formatUntil } from "./dates";
 import { LiveDot } from "./markers";
-import { asPlan, isMultiDay, occurrenceOf, spanOf, type PlanNode, type PlanOccurrence } from "./plans";
+import { itemKey, isMultiDay, spanOf } from "./plans";
 
 /** How far ahead the pill looks for the next plan. */
 const WINDOW_DAYS = 14;
@@ -14,32 +15,23 @@ export type NextUpProps = {
   /** Ticking clock: drives the countdown and when a plan turns ongoing. */
   now: Date;
   /** The pill was clicked: open its plan beside `el`. */
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
 };
 
 /**
  * Header pill for what is happening now ("until 3:00 PM", with a live pulse) or else
- * the next plan and a countdown to it. A multi-day or all-day plan never counts as
- * happening now, so a week-long window or a deadline due today does not hide what is
- * next; the calendar shows them. Renders nothing when no plan falls in the next
- * two weeks.
+ * the next session on the planner and a countdown to it; cancelled sessions are skipped.
+ * Renders nothing when no session falls in the next two weeks.
  */
 export function NextUp({ now, onOpen }: NextUpProps) {
   const hour = new Date(now);
   hour.setMinutes(0, 0, 0);
   const nextQuery = useQuery({
-    queryKey: ["yaad", "plans", "next", hour.toISOString()],
-    queryFn: async () => {
-      const { nodes } = await yaad.query({
-        kind: "plan",
-        ...toIsoBounds(hour, addDays(hour, WINDOW_DAYS)),
-        limit: 200,
-      });
-      return nodes
-        .map(asPlan)
-        .filter((n): n is PlanNode => n !== null)
-        .filter((n) => n.detail.status !== "idea");
-    },
+    queryKey: ["yaad", "timeline", "next", hour.toISOString()],
+    queryFn: async () =>
+      (
+        await timeline.query({ from: hour.toISOString(), to: addDays(hour, WINDOW_DAYS).toISOString(), view: "planner" })
+      ).items.filter((item) => item.state !== "cancelled"),
   });
 
   const next = useMemo(() => {
@@ -52,7 +44,7 @@ export function NextUp({ now, onOpen }: NextUpProps) {
       return span ? [{ plan, ...span }] : [];
     });
     const ongoing = spans.find(
-      (s) => !isMultiDay(s.plan) && !s.plan.detail.all_day && s.start.getTime() <= t && t < s.end.getTime(),
+      (s) => !isMultiDay(s.plan) && s.start.getTime() <= t && t < s.end.getTime(),
     );
     if (ongoing) {
       return { ...ongoing, ongoing: true };
@@ -71,12 +63,12 @@ export function NextUp({ now, onOpen }: NextUpProps) {
   }
   return (
     <motion.button
-      key={next.plan.id}
+      key={itemKey(next.plan)}
       type="button"
       initial={{ opacity: 0, y: -4 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
-      onClick={(e) => onOpen(next.plan.id, e.currentTarget, occurrenceOf(next.plan))}
+      onClick={(e) => onOpen(next.plan, e.currentTarget)}
       className="flex min-w-0 max-w-[320px] items-center gap-2 rounded-full border border-rule bg-bone px-3 py-1 text-[12px] transition-colors duration-slow ease-dadi hover:border-sage-line"
     >
       {next.ongoing ? (

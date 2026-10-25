@@ -1,22 +1,9 @@
 import { AnimatePresence, motion } from "motion/react";
-import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { formatDayShort, formatTime, isSameDay } from "./dates";
-import { BreathRing, FreshGlow, LiveDot } from "./markers";
-import {
-  lanesThrough,
-  plansOn,
-  planStartsOn,
-  runsAsBar,
-  spanLanes,
-  startLabel,
-  spanOf,
-  statusClass,
-  type PendingAdd,
-  occurrenceOf,
-  type PlanNode,
-  type PlanOccurrence,
-} from "./plans";
+import type { TimelineItem } from "../../types/timeline";
+import { formatTime, isSameDay } from "./dates";
+import { BreathRing, LiveDot } from "./markers";
+import { itemKey, lanesThrough, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, statusClass } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
 /** Delay between neighboring columns as a week arrives. */
@@ -31,35 +18,19 @@ export type WeekViewProps = {
   today: Date;
   /** Ticking clock: places the now marker and fades what already happened. */
   now: Date;
-  plans: PlanNode[];
+  /** The week's sessions and dues. */
+  plans: TimelineItem[];
   /** Plans have not loaded yet: columns shimmer instead of reading as empty. */
   loading: boolean;
-  /** Node ids just created by a quick-add, which glow once. */
-  fresh: Set<string>;
-  /** Quick-adds Yaad is still filing, drawn as ghost chips on their day. */
-  pending: PendingAdd[];
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
-  onAdd: (day: Date, el: Element) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
 };
 
 /**
- * Seven day columns of plan chips. All-day and multi-day plans run as bars across the
- * columns under the dates. Columns cascade in, chips settle after them, today breathes
- * and carries a now marker between what happened and what is next, and each column
- * offers a + to add to that day.
+ * Seven day columns of session chips. All-day and multi-day sessions run as bars across
+ * the columns under the dates. Columns cascade in, chips settle after them, and today
+ * breathes and carries a now marker between what happened and what is next.
  */
-export function WeekView({
-  days,
-  labels,
-  today,
-  now,
-  plans,
-  loading,
-  fresh,
-  pending,
-  onOpen,
-  onAdd,
-}: WeekViewProps) {
+export function WeekView({ days, labels, today, now, plans, loading, onOpen }: WeekViewProps) {
   const lanes = spanLanes(plans, days);
   return (
     <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
@@ -68,10 +39,7 @@ export function WeekView({
         const dayLanes = lanesThrough(lanes, day);
         const isToday = isSameDay(day, today);
         const isPast = day < today;
-        const ghosts = pending.filter((p) => isSameDay(p.day ?? today, day));
-        const nowAt = isToday
-          ? dayPlans.filter((p) => new Date(p.occurred_at!).getTime() <= now.getTime()).length
-          : -1;
+        const nowAt = isToday ? dayPlans.filter((p) => spanOf(p)!.start.getTime() <= now.getTime()).length : -1;
         const base = i * COLUMN_STAGGER_S;
         return (
           <motion.div
@@ -83,7 +51,7 @@ export function WeekView({
               isToday ? "rounded-[var(--radius)] bg-sage-faint/40" : ""
             }`}
           >
-            <div className="relative mb-2 flex flex-col items-center gap-1">
+            <div className="mb-2 flex flex-col items-center gap-1">
               <span className={`text-[11px] tracking-wide ${isToday ? "text-sage-deep" : "text-ink-ghost"}`}>
                 {labels[i]}
               </span>
@@ -95,14 +63,6 @@ export function WeekView({
                 {day.getDate()}
                 {isToday ? <BreathRing /> : null}
               </span>
-              <button
-                type="button"
-                aria-label={`Add to ${formatDayShort(day)}`}
-                onClick={(e) => onAdd(day, e.currentTarget)}
-                className="absolute top-0 right-0 flex size-6 items-center justify-center rounded-full text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 hover:bg-sage-active focus-visible:opacity-100 [&>svg]:size-3.5"
-              >
-                <IconPlus />
-              </button>
             </div>
 
             {dayLanes.length > 0 ? (
@@ -129,11 +89,10 @@ export function WeekView({
                   {dayPlans.flatMap((p, j) => {
                     const chip = (
                       <PlanChip
-                        key={p.id}
+                        key={itemKey(p)}
                         plan={p}
                         day={day}
                         now={now}
-                        fresh={fresh.has(p.id)}
                         delay={base + 0.08 + j * CHIP_STAGGER_S}
                         onOpen={onOpen}
                       />
@@ -141,26 +100,6 @@ export function WeekView({
                     return j === nowAt ? [<NowMarker key="now" now={now} />, chip] : [chip];
                   })}
                   {nowAt === dayPlans.length ? <NowMarker key="now" now={now} /> : null}
-                  {ghosts.map((g) => (
-                    <motion.div
-                      key={g.key}
-                      layout
-                      initial={{ opacity: 0, y: 4 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, scale: 0.96 }}
-                      transition={{ duration: SLOW_S, ease: EASE }}
-                      className="rounded-[6px] border border-dashed border-sage-line px-1.5 py-1 text-[11px] leading-snug text-ink-muted"
-                    >
-                      <motion.span
-                        className="mb-0.5 block text-[10px] text-sage-deep"
-                        animate={{ opacity: [0.4, 1, 0.4] }}
-                        transition={{ duration: BREATH_S, repeat: Infinity }}
-                      >
-                        Remembering…
-                      </motion.span>
-                      <span className="line-clamp-2">{g.text}</span>
-                    </motion.div>
-                  ))}
                 </AnimatePresence>
               )}
             </div>
@@ -172,22 +111,24 @@ export function WeekView({
 }
 
 type PlanChipProps = {
-  plan: PlanNode;
+  plan: TimelineItem;
   /** Column the chip sits in; the start time shows only on the plan's first day. */
   day: Date;
   now: Date;
-  fresh: boolean;
   /** Entrance delay so chips settle after their column. */
   delay: number;
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
 };
 
-/** One plan: lifts on hover, fades once it has passed, pulses while it is happening. */
-function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
+/**
+ * One session: lifts on hover, fades once it has passed or is completed, pulses while it is
+ * happening, and is struck through when cancelled.
+ */
+function PlanChip({ plan, day, now, delay, onOpen }: PlanChipProps) {
   const span = spanOf(plan)!;
   const t = now.getTime();
-  const ongoing = !plan.detail.all_day && span.start.getTime() <= t && t < span.end.getTime();
-  const past = span.end.getTime() < t;
+  const ongoing = !plan.all_day && span.start.getTime() <= t && t < span.end.getTime();
+  const past = span.end.getTime() < t || plan.outcome === "done";
   return (
     <motion.button
       layout="position"
@@ -198,8 +139,10 @@ function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.98 }}
-      onClick={(e) => onOpen(plan.id, e.currentTarget, occurrenceOf(plan))}
-      className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.detail.status)}`}
+      onClick={(e) => onOpen(plan, e.currentTarget)}
+      className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.status)} ${
+        plan.state === "cancelled" ? "line-through" : ""
+      }`}
     >
       {planStartsOn(plan, day) ? (
         <span className="mb-0.5 flex items-center gap-1 text-[10px] opacity-70">
@@ -208,7 +151,6 @@ function PlanChip({ plan, day, now, fresh, delay, onOpen }: PlanChipProps) {
         </span>
       ) : null}
       <span className="line-clamp-3">{plan.title}</span>
-      {fresh ? <FreshGlow /> : null}
     </motion.button>
   );
 }

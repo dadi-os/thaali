@@ -1,31 +1,17 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
+import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { yaad } from "../../shared/api";
-import type {
-  DeleteNodeResponse,
-  EdgeRecord,
-  NodeRecord,
-  PatchNodeRequest,
-  PlanDetail,
-  PlanStatus,
-} from "../../types/yaad";
-import { Glider } from "../../shared/components/Glider";
+import type { TimelineItem } from "../../types/timeline";
+import type { EdgeRecord, NodeRecord } from "../../types/yaad";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
-import { REVEAL } from "../../shared/lib/ux/motion";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
 import { KIND_ORDER, KIND_TOKEN } from "../memory/graph";
 import { SOURCE_LABEL } from "../memory/MemoryPopover";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
-import type { PlanOccurrence } from "./plans";
-
-const STATUS_OPTIONS: Array<{ value: PlanStatus; label: string }> = [
-  { value: "idea", label: "Idea" },
-  { value: "tentative", label: "Tentative" },
-  { value: "confirmed", label: "Confirmed" },
-];
+import { SessionActions } from "./SessionActions";
 
 /** Connections listed before the rest fold behind "more". */
 const CONNECTIONS_SHOWN = 6;
@@ -34,29 +20,24 @@ export type NodePopoverProps = {
   open: boolean;
   /** Node the panel shows; kept while it animates away; changing it glides to the new content. */
   nodeId: string;
-  /** The clicked occurrence of a recurring plan, shown instead of the series' first date. */
-  occurrence?: PlanOccurrence;
+  /** The clicked session of the plan, whose times, state and actions the panel shows; absent for a connection. */
+  session?: TimelineItem;
   anchor: PopoverAnchor;
   onClose: () => void;
   /** A connection was clicked: show that node instead. */
   onSelect: (nodeId: string) => void;
-  /** The node was deleted; `title` is what it was called. */
-  onDeleted: (result: DeleteNodeResponse, title: string) => void;
 };
 
 /** A neighbor of the shown node across one current edge. */
 type Connection = { edge: EdgeRecord; node: NodeRecord; outgoing: boolean };
 
 /**
- * Timeline detail panel for any Yaad node: when it is, its status (plans), body, and
- * connections, with in-place title and status edits, delete, and a jump to the node
- * in the Yaad graph.
+ * Timeline detail panel for any Yaad node: when it is, its body, and connections, with a
+ * jump to the node in the Yaad graph. For a session it also shows the session's state and
+ * offers Completed and a message to the plan's owner; nothing here edits the plan.
  */
-export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelect, onDeleted }: NodePopoverProps) {
-  const queryClient = useQueryClient();
+export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }: NodePopoverProps) {
   const navigate = useNavigate();
-  const [draft, setDraft] = useState<string | null>(null);
-  const [confirming, setConfirming] = useState(false);
   const [showAll, setShowAll] = useState(false);
 
   const nodeQuery = useQuery({
@@ -68,45 +49,16 @@ export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelec
     queryFn: () => yaad.graph({ seed_ids: [nodeId] }),
   });
 
-  const patch = useMutation({
-    mutationFn: (body: PatchNodeRequest) => yaad.patchNode(nodeId, body),
-    onSuccess: (node) => {
-      queryClient.setQueryData(["yaad", "node", node.id], node);
-      void queryClient.invalidateQueries({ queryKey: ["yaad", "plans"] });
-    },
-  });
-  const remove = useMutation({
-    mutationFn: (_title: string) => yaad.deleteNode(nodeId),
-    onSuccess: (result, title) => {
-      void queryClient.invalidateQueries({ queryKey: ["yaad"] });
-      onDeleted(result, title);
-    },
-  });
-
   useEffect(() => {
-    setDraft(null);
-    setConfirming(false);
     setShowAll(false);
-    patch.reset();
-    remove.reset();
   }, [nodeId]);
 
   const node = nodeQuery.data;
   const connections = neighborsQuery.data ? connectionsOf(nodeId, neighborsQuery.data) : [];
   const listed = showAll ? connections : connections.slice(0, CONNECTIONS_SHOWN);
   const folded = connections.length - listed.length;
-  const plan = node?.kind === "plan" ? (node.detail as PlanDetail) : null;
-  const shownAt = occurrence ? occurrence.occurred_at : node?.occurred_at;
-  const shownEnd = occurrence ? occurrence.end_at : plan ? plan.end_at : null;
-  const mutationError = patch.error ?? remove.error;
-
-  const saveTitle = () => {
-    const next = draft?.trim();
-    setDraft(null);
-    if (node && next && next !== node.title) {
-      patch.mutate({ title: next });
-    }
-  };
+  const shownAt = session ? (session.start_at ?? session.due_at) : node?.occurred_at;
+  const shownEnd = session ? session.end_at : null;
 
   return (
     <Popover
@@ -125,33 +77,9 @@ export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelec
         <>
           <header className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
             <div className="flex items-baseline justify-between gap-3">
-              {draft !== null ? (
-                <input
-                  autoFocus
-                  value={draft}
-                  onChange={(e) => setDraft(e.target.value)}
-                  onBlur={saveTitle}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") {
-                      saveTitle();
-                    }
-                    if (e.key === "Escape") {
-                      e.stopPropagation();
-                      setDraft(null);
-                    }
-                  }}
-                  className="min-w-0 flex-1 rounded-[6px] bg-sage-fill px-1.5 py-0.5 text-[15px] leading-snug font-medium text-ink outline-none ring-1 ring-sage-line"
-                />
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setDraft(node.title)}
-                  className="min-w-0 rounded-[6px] text-left text-[15px] leading-snug font-medium text-ink transition-colors duration-slow ease-dadi hover:text-sage-deep"
-                  title="Rename"
-                >
-                  {node.title}
-                </button>
-              )}
+              <h3 className={`min-w-0 text-[15px] leading-snug font-medium text-ink ${session?.state === "cancelled" ? "line-through" : ""}`}>
+                {node.title}
+              </h3>
               <button
                 type="button"
                 onClick={onClose}
@@ -169,33 +97,37 @@ export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelec
               <span className="capitalize">{node.kind}</span>
               <span className="text-ink-ghost">·</span>
               {SOURCE_LABEL[node.source]}
-              {patch.isPending ? <span className="ml-auto text-ink-ghost">Saving…</span> : null}
             </p>
           </header>
 
           <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {shownAt ? (
               <div className="mb-3 flex items-baseline justify-between gap-3">
-                <span className="text-[13px] text-ink">{whenOf(shownAt, shownEnd, plan?.all_day === true)}</span>
+                <span className="text-[13px] text-ink">
+                  {session && session.start_at === null ? "Due " : ""}
+                  {whenOf(shownAt, shownEnd, session?.all_day === true)}
+                </span>
                 <Tooltip content={formatAbsolute(shownAt)}>
                   <span className="shrink-0 text-[12px] text-ink-ghost">{formatRelative(shownAt)}</span>
                 </Tooltip>
               </div>
             ) : null}
 
-            {plan ? (
-              <div className="mb-3 flex items-center justify-between gap-3">
-                <Glider
-                  options={STATUS_OPTIONS}
-                  value={plan.status}
-                  onChange={(status) => patch.mutate({ detail: { status } })}
-                  label="Plan status"
-                  size="sm"
-                />
-                {plan.series_id || plan.recurrence ? (
-                  <span className="text-[11px] tracking-wide text-ink-ghost">Repeats</span>
-                ) : null}
-              </div>
+            {session ? (
+              <p className="mb-3 text-[12px] text-ink-muted">
+                {session.state === "cancelled"
+                  ? "Cancelled"
+                  : session.outcome === "done"
+                    ? "Completed"
+                    : session.outcome === "missed"
+                      ? "Missed"
+                      : session.status === "idea"
+                        ? "Someday"
+                        : "Not marked"}
+                {session.recurrence ? ` · ${session.recurrence}` : ""}
+                {session.series ? ` · completed ${session.series.completed} of ${session.series.total}` : ""}
+                {session.place ? ` · ${session.place.title}${session.place.room ? ` room ${session.place.room}` : ""}` : ""}
+              </p>
             ) : null}
 
             {node.body ? <p className="mb-4 text-[13px] leading-relaxed text-ink">{node.body}</p> : null}
@@ -249,13 +181,6 @@ export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelec
               ) : null}
             </section>
 
-            <AnimatePresence initial={false}>
-              {mutationError ? (
-                <motion.p {...REVEAL} className="overflow-hidden pt-2 text-[12px] text-error">
-                  {mutationError.message}
-                </motion.p>
-              ) : null}
-            </AnimatePresence>
           </div>
 
           <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-rule/60 px-4 py-2.5">
@@ -266,17 +191,7 @@ export function NodePopover({ open, nodeId, occurrence, anchor, onClose, onSelec
             >
               Open in Yaad →
             </button>
-            <button
-              type="button"
-              disabled={remove.isPending}
-              onClick={() => (confirming ? remove.mutate(node.title) : setConfirming(true))}
-              onMouseLeave={() => setConfirming(false)}
-              className={`rounded-[6px] px-2 py-1 text-[12px] transition-colors duration-slow ease-dadi ${
-                confirming ? "bg-error-fill text-error" : "text-ink-faint hover:text-error"
-              }`}
-            >
-              {remove.isPending ? "Deleting…" : confirming ? "Delete for good?" : "Delete"}
-            </button>
+            {session ? <SessionActions item={session} /> : null}
           </footer>
         </>
       )}

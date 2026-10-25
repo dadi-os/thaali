@@ -1,56 +1,53 @@
 import { describe, expect, it } from "vitest";
-import type { NodeRecord, PlanDetail } from "../../types/yaad";
+import type { TimelineItem } from "../../types/timeline";
 import { formatUntil } from "./dates";
-import { asPlan, isMultiDay, occurrenceOf, lanesThrough, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
+import { isMultiDay, itemKey, lanesThrough, plansOn, runsAsBar, spanLanes, spanOf, startLabel, weekSlots } from "./plans";
 
-function node(over: Partial<NodeRecord>): NodeRecord {
+function item(over: Partial<TimelineItem>): TimelineItem {
   return {
     id: "n",
-    kind: "plan",
+    occurrence_date: "2026-10-01",
     title: "t",
     body: null,
-    occurred_at: null,
-    expires_at: null,
-    access_count: 0,
-    last_accessed_at: null,
-    source: "ingest",
-    agent_id: null,
-    created_at: "2026-09-01T00:00:00.000Z",
-    updated_at: "2026-09-01T00:00:00.000Z",
+    kind: null,
+    status: "confirmed",
+    start_at: null,
+    end_at: null,
+    due_at: null,
+    opens_at: null,
+    all_day: false,
+    time_zone: null,
+    hide_from_planner: false,
+    state: "scheduled",
+    outcome: null,
+    outcome_at: null,
+    actual_start: null,
+    actual_end: null,
+    recurrence: null,
+    series: null,
+    place: null,
+    owner: "schedule-specialist",
+    notes: [],
     ...over,
   };
 }
 
-function plan(id: string, start: Date, end: Date | null, allDay = false) {
-  const detail: PlanDetail = {
-    end_at: end ? end.toISOString() : null,
-    all_day: allDay,
-    status: "confirmed",
-    recurrence: null,
-    series_id: null,
-  };
-  return asPlan({ ...node({ id, occurred_at: start.toISOString() }), detail })!;
+function plan(id: string, start: Date, end: Date | null, allDay = false): TimelineItem {
+  return item({ id, start_at: start.toISOString(), end_at: end ? end.toISOString() : null, all_day: allDay });
 }
 
-describe("asPlan", () => {
-  it("passes other kinds through as null", () => {
-    expect(asPlan({ ...node({ kind: "memory" }), detail: null })).toBeNull();
+describe("sessions", () => {
+  it("are keyed by plan and date, so each session of a series is its own entry", () => {
+    expect(itemKey(item({ id: "p1", occurrence_date: "2026-10-09" }))).not.toBe(itemKey(item({ id: "p1", occurrence_date: "2026-10-16" })));
   });
 
-  it("throws when a plan has no plan detail", () => {
-    expect(() => asPlan({ ...node({ id: "p1" }), detail: null })).toThrow("p1");
-  });
-});
-
-describe("occurrenceOf", () => {
-  it("returns a recurring plan's own occurrence and nothing for a stored plan", () => {
-    const stored = plan("p1", new Date("2026-10-09T14:20:00.000Z"), new Date("2026-10-09T15:10:00.000Z"));
-    expect(occurrenceOf(stored)).toBeUndefined();
-    const occurrence = { ...stored, detail: { ...stored.detail, series_id: "p1", recurrence: "FREQ=WEEKLY;BYDAY=FR" } };
-    expect(occurrenceOf(occurrence)).toEqual({
-      occurred_at: "2026-10-09T14:20:00.000Z",
-      end_at: "2026-10-09T15:10:00.000Z",
-    });
+  it("place a deadline with no time set aside at its due, labelled as due", () => {
+    const due = new Date(2026, 9, 14, 23, 59);
+    const homework = item({ id: "hw", due_at: due.toISOString() });
+    expect(spanOf(homework)).toEqual({ start: due, end: due });
+    expect(plansOn([homework], new Date(2026, 9, 14)).map((p) => p.id)).toEqual(["hw"]);
+    expect(startLabel(homework)).toMatch(/^Due /);
+    expect(spanOf(item({ status: "idea" }))).toBeNull();
   });
 });
 

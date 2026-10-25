@@ -1,11 +1,12 @@
 import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { isSameDay } from "./dates";
-import { occurrenceOf, planOverlapsDay, planStartsOn, spanOf, statusClass, type PlanNode, type PlanOccurrence } from "./plans";
+import type { TimelineItem } from "../../types/timeline";
+import { planOverlapsDay, planStartsOn, spanOf, statusClass } from "./plans";
 
 export type SpanLaneCellProps = {
   /** Multi-day plans sharing this lane; at most one touches `day`. */
-  lane: PlanNode[];
+  lane: TimelineItem[];
   /** Column this cell sits in. */
   day: Date;
   /** First column of the shown week, where a bar that began earlier repeats its title. */
@@ -15,7 +16,7 @@ export type SpanLaneCellProps = {
   /** Entrance delay so bars settle with their column. */
   delay: number;
   /** A bar was clicked: open its plan's popover anchored to the bar element. */
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
 };
 
 /**
@@ -40,9 +41,9 @@ export function SpanLaneCell({ lane, day, first, now, delay, onOpen }: SpanLaneC
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       onClick={(e) => {
         e.stopPropagation();
-        onOpen(plan.id, e.currentTarget, occurrenceOf(plan));
+        onOpen(plan, e.currentTarget);
       }}
-      className={`flex h-5 min-w-0 items-center px-1.5 text-left text-[10px] leading-none ${statusClass(plan.detail.status)} ${
+      className={`flex h-5 min-w-0 items-center px-1.5 text-left text-[10px] leading-none ${statusClass(plan.status)} ${
         starts ? "rounded-l-[6px]" : "-ml-[7px] rounded-l-none border-l-0"
       } ${ends ? "rounded-r-[6px]" : "-mr-1.5 rounded-r-none border-r-0"}`}
     >

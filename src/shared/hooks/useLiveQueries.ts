@@ -19,7 +19,7 @@ export type LiveSource = {
 };
 
 const LIVE_SOURCES: readonly LiveSource[] = [
-  { name: "yaad", baseUrl: YAAD_URL, path: "/events", keys: [["yaad"], ["planner"]] },
+  { name: "yaad", baseUrl: YAAD_URL, path: "/events", keys: [["yaad"]] },
   { name: "chaavi", baseUrl: CHAAVI_URL, path: "/v1/events", keys: [["chaavi"]] },
   { name: "ghar", baseUrl: GHAR_URL, path: "/changes", keys: [["ghar"]] },
   { name: "nas", baseUrl: NAS_URL, path: "/events", keys: [["nas", "browsers"], ["nas", "terminals"]] },

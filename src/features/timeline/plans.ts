@@ -1,67 +1,52 @@
-/** Plan and dated-node helpers shared by the timeline views and popovers. */
+/** Session helpers shared by the timeline views and popovers. */
 
-import type { NodeRecord, PlanDetail, PlanStatus } from "../../types/yaad";
+import type { TimelineItem } from "../../types/timeline";
 import type { PopoverAnchor } from "../../shared/components/Popover";
 import { endOfDay, formatTime, isSameDay, startOfDay } from "./dates";
 
-/** Yaad plan node with its plan detail. */
-export type PlanNode = NodeRecord & { detail: PlanDetail };
+/** A key naming one session: its plan and the date it was first scheduled for. */
+export function itemKey(item: TimelineItem): string {
+  return `${item.id}:${item.occurrence_date ?? "undated"}`;
+}
 
-/** When one occurrence of a recurring plan happens; Yaad stores only the series' first. */
-export type PlanOccurrence = { occurred_at: string; end_at: string | null };
-
-/** The occurrence a queried plan stands for, or undefined for a plan stored on its own. */
-export function occurrenceOf(plan: PlanNode): PlanOccurrence | undefined {
-  return plan.detail.series_id && plan.occurred_at
-    ? { occurred_at: plan.occurred_at, end_at: plan.detail.end_at }
-    : undefined;
+/** When a session is: its start, or its due for a deadline with no time set aside; null for an undated idea. */
+function whenOf(item: TimelineItem): string | null {
+  return item.start_at ?? item.due_at;
 }
 
 /**
- * Narrow a queried node to a plan; null for other kinds.
- * @throws When a plan comes back without its plan detail, which Yaad always stores.
+ * Session start and end; a session without `end_at` (a deadline) is a moment at its start
+ * or due. An all-day session covers its whole first day through the end of its last.
  */
-export function asPlan(node: NodeRecord & { detail: unknown }): PlanNode | null {
-  if (node.kind !== "plan") {
+export function spanOf(plan: TimelineItem): { start: Date; end: Date } | null {
+  const when = whenOf(plan);
+  if (!when) {
     return null;
   }
-  if (node.detail === null) {
-    throw new Error(`plan ${node.id} came back without plan detail`);
-  }
-  return { ...node, detail: node.detail as PlanDetail };
-}
-
-/**
- * Plan start and end; a plan without `end_at` is a moment at its start. An all-day plan
- * covers its whole first day through the end of its last.
- */
-export function spanOf(plan: PlanNode): { start: Date; end: Date } | null {
-  if (!plan.occurred_at) {
-    return null;
-  }
-  const start = new Date(plan.occurred_at);
-  const end = plan.detail.end_at ? new Date(plan.detail.end_at) : start;
-  if (plan.detail.all_day) {
+  const start = new Date(when);
+  const end = plan.end_at ? new Date(plan.end_at) : start;
+  if (plan.all_day) {
     return { start: startOfDay(start), end: endOfDay(end) };
   }
   return { start, end };
 }
 
-/** What a chip shows on the plan's first day: its start time, or "All day". */
-export function startLabel(plan: PlanNode): string {
-  return plan.detail.all_day ? "All day" : formatTime(plan.occurred_at!);
+/** What a chip shows on the session's first day: its start time, "Due" and its time, or "All day". */
+export function startLabel(plan: TimelineItem): string {
+  if (plan.start_at === null) {
+    return plan.all_day || plan.due_at === null ? "Due" : `Due ${formatTime(plan.due_at)}`;
+  }
+  return plan.all_day ? "All day" : formatTime(plan.start_at);
 }
 
 /** True when the plan starts on `day`, where its chip shows the start time. */
-export function planStartsOn(plan: PlanNode, day: Date): boolean {
-  if (!plan.occurred_at) {
-    return false;
-  }
-  return isSameDay(new Date(plan.occurred_at), day);
+export function planStartsOn(plan: TimelineItem, day: Date): boolean {
+  const when = whenOf(plan);
+  return when !== null && isSameDay(new Date(when), day);
 }
 
 /** True when any part of the plan falls on `day`, so multi-day plans show on each day. */
-export function planOverlapsDay(plan: PlanNode, day: Date): boolean {
+export function planOverlapsDay(plan: TimelineItem, day: Date): boolean {
   const span = spanOf(plan);
   if (!span) {
     return false;
@@ -70,7 +55,7 @@ export function planOverlapsDay(plan: PlanNode, day: Date): boolean {
 }
 
 /** True when the plan runs past the end of the day it starts on. */
-export function isMultiDay(plan: PlanNode): boolean {
+export function isMultiDay(plan: TimelineItem): boolean {
   const span = spanOf(plan);
   return span !== null && span.end.getTime() > endOfDay(span.start).getTime();
 }
@@ -79,20 +64,20 @@ export function isMultiDay(plan: PlanNode): boolean {
  * True when the plan draws as a bar along the top of its days rather than as a chip:
  * it is all-day or runs past a day.
  */
-export function runsAsBar(plan: PlanNode): boolean {
-  return plan.detail.all_day || isMultiDay(plan);
+export function runsAsBar(plan: TimelineItem): boolean {
+  return plan.all_day || isMultiDay(plan);
 }
 
 /**
  * Bar plans (all-day or multi-day) touching `days`, stacked into lanes, earliest first:
  * plans in one lane share no shown day, so each lane draws as one row of bars.
  */
-export function spanLanes(plans: PlanNode[], days: Date[]): PlanNode[][] {
-  const shownDays = (plan: PlanNode) => days.filter((day) => planOverlapsDay(plan, day));
-  const lanes: PlanNode[][] = [];
+export function spanLanes(plans: TimelineItem[], days: Date[]): TimelineItem[][] {
+  const shownDays = (plan: TimelineItem) => days.filter((day) => planOverlapsDay(plan, day));
+  const lanes: TimelineItem[][] = [];
   const multi = plans
     .filter((p) => runsAsBar(p) && shownDays(p).length > 0)
-    .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
+    .sort(byWhen);
   for (const plan of multi) {
     const mine = shownDays(plan);
     const lane = lanes.find((l) => l.every((other) => !mine.some((day) => planOverlapsDay(other, day))));
@@ -109,7 +94,7 @@ export function spanLanes(plans: PlanNode[], days: Date[]): PlanNode[][] {
  * The lanes one day column draws: down to its lowest lane with a bar on `day`, so a day
  * without bars starts its chips under the date while bars keep their row across days.
  */
-export function lanesThrough(lanes: PlanNode[][], day: Date): PlanNode[][] {
+export function lanesThrough(lanes: TimelineItem[][], day: Date): TimelineItem[][] {
   let last = -1;
   lanes.forEach((lane, r) => {
     if (lane.some((p) => planOverlapsDay(p, day))) {
@@ -122,9 +107,9 @@ export function lanesThrough(lanes: PlanNode[][], day: Date): PlanNode[][] {
 /** Where one week row of the month draws each plan. */
 export type WeekSlots = {
   /** Bar plans with their lane and the first and last column (0–6) they cover. */
-  bars: Array<{ plan: PlanNode; lane: number; from: number; to: number }>;
+  bars: Array<{ plan: TimelineItem; lane: number; from: number; to: number }>;
   /** Per column, the timed plans shown and the slot each takes. */
-  items: Array<Array<{ plan: PlanNode; slot: number }>>;
+  items: Array<Array<{ plan: TimelineItem; slot: number }>>;
   /** Per column, the slot and count of a "+N more" line, or null when every plan fits. */
   more: Array<{ slot: number; count: number } | null>;
   /** Slot rows the week needs. */
@@ -139,7 +124,7 @@ export type WeekSlots = {
  * day's plans do not fit, its last free slot becomes "+N more", counting the plans and bars
  * it could not show.
  */
-export function weekSlots(plans: PlanNode[], week: Date[], limit: number): WeekSlots {
+export function weekSlots(plans: TimelineItem[], week: Date[], limit: number): WeekSlots {
   const allLanes = spanLanes(plans, week);
   const lanes = allLanes.slice(0, Math.min(allLanes.length, Math.max(limit - 1, 0)));
   const leftOut = allLanes.slice(lanes.length).flat();
@@ -176,14 +161,17 @@ export function weekSlots(plans: PlanNode[], week: Date[], limit: number): WeekS
 }
 
 /** Plans on `day`, earliest first. */
-export function plansOn(plans: PlanNode[], day: Date): PlanNode[] {
-  return plans
-    .filter((p) => planOverlapsDay(p, day))
-    .sort((a, b) => a.occurred_at!.localeCompare(b.occurred_at!));
+export function plansOn(plans: TimelineItem[], day: Date): TimelineItem[] {
+  return plans.filter((p) => planOverlapsDay(p, day)).sort(byWhen);
+}
+
+/** Earliest first, by start or due; only dated sessions reach a day or a lane. */
+function byWhen(a: TimelineItem, b: TimelineItem): number {
+  return whenOf(a)!.localeCompare(whenOf(b)!);
 }
 
 /** Chip classes per status: solid confirmed, dashed tentative, ghosted idea. */
-export function statusClass(status: PlanStatus): string {
+export function statusClass(status: TimelineItem["status"]): string {
   if (status === "tentative") {
     return "border border-dashed border-sage-line bg-sage-faint/80 text-sage-text";
   }
@@ -198,11 +186,3 @@ export function anchorOf(el: Element): PopoverAnchor {
   const r = el.getBoundingClientRect();
   return { x: r.left + r.width / 2, y: r.top + 12, radius: r.width / 2 };
 }
-
-/** A quick-add Yaad is still filing, drawn as a ghost chip until it lands. */
-export type PendingAdd = {
-  key: string;
-  /** Day it was added to; null means the header composer (drawn on today). */
-  day: Date | null;
-  text: string;
-};

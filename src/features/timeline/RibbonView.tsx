@@ -2,7 +2,8 @@ import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { isSameDay } from "./dates";
 import { BreathRing, LiveDot } from "./markers";
-import { lanesThrough, occurrenceOf, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, type PlanNode, type PlanOccurrence } from "./plans";
+import type { TimelineItem } from "../../types/timeline";
+import { itemKey, lanesThrough, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
 export type RibbonViewProps = {
@@ -12,9 +13,10 @@ export type RibbonViewProps = {
   today: Date;
   /** Ticking clock: fades what already happened and pulses what is happening. */
   now: Date;
-  plans: PlanNode[];
+  /** The week's commitments: sessions and dues, routines left out. */
+  plans: TimelineItem[];
   /** A plan was clicked: open it beside `el` without leaving the tile. */
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
   className?: string;
 };
 
@@ -70,17 +72,17 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
               <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
                 {dayPlans.map((p, j) => {
                   const span = spanOf(p)!;
-                  const live = !p.detail.all_day && span.start <= now && now < span.end;
+                  const live = !p.all_day && span.start <= now && now < span.end;
                   return (
                     <motion.button
-                      key={p.id}
+                      key={itemKey(p)}
                       type="button"
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: span.end < now ? 0.55 : 1, y: 0 }}
                       transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 + 0.08 + j * 0.03 }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onOpen(p.id, e.currentTarget, occurrenceOf(p));
+                        onOpen(p, e.currentTarget);
                       }}
                       className="-mx-1 min-w-0 shrink-0 rounded-[4px] px-1 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
                     >

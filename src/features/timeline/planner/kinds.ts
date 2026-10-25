@@ -1,40 +1,49 @@
-import type { PlannerKind } from "../../../types/planner";
+import type { PlanKind } from "../../../types/timeline";
 
-/** How strongly a block stands out: fixed commitments solid, the gym warm, everything else quiet. */
+/** How strongly a session stands out: commitments solid, the gym warm, everything else quiet. */
 export type BlockTone = "solid" | "warm" | "quiet";
 
-export const KIND_TONE: Record<PlannerKind, BlockTone> = {
+/** Tone per kind; a session of no kind draws as a commitment. */
+export const KIND_TONE: Record<PlanKind, BlockTone> = {
   class: "solid",
+  lab: "solid",
   exam: "solid",
-  fixed: "solid",
+  task: "solid",
+  meeting: "solid",
+  appointment: "solid",
+  reservation: "solid",
+  social: "solid",
+  trip: "solid",
+  bill: "solid",
   gym: "warm",
   study: "quiet",
-  recruiting: "quiet",
+  focus: "quiet",
   meal: "quiet",
   shower: "quiet",
-  wake: "quiet",
-  lights_out: "quiet",
-  free: "quiet",
 };
 
-/** A block's soft fill by tone; blocks carry no outline. */
+/** A session's soft fill by tone; sessions carry no outline. */
 export const TONE_CLASS: Record<BlockTone, string> = {
   solid: "bg-sage-active",
   warm: "bg-[color-mix(in_srgb,var(--clay)_15%,transparent)]",
   quiet: "bg-[color-mix(in_srgb,var(--sage)_7%,transparent)]",
 };
 
-/** Words for a kind in the block card. */
-export const KIND_LABEL: Record<PlannerKind, string> = {
+/** Words for a kind in the session card. */
+export const KIND_LABEL: Record<PlanKind, string> = {
   class: "Class",
+  lab: "Lab",
   exam: "Exam",
-  study: "Study",
+  task: "Task",
+  meeting: "Meeting",
+  appointment: "Appointment",
+  reservation: "Reservation",
+  social: "Social",
+  trip: "Trip",
+  bill: "Bill",
   gym: "Gym",
+  study: "Study",
+  focus: "Focus",
   meal: "Meal",
   shower: "Shower",
-  wake: "Wake up",
-  lights_out: "Lights out",
-  recruiting: "Recruiting",
-  free: "Free time",
-  fixed: "Fixed event",
 };

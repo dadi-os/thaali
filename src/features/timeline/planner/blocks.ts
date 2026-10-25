@@ -1,7 +1,7 @@
-/** Pure planner logic: a day's blocks as segments on a minute axis, their lanes, gaps, and what is now and next. */
+/** Pure planner logic: a day's sessions as segments on a minute axis, their lanes, gaps, and what is now and next. */
 
 import { addDays, endOfDay, startOfDay } from "../dates";
-import type { PlannerBlock } from "../../../types/planner";
+import type { TimelineItem } from "../../../types/timeline";
 
 /** The least unclaimed time between two blocks that the planner draws as a gap (travel). */
 export const GAP_MIN = 10;
@@ -12,7 +12,7 @@ const EMPTY_TO_HOUR = 22;
 
 /** One block's part of one day, in minutes after local midnight, with its side-by-side lane. */
 export type Segment = {
-  block: PlannerBlock;
+  block: TimelineItem;
   startMin: number;
   endMin: number;
   /** Lane among the blocks it overlaps, and how many lanes that overlapping group has. */
@@ -26,18 +26,19 @@ export type Gap = { startMin: number; endMin: number };
 const minutesOf = (at: Date, dayStart: number) => Math.round((at.getTime() - dayStart) / 60_000);
 
 /**
- * `day`'s part of every block that touches it, earliest first, with overlapping blocks (only
- * those that said `overlap_ok` can) in side-by-side lanes.
+ * `day`'s part of every timed session that touches it, earliest first, with overlapping
+ * sessions in side-by-side lanes. The planner view only holds sessions with both times.
  */
-export function segmentsOn(blocks: PlannerBlock[], day: Date): Segment[] {
+export function segmentsOn(blocks: TimelineItem[], day: Date): Segment[] {
   const dayStart = startOfDay(day).getTime();
   const dayEnd = addDays(startOfDay(day), 1).getTime();
   const segments = blocks
-    .filter((block) => new Date(block.start_at).getTime() < dayEnd && new Date(block.end_at).getTime() > dayStart)
-    .map((block) => ({
+    .flatMap((block) => (block.start_at !== null && block.end_at !== null ? [{ block, start: new Date(block.start_at), end: new Date(block.end_at) }] : []))
+    .filter(({ start, end }) => start.getTime() < dayEnd && end.getTime() > dayStart)
+    .map(({ block, start, end }) => ({
       block,
-      startMin: Math.max(0, minutesOf(new Date(block.start_at), dayStart)),
-      endMin: Math.min(1440, minutesOf(new Date(block.end_at), dayStart)),
+      startMin: Math.max(0, minutesOf(start, dayStart)),
+      endMin: Math.min(1440, minutesOf(end, dayStart)),
       lane: 0,
       lanes: 1,
     }))
@@ -103,9 +104,13 @@ export function nowAndNext(segments: Segment[], nowMin: number): { current: Segm
   };
 }
 
-/** True once a block was marked done or its time has passed. */
-export function isSettled(block: PlannerBlock, now: Date): boolean {
-  return block.done_at !== null || new Date(block.end_at).getTime() <= now.getTime();
+/** True once a session was completed, cancelled, or its time has passed. */
+export function isSettled(block: TimelineItem, now: Date): boolean {
+  return (
+    block.outcome === "done" ||
+    block.state === "cancelled" ||
+    (block.end_at !== null && new Date(block.end_at).getTime() <= now.getTime())
+  );
 }
 
 /** Minutes as "1 h 20 min", "45 min", or "2 h". */

@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ghar, yaad } from "../shared/api";
+import { ghar, timeline } from "../shared/api";
 import { GHAR_DEVICES_KEY } from "../shared/api/ghar";
 import { useConnection } from "../shared/hooks/useConnection";
 import { failureTarget, pushToast } from "../store/toasts";
-import { formatTime, toIsoBounds } from "../features/timeline/dates";
-import { asPlan, isMultiDay, spanOf, type PlanNode } from "../features/timeline/plans";
+import { formatTime } from "../features/timeline/dates";
+import { isMultiDay, itemKey, spanOf } from "../features/timeline/plans";
 
 /** How often the upcoming-plans query refreshes and the plan clock ticks. */
 const PLAN_POLL_MS = 60_000;
@@ -17,8 +17,8 @@ const PLAN_STARTING_MS = 2 * 60_000;
 /**
  * Toast what happens around the house while the app is open: a Ghar device turning on or
  * off (any source: an agent, a wall switch, the house page; picked up by the shared
- * GET /devices poll), and a timed plan ten minutes before it starts and again as it
- * starts. A failed poll toasts its real error, linked to the service's log line for it.
+ * GET /devices poll), and a timed commitment (the home tile's view: no routines, nothing
+ * hidden or cancelled) ten minutes before it starts and again as it starts. A failed poll toasts its real error, linked to the service's log line for it.
  */
 export function useActivityToasts(): void {
   const { state: connection } = useConnection();
@@ -70,18 +70,15 @@ export function useActivityToasts(): void {
   }, []);
 
   const plansQuery = useQuery({
-    queryKey: ["yaad", "plans", "soon"],
+    queryKey: ["yaad", "timeline", "soon"],
     queryFn: async () => {
       const from = new Date(Date.now() - PLAN_STARTING_MS);
-      const { nodes } = await yaad.query({
-        kind: "plan",
-        ...toIsoBounds(from, new Date(from.getTime() + PLAN_SOON_MS + 2 * PLAN_POLL_MS)),
-        limit: 50,
+      const { items } = await timeline.query({
+        from: from.toISOString(),
+        to: new Date(from.getTime() + PLAN_SOON_MS + 2 * PLAN_POLL_MS).toISOString(),
+        view: "tile",
       });
-      return nodes
-        .map(asPlan)
-        .filter((n): n is PlanNode => n !== null)
-        .filter((n) => n.detail.status !== "idea" && !n.detail.all_day && !isMultiDay(n));
+      return items.filter((n) => n.start_at !== null && n.state !== "cancelled" && !n.all_day && !isMultiDay(n));
     },
     enabled: connected,
     refetchInterval: connected ? PLAN_POLL_MS : false,
@@ -97,7 +94,7 @@ export function useActivityToasts(): void {
       const lead = span.start.getTime() - now;
       const phase =
         lead > 0 && lead <= PLAN_SOON_MS ? "soon" : lead <= 0 && -lead < PLAN_STARTING_MS ? "now" : null;
-      const mark = `${plan.id}:${span.start.toISOString()}:${phase}`;
+      const mark = `${itemKey(plan)}:${span.start.toISOString()}:${phase}`;
       if (phase === null || announced.current.has(mark)) {
         continue;
       }

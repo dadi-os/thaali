@@ -6,12 +6,12 @@ import { CHAAVI, HATH, GHAR, NAS, YAAD } from "./constants";
 import { BrowserTransport } from "./browser-transport";
 import { selectTransportKind } from "./runtime";
 import type { Transport } from "./transport";
-import { createPlannerClient, type PlannerClient } from "./planner";
+import { createTimelineClient, type TimelineClient } from "./timeline";
 import { createYaadClient, type YaadClient } from "./yaad";
 
 export { createChaaviClient, type ChaaviClient } from "./chaavi";
 export { createGharClient, type GharClient } from "./ghar";
-export { createPlannerClient, type PlannerClient } from "./planner";
+export { createTimelineClient, type TimelineClient } from "./timeline";
 export {
   CHAAVI as CHAAVI_URL,
   CHAAVI_VAULT as CHAAVI_VAULT_URL,
@@ -38,8 +38,8 @@ export let hath!: HathClient;
 /** Shared Yaad client bound to {@link YAAD} and {@link transport}. */
 export let yaad!: YaadClient;
 
-/** Shared planner client bound to {@link YAAD} and {@link transport}. */
-export let planner!: PlannerClient;
+/** Shared timeline client bound to {@link YAAD} and {@link transport}. */
+export let timeline!: TimelineClient;
 
 /** Shared Nas client bound to {@link NAS} and {@link transport}. */
 export let nas!: NasClient;
@@ -66,7 +66,7 @@ export async function initApi(): Promise<void> {
   }
   hath = createHathClient(transport, HATH);
   yaad = createYaadClient(transport, YAAD);
-  planner = createPlannerClient(transport, YAAD);
+  timeline = createTimelineClient(transport, YAAD);
   nas = createNasClient(transport, NAS);
   chaavi = createChaaviClient(transport, CHAAVI);
   ghar = createGharClient(transport, GHAR);

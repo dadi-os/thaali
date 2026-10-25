@@ -1,7 +1,7 @@
 import { motion } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
-import type { PlannerBlock } from "../../../types/planner";
+import type { TimelineItem } from "../../../types/timeline";
 import { addDays, isSameDay, startOfDay } from "../dates";
 import {
   axisRange,
@@ -15,8 +15,8 @@ import {
   segmentsOn,
   type Segment,
 } from "./blocks";
-import { PlannerGlyph } from "./glyphs";
 import { KIND_TONE, TONE_CLASS } from "./kinds";
+import { itemKey } from "../plans";
 
 /** Pixels per minute on the axis. */
 const PPM = 0.9;
@@ -36,18 +36,19 @@ export type PlannerDayProps = {
   today: Date;
   /** Ticking clock: places the now pill and fades what already happened. */
   now: Date;
-  /** Blocks of the shown day and the day after it. */
-  blocks: PlannerBlock[];
-  /** Blocks have not loaded yet. */
+  /** Planner sessions of the shown day and the day after it. */
+  blocks: TimelineItem[];
+  /** Sessions have not loaded yet. */
   loading: boolean;
-  /** A block was picked; `el` anchors its card. */
-  onOpen: (block: PlannerBlock, el: Element) => void;
+  /** A session was picked; `el` anchors its card. */
+  onOpen: (block: TimelineItem, el: Element) => void;
 };
 
 /**
  * The planner: one day drawn straight on the page. On the left the day is named and its
- * blocks sit on an hour axis as tall as their time, each one row of title and time with its
- * note under it, fixed commitments solid and the rest quiet, the time between them left open.
+ * sessions sit on an hour axis as tall as their time, each one row of title and time with its
+ * body under it, commitments solid and routines quiet, cancelled ones struck through, the
+ * time between them left open.
  * On a wide window a column on the right keeps what matters in view: what is happening now
  * and what is next, the day's tasks with their lengths, and the start of the next day.
  */
@@ -122,11 +123,11 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
                   ))}
                 {segments.map((segment, k) => (
                   <BlockRow
-                    key={segment.block.id}
+                    key={itemKey(segment.block)}
                     segment={segment}
                     top={top(segment.startMin)}
                     settled={isSettled(segment.block, now)}
-                    current={current?.block.id === segment.block.id}
+                    current={current !== null && itemKey(current.block) === itemKey(segment.block)}
                     delay={k * 0.02}
                     onOpen={onOpen}
                   />
@@ -175,7 +176,7 @@ type FocusProps = {
   current: Segment | null;
   next: Segment | null;
   nowMin: number;
-  onOpen: (block: PlannerBlock, el: Element) => void;
+  onOpen: (block: TimelineItem, el: Element) => void;
 };
 
 /** What is happening now, with its time left and a thin progress line, and what is next. */
@@ -200,7 +201,7 @@ function Focus({ current, next, nowMin, onOpen }: FocusProps) {
             />
           </span>
           <p className="mt-2 text-[12px] tabular-nums text-ink-muted">{formatSpan(current.endMin - nowMin)} left</p>
-          {current.block.note ? <p className="mt-3 line-clamp-3 text-[13px] leading-[1.5] text-ink-muted">{current.block.note}</p> : null}
+          {current.block.body ? <p className="mt-3 line-clamp-3 text-[13px] leading-[1.5] text-ink-muted">{current.block.body}</p> : null}
         </button>
       ) : null}
       {next !== null ? (
@@ -223,7 +224,7 @@ type DayListProps = {
   /** The block happening now, if the day is today. */
   current: Segment | null;
   now: Date;
-  onOpen: (block: PlannerBlock, el: Element) => void;
+  onOpen: (block: TimelineItem, el: Element) => void;
 };
 
 /** The day's tasks in order with their lengths; done ones fade and are struck through. */
@@ -234,9 +235,9 @@ function DayList({ segments, current, now, onOpen }: DayListProps) {
       <ul className="flex flex-col">
         {segments.map((segment) => {
           const settled = isSettled(segment.block, now);
-          const live = current?.block.id === segment.block.id;
+          const live = current !== null && itemKey(current.block) === itemKey(segment.block);
           return (
-            <li key={segment.block.id}>
+            <li key={itemKey(segment.block)}>
               <button
                 type="button"
                 onClick={(e) => onOpen(segment.block, e.currentTarget)}
@@ -262,7 +263,7 @@ type AfterProps = {
   /** The day after the shown one. */
   day: Date;
   segments: Segment[];
-  onOpen: (block: PlannerBlock, el: Element) => void;
+  onOpen: (block: TimelineItem, el: Element) => void;
 };
 
 /** The first tasks of the next day, so the evening can end knowing how tomorrow starts. */
@@ -272,7 +273,7 @@ function After({ day, segments, onOpen }: AfterProps) {
     <Section label={new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(day)}>
       <ul className="flex flex-col">
         {shown.map((segment) => (
-          <li key={segment.block.id}>
+          <li key={itemKey(segment.block)}>
             <button
               type="button"
               onClick={(e) => onOpen(segment.block, e.currentTarget)}
@@ -299,10 +300,10 @@ type BlockRowProps = {
   current: boolean;
   /** Entrance delay so blocks settle in order. */
   delay: number;
-  onOpen: (block: PlannerBlock, el: Element) => void;
+  onOpen: (block: TimelineItem, el: Element) => void;
 };
 
-/** One block: glyph, title and time on one row, with its note under them when the height allows. */
+/** One session: title and time on one row, with its body under them when the height allows. */
 function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowProps) {
   const { block, startMin, endMin, lane, lanes } = segment;
   const height = Math.max((endMin - startMin) * PPM - 4, 26);
@@ -318,21 +319,18 @@ function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowPro
       onClick={(e) => onOpen(block, e.currentTarget)}
       aria-label={`${block.title}, ${formatRange(startMin, endMin)}`}
       className={`absolute flex overflow-hidden rounded-[14px] px-4 text-left transition-shadow duration-slow ease-dadi hover:z-10 hover:shadow-[var(--shadow)] ${
-        TONE_CLASS[KIND_TONE[block.kind]]
-      } ${current ? "ring-1 ring-sage-deep/60" : ""} ${oneRow ? "items-center" : "items-start pt-3.5"}`}
+        TONE_CLASS[block.kind === null ? "solid" : KIND_TONE[block.kind]]
+      } ${current ? "ring-1 ring-sage-deep/60" : ""} ${block.state === "cancelled" ? "line-through" : ""} ${oneRow ? "items-center" : "items-start pt-3.5"}`}
       style={{ top: top + 2, height, left: `calc(${(lane / lanes) * 100}% + 0px)`, width: `calc(${100 / lanes}% - 6px)` }}
     >
       <span className="flex w-full min-w-0 gap-3">
-        <span className="mt-[2px] shrink-0 self-start text-sage-deep/70">
-          <PlannerGlyph icon={block.icon} size={15} />
-        </span>
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-4">
             <span className="truncate text-[14px] leading-5 font-medium tracking-[-0.005em] text-ink">{block.title}</span>
             <span className="shrink-0 text-[12px] leading-5 tabular-nums text-ink-muted">{formatRange(startMin, endMin)}</span>
           </span>
-          {!oneRow && block.note && height >= NOTE_ROOM_PX ? (
-            <span className="mt-1.5 line-clamp-2 block text-[12.5px] leading-[1.5] text-ink-muted">{block.note}</span>
+          {!oneRow && block.body && height >= NOTE_ROOM_PX ? (
+            <span className="mt-1.5 line-clamp-2 block text-[12.5px] leading-[1.5] text-ink-muted">{block.body}</span>
           ) : null}
         </span>
       </span>

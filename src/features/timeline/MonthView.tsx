@@ -1,18 +1,10 @@
 import { motion } from "motion/react";
 import { useLayoutEffect, useRef, useState } from "react";
-import { IconPlus } from "../../shared/components/IconButton";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { formatDayShort, formatTime, isSameDay, isSameMonth } from "./dates";
-import { BreathRing, FreshGlow, LiveDot } from "./markers";
-import {
-  occurrenceOf,
-  planStartsOn,
-  spanOf,
-  statusClass,
-  weekSlots,
-  type PlanNode,
-  type PlanOccurrence,
-} from "./plans";
+import type { TimelineItem } from "../../types/timeline";
+import { formatDayShort, isSameDay, isSameMonth } from "./dates";
+import { BreathRing, LiveDot } from "./markers";
+import { itemKey, planStartsOn, spanOf, startLabel, statusClass, weekSlots } from "./plans";
 
 /** Delay per diagonal step as the grid washes in from the top-left. */
 const WAVE_STEP_S = 0.018;
@@ -32,16 +24,14 @@ export type MonthViewProps = {
   today: Date;
   /** Ticking clock: fades what already happened and pulses what is happening. */
   now: Date;
-  plans: PlanNode[];
+  /** The month view's sessions: dues, all-day and multi-day sessions, one-off commitments. */
+  plans: TimelineItem[];
   /** Plans have not loaded yet: days shimmer instead of reading as empty. */
   loading: boolean;
-  /** Node ids just created by a quick-add, which glow once. */
-  fresh: Set<string>;
-  /** A plan was clicked: open its popover beside `el`. */
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  /** A session was clicked: open its popover beside `el`. */
+  onOpen: (item: TimelineItem, el: Element) => void;
   /** Open this day in the week view. */
   onSelectDay: (day: Date) => void;
-  onAdd: (day: Date, el: Element) => void;
 };
 
 /**
@@ -50,8 +40,7 @@ export type MonthViewProps = {
  * day's timed plans fill the slots its bars leave free as time-and-title lines that open
  * their popover, and a full day ends on "+N more" into its week. Week rows share the grid's
  * height and the lines each can hold follow from it, so a busy week folds into "+N more"
- * and the grid never scrolls. Clicking a day opens its week, its + quick-adds to it, and
- * today breathes.
+ * and the grid never scrolls. Clicking a day opens its week, and today breathes.
  */
 export function MonthView({
   days,
@@ -61,10 +50,8 @@ export function MonthView({
   now,
   plans,
   loading,
-  fresh,
   onOpen,
   onSelectDay,
-  onAdd,
 }: MonthViewProps) {
   const weeks = Array.from({ length: days.length / 7 }, (_, w) => days.slice(w * 7, w * 7 + 7));
   const grid = useRef<HTMLDivElement>(null);
@@ -124,7 +111,7 @@ export function MonthView({
                       i > 0 ? "border-l border-rule/80" : ""
                     } ${isToday ? "bg-sage-faint/40" : "hover:bg-sage-fill/40"}`}
                   >
-                    <div className="flex h-8 items-center gap-1 px-1">
+                    <div className="flex h-8 items-center px-1">
                       <span
                         className={`relative flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] tabular-nums ${
                           isToday
@@ -139,17 +126,6 @@ export function MonthView({
                         {day.getDate()}
                         {isToday ? <BreathRing /> : null}
                       </span>
-                      <button
-                        type="button"
-                        aria-label={`Add to ${formatDayShort(day)}`}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAdd(day, e.currentTarget);
-                        }}
-                        className="ml-auto flex size-5 items-center justify-center rounded-full text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 hover:bg-sage-active focus-visible:opacity-100 [&>svg]:size-3"
-                      >
-                        <IconPlus />
-                      </button>
                     </div>
                   </motion.div>
                 );
@@ -171,11 +147,10 @@ export function MonthView({
 
               {layout.bars.map((bar) => (
                 <MonthBar
-                  key={`${bar.plan.id}:${bar.from}`}
+                  key={`${itemKey(bar.plan)}:${bar.from}`}
                   {...bar}
                   week={week}
                   now={now}
-                  fresh={fresh.has(bar.plan.id)}
                   delay={(w + bar.from) * WAVE_STEP_S + 0.06}
                   onOpen={onOpen}
                 />
@@ -184,13 +159,12 @@ export function MonthView({
               {layout.items.flatMap((col, i) =>
                 col.map(({ plan, slot }, j) => (
                   <MonthItem
-                    key={`${plan.id}:${i}`}
+                    key={`${itemKey(plan)}:${i}`}
                     plan={plan}
                     col={i}
                     slot={slot}
                     dim={!isSameMonth(week[i]!, anchor)}
                     now={now}
-                    fresh={fresh.has(plan.id)}
                     delay={(w + i) * WAVE_STEP_S + 0.08 + j * 0.03}
                     onOpen={onOpen}
                   />
@@ -219,7 +193,7 @@ export function MonthView({
 }
 
 type MonthBarProps = {
-  plan: PlanNode;
+  plan: TimelineItem;
   /** Slot row the bar takes, shared with every day it covers. */
   lane: number;
   /** First column (0–6) of `week` the bar covers. */
@@ -229,10 +203,9 @@ type MonthBarProps = {
   week: Date[];
   /** Ticking clock: fades the bar once its plan has ended. */
   now: Date;
-  fresh: boolean;
   /** Entrance delay so the bar settles with its first day. */
   delay: number;
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
 };
 
 /**
@@ -240,7 +213,7 @@ type MonthBarProps = {
  * title has the whole span. Ends where the plan carries into another week run square to
  * the grid edge; ends where it starts or stops are rounded and inset like the lines.
  */
-function MonthBar({ plan, lane, from, to, week, now, fresh, delay, onOpen }: MonthBarProps) {
+function MonthBar({ plan, lane, from, to, week, now, delay, onOpen }: MonthBarProps) {
   const span = spanOf(plan)!;
   const starts = planStartsOn(plan, week[from]!);
   const ends = isSameDay(span.end, week[to]!);
@@ -251,20 +224,19 @@ function MonthBar({ plan, lane, from, to, week, now, fresh, delay, onOpen }: Mon
       initial={{ opacity: 0 }}
       animate={{ opacity: span.end < now ? 0.55 : 1 }}
       transition={{ duration: SLOW_S, ease: EASE, delay }}
-      onClick={(e) => onOpen(plan.id, e.currentTarget, occurrenceOf(plan))}
+      onClick={(e) => onOpen(plan, e.currentTarget)}
       style={{ gridColumn: `${from + 1} / ${to + 2}`, gridRow: lane + 2 }}
-      className={`relative flex h-[18px] min-w-0 items-center px-1 text-left text-[10.5px] leading-none ${statusClass(plan.detail.status)} ${
+      className={`relative flex h-[18px] min-w-0 items-center px-1 text-left text-[10.5px] leading-none ${statusClass(plan.status)} ${
         starts ? "ml-1 rounded-l-[6px]" : "rounded-l-none border-l-0 pl-2"
       } ${ends ? "mr-1 rounded-r-[6px]" : "rounded-r-none border-r-0"}`}
     >
       <span className="truncate">{plan.title}</span>
-      {fresh ? <FreshGlow /> : null}
     </motion.button>
   );
 }
 
 type MonthItemProps = {
-  plan: PlanNode;
+  plan: TimelineItem;
   /** Column (0–6) the line sits in. */
   col: number;
   /** Slot row the line takes, below any bars covering its day. */
@@ -273,17 +245,16 @@ type MonthItemProps = {
   dim: boolean;
   /** Ticking clock: pulses the line while its plan is happening and fades it once past. */
   now: Date;
-  fresh: boolean;
   /** Entrance delay so lines settle after their day. */
   delay: number;
-  onOpen: (nodeId: string, el: Element, occurrence?: PlanOccurrence) => void;
+  onOpen: (item: TimelineItem, el: Element) => void;
 };
 
 /**
  * One timed plan as a line: a status dot (solid confirmed, hollow tentative, live pulse
  * while it is happening), its start time and title. Fades once it has passed.
  */
-function MonthItem({ plan, col, slot, dim, now, fresh, delay, onOpen }: MonthItemProps) {
+function MonthItem({ plan, col, slot, dim, now, delay, onOpen }: MonthItemProps) {
   const span = spanOf(plan)!;
   const ongoing = span.start <= now && now < span.end;
   return (
@@ -293,7 +264,7 @@ function MonthItem({ plan, col, slot, dim, now, fresh, delay, onOpen }: MonthIte
       initial={{ opacity: 0, x: -3 }}
       animate={{ opacity: span.end < now || dim ? 0.55 : 1, x: 0 }}
       transition={{ duration: SLOW_S, ease: EASE, delay }}
-      onClick={(e) => onOpen(plan.id, e.currentTarget, occurrenceOf(plan))}
+      onClick={(e) => onOpen(plan, e.currentTarget)}
       style={{ gridColumn: col + 1, gridRow: slot + 2 }}
       className="relative mx-1 flex h-[18px] min-w-0 items-center gap-1 rounded-[4px] px-1 text-left text-[10.5px] leading-none transition-colors duration-slow ease-dadi hover:bg-sage-fill"
     >
@@ -303,13 +274,12 @@ function MonthItem({ plan, col, slot, dim, now, fresh, delay, onOpen }: MonthIte
         <span
           aria-hidden
           className={`size-1.5 shrink-0 rounded-full ${
-            plan.detail.status === "tentative" ? "border border-sage-deep" : "bg-sage-deep"
+            plan.status === "tentative" ? "border border-sage-deep" : "bg-sage-deep"
           }`}
         />
       )}
-      <span className="shrink-0 tabular-nums text-ink-muted">{formatTime(plan.occurred_at!)}</span>
+      <span className="shrink-0 tabular-nums text-ink-muted">{startLabel(plan)}</span>
       <span className="min-w-0 truncate text-ink">{plan.title}</span>
-      {fresh ? <FreshGlow radius="rounded-[4px]" /> : null}
     </motion.button>
   );
 }

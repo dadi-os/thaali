@@ -1,23 +1,35 @@
 import { describe, expect, it } from "vitest";
-import type { PlannerBlock } from "../../../types/planner";
+import type { TimelineItem } from "../../../types/timeline";
 import { axisRange, formatClockCompact, formatRange, formatSpan, gapsBetween, isSettled, nowAndNext, segmentsOn } from "./blocks";
 
 const day = new Date(2026, 9, 21);
 const at = (hour: number, minute = 0, dayOffset = 0) => new Date(2026, 9, 21 + dayOffset, hour, minute).toISOString();
 
-function block(title: string, start: string, end: string, extra: Partial<PlannerBlock> = {}): PlannerBlock {
+function block(title: string, start: string, end: string, extra: Partial<TimelineItem> = {}): TimelineItem {
   return {
     id: title,
+    occurrence_date: "2026-10-21",
+    title,
+    body: null,
+    kind: "study",
+    status: "confirmed",
     start_at: start,
     end_at: end,
-    title,
-    note: null,
-    kind: "study",
-    icon: "pencil",
-    fixed: true,
-    overlap_ok: false,
-    done_at: null,
-    source: "schedule-specialist",
+    due_at: null,
+    opens_at: null,
+    all_day: false,
+    time_zone: null,
+    hide_from_planner: false,
+    state: "scheduled",
+    outcome: null,
+    outcome_at: null,
+    actual_start: null,
+    actual_end: null,
+    recurrence: null,
+    series: null,
+    place: null,
+    owner: "schedule-specialist",
+    notes: [],
     ...extra,
   };
 }
@@ -33,8 +45,8 @@ describe("planner segments", () => {
 
   it("puts overlapping blocks in side-by-side lanes and lets later ones take the full width", () => {
     const blocks = [
-      block("A", at(9), at(11), { overlap_ok: true }),
-      block("B", at(10), at(12), { overlap_ok: true }),
+      block("A", at(9), at(11)),
+      block("B", at(10), at(12)),
       block("C", at(13), at(14)),
     ];
     expect(segmentsOn(blocks, day).map((s) => [s.block.title, s.lane, s.lanes])).toEqual([
@@ -68,11 +80,13 @@ describe("planner segments", () => {
     expect(nowAndNext(segments, 700)).toEqual({ current: null, next: null });
   });
 
-  it("settles a block when it is marked done or has ended", () => {
+  it("settles a session when it is completed, cancelled, or has ended", () => {
     const now = new Date(2026, 9, 21, 12);
     expect(isSettled(block("Past", at(9), at(10)), now)).toBe(true);
     expect(isSettled(block("Ahead", at(13), at(14)), now)).toBe(false);
-    expect(isSettled(block("Marked", at(13), at(14), { done_at: at(11) }), now)).toBe(true);
+    expect(isSettled(block("Completed", at(13), at(14), { outcome: "done" }), now)).toBe(true);
+    expect(isSettled(block("Cancelled", at(13), at(14), { state: "cancelled" }), now)).toBe(true);
+    expect(isSettled(block("Missed", at(13), at(14), { outcome: "missed" }), now)).toBe(false);
   });
 
   it("writes a range with the period once when both ends share it, and a compact clock", () => {
