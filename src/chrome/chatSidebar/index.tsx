@@ -69,7 +69,6 @@ import {
   LIST_REFRESH_MS,
   THREAD_REFRESH_MS,
 } from "./constants";
-import { ActivityPulse } from "./ActivityPulse";
 import { DadiHome, type DadiRouting } from "./DadiHome";
 import { partitionByQueued } from "./lanes";
 import { ConversationList } from "./list";
@@ -108,8 +107,6 @@ function resolveOpenAgent(
 }
 
 export interface ChatSidebarProps {
-  /** Bumps when chat opens; scrolls the thread to the bottom. */
-  sessionKey: number;
   className?: string;
 }
 
@@ -118,7 +115,7 @@ export interface ChatSidebarProps {
  * loaded from durable Hath `GET /threads` and `GET /agents/:id/messages`.
  * Talk to Dadi is a composer onto POST /router.
  */
-export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
+export function ChatSidebar({ className }: ChatSidebarProps) {
   const queryClient = useQueryClient();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
@@ -241,7 +238,7 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
   useEffect(() => {
     stickToBottomRef.current = true;
     scrollToBottom("auto");
-  }, [sessionKey, chat.open]);
+  }, [chat.open]);
 
   useLayoutEffect(() => {
     if (!viewingThread || !stickToBottomRef.current) {
@@ -708,7 +705,6 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
       ref={asideRef}
       className={`chat-rail relative flex h-full min-h-0 flex-col overflow-hidden ${className ?? ""}`}
       data-agent-id={openAgentId ?? undefined}
-      data-session-key={sessionKey}
     >
       <div className="relative min-h-0 flex-1 overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
@@ -769,10 +765,14 @@ export function ChatSidebar({ sessionKey, className }: ChatSidebarProps) {
                     ) : null}
                     {openAgentView?.kind === "loading" ? (
                       <div
-                        className="absolute inset-0 flex items-center justify-center"
-                        style={{ paddingBottom: composerPad }}
+                        role="status"
+                        aria-label="Loading this agent"
+                        className="absolute inset-0 flex flex-col justify-end gap-3 px-4"
+                        style={{ paddingBottom: composerPad + 16 }}
                       >
-                        <ActivityPulse />
+                        <span className="skeleton h-10 w-3/5 rounded-[14px]" />
+                        <span className="skeleton h-16 w-4/5 self-end rounded-[14px]" />
+                        <span className="skeleton h-12 w-2/3 rounded-[14px]" />
                       </div>
                     ) : null}
                     {openAgentId && openAgentRecord ? (

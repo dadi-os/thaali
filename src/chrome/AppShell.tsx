@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ChatSidebar } from "./chatSidebar";
 import { ForgetDeviceDialog } from "./ForgetDevice";
 import { Header } from "./Header";
+import { OfflinePill } from "./OfflinePill";
 import { Onboarding, type BootState } from "./onboarding";
 import { ProvisionOverlay } from "./ProvisionOverlay";
 import { Toaster } from "./Toaster";
@@ -40,7 +41,6 @@ function settleBoot(run: Promise<void>, set: (boot: BootState) => void): void {
 export function AppShell() {
   const { state } = useConnection();
   const location = useLocation();
-  const [sessionKey, setSessionKey] = useState(0);
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [forgetOpen, setForgetOpen] = useState(false);
   const needsProvisioning = useNeedsProvisioning();
@@ -69,10 +69,6 @@ export function AppShell() {
     }
   }, [needsProvisioning]);
 
-  useEffect(() => {
-    setSessionKey((k) => k + 1);
-  }, [location.pathname]);
-
   const showOnboarding =
     usingMesh &&
     (boot.status !== "ready" || needsProvisioning || state === "disconnected" || state === "connecting");
@@ -95,7 +91,7 @@ export function AppShell() {
           animate={{ opacity: 1, x: 0 }}
           transition={{ duration: SLOW_S, ease: EASE, delay: 0.12 }}
         >
-          <ChatSidebar sessionKey={sessionKey} className="h-full" />
+          <ChatSidebar className="h-full" />
         </motion.div>
 
         <motion.main
@@ -104,6 +100,7 @@ export function AppShell() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: SLOW_S, ease: EASE, delay: 0.2 }}
         >
+          <OfflinePill />
           <div className="h-full min-h-0 overflow-hidden">
             <div
               key={location.pathname}

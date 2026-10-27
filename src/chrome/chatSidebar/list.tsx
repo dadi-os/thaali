@@ -1,9 +1,10 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import { InlineMarkdown } from "../../shared/components/Markdown";
+import { SearchField } from "../../shared/components/SearchField";
 import { EASE } from "../../shared/lib/ux/motion";
 import type { Conversation, HistoryStatus } from "../../store/chat";
 import type { RunningMap } from "../../store/running";
-import { ActivityPulse } from "./ActivityPulse";
 import { formatListTime, groupConversations } from "./format";
 import { ThinkingMark } from "./LaneChip";
 
@@ -30,9 +31,12 @@ export interface ConversationListProps {
   };
 }
 
+/** Widths, in percent, of the skeleton rows shown while history loads. */
+const SKELETON_ROWS = [52, 40, 60, 46, 56, 38, 50, 44];
+
 /**
- * Conversation list pane grouped by day, each row its agent's name, last message and
- * when it came. A busy chat stays in its place and shows it there: the flowing dots while
+ * Conversation list pane grouped by day under a search over agent names, each row its
+ * agent's name, last message and when it came. While history loads the rows are skeletons. A busy chat stays in its place and shows it there: the flowing dots while
  * its agent thinks, the working sheen across the row while it works. Enter/exit motion is
  * owned by the sidebar stage — rows stay static so a parent transform can fall away as one
  * surface.
@@ -48,7 +52,12 @@ export function ConversationList({
   onDismissKeyboard,
   dadi,
 }: ConversationListProps) {
-  const groups = groupConversations(conversations);
+  const [query, setQuery] = useState("");
+  const needle = query.trim().toLowerCase();
+  const shown = needle
+    ? conversations.filter((conv) => conv.agent_name.toLowerCase().includes(needle))
+    : conversations;
+  const groups = groupConversations(shown);
   const loading = historyStatus === "loading" && conversations.length === 0;
   const failed = historyStatus === "error" && conversations.length === 0;
 
@@ -57,6 +66,16 @@ export function ConversationList({
       onClick={onDismissKeyboard}
       className="absolute inset-0 flex flex-col"
     >
+      <div className="shrink-0 px-3 pb-1 pt-3">
+        <SearchField
+          value={query}
+          onChange={setQuery}
+          placeholder="Search agents"
+          matches={needle ? shown.length : null}
+          onPick={() => onOpenAgent(shown[0].agent_id)}
+          className="w-full"
+        />
+      </div>
       <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1">
         {failed ? (
           <div className="flex h-full flex-col items-center justify-center px-6">
@@ -68,8 +87,20 @@ export function ConversationList({
             </p>
           </div>
         ) : loading ? (
-          <div className="flex h-full items-center justify-center">
-            <ActivityPulse />
+          <div role="status" aria-label="Loading conversations" className="flex flex-col gap-1 px-2.5 pt-4">
+            <span className="skeleton mb-2 h-2.5 w-12" />
+            {SKELETON_ROWS.map((width, index) => (
+              <span key={index} className="flex flex-col gap-2 py-2.5">
+                <span className="skeleton h-2.5" style={{ width: `${width}%` }} />
+                <span className="skeleton h-2" style={{ width: `${width + 22}%` }} />
+              </span>
+            ))}
+          </div>
+        ) : shown.length === 0 && needle ? (
+          <div className="flex h-full flex-col items-center justify-center px-6">
+            <p className="text-center text-[13px] text-ink-ghost">
+              No agent matches &ldquo;{query.trim()}&rdquo;
+            </p>
           </div>
         ) : conversations.length === 0 ? (
           <div className="flex h-full flex-col items-center justify-center px-6">
@@ -179,7 +210,9 @@ export function ConversationList({
               </span>
             ) : (
               <span className="block truncate text-[12px] text-ink-ghost">
-                {dadi.preview ? (
+                {!dadi.available ? (
+                  "Back when dadi reconnects"
+                ) : dadi.preview ? (
                   <InlineMarkdown content={dadi.preview} />
                 ) : (
                   "Start something new"
