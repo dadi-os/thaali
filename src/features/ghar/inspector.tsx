@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { ghar } from "../../shared/api";
 import type { GharCommand, GharDevice, GharRoom } from "../../types/ghar";
 import { REVEAL } from "../../shared/lib/ux/motion";
+import { formatRelative } from "../../shared/lib/ux/time";
 import { Pill, Switch, Track } from "./controls";
 import { IconChevron } from "./icons";
 import {
@@ -28,11 +29,11 @@ import {
 } from "./model";
 import type { House } from "./useHouse";
 
-/** The Warmth track, warm to cool. */
-const WARMTH_GRADIENT = "linear-gradient(90deg, #ffb46b, #ffe7c4, #f4f7ff, #c9daff)";
+/** The Warmth track, warm at the bottom to cool at the top. */
+const WARMTH_GRADIENT = "linear-gradient(0deg, #f6a35c, #fbd3a6, #fdf1e4, #eef2fb)";
 
-/** The Color track, once around the hue wheel. */
-const HUE_GRADIENT = "linear-gradient(90deg, #ff6b6b, #ffb86b, #fff06b, #7be38a, #6bc8ff, #8e7bff, #ff6bd6, #ff6b6b)";
+/** The Color track, once around the hue wheel from the bottom. */
+const HUE_GRADIENT = "linear-gradient(0deg, #ff6b6b, #ffb86b, #fff06b, #7be38a, #6bc8ff, #8e7bff, #ff6bd6, #ff6b6b)";
 
 type InspectorProps = {
   /** The selected device, or null before one is picked. */
@@ -44,8 +45,9 @@ type InspectorProps = {
 };
 
 /**
- * The page's one panel: the selected device's name (click to rename), switch, brightness
- * pill, Warmth and Color sliders and presets, then its Room and Groups pickers.
+ * The page's one panel: the selected device's name (click to rename) and switch, its tall
+ * Brightness, Warmth and Color sliders, the named presets, then what the device is, its
+ * connection, its last change, and its Room and Groups pickers.
  */
 export function Inspector({ device, rooms, groups, house }: InspectorProps) {
   return (
@@ -87,6 +89,12 @@ function DeviceControls({ device, rooms, groups, house }: DeviceControlsProps) {
   };
 
   const tagged = device.tags.map((tag) => tag.name);
+  const level = brightness(device);
+  const state = !device.online ? "Offline" : has(device, "on_off") ? (on ? (level === null ? "On" : `On · ${Math.round(level)}%`) : "Off") : null;
+  const changed = Object.values(device.state)
+    .map((attribute) => attribute.changed_at)
+    .reduce<string | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
+  const seen = device.last_seen_at;
   const setTags = (next: string[]) => house.write(`Grouping ${device.name}`, () => ghar.setDeviceTags(device.id, next));
 
   return (
@@ -120,9 +128,7 @@ function DeviceControls({ device, rooms, groups, house }: DeviceControlsProps) {
             </button>
           )}
           <span className="truncate text-[13px] text-ink-muted">
-            {[roomTitle(device.room.name), device.product_name, device.online ? null : "Offline"]
-              .filter((part): part is string => part !== null)
-              .join(" · ")}
+            {[roomTitle(device.room.name), state].filter((part): part is string => part !== null).join(" · ")}
           </span>
         </div>
         {has(device, "on_off") ? (
@@ -130,61 +136,72 @@ function DeviceControls({ device, rooms, groups, house }: DeviceControlsProps) {
         ) : null}
       </div>
 
-      {has(device, "level") ? (
-        <div className="flex justify-center pt-[26px] pb-[22px]">
-          <Pill
-            value={brightness(device)}
-            color={glow(device)}
-            on={on}
-            disabled={disabled}
-            onCommit={(level) => send(levelCommand(level))}
-          />
-        </div>
-      ) : (
-        <div className="h-6" />
-      )}
-
-      {modes.includes("color_temp") ? (
-        <Track
-          label="Warmth"
-          reading={mireds === null ? "–" : kelvinLabel(mireds)}
-          value={mireds === null ? null : warmthFraction(mireds)}
-          gradient={WARMTH_GRADIENT}
-          disabled={disabled}
-          onCommit={(fraction) => send(temperatureCommand(warmthMireds(fraction)))}
-        />
-      ) : null}
-      {modes.includes("hue_sat") ? (
-        <div className="pt-4">
-          <Track
-            label="Color"
-            reading={colorName(device) ?? "–"}
-            value={shownHue === null ? null : shownHue.hue / 254}
-            gradient={HUE_GRADIENT}
-            disabled={disabled}
-            onCommit={(fraction) => send(hueCommand(Math.round(fraction * 254), shownHue === null ? 254 : shownHue.saturation))}
-          />
+      {has(device, "level") || modes.length > 0 ? (
+        <div className="flex justify-center gap-4 pt-[26px]">
+          {has(device, "level") ? (
+            <Labelled label="Brightness">
+              <Pill value={level} color={glow(device)} on={on} disabled={disabled} onCommit={(next) => send(levelCommand(next))} />
+            </Labelled>
+          ) : null}
+          {modes.includes("color_temp") ? (
+            <Labelled label="Warmth">
+              <Track
+                label="Warmth"
+                reading={mireds === null ? "–" : kelvinLabel(mireds)}
+                value={mireds === null ? null : warmthFraction(mireds)}
+                gradient={WARMTH_GRADIENT}
+                disabled={disabled}
+                onCommit={(fraction) => send(temperatureCommand(warmthMireds(fraction)))}
+              />
+            </Labelled>
+          ) : null}
+          {modes.includes("hue_sat") ? (
+            <Labelled label="Color">
+              <Track
+                label="Color"
+                reading={colorName(device) ?? "–"}
+                value={shownHue === null ? null : shownHue.hue / 254}
+                gradient={HUE_GRADIENT}
+                disabled={disabled}
+                onCommit={(fraction) => send(hueCommand(Math.round(fraction * 254), shownHue === null ? 254 : shownHue.saturation))}
+              />
+            </Labelled>
+          ) : null}
         </div>
       ) : null}
       {presets.length > 0 ? (
-        <div className="flex flex-wrap gap-3 pt-[18px]">
+        <div className="flex justify-between gap-2 pt-6">
           {presets.map((preset) => (
             <button
               key={preset.name}
               type="button"
-              aria-label={preset.name}
               aria-pressed={active === preset.name}
-              title={preset.name}
               disabled={disabled}
               onClick={() => void send(preset.command)}
-              className={`ghar-preset ${active === preset.name ? "ghar-preset--on" : ""}`}
-              style={{ background: preset.swatch }}
-            />
+              className="flex min-w-0 flex-col items-center gap-2 text-[12px] text-ink-muted disabled:cursor-default"
+            >
+              <span className={`ghar-preset ${active === preset.name ? "ghar-preset--on" : ""}`} style={{ background: preset.swatch }} />
+              <span className="truncate">{preset.name}</span>
+            </button>
           ))}
         </div>
       ) : null}
 
-      <div className="mt-auto flex flex-col pt-5">
+      <dl className="m-0 mt-6 flex flex-col gap-2 border-t border-rule pt-5 text-[13px]">
+        {device.product_name ? <Fact label="Device">{device.product_name}</Fact> : null}
+        <Fact label="Connection">
+          {device.online ? (
+            <span className="text-sage-deep">{device.bridge_name ? `Online · via ${device.bridge_name}` : "Online"}</span>
+          ) : seen ? (
+            `Offline · seen ${formatRelative(seen)}`
+          ) : (
+            "Offline"
+          )}
+        </Fact>
+        {changed ? <Fact label="Last change">{formatRelative(changed)}</Fact> : null}
+      </dl>
+
+      <div className="flex flex-col pt-3">
         <Picker
           label="Room"
           value={roomTitle(device.room.name)}
@@ -254,18 +271,48 @@ type PickerProps = {
   children: ReactNode;
 };
 
+type LabelledProps = {
+  label: string;
+  children: ReactNode;
+};
+
+/** A tall slider with its name beneath it. */
+function Labelled({ label, children }: LabelledProps) {
+  return (
+    <div className="flex flex-col items-center gap-2.5">
+      {children}
+      <span className="text-[13px] text-ink-muted">{label}</span>
+    </div>
+  );
+}
+
+type FactProps = {
+  label: string;
+  children: ReactNode;
+};
+
+/** One line of what the device is: a quiet label column, then the value. */
+function Fact({ label, children }: FactProps) {
+  return (
+    <div className="flex gap-3">
+      <dt className="w-[92px] shrink-0 text-ink-ghost">{label}</dt>
+      <dd className="m-0 min-w-0 truncate text-ink">{children}</dd>
+    </div>
+  );
+}
+
 /** A row that reads "Room · Ankur's room ›" and opens its choices beneath it. */
 function Picker({ label, value, open, onToggle, children }: PickerProps) {
   return (
-    <div className="border-t border-rule">
+    <div>
       <button
         type="button"
         aria-expanded={open}
         onClick={onToggle}
-        className="flex h-[46px] w-full items-center justify-between gap-3 text-[14px] text-ink"
+        className="flex h-[30px] w-full items-center gap-3 text-[13px] text-ink hover:text-sage-deep"
       >
-        <span>{label}</span>
-        <span className="flex min-w-0 items-center gap-1 text-ink-muted">
+        <span className="w-[92px] shrink-0 text-left text-ink-ghost">{label}</span>
+        <span className="flex min-w-0 items-center gap-1">
           <span className="truncate">{value}</span>
           <span className="size-3.5 shrink-0">
             <IconChevron open={open} />

@@ -1,6 +1,6 @@
 /**
  * Ghar, rooms first: the house's headline and quick actions, chips for every room and group,
- * then each room (or the chosen group) as a header with its brightness bar and switch over a
+ * then each room (or the chosen group) as a header with its switch, its brightness bar and a
  * grid of tiles, beside the one inspector for the selected device.
  */
 
@@ -12,7 +12,7 @@ import { StaleBanner, StateView } from "../../shared/components/states";
 import { EASE, REVEAL, SLOW_S, SLOWER_S } from "../../shared/lib/ux/motion";
 import { PairingSheet } from "./commission";
 import { LevelBar, Switch } from "./controls";
-import { IconGroup, IconMoon, IconMore } from "./icons";
+import { IconAdd, IconChevron, IconGroup, IconMoon } from "./icons";
 import { Inspector } from "./inspector";
 import {
   allOff,
@@ -86,6 +86,7 @@ export function GharHouse({ focus }: GharHouseProps) {
   const selected =
     devices.find((device) => device.id === selectedId) ?? devices.find(isOn) ?? devices.find(isLight) ?? null;
   const total = summarize(devices);
+  const litRooms = roomSections(devices.filter(isLight), rooms).filter((section) => section.devices.length > 0).length;
 
   const createRoom = async (name: string) => {
     setNewRoom(false);
@@ -105,9 +106,16 @@ export function GharHouse({ focus }: GharHouseProps) {
 
   return (
     <div className="relative flex h-full min-h-0 gap-6">
-      <div className="@container min-h-0 min-w-0 flex-1 overflow-y-auto px-1 pb-10">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 className="m-0 text-[34px] leading-tight font-bold tracking-[-0.6px] text-ink">{headline(total)}</h2>
+      <div className="@container min-h-0 min-w-0 flex-1 overflow-y-auto px-[6px] pb-10">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex min-w-0 flex-col gap-1">
+            <h2 className="m-0 text-[40px] leading-[1.05] font-bold tracking-[-0.8px] text-ink">{headline(total)}</h2>
+            {total.lights > 0 ? (
+              <span className="text-[14px] text-ink-muted">
+                {total.lights === 1 ? "1 light" : `${total.lights} lights`} in {litRooms === 1 ? "1 room" : `${litRooms} rooms`}
+              </span>
+            ) : null}
+          </div>
           <div className="flex gap-2">
             <button
               type="button"
@@ -163,7 +171,7 @@ export function GharHouse({ focus }: GharHouseProps) {
           ) : null}
         </AnimatePresence>
 
-        <div role="toolbar" aria-label="Rooms and groups" className="flex flex-wrap gap-2 pt-[22px]">
+        <div role="toolbar" aria-label="Rooms and groups" className="flex flex-wrap gap-2 pt-5">
           <Chip selected={shown.kind === "everywhere"} onClick={() => setFilter({ kind: "everywhere" })}>
             Everywhere
           </Chip>
@@ -202,7 +210,10 @@ export function GharHouse({ focus }: GharHouseProps) {
               className="ghar-chip ghar-chip--new w-40 outline-none"
             />
           ) : (
-            <button type="button" disabled={!connected} onClick={() => setNewRoom(true)} className="ghar-chip ghar-chip--new">
+            <button type="button" disabled={!connected} onClick={() => setNewRoom(true)} className="ghar-chip ghar-chip--new gap-1.5">
+              <span className="size-3.5">
+                <IconAdd />
+              </span>
               New room
             </button>
           )}
@@ -324,71 +335,69 @@ function SectionView({ section, devices, rooms, house, selectedId, onSelect, onA
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOWER_S, ease: EASE }}
     >
-      <div className="flex flex-wrap items-center gap-x-[18px] gap-y-3 pt-[34px] pb-[14px]">
-        <div className="flex min-w-0 items-center gap-1">
-          <div className="flex min-w-0 flex-col gap-0.5">
-            {mode === "rename" && room ? (
-              <input
-                autoFocus
-                defaultValue={room.name}
-                aria-label="Room name"
-                onBlur={(event) => void rename(event.currentTarget.value)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter") {
-                    event.currentTarget.blur();
-                  }
-                  if (event.key === "Escape") {
-                    setMode("idle");
-                  }
-                }}
-                className="ghar-inline-input text-[20px] font-bold"
-              />
-            ) : (
-              <h3 className="m-0 flex items-center gap-1.5 truncate text-[20px] font-bold text-ink">
-                {room === null ? (
-                  <span className="size-4 text-sage-deep">
-                    <IconGroup />
-                  </span>
-                ) : null}
-                {section.title}
-              </h3>
-            )}
-            <span className="text-[13px] text-ink-muted">{sectionStatus(summary, section.devices.length)}</span>
-          </div>
-          {manageable ? (
+      <div className="flex items-center justify-between gap-4 pt-[30px] pb-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          {mode === "rename" && room ? (
+            <input
+              autoFocus
+              defaultValue={room.name}
+              aria-label="Room name"
+              onBlur={(event) => void rename(event.currentTarget.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") {
+                  event.currentTarget.blur();
+                }
+                if (event.key === "Escape") {
+                  setMode("idle");
+                }
+              }}
+              className="ghar-inline-input text-[22px] font-bold"
+            />
+          ) : manageable ? (
             <button
               type="button"
               aria-label={`${section.title} options`}
               aria-expanded={mode !== "idle"}
               disabled={disabled}
               onClick={() => setMode(mode === "idle" ? "menu" : "idle")}
-              className="flex size-8 shrink-0 items-center justify-center self-start rounded-full text-ink-muted hover:bg-sage-fill hover:text-ink"
+              className="group flex min-w-0 items-center gap-1 text-left text-[22px] font-bold text-ink"
             >
-              <span className="size-[18px]">
-                <IconMore />
+              <span className="truncate">{section.title}</span>
+              <span className="size-[18px] shrink-0 text-ink-ghost group-hover:text-ink">
+                <IconChevron open={mode !== "idle"} />
               </span>
             </button>
-          ) : null}
+          ) : (
+            <h3 className="m-0 flex items-center gap-1.5 truncate text-[22px] font-bold text-ink">
+              {room === null ? (
+                <span className="size-4 text-sage-deep">
+                  <IconGroup />
+                </span>
+              ) : null}
+              {section.title}
+            </h3>
+          )}
+          <span className="text-[13px] text-ink-muted">{sectionStatus(summary, section.devices.length)}</span>
         </div>
         {summary.lights > 0 ? (
-          <>
-            <LevelBar
-              label={room === null ? "Group brightness" : "Room brightness"}
-              value={summary.brightness}
-              color={color}
-              disabled={disabled}
-              className="h-10 min-w-[180px] flex-1 text-[13px]"
-              onCommit={(level) => house.run(sectionLevel(section.devices, level))}
-            />
-            <Switch
-              on={summary.on > 0}
-              label={`Switch ${section.title}`}
-              disabled={disabled}
-              onChange={() => void house.run(sectionSwitch(section.devices))}
-            />
-          </>
+          <Switch
+            on={summary.on > 0}
+            label={`Switch ${section.title}`}
+            disabled={disabled}
+            onChange={() => void house.run(sectionSwitch(section.devices))}
+          />
         ) : null}
       </div>
+      {summary.lights > 0 ? (
+        <LevelBar
+          label="Brightness"
+          value={summary.brightness}
+          color={color}
+          disabled={disabled}
+          className="mb-[14px] h-11 w-full text-[14px]"
+          onCommit={(level) => house.run(sectionLevel(section.devices, level))}
+        />
+      ) : null}
 
       <AnimatePresence initial={false}>
         {mode === "menu" || mode === "delete" || mode === "move" ? (

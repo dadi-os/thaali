@@ -1,6 +1,6 @@
 /**
  * The Ghar page's controls, drawn straight on the page: the switch, the horizontal brightness
- * bar (a room, a group, the widget), the inspector's tall brightness pill and its gradient
+ * bar (a room, a group), the inspector's tall brightness pill and its tall gradient
  * sliders. A drag follows the pointer and sends once on release; the dragged value stays
  * until the command settles, by which point Ghar's accepted state is in the cache.
  */
@@ -139,6 +139,9 @@ export function LevelBar({ label, value, color, disabled, className, onCommit }:
     >
       <span className="ghar-bar__fill" style={{ width: `${shown * 100}%` }} />
       <span className="ghar-bar__label">
+        <span className="size-4">
+          <IconSun />
+        </span>
         {label} · {value === null && draft === null ? "Off" : `${percent}%`}
       </span>
     </div>
@@ -173,56 +176,46 @@ export function Pill({ value, color, on, disabled, onCommit }: PillProps) {
       {...handlers}
     >
       <span className="ghar-pill__fill" style={{ height: `${shown * 100}%` }} />
-      <span className="ghar-pill__value">
-        <span className="size-5">
-          <IconSun />
-        </span>
-        {value === null && draft === null ? "–" : `${Math.round(shown * 100)}%`}
-      </span>
+      <span className="ghar-pill__value">{value === null && draft === null ? "–" : `${Math.round(shown * 100)}%`}</span>
     </div>
   );
 }
 
 type TrackProps = {
   label: string;
-  /** What the slider shows now, beside its label. */
+  /** What the slider shows now, at its foot. */
   reading: string;
-  /** Where the light sits on the track 0–1, or null when it is showing the other kind of color. */
+  /** Where the light sits on the track 0–1 from the bottom, or null when it is showing the other kind of color. */
   value: number | null;
-  /** The CSS gradient the track is drawn with. */
+  /** The CSS gradient the track is drawn with, bottom to top. */
   gradient: string;
   disabled: boolean;
   onCommit: (fraction: number) => Promise<void>;
 };
 
-/** A gradient slider with a white bead; a light showing the other kind of color leaves the bead faint. */
+/** A tall gradient slider beside the brightness pill: a white bar marks the light, faint when it is showing the other kind of color; the reading sits at the foot, or the top once the bar is low enough to cross it. */
 export function Track({ label, reading, value, gradient, disabled, onCommit }: TrackProps) {
-  const { draft, handlers } = useDrag("x", 13, value ?? 0.5, disabled, onCommit);
+  const { draft, handlers } = useDrag("y", 12, value ?? 0.5, disabled, onCommit);
   const shown = draft ?? value;
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex justify-between text-[13px] font-semibold text-sage-deep">
-        <span>{label}</span>
-        <span className="text-ink-muted">{reading}</span>
-      </div>
-      <div
-        role="slider"
-        tabIndex={disabled ? -1 : 0}
-        aria-label={label}
-        aria-valuemin={0}
-        aria-valuemax={100}
-        aria-valuenow={shown === null ? undefined : Math.round(shown * 100)}
-        aria-valuetext={reading}
-        aria-disabled={disabled}
-        className={`ghar-track ${disabled ? "ghar-bar--disabled" : ""}`}
-        style={{ background: gradient }}
-        {...handlers}
-      >
-        <span
-          className="ghar-track__bead"
-          style={{ left: `calc(${shown ?? 0.5} * (100% - 26px) + 2px)`, opacity: shown === null ? 0.45 : 1 }}
-        />
-      </div>
+    <div
+      role="slider"
+      tabIndex={disabled ? -1 : 0}
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={shown === null ? undefined : Math.round(shown * 100)}
+      aria-valuetext={reading}
+      aria-disabled={disabled}
+      className={`ghar-track ${disabled ? "ghar-bar--disabled" : ""}`}
+      style={{ background: gradient }}
+      {...handlers}
+    >
+      <span
+        className="ghar-track__bar"
+        style={{ bottom: `calc(${shown ?? 0.5} * (100% - 24px) + 10px)`, opacity: shown === null ? 0.45 : 1 }}
+      />
+      <span className={`ghar-track__reading ${(shown ?? 0.5) < 0.25 ? "ghar-track__reading--top" : ""}`}>{reading}</span>
     </div>
   );
 }

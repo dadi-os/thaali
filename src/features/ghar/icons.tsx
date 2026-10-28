@@ -180,18 +180,7 @@ export function IconAdd() {
   );
 }
 
-/** Three dots: a room's options. */
-export function IconMore() {
-  return (
-    <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden className="size-full">
-      <circle cx="5" cy="12" r="1.8" />
-      <circle cx="12" cy="12" r="1.8" />
-      <circle cx="19" cy="12" r="1.8" />
-    </svg>
-  );
-}
-
-/** A chevron pointing right, on the inspector's pickers. */
+/** A chevron pointing right, turning down when open: the inspector's pickers and a room's options. */
 export function IconChevron({ open }: { open: boolean }) {
   return (
     <svg
