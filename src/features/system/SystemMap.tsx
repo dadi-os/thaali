@@ -264,8 +264,8 @@ export function SystemMap({ mode, className }: SystemMapProps) {
 
   return (
     <div className={`flex h-full min-h-0 flex-col gap-4 ${className ?? ""}`}>
+      <HealthCard services={services} rows={resources} uptimeSeconds={status.uptime_seconds} />
       <ServiceRows services={services} />
-      <ResourceMeters rows={resources} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <ErrorLogCards limit={6} />
       </div>
@@ -581,46 +581,93 @@ function ServiceRows({
   );
 }
 
-function ResourceMeters({ rows }: { rows: ResourceRow[] }) {
-  if (rows.length === 0) {
-    return null;
-  }
+/** Ink for a load ring: sage while easy, clay past two thirds, error past 85%. */
+function gaugeTone(pct: number): string {
+  return pct > 85 ? "var(--error)" : pct > 65 ? "var(--clay)" : "var(--sage-deep)";
+}
+
+/** "Up 11 days, 4 hours" from Nas's uptime. */
+function formatUptime(seconds: number): string {
+  const days = Math.floor(seconds / 86_400);
+  const hours = Math.floor((seconds % 86_400) / 3_600);
+  const parts = [days > 0 ? `${days} ${days === 1 ? "day" : "days"}` : null, `${hours} ${hours === 1 ? "hour" : "hours"}`];
+  return `Up ${parts.filter(Boolean).join(", ")}`;
+}
+
+type HealthCardProps = {
+  services: Array<{ name: string; ok: boolean }>;
+  rows: ResourceRow[];
+  uptimeSeconds: number;
+};
+
+/**
+ * Khisso's health card on the desk: whether dadi is healthy (or how many modules are
+ * offline) and how long it has been up, over a ring gauge per CPU, memory and disk that
+ * fills in as it arrives and turns clay or error as the load climbs.
+ */
+function HealthCard({ services, rows, uptimeSeconds }: HealthCardProps) {
+  const down = services.filter((s) => !s.ok).length;
+  const circumference = 2 * Math.PI * 38;
   return (
-    <ul className="flex flex-col gap-3">
-      {rows.map((row, i) => (
-        <motion.li
-          key={row.key}
-          initial={{ opacity: 0, y: 4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.03 }}
-          className="min-w-0"
+    <section className="rounded-[var(--radius-window)] border border-[var(--glass-border)] bg-[var(--glass-sheet)] px-5 py-4 shadow-[var(--shadow)]">
+      <div className="flex items-center gap-3">
+        <span
+          aria-hidden
+          className={`flex size-9 shrink-0 items-center justify-center rounded-full ${down === 0 ? "bg-sage-deep" : "border border-dashed border-ink-ghost"}`}
         >
-          <div className="flex items-baseline justify-between gap-2">
-            <span className="text-[11px] font-medium tracking-[2px] text-sage-deep">
-              {row.kind}
-            </span>
-            {row.pct != null ? (
-              <span className="shrink-0 text-[11px] tabular-nums text-ink-ghost">
-                {Math.round(row.pct)}%
+          {down === 0 ? (
+            <svg viewBox="0 0 24 24" className="size-4" fill="none" stroke="var(--bone)" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M5 12.5l4.5 4.5L19 7.5" />
+            </svg>
+          ) : null}
+        </span>
+        <span className="flex min-w-0 flex-col">
+          <span className="text-[19px] font-semibold tracking-[-0.01em] text-ink">
+            {down === 0 ? "dadi is healthy" : `${down} ${down === 1 ? "module is" : "modules are"} offline`}
+          </span>
+          <span className="text-[12.5px] text-ink-ghost">{formatUptime(uptimeSeconds)}</span>
+        </span>
+      </div>
+      {rows.length > 0 ? (
+        <ul className="mt-4 flex justify-around gap-3">
+          {rows.map((row, i) => (
+            <motion.li
+              key={row.key}
+              initial={{ opacity: 0, y: 4 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.05 }}
+              className="flex min-w-0 flex-col items-center gap-1.5"
+              title={[row.name, row.detail].filter(Boolean).join(" · ")}
+            >
+              <span className="relative size-[84px]">
+                <svg viewBox="0 0 96 96" className="size-full -rotate-90" aria-hidden>
+                  <circle cx="48" cy="48" r="38" fill="none" stroke="var(--rule)" strokeWidth="9" />
+                  {row.pct != null ? (
+                    <motion.circle
+                      cx="48"
+                      cy="48"
+                      r="38"
+                      fill="none"
+                      stroke={gaugeTone(row.pct)}
+                      strokeWidth="9"
+                      strokeLinecap="round"
+                      strokeDasharray={circumference}
+                      initial={{ strokeDashoffset: circumference }}
+                      animate={{ strokeDashoffset: circumference * (1 - Math.min(100, Math.max(0, row.pct)) / 100) }}
+                      transition={{ duration: SLOW_S * 3, ease: EASE, delay: 0.1 + i * 0.06 }}
+                    />
+                  ) : null}
+                </svg>
+                <span className="absolute inset-0 flex items-center justify-center text-[16px] font-semibold tabular-nums text-ink">
+                  {row.pct == null ? "—" : `${Math.round(row.pct)}%`}
+                </span>
               </span>
-            ) : (
-              <span className="shrink-0 text-[11px] text-ink-ghost">—</span>
-            )}
-          </div>
-          <p className="mt-0.5 min-w-0 truncate text-[12px] text-ink">{row.name}</p>
-          {row.pct != null ? (
-            <div className="mt-2 h-1.5 overflow-hidden rounded-full bg-rule">
-              <div
-                className="h-full rounded-full bg-sage transition-[width] duration-slow ease-dadi"
-                style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
-              />
-            </div>
-          ) : null}
-          {row.detail ? (
-            <p className="mt-1.5 text-[11px] text-ink-muted">{row.detail}</p>
-          ) : null}
-        </motion.li>
-      ))}
-    </ul>
+              <span className="text-[12px] font-medium text-ink-muted">{row.kind}</span>
+              {row.detail ? <span className="max-w-[9rem] truncate text-[11px] text-ink-ghost">{row.detail}</span> : null}
+            </motion.li>
+          ))}
+        </ul>
+      ) : null}
+    </section>
   );
 }
