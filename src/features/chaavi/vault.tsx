@@ -12,7 +12,7 @@ import { EASE, SLOW_S, SLOWER_S } from "../../shared/lib/ux/motion";
 import type { ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, itemSubtitle, TYPE_META, type VaultScope } from "./draft";
 import { joinPath, parentPath, type FolderNode } from "./folders";
-import { IconFolder, IconPencil, IconStar, TypeGlyph } from "./icons";
+import { IconFolder, IconPencil, IconStar } from "./icons";
 
 export type SelectionMarkProps = {
   /** Shared layout id of the group, so one mark glides between the group's members. */
@@ -523,18 +523,23 @@ export type ItemFaceProps = {
   item: ChaaviItem;
 };
 
-/** An item's glyph, name and subtitle, shared by the row and the drag ghost. */
+/** Monogram tints, the same three Khisso uses, picked by the item's name so an item keeps its color. */
+const MONOGRAM_TINTS = [
+  "bg-[color-mix(in_srgb,var(--sage)_20%,transparent)] text-sage-deep",
+  "bg-[color-mix(in_srgb,var(--clay)_18%,transparent)] text-[color-mix(in_srgb,var(--clay)_70%,var(--ink))]",
+  "bg-[color-mix(in_srgb,#7d9aa6_18%,transparent)] text-[color-mix(in_srgb,#7d9aa6_60%,var(--ink))]",
+];
+
+/** An item's monogram, name and subtitle, shared by the row and the drag ghost. */
 export function ItemFace({ item }: ItemFaceProps) {
+  const tint = MONOGRAM_TINTS[[...item.name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % MONOGRAM_TINTS.length];
   return (
     <>
       <span
-        className={`inline-flex size-[34px] shrink-0 items-center justify-center rounded-full border ${
-          item.type === "card"
-            ? "border-[color-mix(in_srgb,var(--clay)_60%,transparent)] bg-[color-mix(in_srgb,var(--clay)_14%,var(--bone))] text-[var(--clay)]"
-            : "border-sage-line bg-bone text-sage-deep"
-        }`}
+        aria-hidden
+        className={`inline-flex size-[34px] shrink-0 items-center justify-center rounded-[10px] text-[14px] font-semibold ${tint}`}
       >
-        <TypeGlyph type={item.type} />
+        {item.name.trim().charAt(0).toUpperCase()}
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13px] text-ink">{item.name}</span>
