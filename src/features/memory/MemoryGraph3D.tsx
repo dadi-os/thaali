@@ -22,6 +22,12 @@ import { MemoryPopover } from "./MemoryPopover";
 const KIND_TOKENS = Object.values(KIND_TOKEN);
 const EMPTY: GraphData = { nodes: [], edges: [] };
 
+/**
+ * How many of the best-connected people and places keep a label at rest; everything else is
+ * labelled when hovered, focused or matched, so the graph reads as a quiet field until asked.
+ */
+const PINNED_HUBS = 12;
+
 export type MemoryGraph3DProps = {
   /** Changes on each arrival at the page; resets the simulation, search, and selection. */
   entranceKey: string;
@@ -80,10 +86,22 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
   }, [graph.nodes, query]);
   const onlyMatch = matches?.size === 1 ? [...matches][0]! : null;
 
-  const pinnedLabels = useMemo(
-    () => new Set(graph.nodes.filter((n) => n.kind !== "memory").map((n) => n.id)),
-    [graph.nodes],
-  );
+  const pinnedLabels = useMemo(() => {
+    const degree = new Map<string, number>();
+    for (const link of graph.links) {
+      for (const end of [link.source, link.target]) {
+        const id = typeof end === "string" ? end : end.id;
+        degree.set(id, (degree.get(id) ?? 0) + 1);
+      }
+    }
+    return new Set(
+      graph.nodes
+        .filter((n) => n.kind === "person" || n.kind === "place")
+        .sort((a, b) => (degree.get(b.id) ?? 0) - (degree.get(a.id) ?? 0))
+        .slice(0, PINNED_HUBS)
+        .map((n) => n.id),
+    );
+  }, [graph.nodes, graph.links]);
 
   const revealSeeds = useMemo(
     () =>
