@@ -564,16 +564,16 @@ function ServiceRows({
           <span className="text-[13px] text-ink">{s.name}</span>
           <span
             className={`inline-flex items-center gap-1.5 text-[11px] tracking-wide ${
-              s.ok ? "text-sage-deep" : "text-error"
+              s.ok ? "text-sage-deep" : "text-ink-ghost"
             }`}
           >
             <span
               className={`h-1.5 w-1.5 rounded-full ${
-                s.ok ? "bg-sage" : "bg-error"
+                s.ok ? "bg-sage" : "border border-dashed border-ink-ghost"
               }`}
               aria-hidden
             />
-            {s.ok ? "reachable" : "unreachable"}
+            {s.ok ? "reachable" : "offline"}
           </span>
         </motion.li>
       ))}

@@ -119,6 +119,30 @@ function humanizeProviderBlob(text: string): {
 }
 
 /**
+ * A service's request line as what was asked and how it went ("POST /timeline", "200 · 41 ms")
+ * from the fields the services log with it; null for any other line, or one whose raw text is
+ * not JSON.
+ */
+export function requestLine(entry: NasLogEntry): { what: string; outcome: string } | null {
+  if (entry.msg !== "request" || !entry.raw) {
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(entry.raw) as { method?: string; path?: string; status?: number; duration_ms?: number };
+    if (!parsed.method || !parsed.path || parsed.status === undefined) {
+      return null;
+    }
+    return {
+      what: `${parsed.method} ${parsed.path}`,
+      outcome: parsed.duration_ms === undefined ? String(parsed.status) : `${parsed.status} · ${parsed.duration_ms} ms`,
+    };
+  } catch (err) {
+    if (!(err instanceof SyntaxError)) throw err;
+    return null;
+  }
+}
+
+/**
  * Prefer a clean human cause over raw SDK / provider dump strings.
  */
 export function errorCardCopy(entry: NasLogEntry): ErrorCardCopy {
@@ -603,6 +627,7 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
             >
               {rows.map(({ key, entry }, i) => {
                 const tone = levelTone(entry.level);
+                const request = requestLine(entry);
                 const isError = entry.level.toLowerCase() === "error";
                 const active = details.open && details.id === key;
                 return (
@@ -642,9 +667,16 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
                     <span className="w-[76px] shrink-0 truncate text-[11px] font-medium tracking-wide text-sage-text" title={entry.service}>
                       {entry.service || "—"}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-[12px] leading-snug text-ink">
-                      {entry.msg}
-                    </span>
+                    {request ? (
+                      <>
+                        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] leading-snug text-ink">{request.what}</span>
+                        <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-ghost">{request.outcome}</span>
+                      </>
+                    ) : (
+                      <span className="min-w-0 flex-1 truncate text-[12px] leading-snug text-ink">
+                        {entry.msg}
+                      </span>
+                    )}
                   </motion.li>
                 );
               })}

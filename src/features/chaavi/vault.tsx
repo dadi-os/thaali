@@ -63,14 +63,18 @@ export type LedgerProps = {
   onPick: (type: ChaaviItemType | null) => void;
 };
 
-/** The vault's ledger: a ticker per item type that narrows the list to that type when picked. */
+/**
+ * The vault's ledger: a ticker per item type that narrows the list to that type when picked.
+ * Once counts are in it lists only the types with items (and the picked one), not a row of zeros.
+ */
 export function Ledger({ counts, active, onPick }: LedgerProps) {
+  const shown = counts ? ITEM_TYPES.filter((type) => counts[type] > 0 || type === active) : ITEM_TYPES;
   return (
     <nav
       aria-label="Filter by type"
       className="flex flex-wrap items-stretch rounded-[var(--radius-window)] border border-[var(--glass-border)] bg-[var(--glass-veil)] px-1 py-3 shadow-[var(--shadow)] backdrop-blur-[var(--glass-blur)] [&>*+*]:border-l [&>*+*]:border-dashed [&>*+*]:border-sage-line/70"
     >
-      {ITEM_TYPES.map((type, i) => {
+      {shown.map((type, i) => {
         const on = active === type;
         return (
           <button
