@@ -294,10 +294,8 @@ function ServicePicker({ services, loading, error, selected, onToggle, onClear }
         aria-expanded={open}
         disabled={loading}
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-8 max-w-[160px] items-center gap-1.5 rounded-[7px] border border-dashed px-2.5 text-[11px] tracking-wide transition-colors duration-slow ease-dadi disabled:opacity-60 ${
-          selected.size > 0 || open
-            ? "border-sage bg-sage-active text-sage-deep"
-            : "border-sage-line text-ink-muted hover:border-sage"
+        className={`flex h-8 max-w-[170px] items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-semibold transition-colors duration-slow ease-dadi disabled:opacity-60 ${
+          selected.size > 0 || open ? "border-sage bg-sage-active text-sage-deep" : "border-rule bg-bone text-ink hover:border-sage-line"
         }`}
       >
         <span className="min-w-0 truncate">{summary}</span>
@@ -320,7 +318,7 @@ function ServicePicker({ services, loading, error, selected, onToggle, onClear }
           >
             <div className="min-h-0 overflow-y-auto p-1">
               <ServiceOption label="All services" on={selected.size === 0} onClick={onClear} />
-              <div className="mx-2 my-1 border-t border-dashed border-rule" />
+              <div className="mx-2 my-1 border-t border-rule" />
               {services.map((name) => (
                 <ServiceOption key={name} label={name} on={selected.has(name)} onClick={() => onToggle(name)} />
               ))}
@@ -558,9 +556,9 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
 
   return (
     <div className={`flex h-full min-h-0 flex-col gap-2 ${className ?? ""}`}>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <label className="flex h-8 min-w-[220px] flex-1 items-center gap-2 rounded-[7px] border border-dashed border-sage-line bg-bone pr-1 pl-2.5 transition-colors duration-slow ease-dadi focus-within:border-sage hover:border-sage">
-          <span className="flex size-3.5 shrink-0 text-ink-ghost [&_svg]:size-3.5">
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex h-10 min-w-[220px] flex-1 items-center gap-2 rounded-[12px] border border-(--glass-border) bg-(--glass-sheet) pr-1.5 pl-3 transition-colors duration-slow ease-dadi focus-within:border-sage hover:border-sage-line">
+          <span className="flex size-4 shrink-0 text-ink-ghost [&_svg]:size-4">
             <IconSearch />
           </span>
           <input
@@ -574,9 +572,9 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
                 setQ(qDraft.trim());
               }
             }}
-            placeholder="Filter messages…"
+            placeholder="Filter messages"
             aria-label="Filter messages"
-            className="min-w-0 flex-1 bg-transparent text-[12px] text-ink outline-none placeholder:text-ink-ghost [&::-webkit-search-cancel-button]:appearance-none"
+            className="min-w-0 flex-1 bg-transparent text-[14px] text-ink outline-none placeholder:text-ink-ghost [&::-webkit-search-cancel-button]:appearance-none"
           />
           {qDraft ? (
             <button
@@ -588,9 +586,27 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
               <IconDismiss />
             </button>
           ) : null}
-          <Glider options={RANGE_OPTIONS} value={range} onChange={setRange} label="Time range" size="sm" />
         </label>
+        <Glider options={RANGE_OPTIONS} value={range} onChange={setRange} label="Time range" />
+      </div>
 
+      <div className="flex flex-wrap items-center gap-2 pb-1">
+        <div role="radiogroup" aria-label="Severity" className="mr-auto flex flex-wrap gap-1.5">
+          {SEVERITY_OPTIONS.map((option) => (
+            <button
+              key={option.value}
+              type="button"
+              role="radio"
+              aria-checked={level === option.value}
+              onClick={() => setLevel(option.value)}
+              className={`h-8 rounded-full px-3.5 text-[13px] font-semibold transition-colors duration-slow ease-dadi ${
+                level === option.value ? "bg-sage-deep text-bone" : "bg-sage-fill text-ink-muted hover:text-ink"
+              }`}
+            >
+              {option.label}
+            </button>
+          ))}
+        </div>
         <ServicePicker
           services={servicesQuery.data?.services ?? []}
           loading={servicesQuery.isLoading}
@@ -605,11 +621,9 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
           onToggle={toggleService}
           onClear={() => setSelected(new Set())}
         />
-
-        <Glider options={SEVERITY_OPTIONS} value={level} onChange={setLevel} label="Severity" />
       </div>
 
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-rule">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         <div className="min-h-0 flex-1 overflow-y-auto" onScroll={() => (pinned ? undefined : details.close())}>
           {logsQuery.isLoading ? (
             <StateView tone="loading" label="Reading logs" compact />
@@ -651,7 +665,7 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
                         pinRow(key, e.currentTarget);
                       }
                     }}
-                    className={`relative flex cursor-default items-center gap-2.5 border-b border-rule/60 py-[5px] pr-3 pl-3 outline-none transition-colors duration-slow ease-dadi last:border-b-0 focus-visible:bg-sage-fill ${
+                    className={`relative flex cursor-default items-center gap-3 border-b border-rule/60 py-[7px] pr-2 pl-2.5 outline-none transition-colors duration-slow ease-dadi last:border-b-0 focus-visible:bg-sage-fill ${
                       active
                         ? "bg-sage-active"
                         : isError
@@ -660,20 +674,20 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
                     }`}
                   >
                     <span aria-hidden className={`absolute inset-y-0 left-0 w-[2px] ${tone.bar}`} />
-                    <time className="w-[52px] shrink-0 font-mono text-[10.5px] tabular-nums text-ink-ghost">
+                    <time className="w-[60px] shrink-0 font-mono text-[12px] tabular-nums text-ink-ghost">
                       {formatRowTime(entry.time)}
                     </time>
                     <span aria-hidden title={entry.level} className={`size-1.5 shrink-0 rounded-full ${tone.dot}`} />
-                    <span className="w-[76px] shrink-0 truncate text-[11px] font-medium tracking-wide text-sage-text" title={entry.service}>
+                    <span className="w-[64px] shrink-0 truncate text-[13px] font-semibold text-sage-text" title={entry.service}>
                       {entry.service || "—"}
                     </span>
                     {request ? (
                       <>
-                        <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] leading-snug text-ink">{request.what}</span>
-                        <span className="shrink-0 font-mono text-[10.5px] tabular-nums text-ink-ghost">{request.outcome}</span>
+                        <span className="min-w-0 flex-1 truncate font-mono text-[12.5px] leading-snug text-ink">{request.what}</span>
+                        <span className="shrink-0 font-mono text-[11.5px] tabular-nums text-ink-ghost">{request.outcome}</span>
                       </>
                     ) : (
-                      <span className="min-w-0 flex-1 truncate text-[12px] leading-snug text-ink">
+                      <span className="min-w-0 flex-1 truncate text-[13px] leading-snug text-ink">
                         {entry.msg}
                       </span>
                     )}
@@ -684,13 +698,13 @@ export function LogExplorer({ className, focus }: LogExplorerProps) {
           )}
         </div>
 
-        <div className="flex shrink-0 items-center gap-2 border-t border-dashed border-rule px-3 py-1 text-[10px] tracking-wide text-ink-ghost">
+        <div className="flex shrink-0 items-center gap-2 border-t border-rule px-1 pt-3 text-[12px] text-ink-ghost">
           <span className="tabular-nums">
             {rows.length} {rows.length === 1 ? "line" : "lines"}
             {hiddenNoise > 0 ? ` · ${hiddenNoise} health checks hidden` : ""}
           </span>
           {logsQuery.isFetching && !logsQuery.isLoading ? <span className="size-1 rounded-full bg-sage" aria-hidden /> : null}
-          <span className="ml-auto">Hover for detail · click to pin</span>
+          <span className="ml-auto">Hover for detail · click a line to pin it</span>
         </div>
       </div>
 
