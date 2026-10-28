@@ -59,7 +59,7 @@ function Digit({ digit, delay }: DigitProps) {
  */
 export function Ticker({ value, loadingDigits = 2, delay = 0, className = "" }: TickerProps) {
   const reduced = useReducedMotion() ?? false;
-  const face = `inline-flex font-numeric leading-none tabular-nums ${className}`;
+  const face = `inline-flex leading-none tabular-nums ${className}`;
 
   if (value === null) {
     return (

@@ -1,13 +1,15 @@
 import { useSyncExternalStore, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQuery } from "@tanstack/react-query";
+import { useQueries, useQuery } from "@tanstack/react-query";
 import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharWidget } from "../features/ghar/widget";
-import { MemoryCounters } from "../features/memory/MemoryCounters";
-import { SystemMap } from "../features/system/SystemMap";
+import { COUNTED_KINDS, MemoryCounters, kindCountKey, type KindCount } from "../features/memory/MemoryCounters";
+import { SystemMap, serviceHealth } from "../features/system/SystemMap";
+import type { NasStatus } from "../shared/api/nas";
 import { TimelineCalendar } from "../features/timeline/TimelineCalendar";
 import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
+import { CHAAVI_ITEMS_KEY } from "../shared/api/chaavi";
 import { getRunning, subscribeRunning } from "../store/running";
 import type { AgentRecord } from "../types/hath";
 import { WidgetFrame } from "../shared/components/WidgetFrame";
@@ -33,6 +35,13 @@ export function WidgetGridPage() {
   const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
   const running = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
   const working = Object.values(running).filter((lanes) => lanes.reasoning || lanes.conversation).length;
+  const counts = useQueries({
+    queries: COUNTED_KINDS.map((kind) => ({ queryKey: kindCountKey(kind), enabled: false })),
+    combine: (results) => (results.every((q) => q.data) ? results.reduce((sum, q) => sum + (q.data as KindCount).thisWeek, 0) : null),
+  });
+  const vault = useQuery<{ items: unknown[] }>({ queryKey: CHAAVI_ITEMS_KEY, enabled: false });
+  const health = useQuery<NasStatus>({ queryKey: ["nas", "status"], enabled: false });
+  const down = health.data ? serviceHealth(health.data).filter((s) => !s.ok).length : null;
   const agentsAside = agents.data
     ? `${working} working · ${agents.data.filter((agent) => agent.active).length} agents`
     : null;
@@ -70,6 +79,7 @@ export function WidgetGridPage() {
 
       <WidgetFrame
         title="Yaad"
+        aside={counts === null ? null : `+${counts.toLocaleString()} this week`}
         role="link"
         tabIndex={0}
         onClick={open("/yaad")}
@@ -110,6 +120,7 @@ export function WidgetGridPage() {
 
       <WidgetFrame
         title="Chaavi"
+        aside={vault.data ? `${vault.data.items.length} items` : null}
         role="link"
         tabIndex={0}
         onClick={open("/chaavi")}
@@ -123,6 +134,14 @@ export function WidgetGridPage() {
 
       <WidgetFrame
         title="System"
+        aside={
+          down === null ? null : (
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden className={`size-1.5 rounded-full ${down === 0 ? "bg-sage" : "border border-dashed border-ink-ghost"}`} />
+              {down === 0 ? "All healthy" : `${down} offline`}
+            </span>
+          )
+        }
         role="link"
         tabIndex={0}
         onClick={open("/system")}

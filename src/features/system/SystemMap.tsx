@@ -80,7 +80,8 @@ function diskDisplayName(d: {
   return d.name;
 }
 
-function serviceHealth(status: NasStatus): Array<{ name: string; ok: boolean }> {
+/** Every module with whether it answers, in the house order, Nas first among its peers. */
+export function serviceHealth(status: NasStatus): Array<{ name: string; ok: boolean }> {
   const byName = new Map(status.services.map((s) => [s.name, s.healthy]));
   byName.set("nas", true);
   const seen = new Set<string>();
@@ -120,7 +121,7 @@ function resourceRows(status: NasStatus): ResourceRow[] {
   if (status.memory && status.memory.total_bytes > 0) {
     rows.push({
       key: "memory",
-      kind: "RAM",
+      kind: "Memory",
       name: status.memory.name || "System memory",
       pct: status.memory.used_percent,
       detail: `${formatBytes(status.memory.used_bytes)} / ${formatBytes(status.memory.total_bytes)}`,
@@ -153,7 +154,7 @@ function resourceRows(status: NasStatus): ResourceRow[] {
     }
     rows.push({
       key: `disk-${d.name}`,
-      kind: volumes.length > 1 ? shortDiskKind(d) : "DISK",
+      kind: volumes.length > 1 ? shortDiskKind(d) : "Disk",
       name: diskDisplayName(d),
       pct: diskVolumePct(d.free_bytes, d.total_bytes, d.used_percent),
       detail: `${formatBytes(d.free_bytes)} free of ${formatBytes(d.total_bytes)} · ${d.mount}`,
@@ -168,16 +169,16 @@ function shortDiskKind(d: {
   mount: string;
 }): string {
   if (d.mount === "/var/home" || d.mount === "/home") {
-    return "HOME";
+    return "Home";
   }
   if (d.mount === "/var" || d.mount === "/" || d.mount === "/sysroot") {
-    return "OS";
+    return "System disk";
   }
   const t = (d.transport || "").toLowerCase();
   if (t === "nvme" || d.name.startsWith("nvme")) {
-    return "NVME";
+    return "NVMe";
   }
-  return d.name.slice(0, 8).toUpperCase();
+  return d.name.slice(0, 8);
 }
 
 /**
@@ -485,84 +486,55 @@ function SystemPreview({
   return (
     <div
       ref={rootRef}
-      className={`flex h-full min-h-0 flex-col overflow-hidden px-3.5 pb-2.5 pt-1 ${className ?? ""}`}
+      className={`flex h-full min-h-0 flex-col overflow-hidden px-4 pb-3 pt-2 ${className ?? ""}`}
     >
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <p className="mb-1.5 text-[11px] font-medium tracking-[1.2px] text-ink-ghost">
-          MODULES
-        </p>
-        <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
-          {services.map((s) => (
-            <li key={s.name} className="flex items-center gap-2" title={s.ok ? "reachable" : "offline"}>
-              <span
-                className={`size-[7px] shrink-0 rounded-full ${
-                  s.ok ? "bg-sage" : "border border-dashed border-ink-ghost"
-                }`}
-              />
-              <span className={`truncate text-[13px] ${s.ok ? "text-ink" : "text-ink-ghost"}`}>{s.name}</span>
-            </li>
-          ))}
-        </ul>
+      <ul className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 pb-3">
+        {services.map((s) => (
+          <li key={s.name} className="flex items-center gap-2" title={s.ok ? "reachable" : "offline"}>
+            <span className={`size-1.5 shrink-0 rounded-full ${s.ok ? "bg-sage" : "border border-dashed border-ink-ghost"}`} />
+            <span className={`truncate text-[13px] ${s.ok ? "text-ink" : "text-ink-ghost"}`}>{s.name}</span>
+          </li>
+        ))}
+      </ul>
 
-        <p className="mb-1.5 mt-4 text-[11px] font-medium tracking-[1.2px] text-ink-ghost">
-          CLIENTS
-        </p>
+      <div className="h-px shrink-0 bg-rule" />
+
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-3">
+        {meters.map((row) => (
+          <div key={row.key} className="flex flex-col gap-1.5">
+            <div className="flex items-baseline justify-between gap-2 text-[12px]">
+              <span className="text-ink-muted">{row.kind}</span>
+              <span className="font-semibold tabular-nums text-ink">{row.pct == null ? "—" : `${Math.round(row.pct)}%`}</span>
+            </div>
+            <div className="h-1 overflow-hidden rounded-full bg-rule">
+              {row.pct != null ? (
+                <div
+                  className={`h-full rounded-full transition-[width] duration-slow ease-dadi ${row.pct > 85 ? "bg-error" : row.pct > 65 ? "bg-[var(--clay)]" : "bg-sage"}`}
+                  style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
+                />
+              ) : null}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1 pt-2 text-[12px] text-ink-muted">
         {clientsPending ? (
           <span className="skeleton h-2.5 w-1/2" />
         ) : mesh.length === 0 ? (
-          <p className="text-[13px] text-ink-ghost">None connected</p>
+          <span className="text-ink-ghost">No devices connected</span>
         ) : (
-          <ul className="flex flex-col gap-1.5">
-            {mesh.map((c) => (
-              <li key={c.node_name} className="flex items-center gap-2.5">
-                <span
-                  className={`size-[7px] shrink-0 rounded-full ${
-                    c.pending
-                      ? "bg-sage"
-                      : c.online
-                        ? "bg-ink"
-                        : "bg-ink-ghost"
-                  }`}
-                  aria-hidden
-                />
-                <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
-                  {c.node_name}
-                </span>
-                <span className="shrink-0 text-[12px] text-ink-ghost">
-                  {clientLabel(c)}
-                </span>
-              </li>
-            ))}
-          </ul>
+          mesh.map((c) => (
+            <span key={c.node_name} className="flex items-center gap-1.5" title={clientLabel(c)}>
+              <span
+                aria-hidden
+                className={`size-1.5 rounded-full ${c.online ? "bg-sage" : "border border-dashed border-ink-ghost"}`}
+              />
+              <span className={c.online ? "" : "text-ink-ghost"}>{c.node_name}</span>
+            </span>
+          ))
         )}
       </div>
-
-      {meters.length > 0 ? (
-        <div className="mt-3 flex flex-col gap-2.5">
-          {meters.map((row) => (
-            <div key={row.key}>
-              <div className="mb-1 flex items-baseline justify-between gap-2">
-                <span className="text-[11px] font-medium tracking-[1.2px] text-ink-ghost">
-                  {row.kind.toLowerCase()}
-                </span>
-                <span className="text-[12px] tabular-nums text-ink">
-                  {row.pct == null ? "—" : `${Math.round(row.pct)}%`}
-                </span>
-              </div>
-              <div className="h-[5px] overflow-hidden rounded-[3px] bg-rule">
-                {row.pct != null ? (
-                  <div
-                    className="h-full rounded-[3px] bg-sage"
-                    style={{
-                      width: `${Math.min(100, Math.max(0, row.pct))}%`,
-                    }}
-                  />
-                ) : null}
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : null}
     </div>
   );
 }
