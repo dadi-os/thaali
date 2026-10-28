@@ -470,15 +470,15 @@ function SystemPreview({
         <p className="mb-1.5 text-[11px] font-medium tracking-[1.2px] text-ink-ghost">
           MODULES
         </p>
-        <ul className="flex flex-col gap-1">
+        <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
           {services.map((s) => (
-            <li key={s.name} className="flex items-center justify-between gap-2">
-              <span className="truncate text-[13px] text-ink">{s.name}</span>
+            <li key={s.name} className="flex items-center gap-2" title={s.ok ? "reachable" : "offline"}>
               <span
-                className={`text-[13px] ${s.ok ? "text-sage-deep" : "text-error"}`}
-              >
-                {s.ok ? "✓" : "✕"}
-              </span>
+                className={`size-[7px] shrink-0 rounded-full ${
+                  s.ok ? "bg-sage" : "border border-dashed border-ink-ghost"
+                }`}
+              />
+              <span className={`truncate text-[13px] ${s.ok ? "text-ink" : "text-ink-ghost"}`}>{s.name}</span>
             </li>
           ))}
         </ul>
@@ -487,7 +487,7 @@ function SystemPreview({
           CLIENTS
         </p>
         {clientsPending ? (
-          <p className="text-[13px] text-ink-ghost">Loading…</p>
+          <span className="skeleton h-2.5 w-1/2" />
         ) : mesh.length === 0 ? (
           <p className="text-[13px] text-ink-ghost">None connected</p>
         ) : (

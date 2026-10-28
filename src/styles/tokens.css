@@ -239,20 +239,85 @@
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  justify-content: center;
-  padding: 0.55rem 0.85rem 0.15rem;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.6rem 1rem 0;
 }
 
 .widget-frame__title {
   color: var(--sage-text);
-  font-size: 10px;
-  font-weight: 500;
-  letter-spacing: 0.14em;
-  line-height: 1;
-  text-indent: 0.14em;
-  text-transform: uppercase;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.2;
   white-space: nowrap;
-  opacity: 0.85;
+}
+
+.widget-frame__aside {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--ink-ghost);
+  font-size: 11.5px;
+  white-space: nowrap;
+}
+
+/* Home grid: named areas so the same six widgets reflow for a portrait monitor; each rises in turn. */
+.home-grid {
+  display: grid;
+  gap: 1.25rem;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-rows: repeat(4, minmax(0, 1fr));
+  grid-template-areas:
+    "agents agents timeline timeline"
+    "agents agents timeline timeline"
+    "memory memory chaavi system"
+    "ghar ghar chaavi system";
+}
+
+@media (orientation: portrait) {
+  .home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 22fr) minmax(0, 34fr) minmax(0, 9fr) minmax(0, 8fr) minmax(0, 24fr);
+    grid-template-areas:
+      "agents agents"
+      "timeline timeline"
+      "memory memory"
+      "ghar ghar"
+      "chaavi system";
+  }
+}
+
+.home-grid > .widget-frame {
+  animation: widget-rise var(--slower) var(--ease) backwards;
+}
+
+.home-grid > .widget-frame:nth-child(2) {
+  animation-delay: 60ms;
+}
+.home-grid > .widget-frame:nth-child(3) {
+  animation-delay: 120ms;
+}
+.home-grid > .widget-frame:nth-child(4) {
+  animation-delay: 180ms;
+}
+.home-grid > .widget-frame:nth-child(5) {
+  animation-delay: 240ms;
+}
+.home-grid > .widget-frame:nth-child(6) {
+  animation-delay: 300ms;
+}
+
+@keyframes widget-rise {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.99);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .home-grid > .widget-frame {
+    animation: none;
+  }
 }
 
 /* Chat rail — olive strip in light, charcoal strip in dark. Contrasts widgets either way. */

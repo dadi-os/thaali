@@ -110,13 +110,19 @@ export function ChaaviTile() {
             : null}
         </div>
         <div className="flex flex-wrap gap-x-3 gap-y-1">
-          {byType.map((entry) => (
-            <span key={entry.type} className="inline-flex items-center gap-1.5 text-[11px] text-ink-muted">
-              <span className="size-[7px] rounded-[2px]" style={{ background: TYPE_TONE[entry.type] }} />
-              {TYPE_META[entry.type].many}
-              <span className="font-numeric text-ink">{items ? entry.n : "–"}</span>
-            </span>
-          ))}
+          {items ? (
+            byType
+              .filter((entry) => entry.n > 0)
+              .map((entry) => (
+                <span key={entry.type} className="inline-flex items-center gap-1.5 text-[11px] text-ink-muted">
+                  <span className="size-[7px] rounded-[2px]" style={{ background: TYPE_TONE[entry.type] }} />
+                  {TYPE_META[entry.type].many}
+                  <span className="font-numeric text-ink">{entry.n}</span>
+                </span>
+              ))
+          ) : (
+            <span className="skeleton h-2.5 w-2/3" />
+          )}
         </div>
       </Section>
 

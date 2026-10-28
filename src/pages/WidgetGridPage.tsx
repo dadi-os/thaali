@@ -1,25 +1,41 @@
-import type { KeyboardEvent } from "react";
+import { useSyncExternalStore, type KeyboardEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { motion } from "motion/react";
+import { useQuery } from "@tanstack/react-query";
 import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharWidget } from "../features/ghar/widget";
 import { MemoryCounters } from "../features/memory/MemoryCounters";
 import { SystemMap } from "../features/system/SystemMap";
 import { TimelineCalendar } from "../features/timeline/TimelineCalendar";
-import { EASE, SLOW_S } from "../shared/lib/ux/motion";
+import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
+import { getRunning, subscribeRunning } from "../store/running";
+import type { AgentRecord } from "../types/hath";
 import { WidgetFrame } from "../shared/components/WidgetFrame";
 import { ErrorBoundary } from "../shared/components/states";
 
 const tile =
   "min-h-0 w-full cursor-pointer transition-[border-color,transform] duration-slow ease-dadi hover:border-sage hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage";
 
+/** "Week of Oct 26": the Monday that starts this week. */
+function weekOf(now: Date): string {
+  const monday = new Date(now);
+  monday.setDate(now.getDate() - ((now.getDay() + 6) % 7));
+  return `Week of ${monday.toLocaleDateString("en-US", { month: "short", day: "numeric" })}`;
+}
+
 /**
- * Home widget grid — 4×4 on desktop.
- * Hath 2×2, Timeline 2×2, Yaad 2×1, Ghar 2×1, Chaavi 1×2, System 1×2.
+ * Home widget grid — 4×4 on a landscape window, two columns on a portrait one (see
+ * `.home-grid`): Hath 2×2, Timeline 2×2, Yaad 2×1, Ghar 2×1, Chaavi 1×2, System 1×2.
+ * Each widget names itself on the left of its title row and says how it is on the right.
  */
 export function WidgetGridPage() {
   const navigate = useNavigate();
+  const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
+  const running = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
+  const working = Object.values(running).filter((lanes) => lanes.reasoning || lanes.conversation).length;
+  const agentsAside = agents.data
+    ? `${working} working · ${agents.data.filter((agent) => agent.active).length} agents`
+    : null;
 
   const open = (path: string) => () => navigate(path);
   const onActivate =
@@ -31,19 +47,15 @@ export function WidgetGridPage() {
     };
 
   return (
-    <motion.div
-      className="grid h-full min-h-0 grid-cols-1 gap-5 overflow-hidden px-2 py-2 auto-rows-[minmax(160px,1fr)] md:grid-cols-4 md:grid-rows-4 md:auto-rows-fr"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: SLOW_S, ease: EASE }}
-    >
+    <div className="home-grid h-full min-h-0 overflow-hidden px-2 py-2">
       <WidgetFrame
-        title="HATH"
+        title="Hath"
+        aside={agentsAside}
         role="link"
         tabIndex={0}
         onClick={open("/hath")}
         onKeyDown={onActivate("/hath")}
-        className={`${tile} md:col-span-2 md:row-span-2 md:col-start-1 md:row-start-1`}
+        className={`${tile} [grid-area:agents]`}
       >
         <ErrorBoundary label="Hath" compact>
           <AgentGraph3D
@@ -57,12 +69,12 @@ export function WidgetGridPage() {
       </WidgetFrame>
 
       <WidgetFrame
-        title="YAAD"
+        title="Yaad"
         role="link"
         tabIndex={0}
         onClick={open("/yaad")}
         onKeyDown={onActivate("/yaad")}
-        className={`${tile} md:col-span-2 md:col-start-1 md:row-start-3`}
+        className={`${tile} [grid-area:memory]`}
       >
         <ErrorBoundary label="Yaad" compact>
           <MemoryCounters />
@@ -70,12 +82,13 @@ export function WidgetGridPage() {
       </WidgetFrame>
 
       <WidgetFrame
-        title="TIMELINE"
+        title="Timeline"
+        aside={weekOf(new Date())}
         role="link"
         tabIndex={0}
         onClick={open("/timeline?view=week")}
         onKeyDown={onActivate("/timeline?view=week")}
-        className={`${tile} md:col-span-2 md:col-start-3 md:row-span-2 md:row-start-1`}
+        className={`${tile} [grid-area:timeline]`}
       >
         <ErrorBoundary label="Timeline" compact>
           <TimelineCalendar mode="preview" hideIdeas />
@@ -83,12 +96,12 @@ export function WidgetGridPage() {
       </WidgetFrame>
 
       <WidgetFrame
-        title="GHAR"
+        title="Ghar"
         role="link"
         tabIndex={0}
         onClick={open("/ghar")}
         onKeyDown={onActivate("/ghar")}
-        className={`${tile} md:col-span-2 md:col-start-1 md:row-start-4`}
+        className={`${tile} [grid-area:ghar]`}
       >
         <ErrorBoundary label="Ghar" compact>
           <GharWidget />
@@ -96,12 +109,12 @@ export function WidgetGridPage() {
       </WidgetFrame>
 
       <WidgetFrame
-        title="CHAAVI"
+        title="Chaavi"
         role="link"
         tabIndex={0}
         onClick={open("/chaavi")}
         onKeyDown={onActivate("/chaavi")}
-        className={`${tile} md:col-span-1 md:col-start-3 md:row-span-2 md:row-start-3`}
+        className={`${tile} [grid-area:chaavi]`}
       >
         <ErrorBoundary label="Chaavi" compact>
           <ChaaviTile />
@@ -109,17 +122,17 @@ export function WidgetGridPage() {
       </WidgetFrame>
 
       <WidgetFrame
-        title="SYSTEM"
+        title="System"
         role="link"
         tabIndex={0}
         onClick={open("/system")}
         onKeyDown={onActivate("/system")}
-        className={`${tile} md:col-span-1 md:col-start-4 md:row-span-2 md:row-start-3`}
+        className={`${tile} [grid-area:system]`}
       >
         <ErrorBoundary label="System" compact>
           <SystemMap mode="preview" />
         </ErrorBoundary>
       </WidgetFrame>
-    </motion.div>
+    </div>
   );
 }
