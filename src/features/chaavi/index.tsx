@@ -191,7 +191,8 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
   const searched = items === null ? [] : searchItems(items, query);
   const scoped = searched.filter((item) => inScope(item, scope, folders));
   const shown = scoped.filter((item) => typeFilter === null || item.type === typeFilter);
-  const selected = items?.find((item) => item.id === selectedId) ?? null;
+  /** The open item: the one picked, or until one is picked the first item listed, so the pane opens on an item (secrets still hidden) instead of an empty "Select an item". */
+  const selected = items?.find((item) => item.id === selectedId) ?? shown[0] ?? null;
   const dragged = ghost === null ? null : (items?.find((item) => item.id === ghost.id) ?? null);
 
   const typeCounts =
@@ -409,7 +410,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
                         key={item.id}
                         item={item}
                         index={i}
-                        selected={item.id === selectedId}
+                        selected={item.id === selected?.id}
                         dragging={ghost !== null && ghost.id === item.id}
                         onPointerDown={onPointerDown}
                         onPointerMove={onPointerMove}

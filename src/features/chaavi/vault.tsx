@@ -530,17 +530,28 @@ const MONOGRAM_TINTS = [
   "bg-[color-mix(in_srgb,#7d9aa6_18%,transparent)] text-[color-mix(in_srgb,#7d9aa6_60%,var(--ink))]",
 ];
 
+export type MonogramProps = {
+  /** The item's name: its first letter, and the tint it picks. */
+  name: string;
+  /** Size and type utilities; a list row's is `size-[34px] rounded-[10px] text-[14px]`. */
+  className?: string;
+};
+
+/** Khisso's item monogram: the name's first letter on a tile tinted by the name. */
+export function Monogram({ name, className = "size-[34px] rounded-[10px] text-[14px]" }: MonogramProps) {
+  const tint = MONOGRAM_TINTS[[...name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % MONOGRAM_TINTS.length];
+  return (
+    <span aria-hidden className={`inline-flex shrink-0 items-center justify-center font-semibold ${tint} ${className}`}>
+      {name.trim().charAt(0).toUpperCase()}
+    </span>
+  );
+}
+
 /** An item's monogram, name and subtitle, shared by the row and the drag ghost. */
 export function ItemFace({ item }: ItemFaceProps) {
-  const tint = MONOGRAM_TINTS[[...item.name].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % MONOGRAM_TINTS.length];
   return (
     <>
-      <span
-        aria-hidden
-        className={`inline-flex size-[34px] shrink-0 items-center justify-center rounded-[10px] text-[14px] font-semibold ${tint}`}
-      >
-        {item.name.trim().charAt(0).toUpperCase()}
-      </span>
+      <Monogram name={item.name} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[13px] text-ink">{item.name}</span>
         <span className="truncate text-[11px] text-ink-ghost">{itemSubtitle(item)}</span>

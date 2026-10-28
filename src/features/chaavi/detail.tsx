@@ -12,7 +12,8 @@ import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatRelative } from "../../shared/lib/ux/time";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
 import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META } from "./draft";
-import { IconExternal, IconEye, IconEyeOff, IconPencil, IconSpinner, IconStar, IconTrash, TypeGlyph } from "./icons";
+import { IconExternal, IconEye, IconEyeOff, IconPencil, IconSpinner, IconStar, IconTrash } from "./icons";
+import { Monogram } from "./vault";
 
 const MASK = "••••••••••••";
 
@@ -96,15 +97,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
     <div className="flex min-h-full flex-col">
       <motion.header variants={RISE} className="flex items-start justify-between gap-4 px-5 pt-3.5 pb-4">
         <div className="flex min-w-0 gap-3.5">
-          <span
-            className={`inline-flex size-[46px] shrink-0 items-center justify-center rounded-full border ${
-              item.type === "card"
-                ? "border-[color-mix(in_srgb,var(--clay)_60%,transparent)] bg-[color-mix(in_srgb,var(--clay)_14%,var(--bone))] text-[var(--clay)]"
-                : "border-sage-line bg-bone text-sage-deep"
-            }`}
-          >
-            <TypeGlyph type={item.type} size={20} />
-          </span>
+          <Monogram name={item.name} className="size-[46px] rounded-[14px] text-[19px]" />
           <div className="min-w-0">
             <span className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">{TYPE_META[item.type].one}</span>
             <h2 className="mt-1 mb-2 text-[22px] font-medium tracking-tight text-balance text-ink">{item.name}</h2>
