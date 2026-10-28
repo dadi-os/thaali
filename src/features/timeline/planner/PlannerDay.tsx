@@ -193,7 +193,7 @@ function Focus({ current, next, nowMin, onOpen }: FocusProps) {
   return (
     <Section label={current !== null ? "Now" : "Next"}>
       {current !== null ? (
-        <button type="button" onClick={(e) => onOpen(current.block, e.currentTarget)} className="block w-full text-left">
+        <button type="button" onClick={(e) => onOpen(current.block, e.currentTarget)} onContextMenu={(e) => { e.preventDefault(); onOpen(current.block, e.currentTarget); }} className="block w-full text-left">
           <p className="text-[22px] leading-[1.2] font-medium tracking-[-0.01em] text-ink">{current.block.title}</p>
           <p className="mt-1.5 text-[13px] tabular-nums text-ink-muted">{formatRange(current.startMin, current.endMin)}</p>
           <span className="mt-4 block h-[3px] overflow-hidden rounded-full bg-rule">
@@ -207,7 +207,7 @@ function Focus({ current, next, nowMin, onOpen }: FocusProps) {
         </button>
       ) : null}
       {next !== null ? (
-        <button type="button" onClick={(e) => onOpen(next.block, e.currentTarget)} className={`block w-full text-left ${current !== null ? "mt-7" : ""}`}>
+        <button type="button" onClick={(e) => onOpen(next.block, e.currentTarget)} onContextMenu={(e) => { e.preventDefault(); onOpen(next.block, e.currentTarget); }} className={`block w-full text-left ${current !== null ? "mt-7" : ""}`}>
           {current !== null ? <p className="mb-1.5 text-[11px] font-medium tracking-[0.14em] text-ink-ghost uppercase">Next</p> : null}
           <p className={current !== null ? "text-[15px] font-medium text-ink" : "text-[22px] leading-[1.2] font-medium tracking-[-0.01em] text-ink"}>
             {next.block.title}
@@ -243,6 +243,10 @@ function DayList({ segments, current, now, onOpen }: DayListProps) {
               <button
                 type="button"
                 onClick={(e) => onOpen(segment.block, e.currentTarget)}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  onOpen(segment.block, e.currentTarget);
+                }}
                 className="-mx-2.5 grid w-[calc(100%+1.25rem)] grid-cols-[4.25rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 rounded-[9px] px-2.5 py-[7px] text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
               >
                 <span className="text-[12px] tabular-nums text-ink-ghost">{formatMinuteOfDay(segment.startMin)}</span>
@@ -280,6 +284,10 @@ function After({ day, segments, onOpen }: AfterProps) {
             <button
               type="button"
               onClick={(e) => onOpen(segment.block, e.currentTarget)}
+              onContextMenu={(e) => {
+                e.preventDefault();
+                onOpen(segment.block, e.currentTarget);
+              }}
               className="-mx-2.5 grid w-[calc(100%+1.25rem)] grid-cols-[4.25rem_minmax(0,1fr)] items-baseline gap-x-3 rounded-[9px] px-2.5 py-[7px] text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
             >
               <span className="text-[12px] tabular-nums text-ink-ghost">{formatMinuteOfDay(segment.startMin)}</span>
@@ -322,6 +330,10 @@ function BlockRow({ segment, top, settled, now, current, delay, onOpen }: BlockR
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.995 }}
       onClick={(e) => onOpen(block, e.currentTarget)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpen(block, e.currentTarget);
+      }}
       aria-label={`${block.title}, ${formatRange(startMin, endMin)}`}
       className={`absolute flex overflow-hidden rounded-[14px] px-4 text-left transition-shadow duration-slow ease-dadi hover:z-10 hover:shadow-[var(--shadow)] ${
         TONE_CLASS[block.kind === null ? "solid" : KIND_TONE[block.kind]]

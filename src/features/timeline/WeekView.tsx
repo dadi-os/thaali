@@ -141,6 +141,10 @@ function PlanChip({ plan, day, now, delay, onOpen }: PlanChipProps) {
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.98 }}
       onClick={(e) => onOpen(plan, e.currentTarget)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpen(plan, e.currentTarget);
+      }}
       className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.status)} ${
         plan.state === "cancelled" || plan.outcome === "done" ? "line-through" : ""
       }`}

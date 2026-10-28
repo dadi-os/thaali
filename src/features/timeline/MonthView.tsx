@@ -225,6 +225,10 @@ function MonthBar({ plan, lane, from, to, week, now, delay, onOpen }: MonthBarPr
       animate={{ opacity: span.end < now ? 0.55 : 1 }}
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       onClick={(e) => onOpen(plan, e.currentTarget)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpen(plan, e.currentTarget);
+      }}
       style={{ gridColumn: `${from + 1} / ${to + 2}`, gridRow: lane + 2 }}
       className={`relative flex h-[18px] min-w-0 items-center px-1 text-left text-[10.5px] leading-none ${statusClass(plan.status)} ${
         starts ? "ml-1 rounded-l-[6px]" : "rounded-l-none border-l-0 pl-2"
@@ -265,6 +269,10 @@ function MonthItem({ plan, col, slot, dim, now, delay, onOpen }: MonthItemProps)
       animate={{ opacity: span.end < now || dim ? 0.55 : 1, x: 0 }}
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       onClick={(e) => onOpen(plan, e.currentTarget)}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onOpen(plan, e.currentTarget);
+      }}
       style={{ gridColumn: col + 1, gridRow: slot + 2 }}
       className="relative mx-1 flex h-[18px] min-w-0 items-center gap-1 rounded-[4px] px-1 text-left text-[10.5px] leading-none transition-colors duration-slow ease-dadi hover:bg-sage-fill"
     >

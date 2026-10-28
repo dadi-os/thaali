@@ -62,6 +62,10 @@ function Entry({ item, index, onOpen, keeper }: EntryProps) {
       <button
         type="button"
         onClick={(e) => onOpen(item, e.currentTarget)}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          onOpen(item, e.currentTarget);
+        }}
         className={`flex w-full items-center gap-3 rounded-[10px] border px-3 py-2 text-left transition-[border-color,transform] duration-slow ease-dadi hover:-translate-y-px hover:border-sage ${
           line ? "border-rule bg-[var(--glass-sheet)]" : "border-dashed border-sage-line"
         }`}
