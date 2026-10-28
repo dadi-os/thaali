@@ -221,7 +221,28 @@ export function SystemMap({ mode, className }: SystemMapProps) {
   }
 
   if (!statusQuery.data) {
-    return <StateView tone="loading" label="Reading health" compact={preview} className={className} />;
+    return (
+      <div role="status" aria-label="Reading health" className={`flex h-full min-h-0 flex-col gap-3 ${preview ? "px-3.5 pt-2" : ""} ${className ?? ""}`}>
+        {preview ? (
+          <>
+            <span className="skeleton h-2 w-16" />
+            <div className="grid grid-cols-2 gap-2">
+              {[0, 1, 2, 3, 4, 5].map((i) => (
+                <span key={i} className="skeleton h-3 w-3/4" />
+              ))}
+            </div>
+            <span className="skeleton mt-auto mb-3 h-2 w-full" />
+          </>
+        ) : (
+          <>
+            <span className="skeleton h-[170px] rounded-[var(--radius-window)]" />
+            {[0, 1, 2, 3, 4, 5].map((i) => (
+              <span key={i} className="skeleton h-3.5 w-1/2" />
+            ))}
+          </>
+        )}
+      </div>
+    );
   }
 
   const status = statusQuery.data;
