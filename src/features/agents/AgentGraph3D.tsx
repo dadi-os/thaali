@@ -165,6 +165,8 @@ export function AgentGraph3D({
   const details = useHoverDetails(entranceKey);
   const queryClient = useQueryClient();
   const [focusId, setFocusId] = useState<string | null>(null);
+  /** The agent last clicked on the page: its details stay docked at the graph's right edge until closed. */
+  const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
 
   const matches = useMemo(() => {
@@ -182,6 +184,7 @@ export function AgentGraph3D({
 
   useEffect(() => {
     setFocusId(focusOnEntry);
+    setPinnedId(null);
     setQuery("");
     if (focusOnEntry !== null) {
       openAgent(focusOnEntry);
@@ -191,12 +194,16 @@ export function AgentGraph3D({
   const clearFocus = useCallback(() => {
     details.close();
     setFocusId(null);
+    setPinnedId(null);
   }, [details.close]);
 
   const focusAgent = (agentId: string) => {
     details.close();
     setFocusId(agentId);
     openAgent(agentId);
+    if (interactive) {
+      setPinnedId(agentId);
+    }
   };
 
   if (!connected) {
@@ -243,7 +250,9 @@ export function AgentGraph3D({
     );
   }
 
-  const detailAgent = details.id ? agentsById.get(details.id) : undefined;
+  const shownId = pinnedId ?? details.id;
+  const detailAgent = shownId ? agentsById.get(shownId) : undefined;
+  const root = rootRef.current;
   const detailBrowserId =
     detailAgent && browsersQuery.isSuccess
       ? pickLiveBrowser(detailAgent.sessions.browsers, browsersQuery.data)
@@ -327,16 +336,16 @@ export function AgentGraph3D({
 
       {interactive ? (
         <AgentPopover
-          open={details.open}
-          agentId={details.id}
+          open={pinnedId !== null || details.open}
+          agentId={shownId}
           agentsById={agentsById}
           runningMap={runningMap}
-          anchor={details.anchor}
+          anchor={pinnedId !== null && root ? { x: root.clientWidth - 12, y: root.clientHeight / 2, radius: 0 } : details.anchor}
           containerRef={rootRef as RefObject<HTMLElement | null>}
           browserId={detailBrowserId}
           terminal={detailTerminal}
-          hover={{ onInside: details.keep, onOutside: details.leave }}
-          onClose={details.close}
+          {...(pinnedId === null ? { hover: { onInside: details.keep, onOutside: details.leave } } : {})}
+          onClose={pinnedId === null ? details.close : () => setPinnedId(null)}
           onSelectParent={focusAgent}
         />
       ) : null}
