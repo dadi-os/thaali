@@ -48,8 +48,9 @@ export type AgentGraph3DProps = {
   /** Changes on each arrival at the page; resets the simulation and open details. */
   entranceKey: string;
   /**
-   * Page mode: orbit, hover details, click to focus and open chat, and a label on every
-   * agent. Off for the home tile, which labels live agents only.
+   * Page mode: orbit, hover details, click to focus and open chat, and a label on every live,
+   * top-level or parent agent (a leaf sub-agent, usually a one-shot worker, is labelled when
+   * hovered, focused or matched). Off for the home tile, which labels live agents only.
    */
   interactive: boolean;
   /** Agent to focus (and open in chat) on each arrival at the page, e.g. one picked on the home tile. */
@@ -148,15 +149,18 @@ export function AgentGraph3D({
     return syncForceSimulation(sim, nodes, edges);
   }, [sim, agents]);
 
-  const pinnedLabels = useMemo(
-    () =>
-      new Set(
-        graph.nodes
-          .filter((n) => interactive || isLiveVisual(visualState(n, runningMap[n.id])))
-          .map((n) => n.id),
-      ),
-    [graph.nodes, runningMap, interactive],
-  );
+  const pinnedLabels = useMemo(() => {
+    const parents = new Set(graph.nodes.map((n) => n.parent_agent_id));
+    return new Set(
+      graph.nodes
+        .filter(
+          (n) =>
+            isLiveVisual(visualState(n, runningMap[n.id])) ||
+            (interactive && (n.depth === 0 || parents.has(n.id))),
+        )
+        .map((n) => n.id),
+    );
+  }, [graph.nodes, runningMap, interactive]);
 
   const details = useHoverDetails(entranceKey);
   const queryClient = useQueryClient();
