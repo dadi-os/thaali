@@ -22,6 +22,12 @@ import { notifyAgentMessage } from "../lib/platform/notify";
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
+/**
+ * A dropped stream toasts only once it has kept failing this long between retries (about half
+ * a minute of drops) while the mesh itself is up; shorter blips, like a flaky Wi-Fi, are only
+ * logged, and a mesh that is down is the offline pill's to say.
+ */
+const TOAST_AFTER_MS = 15_000;
 
 /** React Query key for GET /agents. */
 export const AGENTS_QUERY_KEY = ["agents"] as const;
@@ -242,13 +248,15 @@ export function useEvents(): void {
       const delay = backoff;
       backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
       logLine("warn", `${reason}; retrying in ${delay}ms`, code);
-      pushToast({
-        key: "events_stream",
-        tone: "error",
-        title: "Live updates dropped",
-        body: `${reason}; retrying in ${Math.round(delay / 1000)}s`,
-        target: { kind: "logs", service: "hath", q: "", at: new Date().toISOString() },
-      });
+      if (delay >= TOAST_AFTER_MS && transport.connectionState() === "connected") {
+        pushToast({
+          key: "events_stream",
+          tone: "error",
+          title: "Live updates dropped",
+          body: `${reason}; retrying in ${Math.round(delay / 1000)}s`,
+          target: { kind: "logs", service: "hath", q: "", at: new Date().toISOString() },
+        });
+      }
       timer = setTimeout(() => {
         if (gen !== generation || !transport.isActive()) {
           return;

@@ -7,6 +7,12 @@ import { useConnection } from "./useConnection";
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;
+/**
+ * A dropped stream toasts only once it has kept failing this long between retries (about half
+ * a minute of drops) while the mesh itself is up; shorter blips, like a flaky Wi-Fi, are only
+ * logged, and a mesh that is down is the offline pill's to say.
+ */
+const TOAST_AFTER_MS = 15_000;
 /** Changes that land within this window refetch once, so a burst of writes costs one round trip. */
 const COALESCE_MS = 300;
 
@@ -76,13 +82,15 @@ export function follow(source: LiveSource, queryClient: QueryClient): () => void
         backoff = Math.min(backoff * 2, MAX_BACKOFF_MS);
         const reason = `${source.name} event stream closed; retrying in ${Math.round(delay / 1000)}s`;
         logLine("warn", reason, "live_stream_closed");
-        pushToast({
-          key: `live_stream:${source.name}`,
-          tone: "error",
-          title: "Live updates dropped",
-          body: reason,
-          target: { kind: "logs", service: source.name, q: "", at: new Date().toISOString() },
-        });
+        if (delay >= TOAST_AFTER_MS && transport.connectionState() === "connected") {
+          pushToast({
+            key: `live_stream:${source.name}`,
+            tone: "error",
+            title: "Live updates dropped",
+            body: reason,
+            target: { kind: "logs", service: source.name, q: "", at: new Date().toISOString() },
+          });
+        }
         reconnectTimer = setTimeout(open, delay);
       },
     });

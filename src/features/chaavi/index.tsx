@@ -547,10 +547,13 @@ function vaultStatus(
   health: { isError: boolean; error: unknown; data?: { vault: "ready" | "unconfigured" } | undefined; refetch: () => Promise<unknown> },
   items: { isError: boolean; error: unknown; data?: unknown; refetch: () => Promise<unknown> },
 ): StateViewProps | null {
-  if (!connected) {
+  if (!connected && !items.data) {
     return { tone: "offline", label: "Chaavi is offline", detail: "The vault comes back when dadi reconnects" };
   }
-  if (health.isError) {
+  if (!connected) {
+    return null;
+  }
+  if (health.isError && !health.data) {
     return { tone: "error", label: "Could not reach Chaavi", error: health.error, onRetry: () => void health.refetch() };
   }
   if (!health.data) {
@@ -563,7 +566,7 @@ function vaultStatus(
       detail: "Sign up at the Bitwarden vault, then set that account's email and master password in Preferences → Chaavi",
     };
   }
-  if (items.isError) {
+  if (items.isError && !items.data) {
     return { tone: "error", label: "Could not list items", error: items.error, onRetry: () => void items.refetch() };
   }
   if (items.data === undefined) {

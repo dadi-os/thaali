@@ -38,10 +38,10 @@ export function ChaaviTile() {
     enabled: connected && ready,
   });
 
-  if (!connected) {
+  if (!connected && !itemsQuery.data) {
     return <StateView tone="offline" label="Chaavi is offline" detail="The vault comes back when dadi reconnects" compact />;
   }
-  const failed = [healthQuery, itemsQuery, foldersQuery].find((query) => query.isError);
+  const failed = [healthQuery, itemsQuery, foldersQuery].find((query) => query.isError && !query.data);
   if (failed) {
     return <StateView tone="error" label="Could not reach Chaavi" error={failed.error} onRetry={() => void failed.refetch()} compact />;
   }

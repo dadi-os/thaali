@@ -186,12 +186,13 @@ export function TimelineCalendar({
     setOpened({ id: session.id, anchor: anchorOf(el), open: true, session });
   };
 
-  if (!connected) {
+  const shownData = preview || !planned ? plansQuery.data : blocksQuery.data;
+  if (!connected && !shownData) {
     return <StateView tone="offline" label="Timeline is offline" detail="Plans come back when dadi reconnects" compact={preview} className={className} />;
   }
 
   const failed = planned ? (blocksQuery.isError ? blocksQuery : duesQuery) : plansQuery;
-  if (failed.isError) {
+  if (failed.isError && !failed.data) {
     return (
       <StateView
         tone="error"

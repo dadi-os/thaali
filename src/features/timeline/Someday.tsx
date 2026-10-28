@@ -107,7 +107,7 @@ export function SomedayRail({ onOpen }: SomedayProps) {
         NEEDS A TIME
         {query.data ? <span className="tracking-normal text-ink-ghost">{query.data.length}</span> : null}
       </span>
-      {query.isError ? (
+      {query.isError && !query.data ? (
         <p className="text-[12px] text-error">{query.error.message}</p>
       ) : query.isPending ? (
         <SomedaySkeleton rows={5} />
@@ -223,7 +223,7 @@ function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
 export function NeedsATime({ onOpen }: SomedayProps) {
   const query = useSomeday();
   const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
-  if (query.isError) {
+  if (query.isError && !query.data) {
     return <p className="text-[12.5px] text-error">{query.error.message}</p>;
   }
   const tasks = query.data ? sorted(query.data).filter((item) => item.status !== "idea") : [];

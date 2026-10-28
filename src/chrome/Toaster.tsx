@@ -30,14 +30,14 @@ export function openTarget(target: ToastTarget, navigate: NavigateFunction): voi
   }
 }
 
-/** Bottom-right stack of toasts from the toast store, newest at the bottom. */
+/** Stack of toasts from the toast store at the top of the page, under the offline pill, newest last. */
 export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts);
   return (
     <div
       role="region"
       aria-label="Notifications"
-      className="pointer-events-none absolute right-4 bottom-4 z-[55] flex w-[300px] max-w-[calc(100%-2rem)] flex-col gap-2"
+      className="pointer-events-none flex w-[360px] max-w-full flex-col items-stretch gap-2"
     >
       <AnimatePresence initial={false}>
         {toasts.map((toast) => (
@@ -88,13 +88,13 @@ function ToastCard({ toast }: { toast: Toast }) {
     <motion.div
       layout
       role={error ? "alert" : "status"}
-      initial={{ opacity: 0, y: 10, scale: 0.97 }}
+      initial={{ opacity: 0, y: -8, scale: 0.97 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
-      exit={{ opacity: 0, x: 24, transition: { duration: SLOW_S, ease: EASE } }}
+      exit={{ opacity: 0, y: -8, transition: { duration: SLOW_S, ease: EASE } }}
       transition={{ duration: SLOW_S, ease: EASE }}
       onPointerEnter={() => setHeld(true)}
       onPointerLeave={() => setHeld(false)}
-      className={`pane-bubble pointer-events-auto flex items-start gap-1 rounded-[14px] pr-1 ${
+      className={`pane-bubble pointer-events-auto flex items-start gap-1 rounded-[18px] pr-1 shadow-[var(--shadow)] backdrop-blur-[var(--glass-blur)] ${
         error ? "pane-bubble--error" : ""
       }`}
     >

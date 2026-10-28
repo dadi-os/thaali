@@ -9,7 +9,7 @@ const AGE_TICK_MS = 30_000;
 
 /**
  * The one notice for dadi being out of reach: while the mesh reconnects, a glass pill drops
- * in over the page, saying what is on screen is what dadi last reported and how long ago, and
+ * in at the top of the page, above any toasts, saying what is on screen is what dadi last reported and how long ago, and
  * leaves as soon as the mesh is back. Pages keep their last answers under it.
  */
 export function OfflinePill() {
@@ -36,7 +36,7 @@ export function OfflinePill() {
         <motion.div
           key="offline"
           role="status"
-          className="pointer-events-none absolute inset-x-0 top-3 z-30 flex justify-center"
+          className="pointer-events-none flex justify-center"
           initial={{ opacity: 0, y: reduced ? 0 : -8 }}
           animate={{ opacity: 1, y: 0 }}
           exit={{ opacity: 0, y: reduced ? 0 : -8 }}

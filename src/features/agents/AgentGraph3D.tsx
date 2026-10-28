@@ -222,7 +222,7 @@ export function AgentGraph3D({
     }
   };
 
-  if (!connected) {
+  if (!connected && !agentsQuery.data) {
     return (
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder
@@ -234,7 +234,7 @@ export function AgentGraph3D({
     );
   }
 
-  if (agentsQuery.isError) {
+  if (agentsQuery.isError && !agentsQuery.data) {
     return (
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder tone="error" label="Could not load Hath" detail={agentsQuery.error.message} />

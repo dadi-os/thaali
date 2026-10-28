@@ -204,11 +204,11 @@ export function SystemMap({ mode, className }: SystemMapProps) {
     refetchInterval: POLL_MS,
   });
 
-  if (!connected) {
+  if (!connected && !statusQuery.data) {
     return <StateView tone="offline" label="dadi is offline" detail="Health comes back when the mesh reconnects" compact={preview} className={className} />;
   }
 
-  if (statusQuery.isError) {
+  if (statusQuery.isError && !statusQuery.data) {
     return (
       <StateView
         tone="error"
@@ -251,7 +251,7 @@ export function SystemMap({ mode, className }: SystemMapProps) {
   const resources = resourceRows(status);
 
   if (preview) {
-    if (clientsQuery.isError) {
+    if (clientsQuery.isError && !clientsQuery.data) {
       return (
         <StateView
           tone="error"

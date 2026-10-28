@@ -117,7 +117,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
   const root = rootRef.current;
   const anchor = focusId !== null && root ? { x: root.clientWidth - 12, y: root.clientHeight / 2, radius: 0 } : details.anchor;
 
-  if (!connected) {
+  if (!connected && !graphQuery.data) {
     return (
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder tone="offline" label="Yaad is offline" detail="Connect to dadi to load memory" />
@@ -125,7 +125,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
     );
   }
 
-  if (graphQuery.isError) {
+  if (graphQuery.isError && !graphQuery.data) {
     return (
       <div className={`h-full ${className ?? ""}`}>
         <GraphPlaceholder tone="error" label="Could not load Yaad" detail={graphQuery.error.message} />

@@ -100,7 +100,10 @@ export function AppShell() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: SLOW_S, ease: EASE, delay: 0.2 }}
         >
-          <OfflinePill />
+          <div className="pointer-events-none absolute inset-x-0 top-3 z-[55] flex flex-col items-center gap-2 px-4">
+            <OfflinePill />
+            <Toaster />
+          </div>
           <div className="h-full min-h-0 overflow-hidden">
             <div
               key={location.pathname}
@@ -125,7 +128,6 @@ export function AppShell() {
             />
           ) : null}
         </AnimatePresence>
-        <Toaster />
       </div>
       <ProvisionOverlay
         open={provisionOpen}

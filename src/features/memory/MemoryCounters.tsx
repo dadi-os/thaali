@@ -69,9 +69,9 @@ export function MemoryCounters({ className }: MemoryCountersProps) {
       enabled: connected,
     })),
   });
-  const failed = countQueries.find((query) => query.isError);
+  const failed = countQueries.find((query) => query.isError && !query.data);
 
-  if (!connected) {
+  if (!connected && countQueries.some((query) => !query.data)) {
     return <StateView tone="offline" label="Yaad is offline" detail="Counts come back when dadi reconnects" compact className={className} />;
   }
 
