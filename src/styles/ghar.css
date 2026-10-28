@@ -146,6 +146,19 @@
   background: var(--chip-color);
 }
 
+/* The home tile's chips, as on the canvas: a rounded square with a small swatch. */
+.ghar-light-chip--tile {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.ghar-light-chip--tile .ghar-light-chip__dot {
+  width: 10px;
+  height: 10px;
+}
+
 /* Switch: a 54 × 32 track, sage when on. */
 .ghar-switch {
   display: flex;
@@ -525,3 +538,4 @@
     transition: none;
   }
 }
+

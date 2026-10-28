@@ -1,7 +1,6 @@
 import { useState } from "react";
 import { motion } from "motion/react";
 import { InlineMarkdown } from "../../shared/components/Markdown";
-import { SearchField } from "../../shared/components/SearchField";
 import { EASE } from "../../shared/lib/ux/motion";
 import type { Conversation, HistoryStatus } from "../../store/chat";
 import type { RunningMap } from "../../store/running";
@@ -66,17 +65,28 @@ export function ConversationList({
       onClick={onDismissKeyboard}
       className="absolute inset-0 flex flex-col"
     >
-      <div className="shrink-0 px-3 pb-1 pt-3">
-        <SearchField
+      <label className="mx-3.5 mt-3.5 mb-1.5 flex h-[34px] shrink-0 items-center gap-2 rounded-[10px] border border-(--chat-edge) bg-(--chat-field) px-3 text-ink-ghost transition-colors duration-slow ease-dadi focus-within:border-sage">
+        <svg viewBox="0 0 24 24" className="size-3.5 shrink-0" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden>
+          <circle cx="11" cy="11" r="7" />
+          <path d="M20 20l-4-4" />
+        </svg>
+        <input
+          type="search"
           value={query}
-          onChange={setQuery}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              setQuery("");
+            } else if (e.key === "Enter" && shown.length === 1) {
+              onOpenAgent(shown[0].agent_id);
+            }
+          }}
           placeholder="Search agents"
-          matches={needle ? shown.length : null}
-          onPick={() => onOpenAgent(shown[0].agent_id)}
-          className="w-full"
+          aria-label="Search agents"
+          className="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-ink-ghost [&::-webkit-search-cancel-button]:appearance-none"
         />
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto px-2 py-1">
+      </label>
+      <div className="min-h-0 flex-1 overflow-y-auto px-2 pt-1 pb-2">
         {failed ? (
           <div className="flex h-full flex-col items-center justify-center px-6">
             <p className="text-center text-[13px] text-ink-muted">
@@ -112,7 +122,7 @@ export function ConversationList({
           <div className="flex flex-col pb-2">
             {groups.map((group) => (
               <div key={group.bucket} className="mt-1 first:mt-0">
-                <p className="px-2.5 pb-1 pt-3 text-[11px] font-medium text-ink-ghost">
+                <p className="px-2.5 pt-3.5 pb-1.5 text-[11px] font-semibold text-ink-ghost">
                   {group.bucket}
                 </p>
                 {group.items.map((conv) => {
@@ -125,22 +135,22 @@ export function ConversationList({
                       key={conv.agent_id}
                       type="button"
                       onClick={() => onOpenAgent(conv.agent_id)}
-                      className={`flex w-full items-center gap-2 rounded-[12px] px-2.5 py-2 text-left transition-colors duration-fast ease-dadi ${
+                      className={`flex w-full items-center gap-2.5 rounded-[12px] px-2.5 py-[9px] text-left transition-colors duration-fast ease-dadi ${
                         selected
                           ? "bg-(--chat-active)"
                           : "hover:bg-(--chat-hover)"
                       } ${working ? "lane-sheen" : ""}`}
                     >
-                      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                      <span className="flex min-w-0 flex-1 flex-col gap-[3px]">
                         <span className="flex min-w-0 items-baseline gap-2">
                           <span
-                            className={`min-w-0 flex-1 truncate text-[13.5px] text-ink ${held ? "font-semibold" : "font-medium"}`}
+                            className={`min-w-0 flex-1 truncate text-[14px] text-ink ${held ? "font-bold" : "font-semibold"}`}
                           >
                             {conv.agent_name}
                           </span>
                           <time
                             dateTime={conv.last_at}
-                            className={`shrink-0 text-[11px] ${held ? "text-sage-text" : "text-ink-ghost"}`}
+                            className={`shrink-0 text-[11.5px] ${held ? "text-sage-text" : "text-ink-ghost"}`}
                           >
                             {formatListTime(conv.last_at)}
                           </time>
@@ -150,7 +160,7 @@ export function ConversationList({
                             <ThinkingMark />
                           </span>
                         ) : (
-                          <span className={`truncate text-[12px] ${held ? "text-ink-muted" : "text-ink-ghost"}`}>
+                          <span className={`truncate text-[12.5px] ${held ? "text-ink" : "text-ink-muted"}`}>
                             {conv.from_user ? "You: " : ""}
                             <InlineMarkdown content={conv.last_message} />
                           </span>
@@ -159,7 +169,7 @@ export function ConversationList({
                       {held ? (
                         <span
                           aria-label={`${held} unread`}
-                          className="flex h-[18px] min-w-[18px] shrink-0 items-center justify-center rounded-full bg-sage-deep px-1.5 text-[10.5px] font-semibold text-bone"
+                          className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-sage-deep px-1.5 text-[11px] font-bold text-bone"
                         >
                           {held}
                         </span>
@@ -173,7 +183,7 @@ export function ConversationList({
         )}
       </div>
 
-      <div className="shrink-0 border-t border-(--chat-edge) px-2 py-2">
+      <div className="shrink-0 p-2.5">
         <motion.button
           type="button"
           onClick={dadi.onOpen}
@@ -181,10 +191,8 @@ export function ConversationList({
           whileHover={dadi.available ? { scale: 1.012 } : undefined}
           whileTap={dadi.available ? { scale: 0.985 } : undefined}
           transition={{ duration: 0.18, ease: EASE }}
-          className={`flex w-full items-center gap-3 rounded-[14px] px-2.5 py-2.5 text-left transition-colors duration-fast ease-dadi disabled:opacity-50 ${
-            dadi.selected
-              ? "bg-(--chat-active)"
-              : "hover:bg-(--chat-hover)"
+          className={`flex w-full items-center gap-3 rounded-[14px] border border-(--chat-edge) px-3 py-2.5 text-left shadow-[var(--shadow)] transition-colors duration-fast ease-dadi disabled:opacity-60 ${
+            dadi.selected ? "bg-(--chat-active)" : "bg-(--chat-card) hover:bg-(--chat-field)"
           }`}
         >
           <span className="relative inline-flex size-8 shrink-0 text-[15px]" aria-hidden>
@@ -200,7 +208,7 @@ export function ConversationList({
             </span>
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-[13.5px] font-medium text-ink">
+            <span className="block text-[14px] font-semibold text-ink">
               Talk to Dadi
             </span>
             {dadi.busy ? (

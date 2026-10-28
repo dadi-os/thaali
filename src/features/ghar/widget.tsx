@@ -1,26 +1,39 @@
-import type { CSSProperties } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { StaleBanner, StateView } from "../../shared/components/states";
-import { LevelBar, Switch } from "./controls";
+import { Switch } from "./controls";
 import {
   glow,
   isLight,
   isOn,
-  rgbCss,
   roomSections,
-  sectionLevel,
   sectionSwitch,
   summarize,
   switchCommand,
-  WARM_WHITE,
 } from "./model";
 import { useHouse } from "./useHouse";
 
+/** One row of tile chips (34 px chip plus the 8 px gap below it), and that gap. */
+const CHIP_ROW_PX = 42;
+const CHIP_GAP_PX = 8;
+
 /**
- * The home widget's Ghar, straight on the widget card: how many lights are on and where, a
- * switch for every light, a chip per light that switches it, and a bar that sets them all.
+ * The home Ghar tile, as on the canvas: how many lights are on and where beside a switch for
+ * every light, then a chip per light that switches it, in as many whole rows as the tile's
+ * height holds (none when it is too short for one).
  */
 export function GharWidget() {
   const house = useHouse();
+  const chipArea = useRef<HTMLDivElement>(null);
+  const [chipRows, setChipRows] = useState(1);
+  useLayoutEffect(() => {
+    const el = chipArea.current;
+    if (!el) {
+      return;
+    }
+    const observer = new ResizeObserver(() => setChipRows(Math.floor((el.clientHeight + CHIP_GAP_PX) / CHIP_ROW_PX)));
+    observer.observe(el);
+    return () => observer.disconnect();
+  });
   const { devicesQuery, roomsQuery, connected } = house;
 
   if (!connected && !devicesQuery.data) {
@@ -62,13 +75,16 @@ export function GharWidget() {
   const disabled = !connected;
 
   return (
-    <div className="flex h-full min-h-0 flex-col px-[22px] pt-1.5 pb-4">
-      <div className="flex items-end justify-between gap-3">
+    <div className="flex h-full min-h-0 flex-col gap-3 px-[18px] pt-1 pb-3">
+      <div className="flex shrink-0 items-center justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-0.5">
-          <span className="text-[28px] leading-tight font-bold tracking-[-0.5px] text-ink">
+          <span className="text-[26px] leading-tight font-bold tracking-[-0.02em] text-ink">
             {summary.on === 0 ? "All off" : `${summary.on} of ${summary.lights} on`}
           </span>
-          <span className="truncate text-[13px] text-ink-muted">{where}</span>
+          <span className="truncate text-[12px] text-ink-ghost">
+            {summary.lights === 1 ? "1 light" : `${summary.lights} lights`}
+            {where ? ` · ${where}` : ""}
+          </span>
         </div>
         <Switch
           on={summary.on > 0}
@@ -77,40 +93,34 @@ export function GharWidget() {
           onChange={() => void house.run(sectionSwitch(lights))}
         />
       </div>
+      <div ref={chipArea} className="min-h-0 flex-1 basis-0">
+        <div className="flex flex-wrap content-start gap-2 overflow-hidden" style={{ maxHeight: Math.max(0, chipRows * CHIP_ROW_PX - CHIP_GAP_PX) }}>
+          {lights.map((light) => (
+            <button
+              key={light.id}
+              type="button"
+              aria-pressed={isOn(light)}
+              disabled={disabled || !light.online || house.pending.has(light.id)}
+              onClick={(event) => {
+                event.stopPropagation();
+                void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
+              }}
+              className={`ghar-light-chip ghar-light-chip--tile ${isOn(light) ? "ghar-light-chip--on" : ""}`}
+              style={isOn(light) ? ({ "--chip-color": glow(light) } as CSSProperties) : undefined}
+            >
+              <span className="ghar-light-chip__dot" />
+              {light.name}
+            </button>
+          ))}
+        </div>
+      </div>
       {!connected ? (
-        <StaleBanner label="Ghar is offline" since={devicesQuery.dataUpdatedAt} compact className="mt-2" />
+        <StaleBanner label="Ghar is offline" since={devicesQuery.dataUpdatedAt} compact />
       ) : house.failure ? (
-        <p role="alert" className="m-0 mt-2 truncate text-[12px] text-error" title={house.failure}>
+        <p role="alert" className="m-0 truncate text-[12px] text-error" title={house.failure}>
           {house.failure}
         </p>
       ) : null}
-      <div className="flex min-h-0 flex-wrap gap-2 overflow-hidden pt-3">
-        {lights.map((light) => (
-          <button
-            key={light.id}
-            type="button"
-            aria-pressed={isOn(light)}
-            disabled={disabled || !light.online || house.pending.has(light.id)}
-            onClick={(event) => {
-              event.stopPropagation();
-              void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
-            }}
-            className={`ghar-light-chip ${isOn(light) ? "ghar-light-chip--on" : ""}`}
-            style={isOn(light) ? ({ "--chip-color": glow(light) } as CSSProperties) : undefined}
-          >
-            <span className="ghar-light-chip__dot" />
-            {light.name}
-          </button>
-        ))}
-      </div>
-      <LevelBar
-        label="Brightness"
-        value={summary.brightness}
-        color={rgbCss(summary.color ?? WARM_WHITE)}
-        disabled={disabled}
-        className="mt-auto h-[34px] shrink-0 text-[12px]"
-        onCommit={(level) => house.run(sectionLevel(lights, level))}
-      />
     </div>
   );
 }

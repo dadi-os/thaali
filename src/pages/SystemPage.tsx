@@ -36,7 +36,7 @@ export function SystemPage() {
                 DADI
               </span>
               <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                <SystemMap mode="full" />
+                <SystemMap />
               </div>
             </div>
           </section>

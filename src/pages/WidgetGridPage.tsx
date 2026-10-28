@@ -5,7 +5,8 @@ import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharWidget } from "../features/ghar/widget";
 import { COUNTED_KINDS, MemoryCounters, kindCountKey, type KindCount } from "../features/memory/MemoryCounters";
-import { SystemMap, serviceHealth } from "../features/system/SystemMap";
+import { serviceHealth } from "../features/system/SystemMap";
+import { SystemWidget } from "../features/system/SystemWidget";
 import type { NasStatus } from "../shared/api/nas";
 import { TimelineCalendar } from "../features/timeline/TimelineCalendar";
 import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
@@ -42,6 +43,10 @@ export function WidgetGridPage() {
   const vault = useQuery<{ items: unknown[] }>({ queryKey: CHAAVI_ITEMS_KEY, enabled: false });
   const health = useQuery<NasStatus>({ queryKey: ["nas", "status"], enabled: false });
   const down = health.data ? serviceHealth(health.data).filter((s) => !s.ok).length : null;
+  const busy = (agents.data ?? []).flatMap((agent) => {
+    const lanes = running[agent.id];
+    return lanes?.reasoning ? [`${agent.name} · working`] : lanes?.conversation ? [`${agent.name} · thinking`] : [];
+  });
   const agentsAside = agents.data
     ? `${working} working · ${agents.data.filter((agent) => agent.active).length} agents`
     : null;
@@ -75,6 +80,15 @@ export function WidgetGridPage() {
             toolbar={null}
           />
         </ErrorBoundary>
+        {busy.length > 0 ? (
+          <span className="pointer-events-none absolute bottom-3.5 left-[18px] flex max-w-[calc(100%-36px)] flex-wrap gap-2">
+            {busy.slice(0, 3).map((label) => (
+              <span key={label} className="rounded-full bg-sage-fill px-2.5 py-[5px] text-[11.5px] font-semibold text-sage-text">
+                {label}
+              </span>
+            ))}
+          </span>
+        ) : null}
       </WidgetFrame>
 
       <WidgetFrame
@@ -149,7 +163,7 @@ export function WidgetGridPage() {
         className={`${tile} [grid-area:system]`}
       >
         <ErrorBoundary label="System" compact>
-          <SystemMap mode="preview" />
+          <SystemWidget />
         </ErrorBoundary>
       </WidgetFrame>
     </div>

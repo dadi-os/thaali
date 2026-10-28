@@ -1,4 +1,3 @@
-import { useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "motion/react";
 import { isMeshOnline, nas } from "../../shared/api";
@@ -6,12 +5,10 @@ import type { NasStatus } from "../../shared/api/nas";
 import { ErrorLogCards } from "../logs/LogExplorer";
 import { StateView } from "../../shared/components/states";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { useElementSize } from "./useElementSize";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 
 export type SystemMapProps = {
-  mode: "full" | "preview";
   className?: string;
 };
 
@@ -24,22 +21,6 @@ const SERVICE_ORDER = [
   "nas",
   "thaali",
 ] as const;
-
-/** Density breakpoints for the System widget body. */
-type SystemDensity = "pending" | "full" | "cards" | "inline";
-
-function densityFor(size: { width: number; height: number }): SystemDensity {
-  if (size.width === 0 || size.height === 0) {
-    return "pending";
-  }
-  if (size.height < 220 || size.width < 160) {
-    return "inline";
-  }
-  if (size.height < 320 || size.width < 220) {
-    return "cards";
-  }
-  return "full";
-}
 
 function formatBytes(n: number): string {
   if (n < 1024) {
@@ -100,7 +81,8 @@ export function serviceHealth(status: NasStatus): Array<{ name: string; ok: bool
   return rows;
 }
 
-type ResourceRow = {
+/** One load meter: what it measures, its device name, how full it is and a detail line. */
+export type ResourceRow = {
   key: string;
   kind: string;
   name: string;
@@ -108,7 +90,8 @@ type ResourceRow = {
   detail?: string;
 };
 
-function resourceRows(status: NasStatus): ResourceRow[] {
+/** CPU, memory, GPU and disk meters from Nas's status, in that order. */
+export function resourceRows(status: NasStatus): ResourceRow[] {
   const rows: ResourceRow[] = [];
   if (status.cpu) {
     rows.push({
@@ -182,13 +165,12 @@ function shortDiskKind(d: {
 }
 
 /**
- * Dadi health. Preview is modules, mesh clients, and host meters.
- * Full mode is the left health column plus logs.
+ * The System page's health column: the health card with its gauges, every module with
+ * whether it answers, and the recent errors.
  */
-export function SystemMap({ mode, className }: SystemMapProps) {
+export function SystemMap({ className }: SystemMapProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
-  const preview = mode === "preview";
 
   const statusQuery = useQuery({
     queryKey: ["nas", "status"],
@@ -197,15 +179,8 @@ export function SystemMap({ mode, className }: SystemMapProps) {
     refetchInterval: POLL_MS,
   });
 
-  const clientsQuery = useQuery({
-    queryKey: ["nas", "clients"],
-    queryFn: () => nas.listClients(),
-    enabled: connected,
-    refetchInterval: POLL_MS,
-  });
-
   if (!connected && !statusQuery.data) {
-    return <StateView tone="offline" label="dadi is offline" detail="Health comes back when the mesh reconnects" compact={preview} className={className} />;
+    return <StateView tone="offline" label="dadi is offline" detail="Health comes back when the mesh reconnects" className={className} />;
   }
 
   if (statusQuery.isError && !statusQuery.data) {
@@ -215,7 +190,6 @@ export function SystemMap({ mode, className }: SystemMapProps) {
         label="Could not reach nas"
         error={statusQuery.error}
         onRetry={() => void statusQuery.refetch()}
-        compact={preview}
         className={className}
       />
     );
@@ -223,25 +197,11 @@ export function SystemMap({ mode, className }: SystemMapProps) {
 
   if (!statusQuery.data) {
     return (
-      <div role="status" aria-label="Reading health" className={`flex h-full min-h-0 flex-col gap-3 ${preview ? "px-3.5 pt-2" : ""} ${className ?? ""}`}>
-        {preview ? (
-          <>
-            <span className="skeleton h-2 w-16" />
-            <div className="grid grid-cols-2 gap-2">
-              {[0, 1, 2, 3, 4, 5].map((i) => (
-                <span key={i} className="skeleton h-3 w-3/4" />
-              ))}
-            </div>
-            <span className="skeleton mt-auto mb-3 h-2 w-full" />
-          </>
-        ) : (
-          <>
-            <span className="skeleton h-[170px] rounded-[var(--radius-window)]" />
-            {[0, 1, 2, 3, 4, 5].map((i) => (
-              <span key={i} className="skeleton h-3.5 w-1/2" />
-            ))}
-          </>
-        )}
+      <div role="status" aria-label="Reading health" className={`flex h-full min-h-0 flex-col gap-3 ${className ?? ""}`}>
+        <span className="skeleton h-[170px] rounded-[var(--radius-window)]" />
+        {[0, 1, 2, 3, 4, 5].map((i) => (
+          <span key={i} className="skeleton h-3.5 w-1/2" />
+        ))}
       </div>
     );
   }
@@ -250,290 +210,12 @@ export function SystemMap({ mode, className }: SystemMapProps) {
   const services = serviceHealth(status);
   const resources = resourceRows(status);
 
-  if (preview) {
-    if (clientsQuery.isError && !clientsQuery.data) {
-      return (
-        <StateView
-          tone="error"
-          label="Could not list clients"
-          error={clientsQuery.error}
-          onRetry={() => void clientsQuery.refetch()}
-          compact
-          className={className}
-        />
-      );
-    }
-    if (clientsQuery.isLoading || !clientsQuery.data) {
-      return (
-        <SystemPreview
-          className={className}
-          services={services}
-          resources={resources}
-          clients={[]}
-          clientsPending
-        />
-      );
-    }
-    return (
-      <SystemPreview
-        className={className}
-        services={services}
-        resources={resources}
-        clients={clientsQuery.data.clients}
-      />
-    );
-  }
-
   return (
     <div className={`flex h-full min-h-0 flex-col gap-4 ${className ?? ""}`}>
       <HealthCard services={services} rows={resources} uptimeSeconds={status.uptime_seconds} />
       <ServiceRows services={services} />
       <div className="min-h-0 flex-1 overflow-y-auto">
         <ErrorLogCards limit={6} />
-      </div>
-    </div>
-  );
-}
-
-function clientLabel(c: {
-  pending: boolean;
-  online: boolean;
-}): string {
-  if (c.pending) {
-    return "waiting";
-  }
-  return c.online ? "online" : "offline";
-}
-
-function SystemPreview({
-  className,
-  services,
-  resources,
-  clients,
-  clientsPending = false,
-}: {
-  className?: string;
-  services: Array<{ name: string; ok: boolean }>;
-  resources: ResourceRow[];
-  clients: Array<{
-    node_name: string;
-    online: boolean;
-    pending: boolean;
-  }>;
-  clientsPending?: boolean;
-}) {
-  const rootRef = useRef<HTMLDivElement>(null);
-  const size = useElementSize(rootRef);
-  const density = densityFor(size);
-  const meters = resources
-    .filter(
-      (r) =>
-        r.key === "cpu" || r.key === "memory" || r.key.startsWith("disk"),
-    )
-    .slice(0, 4);
-  const mesh = clients.filter((c) => c.node_name && c.node_name !== "os");
-  const okCount = services.filter((s) => s.ok).length;
-
-  if (density === "pending") {
-    return (
-      <div
-        ref={rootRef}
-        className={`h-full min-h-0 w-full ${className ?? ""}`}
-        aria-hidden
-      />
-    );
-  }
-
-  if (density === "inline") {
-    return (
-      <div
-        ref={rootRef}
-        className={`flex h-full min-h-0 flex-col justify-between gap-2 overflow-hidden px-3 pb-2.5 pt-1 ${className ?? ""}`}
-      >
-        <div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1">
-          <span className="text-[11px] font-medium tracking-[1.2px] text-ink-ghost">
-            MODULES
-          </span>
-          <span className="text-[12px] tabular-nums text-ink">
-            {okCount}/{services.length}
-          </span>
-          <span className="text-ink-ghost">·</span>
-          {services.map((s) => (
-            <span
-              key={s.name}
-              className={`font-mono text-[11px] ${
-                s.ok ? "text-sage-deep" : "text-error"
-              }`}
-              title={s.ok ? "reachable" : "unreachable"}
-            >
-              {s.name}
-            </span>
-          ))}
-        </div>
-        <div className="flex min-w-0 flex-wrap gap-x-3 gap-y-1">
-          {meters.map((row) => (
-            <span
-              key={row.key}
-              className="inline-flex items-baseline gap-1 text-[12px] tabular-nums text-ink"
-            >
-              <span className="text-[10px] font-medium tracking-[1.2px] text-ink-ghost">
-                {row.kind.toLowerCase()}
-              </span>
-              {row.pct == null ? "—" : `${Math.round(row.pct)}%`}
-            </span>
-          ))}
-        </div>
-        {!clientsPending && mesh.length > 0 ? (
-          <p className="truncate text-[11px] text-ink-ghost">
-            {mesh.filter((c) => c.online).length}/{mesh.length} clients online
-          </p>
-        ) : null}
-      </div>
-    );
-  }
-
-  if (density === "cards") {
-    return (
-      <div
-        ref={rootRef}
-        className={`flex h-full min-h-0 flex-col gap-2.5 overflow-hidden px-3 pb-2.5 pt-1 ${className ?? ""}`}
-      >
-        <div className="min-w-0 rounded-[var(--radius)] border border-dashed border-rule/80 px-2.5 py-2">
-          <p className="mb-1.5 text-[10px] font-medium tracking-[1.2px] text-ink-ghost">
-            MODULES · {okCount}/{services.length}
-          </p>
-          <div className="flex flex-wrap gap-1.5">
-            {services.map((s) => (
-              <span
-                key={s.name}
-                className={`rounded-[3px] px-1.5 py-0.5 font-mono text-[11px] ${
-                  s.ok
-                    ? "bg-sage/15 text-sage-deep"
-                    : "bg-error/10 text-error"
-                }`}
-              >
-                {s.name}
-              </span>
-            ))}
-          </div>
-        </div>
-
-        <div className="min-w-0 rounded-[var(--radius)] border border-dashed border-rule/80 px-2.5 py-2">
-          <p className="mb-1.5 text-[10px] font-medium tracking-[1.2px] text-ink-ghost">
-            CLIENTS
-          </p>
-          {clientsPending ? (
-            <p className="text-[12px] text-ink-ghost">Loading…</p>
-          ) : mesh.length === 0 ? (
-            <p className="text-[12px] text-ink-ghost">None connected</p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {mesh.map((c) => (
-                <span
-                  key={c.node_name}
-                  className="inline-flex items-center gap-1.5 rounded-[3px] bg-rule/60 px-1.5 py-0.5 text-[11px] text-ink"
-                >
-                  <span
-                    className={`size-1.5 shrink-0 rounded-full ${
-                      c.pending
-                        ? "bg-sage"
-                        : c.online
-                          ? "bg-ink"
-                          : "bg-ink-ghost"
-                    }`}
-                    aria-hidden
-                  />
-                  {c.node_name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        {meters.length > 0 ? (
-          <div className="mt-auto flex gap-2">
-            {meters.map((row) => (
-              <div
-                key={row.key}
-                className="min-w-0 flex-1 rounded-[var(--radius)] border border-dashed border-rule/80 px-2 py-1.5"
-              >
-                <div className="flex items-baseline justify-between gap-1">
-                  <span className="text-[10px] font-medium tracking-[1.2px] text-ink-ghost">
-                    {row.kind.toLowerCase()}
-                  </span>
-                  <span className="text-[11px] tabular-nums text-ink">
-                    {row.pct == null ? "—" : `${Math.round(row.pct)}%`}
-                  </span>
-                </div>
-                <div className="mt-1.5 h-[4px] overflow-hidden rounded-[2px] bg-rule">
-                  {row.pct != null ? (
-                    <div
-                      className="h-full rounded-[2px] bg-sage"
-                      style={{
-                        width: `${Math.min(100, Math.max(0, row.pct))}%`,
-                      }}
-                    />
-                  ) : null}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </div>
-    );
-  }
-
-  return (
-    <div
-      ref={rootRef}
-      className={`flex h-full min-h-0 flex-col overflow-hidden px-4 pb-3 pt-2 ${className ?? ""}`}
-    >
-      <ul className="grid shrink-0 grid-cols-2 gap-x-3 gap-y-1.5 pb-3">
-        {services.map((s) => (
-          <li key={s.name} className="flex items-center gap-2" title={s.ok ? "reachable" : "offline"}>
-            <span className={`size-1.5 shrink-0 rounded-full ${s.ok ? "bg-sage" : "border border-dashed border-ink-ghost"}`} />
-            <span className={`truncate text-[13px] ${s.ok ? "text-ink" : "text-ink-ghost"}`}>{s.name}</span>
-          </li>
-        ))}
-      </ul>
-
-      <div className="h-px shrink-0 bg-rule" />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden pt-3">
-        {meters.map((row) => (
-          <div key={row.key} className="flex flex-col gap-1.5">
-            <div className="flex items-baseline justify-between gap-2 text-[12px]">
-              <span className="text-ink-muted">{row.kind}</span>
-              <span className="font-semibold tabular-nums text-ink">{row.pct == null ? "—" : `${Math.round(row.pct)}%`}</span>
-            </div>
-            <div className="h-1 overflow-hidden rounded-full bg-rule">
-              {row.pct != null ? (
-                <div
-                  className={`h-full rounded-full transition-[width] duration-slow ease-dadi ${row.pct > 85 ? "bg-error" : row.pct > 65 ? "bg-[var(--clay)]" : "bg-sage"}`}
-                  style={{ width: `${Math.min(100, Math.max(0, row.pct))}%` }}
-                />
-              ) : null}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1 pt-2 text-[12px] text-ink-muted">
-        {clientsPending ? (
-          <span className="skeleton h-2.5 w-1/2" />
-        ) : mesh.length === 0 ? (
-          <span className="text-ink-ghost">No devices connected</span>
-        ) : (
-          mesh.map((c) => (
-            <span key={c.node_name} className="flex items-center gap-1.5" title={clientLabel(c)}>
-              <span
-                aria-hidden
-                className={`size-1.5 rounded-full ${c.online ? "bg-sage" : "border border-dashed border-ink-ghost"}`}
-              />
-              <span className={c.online ? "" : "text-ink-ghost"}>{c.node_name}</span>
-            </span>
-          ))
-        )}
       </div>
     </div>
   );

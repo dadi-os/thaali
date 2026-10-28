@@ -190,7 +190,8 @@
   -webkit-backdrop-filter: blur(var(--glass-blur));
   backdrop-filter: blur(var(--glass-blur));
   border: 1px solid var(--glass-border);
-  border-radius: var(--radius-window);
+  border-radius: 18px;
+  box-shadow: 0 1px 2px rgba(92, 107, 82, 0.05), 0 10px 30px rgba(44, 48, 42, 0.05);
 }
 
 .widget-frame::before {
@@ -241,12 +242,12 @@
   align-items: center;
   justify-content: space-between;
   gap: 0.75rem;
-  padding: 0.6rem 1rem 0;
+  padding: 14px 18px 0;
 }
 
 .widget-frame__title {
   color: var(--sage-text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
   line-height: 1.2;
   white-space: nowrap;
@@ -257,14 +258,14 @@
   overflow: hidden;
   text-overflow: ellipsis;
   color: var(--ink-ghost);
-  font-size: 11.5px;
+  font-size: 12px;
   white-space: nowrap;
 }
 
 /* Home grid: named areas so the same six widgets reflow for a portrait monitor; each rises in turn. */
 .home-grid {
   display: grid;
-  gap: 1.25rem;
+  gap: 18px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(4, minmax(0, 1fr));
   grid-template-areas:
@@ -359,6 +360,9 @@
   --chat-hover: rgba(44, 48, 42, 0.05);
   --chat-active: rgba(44, 48, 42, 0.09);
   --chat-edge: color-mix(in srgb, #c3cdb4 55%, transparent);
+  /* The search field and the floating Talk to Dadi card on the rail. */
+  --chat-field: rgba(250, 250, 247, 0.8);
+  --chat-card: rgba(250, 250, 247, 0.85);
   --composer-fade-solid: #f4f6f0;
   background: color-mix(in srgb, #f4f6f0 68%, transparent);
   -webkit-backdrop-filter: blur(28px);
@@ -406,6 +410,8 @@
     --chat-hover: rgba(255, 255, 255, 0.055);
     --chat-active: rgba(255, 255, 255, 0.1);
     --chat-edge: rgba(255, 255, 255, 0.08);
+    --chat-field: rgba(255, 255, 255, 0.045);
+    --chat-card: rgba(255, 255, 255, 0.06);
     --composer-fade-solid: #161814;
     background: color-mix(in srgb, #161814 62%, transparent);
     color: #eceee6;
