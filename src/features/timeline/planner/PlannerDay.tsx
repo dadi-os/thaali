@@ -16,6 +16,7 @@ import {
   type Segment,
 } from "./blocks";
 import { KIND_TONE, TONE_CLASS } from "./kinds";
+import { SessionMark } from "../markers";
 import { itemKey } from "../plans";
 
 /** Pixels per minute on the axis. */
@@ -127,6 +128,7 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
                     segment={segment}
                     top={top(segment.startMin)}
                     settled={isSettled(segment.block, now)}
+                    now={now}
                     current={current !== null && itemKey(current.block) === itemKey(segment.block)}
                     delay={k * 0.02}
                     onOpen={onOpen}
@@ -134,10 +136,10 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
                 ))}
                 {isToday && nowMin >= from * 60 && nowMin <= to * 60 ? (
                   <div aria-hidden className="pointer-events-none absolute right-0 z-10 flex -translate-y-1/2 items-center" style={{ top: top(nowMin), left: -GUTTER_PX }}>
-                    <span className="w-[46px] shrink-0 rounded-full bg-ink py-[3px] text-center text-[10.5px] font-medium tabular-nums text-bone shadow-[var(--shadow)]">
+                    <span className="w-[46px] shrink-0 rounded-full bg-[var(--clay)] py-[3px] text-center text-[10.5px] font-semibold tabular-nums text-bone shadow-[var(--shadow)]">
                       {formatClockCompact(Math.round(nowMin))}
                     </span>
-                    <span className="ml-1.5 h-[2px] flex-1 rounded-full bg-gradient-to-r from-ink/80 via-ink/25 to-transparent" />
+                    <span className="ml-1.5 h-[2px] flex-1 rounded-full bg-gradient-to-r from-[var(--clay)] via-[var(--clay)]/40 to-transparent" />
                   </div>
                 ) : null}
               </div>
@@ -227,7 +229,7 @@ type DayListProps = {
   onOpen: (block: TimelineItem, el: Element) => void;
 };
 
-/** The day's tasks in order with their lengths; done ones fade and are struck through. */
+/** The day's tasks in order with their lengths and Completed circles; completed ones are struck through, past ones fade. */
 function DayList({ segments, current, now, onOpen }: DayListProps) {
   const planned = segments.reduce((sum, s) => sum + s.endMin - s.startMin, 0);
   return (
@@ -241,15 +243,16 @@ function DayList({ segments, current, now, onOpen }: DayListProps) {
               <button
                 type="button"
                 onClick={(e) => onOpen(segment.block, e.currentTarget)}
-                className="-mx-2.5 grid w-[calc(100%+1.25rem)] grid-cols-[4.25rem_minmax(0,1fr)_auto] items-baseline gap-x-3 rounded-[9px] px-2.5 py-[7px] text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
+                className="-mx-2.5 grid w-[calc(100%+1.25rem)] grid-cols-[4.25rem_minmax(0,1fr)_auto_auto] items-center gap-x-3 rounded-[9px] px-2.5 py-[7px] text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
               >
                 <span className="text-[12px] tabular-nums text-ink-ghost">{formatMinuteOfDay(segment.startMin)}</span>
                 <span
-                  className={`truncate text-[13.5px] ${settled ? "text-ink-ghost line-through decoration-ink-ghost/50" : live ? "font-medium text-ink" : "text-ink"}`}
+                  className={`truncate text-[13.5px] ${segment.block.outcome === "done" ? "text-ink-ghost line-through decoration-ink-ghost/50" : settled ? "text-ink-muted" : live ? "font-medium text-ink" : "text-ink"}`}
                 >
                   {segment.block.title}
                 </span>
                 <span className="text-[11.5px] tabular-nums text-ink-ghost">{formatSpan(segment.endMin - segment.startMin)}</span>
+                <SessionMark item={segment.block} now={now} className="size-3.5" />
               </button>
             </li>
           );
@@ -296,6 +299,8 @@ type BlockRowProps = {
   top: number;
   /** Marked done or already over. */
   settled: boolean;
+  /** Ticking clock for its Completed circle. */
+  now: Date;
   /** It is the block happening now. */
   current: boolean;
   /** Entrance delay so blocks settle in order. */
@@ -304,7 +309,7 @@ type BlockRowProps = {
 };
 
 /** One session: title and time on one row, with its body under them when the height allows. */
-function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowProps) {
+function BlockRow({ segment, top, settled, now, current, delay, onOpen }: BlockRowProps) {
   const { block, startMin, endMin, lane, lanes } = segment;
   const height = Math.max((endMin - startMin) * PPM - 4, 26);
   const oneRow = height < ONE_ROW_PX;
@@ -325,9 +330,12 @@ function BlockRow({ segment, top, settled, current, delay, onOpen }: BlockRowPro
     >
       <span className="flex w-full min-w-0 gap-3">
         <span className="min-w-0 flex-1">
-          <span className="flex items-baseline justify-between gap-4">
+          <span className="flex items-baseline gap-4">
             <span className="truncate text-[14px] leading-5 font-medium tracking-[-0.005em] text-ink">{block.title}</span>
-            <span className="shrink-0 text-[12px] leading-5 tabular-nums text-ink-muted">{formatRange(startMin, endMin)}</span>
+            <span className="ml-auto shrink-0 text-[12px] leading-5 tabular-nums text-ink-muted">{formatRange(startMin, endMin)}</span>
+            <span className="flex h-5 shrink-0 items-center">
+              <SessionMark item={block} now={now} />
+            </span>
           </span>
           {!oneRow && block.body && height >= NOTE_ROOM_PX ? (
             <span className="mt-1.5 line-clamp-2 block text-[12.5px] leading-[1.5] text-ink-muted">{block.body}</span>

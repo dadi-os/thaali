@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import type { TimelineItem } from "../../types/timeline";
 import { formatTime, isSameDay } from "./dates";
-import { BreathRing, LiveDot } from "./markers";
+import { BreathRing, LiveDot, SessionMark } from "./markers";
 import { itemKey, lanesThrough, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, statusClass } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 
@@ -122,7 +122,8 @@ type PlanChipProps = {
 
 /**
  * One session: lifts on hover, fades once it has passed or is completed, pulses while it is
- * happening, and is struck through when cancelled.
+ * happening, carries Khisso's Completed circle when it has a time, and is struck through when
+ * cancelled or completed.
  */
 function PlanChip({ plan, day, now, delay, onOpen }: PlanChipProps) {
   const span = spanOf(plan)!;
@@ -141,13 +142,18 @@ function PlanChip({ plan, day, now, delay, onOpen }: PlanChipProps) {
       whileTap={{ scale: 0.98 }}
       onClick={(e) => onOpen(plan, e.currentTarget)}
       className={`relative w-full rounded-[6px] px-1.5 py-1 text-left text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.status)} ${
-        plan.state === "cancelled" ? "line-through" : ""
+        plan.state === "cancelled" || plan.outcome === "done" ? "line-through" : ""
       }`}
     >
       {planStartsOn(plan, day) ? (
         <span className="mb-0.5 flex items-center gap-1 text-[10px] opacity-70">
           {ongoing ? <LiveDot /> : null}
           {startLabel(plan)}
+          {plan.start_at !== null && !plan.all_day ? (
+            <span className="ml-auto flex">
+              <SessionMark item={plan} now={now} className="size-3" />
+            </span>
+          ) : null}
         </span>
       ) : null}
       <span className="line-clamp-3">{plan.title}</span>
