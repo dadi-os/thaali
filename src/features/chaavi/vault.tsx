@@ -64,44 +64,31 @@ export type LedgerProps = {
 };
 
 /**
- * The vault's ledger: a ticker per item type that narrows the list to that type when picked.
- * Once counts are in it lists only the types with items (and the picked one), not a row of zeros.
+ * The vault's type chips, as on the canvas: All, then one per item type the vault holds (and the
+ * picked one), each with its count; picking a type narrows the list to it, picking it again or
+ * All shows everything.
  */
 export function Ledger({ counts, active, onPick }: LedgerProps) {
-  const shown = counts ? ITEM_TYPES.filter((type) => counts[type] > 0 || type === active) : ITEM_TYPES;
+  if (counts === null) {
+    return <span className="skeleton h-7 w-56 rounded-full" />;
+  }
+  const shown = ITEM_TYPES.filter((type) => counts[type] > 0 || type === active);
+  const total = ITEM_TYPES.reduce((sum, type) => sum + counts[type], 0);
+  const chip = (on: boolean) =>
+    `flex items-center gap-1.5 rounded-full px-3 py-[5px] text-[12.5px] font-semibold transition-colors duration-slow ease-dadi ${
+      on ? "bg-sage-deep text-bone" : "bg-sage-fill text-sage-text hover:bg-sage-active"
+    }`;
   return (
-    <nav
-      aria-label="Filter by type"
-      className="flex flex-wrap items-stretch rounded-[var(--radius-window)] border border-[var(--glass-border)] bg-[var(--glass-veil)] px-1 py-3 shadow-[var(--shadow)] backdrop-blur-[var(--glass-blur)] [&>*+*]:border-l [&>*+*]:border-dashed [&>*+*]:border-sage-line/70"
-    >
-      {shown.map((type, i) => {
-        const on = active === type;
-        return (
-          <button
-            key={type}
-            type="button"
-            aria-pressed={on}
-            onClick={() => onPick(on ? null : type)}
-            className={`relative flex min-w-[110px] flex-1 flex-col items-center gap-2 rounded-[var(--radius)] px-3 py-1.5 transition-[background-color] duration-slow ease-dadi ${
-              on ? "" : "hover:bg-sage-faint"
-            }`}
-          >
-            {on ? <SelectionMark group="chaavi-type" className="rounded-[var(--radius)] bg-sage-active" /> : null}
-            <Ticker
-              value={counts ? counts[type] : null}
-              delay={i * 0.06}
-              className="relative text-[28px] font-medium tracking-tight text-ink"
-            />
-            <span
-              className={`relative text-[10px] font-medium tracking-[2px] uppercase transition-colors duration-slow ease-dadi ${
-                on ? "text-ink" : "text-sage-deep"
-              }`}
-            >
-              {TYPE_META[type].many}
-            </span>
-          </button>
-        );
-      })}
+    <nav aria-label="Filter by type" className="flex flex-wrap items-center gap-1.5 self-center">
+      <button type="button" aria-pressed={active === null} onClick={() => onPick(null)} className={chip(active === null)}>
+        All<span className="tabular-nums opacity-70">{total}</span>
+      </button>
+      {shown.map((type) => (
+        <button key={type} type="button" aria-pressed={active === type} onClick={() => onPick(active === type ? null : type)} className={chip(active === type)}>
+          {TYPE_META[type].many}
+          <span className="tabular-nums opacity-70">{counts[type]}</span>
+        </button>
+      ))}
     </nav>
   );
 }
@@ -233,8 +220,8 @@ export function FolderRail({ tree, scope, counts, hot, landed, busy, onScope, on
         {count(counts.favorites)}
       </button>
 
-      <div className="mt-2.5 mb-1.5 flex items-center justify-between border-t border-dashed border-sage-line pt-3 pr-1.5 pl-3">
-        <span className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">Folders</span>
+      <div className="mt-3 mb-1 flex items-center justify-between pt-1 pr-1.5 pl-3">
+        <span className="text-[11.5px] font-semibold text-ink-ghost">Folders</span>
         <button
           type="button"
           aria-label="New folder"
@@ -562,7 +549,7 @@ export function ItemFace({ item }: ItemFaceProps) {
         </span>
       ) : null}
       {item.type === "login" && item.login.passkeys.length > 0 ? (
-        <span className="text-[9px] font-medium tracking-[1.4px] text-sage-deep">PASSKEY</span>
+        <span className="rounded-full border border-sage-line px-[7px] py-[2px] text-[10.5px] font-semibold text-sage-deep">passkey</span>
       ) : null}
     </>
   );

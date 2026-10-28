@@ -328,9 +328,9 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
         type="button"
         onClick={openCreate}
         disabled={!connected || !ready}
-        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-40"
+        className="inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full bg-sage-deep px-4 text-[13.5px] font-semibold whitespace-nowrap text-bone transition-opacity duration-slow ease-dadi hover:opacity-90 disabled:cursor-default disabled:opacity-40"
       >
-        <span className="flex size-4 shrink-0">
+        <span className="flex size-3.5 shrink-0">
           <IconPlus />
         </span>
         New item
@@ -346,14 +346,20 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
     <div ref={canvasRef} className="relative flex h-full min-h-0 flex-col gap-4">
       {toolbar ? createPortal(toolbarContent, toolbar) : null}
 
-      <Ledger counts={typeCounts} active={typeFilter} onPick={setTypeFilter} />
+      <div className="flex flex-wrap items-baseline gap-x-4 gap-y-2 px-1">
+        {items === null ? (
+          <span className="skeleton h-9 w-48 rounded-[10px]" />
+        ) : (
+          <span className="text-[40px] leading-none font-semibold tracking-[-0.025em] text-ink">
+            {items.length} {items.length === 1 ? "item" : "items"}
+          </span>
+        )}
+        <Ledger counts={typeCounts} active={typeFilter} onPick={setTypeFilter} />
+      </div>
 
       <div className="flex min-h-0 flex-1 gap-4">
-        <aside className="widget-frame w-[17rem] shrink-0" aria-label="Folders">
-          <div className="widget-frame__chrome !justify-between !px-5 !pt-3.5 !pb-3">
-            <span className="widget-frame__title">Vault</span>
-          </div>
-          <motion.div layoutScroll className="widget-frame__body !overflow-y-auto border-t border-dashed border-sage-line">
+        <aside className={`flex w-[15rem] shrink-0 flex-col overflow-hidden ${CARD}`} aria-label="Folders">
+          <motion.div layoutScroll className="min-h-0 flex-1 overflow-y-auto p-2.5">
             <FolderRail
               tree={tree}
               scope={scope}
@@ -373,8 +379,8 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
           </motion.div>
         </aside>
 
-        <section className="widget-frame w-[min(100%,22rem)] shrink-0" aria-label="Items">
-          <div className="widget-frame__chrome !justify-between !px-5 !pt-3.5 !pb-3">
+        <section className={`flex min-w-0 flex-1 flex-col overflow-hidden ${CARD}`} aria-label="Items">
+          <div className="flex shrink-0 items-center justify-between px-5 pt-3.5 pb-1">
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
                 key={listTitle}
@@ -389,7 +395,7 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
             </AnimatePresence>
             {items === null ? null : <Ticker value={shown.length} className="text-[11px] text-ink-ghost" />}
           </div>
-          <motion.div layoutScroll className="widget-frame__body !overflow-y-auto border-t border-dashed border-sage-line p-2">
+          <motion.div layoutScroll className="min-h-0 flex-1 overflow-y-auto p-2">
             <AnimatePresence mode="wait" initial={false}>
               {status !== null ? (
                 <StateView key={`${status.tone}:${status.label}`} {...status} compact className="min-h-[10rem]" />
@@ -425,8 +431,8 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
           </motion.div>
         </section>
 
-        <section className="widget-frame min-w-0 flex-1" aria-label="Item">
-          <div ref={detailRef} className="widget-frame__body !overflow-y-auto">
+        <section className={`flex w-[min(42%,26rem)] shrink-0 flex-col overflow-hidden ${CARD}`} aria-label="Item">
+          <div ref={detailRef} className="min-h-0 flex-1 overflow-y-auto">
             <AnimatePresence
               mode="wait"
               custom={slide}
@@ -532,6 +538,10 @@ export function PasswordManager({ toolbar }: PasswordManagerProps) {
     </div>
   );
 }
+
+/** The canvas card each of the page's three panels sits in. */
+const CARD =
+  "rounded-[18px] border border-(--glass-border) bg-(--glass-veil) shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)]";
 
 /** The real error message for display. */
 function messageOf(err: unknown): string {

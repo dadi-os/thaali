@@ -19,7 +19,7 @@ export type SearchFieldProps = {
  */
 export function SearchField({ value, onChange, placeholder, matches, onPick, className = "w-80" }: SearchFieldProps) {
   return (
-    <label className={`flex h-9 ${className} items-center gap-2 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 shadow-[var(--shadow)] backdrop-blur-[var(--glass-blur)] transition-[border-color,background-color] duration-slow ease-dadi focus-within:border-sage focus-within:bg-sage-faint/60 hover:border-sage`}>
+    <label className={`flex h-9 ${className} items-center gap-2 rounded-[10px] border border-(--glass-border) bg-(--glass-sheet) px-3 transition-[border-color,background-color] duration-slow ease-dadi focus-within:border-sage hover:border-sage-line`}>
       <span className="flex size-4 shrink-0 text-ink-ghost">
         <IconSearch />
       </span>

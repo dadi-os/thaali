@@ -42,7 +42,7 @@ const UNVEIL = {
 
 /** A field header action (Reveal, Hide, Open): a small outlined button of fixed width. */
 const ACT =
-  "inline-flex h-6 min-w-[4.75rem] items-center justify-center gap-1.5 rounded-[7px] border border-sage-line/80 bg-bone/40 px-2 text-[10px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase transition-[background-color,border-color,transform] duration-fast ease-dadi hover:border-sage hover:bg-sage-active/50 active:scale-[0.97] disabled:cursor-progress";
+  "inline-flex h-7 items-center justify-center gap-1.5 rounded-[9px] bg-sage-fill px-2.5 text-[12px] font-semibold whitespace-nowrap text-sage-text transition-[background-color,transform] duration-fast ease-dadi hover:bg-sage-active active:scale-[0.97] disabled:cursor-progress";
 
 export type ItemDetailProps = {
   item: ChaaviItem;
@@ -101,14 +101,14 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
         <div className="flex min-w-0 gap-3.5">
           <Monogram name={item.name} className="size-[46px] rounded-[14px] text-[19px]" />
           <div className="min-w-0">
-            <span className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">{TYPE_META[item.type].one}</span>
+            <span className="text-[12.5px] text-ink-ghost">{TYPE_META[item.type].one}</span>
             <h2 className="mt-1 mb-2 text-[22px] font-medium tracking-tight text-balance text-ink">{item.name}</h2>
             <div className="flex flex-wrap gap-1.5">
               <span className="inline-flex h-6 items-center rounded-full bg-sage-faint px-2.5 text-[11px] text-sage-deep">
                 {folder ? folder.name : "No folder"}
               </span>
               {item.revisionDate ? (
-                <span className="inline-flex h-6 items-center rounded-full border border-dashed border-sage-line px-2.5 text-[11px] text-ink-muted">
+                <span className="inline-flex h-6 items-center rounded-full bg-sage-fill px-2.5 text-[11.5px] text-sage-text">
                   Edited {formatRelative(item.revisionDate)}
                 </span>
               ) : null}
@@ -121,7 +121,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
           aria-pressed={item.favorite}
           disabled={busy}
           onClick={onToggleFavorite}
-          className="inline-flex size-8 shrink-0 items-center justify-center rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] text-[var(--clay)] shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:opacity-40"
+          className="inline-flex size-8 shrink-0 items-center justify-center rounded-full text-[var(--clay)] transition-[background-color] duration-slow ease-dadi hover:bg-sage-fill disabled:opacity-40"
         >
           <motion.span
             key={String(item.favorite)}
@@ -132,7 +132,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
         </button>
       </motion.header>
 
-      <motion.div variants={STAGGER} className="flex flex-1 flex-col gap-2.5 border-t border-dashed border-sage-line px-5 pt-4 pb-5">
+      <motion.div variants={STAGGER} className="flex flex-1 flex-col gap-2.5 px-5 pt-2 pb-5">
         {item.type === "login" ? (
           <>
             <PlainRow label="Username" value={item.login.username} />
@@ -148,7 +148,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
                 {item.login.passkeys.map((passkey, i) => (
                   <div
                     key={`${passkey.rpId}-${i}`}
-                    className="flex items-center gap-2.5 rounded-[var(--radius)] border border-dashed border-sage-line/80 bg-bone/30 px-3 py-2"
+                    className="flex items-center gap-2.5 rounded-[14px] border border-(--glass-border) bg-(--glass-sheet) px-3.5 py-2.5"
                   >
                     <span className="flex-1 truncate text-[13px] text-ink">{passkey.rpId}</span>
                     <span className="truncate text-[12px] text-ink-ghost">{passkey.userName ?? ""}</span>
@@ -275,7 +275,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
 
         {revealError || error ? <p className="text-[12px] text-error">{revealError ?? error}</p> : null}
 
-        <motion.div variants={RISE} className="mt-auto flex flex-wrap items-center gap-2 border-t border-dashed border-sage-line pt-4">
+        <motion.div variants={RISE} className="mt-auto flex flex-wrap items-center gap-2 pt-4">
           <button type="button" onClick={onEdit} className={DASH}>
             <IconPencil />
             Edit
@@ -305,11 +305,11 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
 
 /** Dashed sage action button. */
 export const DASH =
-  "inline-flex h-9 items-center gap-1.5 rounded-[7px] border border-dashed border-sage-line bg-[var(--glass-sheet)] px-3 text-[11px] font-medium tracking-[0.14em] whitespace-nowrap text-sage-deep uppercase shadow-[var(--shadow)] transition-[border-color,background-color] duration-slow ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-default disabled:opacity-40";
+  "inline-flex h-9 items-center gap-1.5 rounded-full bg-sage-fill px-4 text-[13px] font-semibold whitespace-nowrap text-sage-text transition-[background-color] duration-slow ease-dadi hover:bg-sage-active disabled:cursor-default disabled:opacity-40";
 
 /** Dashed action button for a destructive step. */
 export const DASH_DANGER =
-  "inline-flex h-9 items-center gap-1.5 rounded-[7px] border border-dashed border-error-line bg-error-fill/40 px-3 text-[11px] font-medium tracking-[0.14em] text-error uppercase transition-[border-color] duration-slow ease-dadi hover:border-error disabled:opacity-40";
+  "inline-flex h-9 items-center gap-1.5 rounded-full px-4 text-[13px] font-semibold text-error transition-[background-color] duration-slow ease-dadi hover:bg-error-fill disabled:opacity-40";
 
 /** Address lines, city/state/postal code and country, one per line. */
 function identityAddress(item: ChaaviItem): string | null {
@@ -331,7 +331,7 @@ type SectionProps = {
 function Section({ label, children }: SectionProps) {
   return (
     <div className="mt-2 flex flex-col gap-2.5">
-      <motion.span variants={RISE} className="text-[10px] font-medium tracking-[0.16em] text-ink-ghost uppercase">
+      <motion.span variants={RISE} className="px-1 pt-1 text-[11.5px] font-semibold text-ink-ghost">
         {label}
       </motion.span>
       {children}
@@ -351,11 +351,11 @@ type FieldProps = {
 /** One labelled value box in the house's dashed sage. */
 function Field({ label, kind, actions, children }: FieldProps) {
   return (
-    <motion.div variants={RISE} className="rounded-[var(--radius)] border border-dashed border-sage-line/80 bg-bone/30 px-3 py-2.5">
+    <motion.div variants={RISE} className="rounded-[14px] border border-(--glass-border) bg-(--glass-sheet) px-3.5 py-3">
       <div className="mb-1.5 flex min-h-6 items-center justify-between gap-2">
         <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">{label}</span>
-          {kind ? <span className="text-[9px] font-medium tracking-[0.1em] text-ink-ghost uppercase">{kind}</span> : null}
+          <span className="truncate text-[11.5px] font-semibold text-ink-ghost">{label}</span>
+          {kind ? <span className="text-[11px] text-ink-ghost">{kind}</span> : null}
         </span>
         <span className="flex shrink-0 items-center gap-3">{actions}</span>
       </div>
