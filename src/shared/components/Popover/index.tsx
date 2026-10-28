@@ -121,6 +121,8 @@ export function Popover({
       const { x: originX, y: originY } = originOf();
       const width = panel.offsetWidth;
       const height = panel.offsetHeight;
+      /** Room the panel may grow into (its max-height); placing by it keeps the panel still as content loads in. */
+      const tallest = Math.max(height, parseFloat(getComputedStyle(panel).maxHeight) || height);
       let side: Placement["side"] = "left";
       let left = originX + clearance;
       if (left + width > window.innerWidth - PAD) {
@@ -128,7 +130,7 @@ export function Popover({
         side = "right";
       }
       left = Math.max(PAD, Math.min(left, window.innerWidth - width - PAD));
-      const top = Math.max(PAD, Math.min(originY - HEADER_LIFT, window.innerHeight - height - PAD));
+      const top = Math.max(PAD, Math.min(originY - HEADER_LIFT, window.innerHeight - tallest - PAD));
       setPos((prev) =>
         prev &&
         prev.left === left &&

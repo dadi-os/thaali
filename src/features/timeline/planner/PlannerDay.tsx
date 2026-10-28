@@ -75,16 +75,15 @@ export function PlannerDay({ day, today, now, blocks, dues, loading, onOpen }: P
   }, []);
 
   return (
-    <div ref={scroller} className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
-      <div className="mx-auto grid w-full max-w-[78rem] grid-cols-1 gap-x-20 px-2 pt-4 pb-20 lg:grid-cols-[minmax(0,44rem)_minmax(16rem,1fr)]">
-        <div>
-          <header className="mb-10">
-            <p className="text-[11px] font-medium tracking-[0.14em] text-ink-ghost uppercase">
-              {new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric", year: "numeric" }).format(day)}
-            </p>
-            <h2 className="mt-2.5 text-[40px] leading-[1] font-light tracking-[-0.025em] text-ink">
+    <div className="mx-auto grid h-full min-h-0 w-full max-w-[78rem] flex-1 grid-cols-1 gap-x-10 lg:grid-cols-[minmax(0,44rem)_minmax(17rem,22rem)]">
+        <div ref={scroller} className="min-h-0 overflow-y-auto px-2 pt-4 pb-20 [scrollbar-width:thin]">
+          <header className="mb-8 flex items-baseline gap-3.5">
+            <h2 className="text-[40px] leading-[1] font-semibold tracking-[-0.025em] text-ink">
               {new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(day)}
             </h2>
+            <p className="text-[12px] font-semibold tracking-[2px] text-ink-ghost uppercase">
+              {new Intl.DateTimeFormat(undefined, { month: "long", day: "numeric" }).format(day)}
+            </p>
           </header>
 
           {loading ? (
@@ -118,6 +117,7 @@ export function PlannerDay({ day, today, now, blocks, dues, loading, onOpen }: P
               <div className="absolute inset-y-0 right-0" style={{ left: GUTTER_PX }}>
                 {gapsBetween(segments)
                   .filter((gap) => gap.endMin - gap.startMin >= GAP_NAMED_MIN)
+                  .filter((gap) => !dueMarks.some(({ min }) => Math.abs(min - (gap.startMin + gap.endMin) / 2) < 25))
                   .map((gap) => (
                     <span
                       key={gap.startMin}
@@ -173,13 +173,12 @@ export function PlannerDay({ day, today, now, blocks, dues, loading, onOpen }: P
         </div>
 
         {!loading ? (
-          <aside className="mt-1 hidden flex-col gap-11 self-start lg:sticky lg:top-6 lg:flex" aria-label="The day at a glance">
+          <aside className="hidden min-h-0 flex-col gap-4 overflow-y-auto pt-5 pb-6 [scrollbar-width:none] lg:flex" aria-label="The day at a glance">
             {isToday ? <Focus current={current} next={next} nowMin={nowMin} onOpen={onOpen} /> : null}
             {segments.length > 0 ? <DayList segments={segments} current={current} now={now} onOpen={onOpen} /> : null}
             {after.length > 0 ? <After day={addDays(day, 1)} segments={after} onOpen={onOpen} /> : null}
           </aside>
         ) : null}
-      </div>
     </div>
   );
 }
@@ -189,13 +188,18 @@ type SectionProps = {
   children: ReactNode;
 };
 
-/** A titled group of the side column: a small label over its content. */
+/** One card of the side column, as on the canvas: a glass card with a small spaced label over its content. */
 function Section({ label, children }: SectionProps) {
   return (
-    <section>
-      <h3 className="mb-4 text-[11px] font-medium tracking-[0.14em] text-ink-ghost uppercase">{label}</h3>
+    <motion.section
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: SLOW_S, ease: EASE }}
+      className="shrink-0 rounded-[16px] border border-(--glass-border) bg-(--glass-veil) px-[18px] py-4 shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)]"
+    >
+      <h3 className="mb-3 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost uppercase">{label}</h3>
       {children}
-    </section>
+    </motion.section>
   );
 }
 
@@ -259,6 +263,23 @@ function DayList({ segments, current, now, onOpen }: DayListProps) {
   const planned = segments.reduce((sum, s) => sum + s.endMin - s.startMin, 0);
   return (
     <Section label={`The day · ${segments.length} ${segments.length === 1 ? "task" : "tasks"} · ${formatSpan(planned)}`}>
+      <div className="mb-2.5 flex gap-[3px]" aria-hidden>
+        {segments.map((segment) => (
+          <span
+            key={itemKey(segment.block)}
+            className={`h-[5px] rounded-[3px] ${
+              segment.block.outcome === "done"
+                ? "bg-[var(--clay)]"
+                : isSettled(segment.block, now)
+                  ? "bg-[repeating-linear-gradient(90deg,var(--ink-faint)_0_3px,transparent_3px_5px)] opacity-60"
+                  : current !== null && itemKey(current.block) === itemKey(segment.block)
+                    ? "bg-sage"
+                    : "bg-rule"
+            }`}
+            style={{ flex: segment.endMin - segment.startMin }}
+          />
+        ))}
+      </div>
       <ul className="flex flex-col">
         {segments.map((segment) => {
           const settled = isSettled(segment.block, now);
