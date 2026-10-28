@@ -1,10 +1,10 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timeline } from "../../shared/api";
 import { openAgent, openDadi } from "../../store/chat";
+import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
+import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
-
-/** Owners that are not agents: a plan made by hand or by plain ingest has no thread to message. */
-const NO_AGENT = new Set(["manual", "ingest"]);
+import { keeperOf } from "./plans";
 
 export type SessionActionsProps = {
   item: TimelineItem;
@@ -12,7 +12,7 @@ export type SessionActionsProps = {
 
 /**
  * What Ankur can do with one session: mark it Completed or take the mark back (the only
- * write the app makes), and message the agent that keeps it, or Dadi when no agent does.
+ * write the app makes), and message the agent that keeps it, or Dadi when none still runs.
  * Changes go through that conversation, never through edits here.
  */
 export function SessionActions({ item }: SessionActionsProps) {
@@ -24,16 +24,17 @@ export function SessionActions({ item }: SessionActionsProps) {
       timeline.setOutcome({ plan_id: item.id, occurrence_date: occurrenceDate, outcome: completed ? null : "done" }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ["yaad", "timeline"] }),
   });
-  const agent = NO_AGENT.has(item.owner) ? null : item.owner;
+  const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
+  const keeper = keeperOf(item, agents.data);
   return (
     <div className="flex flex-col gap-1.5">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => (agent === null ? openDadi() : openAgent(agent))}
+          onClick={() => (keeper === null ? openDadi() : openAgent(keeper.id))}
           className="min-w-0 truncate text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
         >
-          {agent === null ? "Tell Dadi" : `Message ${agent}`}
+          {keeper === null ? "Tell Dadi" : `Message ${keeper.name}`}
         </button>
         {date !== null && item.state !== "cancelled" ? (
           <button

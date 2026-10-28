@@ -6,13 +6,13 @@ import { TimelineCalendar, type TimelineView } from "../features/timeline/Timeli
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
 /**
- * Full Timeline page: the day planner, plus week and month plan calendars with a Someday
- * ideas rail. `?view=week` (the home tile's link) opens the week.
+ * Full Timeline page: the day planner, week and month calendars with a Needs a time rail, and
+ * Needs a time in full. `?view=week` (the home tile's link) opens the week; `?view=someday` Needs a time.
  */
 export function TimelinePage() {
   const [params] = useSearchParams();
   const requested = params.get("view");
-  const [view, setView] = useState<TimelineView>(requested === "week" || requested === "month" ? requested : "planner");
+  const [view, setView] = useState<TimelineView>(requested === "week" || requested === "month" || requested === "someday" ? requested : "planner");
   return (
     <motion.div
       className="relative flex h-full min-h-0 w-full flex-col overflow-hidden"
@@ -22,7 +22,7 @@ export function TimelinePage() {
     >
       <PageHeader
         title="TIMELINE"
-        hint="The day planner · plans by week and month · ideas live in Someday"
+        hint="Click a session to mark it completed or message the agent that keeps it"
       />
       <div className="min-h-0 flex-1 px-1 pb-1">
         <TimelineCalendar mode="full" view={view} onViewChange={setView} />

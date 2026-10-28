@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { isMeshOnline, timeline } from "../../shared/api";
-import { openDadi } from "../../store/chat";
 import type { TimelineItem, TimelineViewName } from "../../types/timeline";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { Glider } from "../../shared/components/Glider";
@@ -31,10 +30,10 @@ import { isSettled } from "./planner/blocks";
 import { PlannerDay } from "./planner/PlannerDay";
 import { SessionCard } from "./planner/SessionCard";
 import { RibbonView } from "./RibbonView";
-import { SomedayRail } from "./SomedayRail";
+import { NeedsATime, SomedayRail } from "./Someday";
 import { WeekView } from "./WeekView";
 
-export type TimelineView = "planner" | "week" | "month";
+export type TimelineView = "planner" | "week" | "month" | "someday";
 
 export type TimelineCalendarProps = {
   mode: "full" | "preview";
@@ -47,9 +46,10 @@ export type TimelineCalendarProps = {
 };
 
 const VIEW_OPTIONS: Array<{ value: TimelineView; label: string }> = [
-  { value: "planner", label: "Planner" },
+  { value: "planner", label: "Day" },
   { value: "week", label: "Week" },
   { value: "month", label: "Month" },
+  { value: "someday", label: "Needs a time" },
 ];
 
 /** How often live markers (now line, countdowns, ongoing pulses) re-read the clock. */
@@ -76,10 +76,9 @@ function useNow(ms: number): Date {
 }
 
 /**
- * Planner (one day of timed sessions) / week / month calendar over Yaad's timeline views.
- * Full mode pages with motion, keeps a live now marker and Next up countdown, and opens any
- * session to mark it Completed or message its owner; Tell Dadi opens the Dadi composer for
- * anything else. Preview is the compact current-week `RibbonView` of commitments, whose
+ * Day (one day of timed sessions) / week / month calendar over Yaad's timeline views, plus
+ * Needs a time (the someday view in full). Full mode pages with motion, keeps a live now marker
+ * and Next up countdown, and opens any session to mark it Completed or message its owner. Preview is the compact current-week `RibbonView` of commitments, whose
  * sessions open the same detail popover in place; the popover's events stay out of the
  * surrounding tile, which opens the full timeline.
  */
@@ -143,7 +142,7 @@ export function TimelineCalendar({
       const byKey = new Map(results.flatMap(({ items }) => items).map((item) => [itemKey(item), item] as const));
       return [...byKey.values()];
     },
-    enabled: connected && (preview || view !== "planner"),
+    enabled: connected && (preview || (view !== "planner" && view !== "someday")),
   });
 
   const planned = !preview && view === "planner";
@@ -227,7 +226,8 @@ export function TimelineCalendar({
     );
   }
 
-  const title = view === "planner" ? "" : view === "week" ? formatWeekTitle(anchor) : formatMonthTitle(anchor);
+  const title =
+    view === "planner" || view === "someday" ? "" : view === "week" ? formatWeekTitle(anchor) : formatMonthTitle(anchor);
   const openBlock = openedBlock === null ? null : (blocks.find((b) => itemKey(b) === openedBlock.key) ?? null);
 
   return (
@@ -235,7 +235,7 @@ export function TimelineCalendar({
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Glider options={VIEW_OPTIONS} value={view} onChange={setView} label="Timeline view" />
-          <div className="flex items-center gap-1">
+          <div className={`flex items-center gap-1 ${view === "someday" ? "invisible" : ""}`}>
             <button
               type="button"
               onClick={() => page(-1)}
@@ -278,13 +278,6 @@ export function TimelineCalendar({
 
           <div className="ml-auto flex min-w-0 items-center gap-2">
             {planned ? null : <NextUp now={now} onOpen={openNode} />}
-            <button
-              type="button"
-              onClick={openDadi}
-              className="flex shrink-0 items-center gap-1 rounded-full bg-sage-active px-3 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/50"
-            >
-              Tell Dadi
-            </button>
           </div>
         </div>
 
@@ -312,6 +305,8 @@ export function TimelineCalendar({
                     setOpenedBlock({ key: itemKey(block), anchor: anchorOf(el), open: true });
                   }}
                 />
+              ) : view === "someday" ? (
+                <NeedsATime onOpen={openNode} />
               ) : view === "week" ? (
                 <WeekView
                   days={weekDays(anchor)}
@@ -343,7 +338,7 @@ export function TimelineCalendar({
         </div>
       </div>
 
-      {!hideIdeas && !planned ? <SomedayRail onOpen={openNode} /> : null}
+      {!hideIdeas && !planned && view !== "someday" ? <SomedayRail onOpen={openNode} /> : null}
 
       {openedBlock !== null && openBlock !== null ? (
         <Popover

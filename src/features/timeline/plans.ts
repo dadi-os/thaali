@@ -1,8 +1,18 @@
 /** Session helpers shared by the timeline views and popovers. */
 
+import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
 import type { PopoverAnchor } from "../../shared/components/Popover";
 import { endOfDay, formatTime, isSameDay, startOfDay } from "./dates";
+
+/**
+ * The active agent that keeps `item`: its owner when that names an agent still running. Null
+ * when the plan was made by hand or ingest, or its agent (often a one-shot worker) has retired;
+ * a message about it then goes to Dadi. `agents` is Hath's list, absent until it has loaded.
+ */
+export function keeperOf(item: TimelineItem, agents: AgentRecord[] | undefined): AgentRecord | null {
+  return agents?.find((agent) => agent.active && (agent.id === item.owner || agent.name === item.owner)) ?? null;
+}
 
 /** A key naming one session: its plan and the date it was first scheduled for. */
 export function itemKey(item: TimelineItem): string {
