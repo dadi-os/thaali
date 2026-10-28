@@ -66,7 +66,7 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
       onClose={onClose}
       anchor={anchor}
       aria-label={node ? `${node.title} details` : "Node details"}
-      widthPx={360}
+      widthPx={380}
       contentKey={nodeId}
     >
       {nodeQuery.isError ? (
@@ -183,15 +183,15 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
 
           </div>
 
-          <footer className="flex shrink-0 items-center justify-between gap-2 border-t border-rule/60 px-4 py-2.5">
+          <footer className="flex shrink-0 flex-col gap-2.5 border-t border-rule/60 px-4 py-3">
+            {session ? <SessionActions item={session} /> : null}
             <button
               type="button"
               onClick={() => navigate(`/yaad?focus=${node.id}`)}
-              className="text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
+              className="self-start whitespace-nowrap text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
             >
               Open in Yaad →
             </button>
-            {session ? <SessionActions item={session} /> : null}
           </footer>
         </>
       )}
