@@ -207,6 +207,7 @@ export function TimelineCalendar({
           today={today}
           now={now}
           plans={plans}
+          loading={plansQuery.isPending}
           onOpen={openNode}
           className={className}
         />

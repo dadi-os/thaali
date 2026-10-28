@@ -33,7 +33,21 @@ export function GharWidget() {
     return <StateView tone="error" label="Could not load rooms" error={roomsQuery.error} compact />;
   }
   if (!devicesQuery.data || !roomsQuery.data) {
-    return <StateView tone="loading" label="Opening the house" compact />;
+    return (
+      <div role="status" aria-label="Opening the house" className="flex h-full min-h-0 flex-col px-[22px] pt-1.5 pb-4">
+        <div className="flex items-end justify-between gap-3">
+          <div className="flex flex-col gap-2">
+            <span className="skeleton h-7 w-28 rounded-[8px]" />
+            <span className="skeleton h-2.5 w-20" />
+          </div>
+          <span className="skeleton h-7 w-12 rounded-full" />
+        </div>
+        <div className="flex gap-2 pt-3">
+          <span className="skeleton h-9 w-28 rounded-full" />
+          <span className="skeleton h-9 w-36 rounded-full" />
+        </div>
+      </div>
+    );
   }
 
   const lights = devicesQuery.data.devices.filter(isLight);

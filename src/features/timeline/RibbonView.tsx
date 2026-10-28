@@ -15,6 +15,8 @@ export type RibbonViewProps = {
   now: Date;
   /** The week's commitments: sessions and dues, routines left out. */
   plans: TimelineItem[];
+  /** The week is still loading: each day shows skeleton rows instead of an empty column. */
+  loading: boolean;
   /** A plan was clicked: open it beside `el` without leaving the tile. */
   onOpen: (item: TimelineItem, el: Element) => void;
   className?: string;
@@ -26,7 +28,7 @@ export type RibbonViewProps = {
  * all of its other plans with their start time, scrolling when they overflow. A plan opens in place;
  * the rest of the tile opens the full timeline.
  */
-export function RibbonView({ days, labels, today, now, plans, onOpen, className = "" }: RibbonViewProps) {
+export function RibbonView({ days, labels, today, now, plans, loading, onOpen, className = "" }: RibbonViewProps) {
   const lanes = spanLanes(plans, days);
   return (
     <div className={`flex h-full min-h-0 flex-col px-2 pb-2 pt-1 ${className}`}>
@@ -70,6 +72,14 @@ export function RibbonView({ days, labels, today, now, plans, onOpen, className 
                 </div>
               ) : null}
               <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
+                {loading
+                  ? [0, 1, 2].slice(0, i > 4 ? 1 : 3).map((k) => (
+                      <span key={k} className="flex flex-col gap-1.5 px-1 py-1">
+                        <span className="skeleton h-2 w-3/5" />
+                        <span className="skeleton h-2.5 w-11/12" />
+                      </span>
+                    ))
+                  : null}
                 {dayPlans.map((p, j) => {
                   const span = spanOf(p)!;
                   const live = !p.all_day && span.start <= now && now < span.end;
