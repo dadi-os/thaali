@@ -81,8 +81,8 @@ export function ScheduleSection({ agentId, enabled, onEditingChange }: ScheduleS
     <AnimatePresence initial={false}>
       {show ? (
         <motion.section key="schedules" {...REVEAL} className="overflow-hidden">
-          <div className="mb-4">
-            <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">SCHEDULED</h3>
+          <div className="mb-4 border-t border-rule/60 pt-3.5">
+            <h3 className="mb-2 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">SCHEDULED</h3>
             {query.isError ? (
               <p className="text-[13px] text-error">{query.error.message}</p>
             ) : (

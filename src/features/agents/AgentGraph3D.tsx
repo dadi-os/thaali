@@ -42,14 +42,13 @@ import {
 
 const THEME = ["--sage", "--sage-deep", "--ink-faint", "--bone"] as const;
 
-/** Which agents the page brings forward: every one, the ones mid-flight, top-level threads, or leaf sub-agents (one-shot workers). */
-type AgentShow = "all" | "working" | "threads" | "workers";
+/** Which agents the page brings forward: every one, the ones thinking (conversation lane running), or the ones working (reasoning lane running). */
+type AgentShow = "all" | "thinking" | "working";
 
 const SHOW_OPTIONS: Array<{ value: AgentShow; label: string }> = [
   { value: "all", label: "All" },
+  { value: "thinking", label: "Thinking" },
   { value: "working", label: "Working" },
-  { value: "threads", label: "Threads" },
-  { value: "workers", label: "Workers" },
 ];
 
 /** Resolved theme colors the agent scene draws with. */
@@ -186,12 +185,10 @@ export function AgentGraph3D({
     if (!q && show === "all") {
       return null;
     }
-    const parents = new Set(graph.nodes.map((n) => n.parent_agent_id));
     const kept = (n: (typeof graph.nodes)[number]) =>
       show === "all" ||
-      (show === "working" && isLiveVisual(visualState(n, runningMap[n.id]))) ||
-      (show === "threads" && n.depth === 0) ||
-      (show === "workers" && n.depth > 0 && !parents.has(n.id));
+      (show === "thinking" && runningMap[n.id]?.conversation === true) ||
+      (show === "working" && runningMap[n.id]?.reasoning === true);
     return new Set(graph.nodes.filter((n) => kept(n) && (!q || n.name.toLowerCase().includes(q))).map((n) => n.id));
   }, [graph.nodes, query, show, runningMap]);
   const onlyMatch = matches?.size === 1 ? [...matches][0]! : null;

@@ -7,6 +7,7 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { MarkdownBody } from "../../shared/components/Markdown";
 import { Popover, type PopoverAnchor, type PopoverHover } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
+import { openAgent } from "../../store/chat";
 import { getRunning } from "../../store/running";
 import { AgentActivity } from "./activity";
 import { BrowserFrame } from "./BrowserFrame";
@@ -194,26 +195,33 @@ export function AgentPopover({
       contentKey={agentId}
       hover={editingSchedule && hover ? { onInside: hover.onInside, onOutside: () => {} } : hover}
     >
-      <header className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
-        <div className="flex items-baseline justify-between gap-3">
-          <h2 className="min-w-0 truncate text-[15px] font-medium text-ink">{name}</h2>
-          <button
-            type="button"
-            onClick={onClose}
-            className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-dadi hover:text-ink-muted"
-          >
-            ESC
-          </button>
+      <header className="shrink-0 border-b border-rule/60 px-5 pt-4 pb-3.5">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className="truncate text-[19px] font-semibold tracking-[-0.015em] text-ink">{name}</h2>
+            <p className={`mt-1 flex items-center gap-2 text-[12.5px] ${live ? "text-sage-text" : "text-ink-muted"}`}>
+              {live ? (
+                <span aria-hidden className="flex gap-[3px]">
+                  {[0, 1, 2].map((i) => (
+                    <span key={i} className="animate-breath size-1 rounded-full bg-sage-text" style={{ animationDelay: `${i * 0.2}s` }} />
+                  ))}
+                </span>
+              ) : (
+                <span aria-hidden className={`inline-block size-1.5 rounded-full ${active ? "bg-sage" : "bg-ink-faint"}`} />
+              )}
+              {status}
+            </p>
+          </div>
+          {active ? (
+            <button
+              type="button"
+              onClick={() => openAgent(agentId)}
+              className="shrink-0 rounded-[10px] bg-sage-deep px-3 py-1.5 text-[12.5px] font-semibold text-bone transition-opacity duration-slow ease-dadi hover:opacity-90"
+            >
+              Open thread
+            </button>
+          ) : null}
         </div>
-        <p className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-muted">
-          <span
-            aria-hidden
-            className={`inline-block size-1.5 rounded-full ${
-              live ? "bg-sage-deep" : active ? "bg-sage" : "bg-ink-faint"
-            }`}
-          />
-          {status}
-        </p>
       </header>
 
       {browserId !== null ? (
@@ -232,8 +240,18 @@ export function AgentPopover({
         </div>
       ) : null}
 
-      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-4 py-3 [overflow-anchor:none]">
-        <section className="mb-4 grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[13px]">
+      <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4 [overflow-anchor:none]">
+        <section className="mb-4 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-[12.5px]">
+          {parent ? (
+            <>
+              <span className="text-ink-ghost">Parent</span>
+              <span className="text-ink">
+                <button type="button" className="text-sage-deep" onClick={() => onSelectParent(parent.id)}>
+                  {parent.name}
+                </button>
+              </span>
+            </>
+          ) : null}
           <span className="text-ink-ghost">Created</span>
           <Tooltip content={createdAt ? formatAbsolute(createdAt) : "—"}>
             <span className="text-ink-muted">
@@ -250,20 +268,6 @@ export function AgentPopover({
                   : "—"}
             </span>
           </Tooltip>
-          {parent ? (
-            <>
-              <span className="text-ink-ghost">Parent</span>
-              <span className="text-ink-muted">
-                <button
-                  type="button"
-                  className="text-sage-deep"
-                  onClick={() => onSelectParent(parent.id)}
-                >
-                  {parent.name}
-                </button>
-              </span>
-            </>
-          ) : null}
         </section>
 
         <ScheduleSection
@@ -290,46 +294,35 @@ export function AgentPopover({
           ) : null}
           {detail ? (
             <motion.div key="detail" {...REVEAL} className="overflow-hidden">
-              <section className="mb-4">
-                <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
-                  SYSTEM PROMPT
-                </h3>
-                <div
-                  className={`text-[13px] leading-relaxed text-ink ${
-                    promptOpen
-                      ? ""
-                      : "max-h-[6.5em] overflow-hidden [mask-image:linear-gradient(to_bottom,black_55%,transparent)]"
-                  }`}
-                >
-                  <MarkdownBody content={detail.system_prompt} compact />
-                </div>
-                {detail.system_prompt.length > 160 && (
-                  <button
-                    type="button"
-                    className="mt-1 text-[12px] text-sage-deep"
-                    onClick={() => setPromptOpen((v) => !v)}
-                  >
-                    {promptOpen ? "Collapse" : "Expand"}
+              <section className="mb-4 border-t border-rule/60 pt-3.5">
+                <div className="flex items-baseline justify-between">
+                  <h3 className="text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">CHARTER</h3>
+                  <button type="button" className="text-[12px] font-semibold text-sage-deep" onClick={() => setPromptOpen((v) => !v)}>
+                    {promptOpen ? "Hide" : `Show · ${(detail.system_prompt.length / 1000).toFixed(1)}k chars`}
                   </button>
-                )}
+                </div>
+                <AnimatePresence initial={false}>
+                  {promptOpen ? (
+                    <motion.div key="charter" {...REVEAL} className="overflow-hidden">
+                      <div className="pt-2 text-[13px] leading-relaxed text-ink">
+                        <MarkdownBody content={detail.system_prompt} compact />
+                      </div>
+                    </motion.div>
+                  ) : null}
+                </AnimatePresence>
               </section>
 
-              <section className="mb-5">
-                <h3 className="mb-1.5 text-[11px] font-medium tracking-[2px] text-ink-faint">
-                  TOOLS
-                </h3>
+              <section className="mb-5 border-t border-rule/60 pt-3.5">
+                <h3 className="mb-2 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">TOOLS</h3>
                 {detail.tools.length === 0 ? (
                   <p className="text-[13px] text-ink-muted">No granted tools.</p>
                 ) : (
-                  <ul className="space-y-2">
+                  <ul className="flex flex-wrap gap-1.5">
                     {detail.tools.map((t) => (
                       <li key={t.name}>
-                        <div className="text-[13px] font-medium text-ink">
-                          {t.name}
-                        </div>
-                        <div className="text-[12px] leading-snug text-ink-muted">
-                          <MarkdownBody content={t.usage} compact />
-                        </div>
+                        <Tooltip content={t.usage}>
+                          <span className="block rounded-[7px] bg-sage-fill px-2 py-[3px] font-mono text-[11px] text-sage-text">{t.name}</span>
+                        </Tooltip>
                       </li>
                     ))}
                   </ul>

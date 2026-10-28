@@ -337,12 +337,12 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
   const older = shown.length - visible.length;
 
   return (
-    <section>
+    <section className="border-t border-rule/60">
       <div
         ref={headerRef}
-        className="sticky -top-3 z-10 -mx-4 flex items-center justify-between gap-2 bg-glass-sheet px-4 py-2 backdrop-blur-md"
+        className="sticky -top-4 z-10 -mx-5 flex items-center justify-between gap-2 bg-glass-sheet px-5 py-2 backdrop-blur-md"
       >
-        <h3 className="text-[11px] font-medium tracking-[2px] text-ink-faint">ACTIVITY</h3>
+        <h3 className="text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">ACTIVITY</h3>
         <div className="flex items-center gap-2">
           <AnimatePresence initial={false}>
             {newCount > 0 ? (
