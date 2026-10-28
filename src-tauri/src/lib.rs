@@ -3,6 +3,7 @@ mod net;
 mod device;
 mod download;
 mod radio;
+mod owner_auth;
 
 #[cfg(windows)]
 mod device_location_windows;
@@ -57,6 +58,7 @@ pub fn run() {
             radio::radio_write,
             radio::radio_subscribe,
             radio::radio_disconnect,
+            owner_auth::owner_authenticate,
         ])
         .setup(|app| {
             #[cfg(windows)]

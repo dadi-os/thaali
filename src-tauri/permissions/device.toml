@@ -12,3 +12,8 @@ commands.allow = ["device_get_location"]
 identifier = "allow-save-download"
 description = "Allows saving a file Ankur downloads from the app into the Downloads folder."
 commands.allow = ["save_download"]
+
+[[permission]]
+identifier = "allow-owner-authenticate"
+description = "Allows asking the operating system to confirm the computer's owner (Touch ID, Windows Hello, polkit) before a Chaavi secret is shown or copied."
+commands.allow = ["owner_authenticate"]

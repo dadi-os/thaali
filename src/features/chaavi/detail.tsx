@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { CopyButton } from "../../shared/components/CopyButton";
+import { confirmOwner, ownerConfirmedRecently } from "../../shared/lib/platform/owner";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { formatRelative } from "../../shared/lib/ux/time";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
@@ -66,6 +67,7 @@ export function ItemDetail({ item, folders, busy, error, onEdit, onToggleFavorit
   const flat = flatData(item);
 
   async function fetchSecret(request: ChaaviReveal): Promise<string> {
+    await confirmOwner(`show a secret from ${item.name}`);
     const { value } = await chaavi.reveal(item.id, request);
     return value;
   }
@@ -471,8 +473,8 @@ function TotpRow({ itemId }: TotpRowProps) {
   const load = () => {
     setError(null);
     setLoading(true);
-    chaavi
-      .getTotp(itemId)
+    confirmOwner("show a one-time code")
+      .then(() => chaavi.getTotp(itemId))
       .then((next) => {
         setTotp({ ...next, at: Date.now() });
         setNow(Date.now());
@@ -496,7 +498,11 @@ function TotpRow({ itemId }: TotpRowProps) {
 
   useEffect(() => {
     if (totp && left === 0 && !loading) {
-      load();
+      if (ownerConfirmedRecently()) {
+        load();
+      } else {
+        setTotp(null);
+      }
     }
   });
 

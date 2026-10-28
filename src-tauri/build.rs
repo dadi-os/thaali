@@ -66,6 +66,15 @@ fn main() {
             .flag("-fobjc-arc")
             .flag("-mmacosx-version-min=11.0")
             .compile("thaali_location");
+
+        println!("cargo:rustc-link-lib=framework=LocalAuthentication");
+        let auth = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/owner_auth.m");
+        println!("cargo:rerun-if-changed={}", auth.display());
+        cc::Build::new()
+            .file(&auth)
+            .flag("-fobjc-arc")
+            .flag("-mmacosx-version-min=11.0")
+            .compile("thaali_owner_auth");
     }
 
     tauri_build::build()
