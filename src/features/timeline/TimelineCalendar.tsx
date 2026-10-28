@@ -152,6 +152,12 @@ export function TimelineCalendar({
     enabled: connected && planned,
   });
 
+  const duesQuery = useQuery({
+    queryKey: ["yaad", "timeline", "due", range.occurred_from, range.occurred_to],
+    queryFn: async () => (await timeline.query({ from: range.occurred_from, to: range.occurred_to, view: "due" })).items,
+    enabled: connected && planned,
+  });
+
   const plans = plansQuery.data ?? [];
   const blocks = blocksQuery.data ?? [];
   const labels = weekdayLabels();
@@ -184,7 +190,7 @@ export function TimelineCalendar({
     return <StateView tone="offline" label="Timeline is offline" detail="Plans come back when dadi reconnects" compact={preview} className={className} />;
   }
 
-  const failed = planned ? blocksQuery : plansQuery;
+  const failed = planned ? (blocksQuery.isError ? blocksQuery : duesQuery) : plansQuery;
   if (failed.isError) {
     return (
       <StateView
@@ -300,6 +306,7 @@ export function TimelineCalendar({
                   today={today}
                   now={now}
                   blocks={blocks}
+                  dues={duesQuery.data ?? []}
                   loading={blocksQuery.isPending}
                   onOpen={(block, el) => {
                     closeNode();

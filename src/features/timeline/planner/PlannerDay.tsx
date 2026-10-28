@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import type { TimelineItem } from "../../../types/timeline";
-import { addDays, isSameDay, startOfDay } from "../dates";
+import { addDays, formatTime, isSameDay, startOfDay } from "../dates";
 import {
   axisRange,
   formatClockCompact,
@@ -39,6 +39,8 @@ export type PlannerDayProps = {
   now: Date;
   /** Planner sessions of the shown day and the day after it. */
   blocks: TimelineItem[];
+  /** Deadlines with no time set aside (Yaad's due view); each one due on this day is a clay line at its time. */
+  dues: TimelineItem[];
   /** Sessions have not loaded yet. */
   loading: boolean;
   /** A session was picked; `el` anchors its card. */
@@ -53,11 +55,15 @@ export type PlannerDayProps = {
  * On a wide window a column on the right keeps what matters in view: what is happening now
  * and what is next, the day's tasks with their lengths, and the start of the next day.
  */
-export function PlannerDay({ day, today, now, blocks, loading, onOpen }: PlannerDayProps) {
+export function PlannerDay({ day, today, now, blocks, dues, loading, onOpen }: PlannerDayProps) {
   const isToday = isSameDay(day, today);
   const segments = segmentsOn(blocks, day);
   const after = segmentsOn(blocks, addDays(day, 1));
   const { from, to } = axisRange([segments]);
+  const dueMarks = dues
+    .filter((due) => due.due_at !== null && due.start_at === null && isSameDay(new Date(due.due_at), day))
+    .map((due) => ({ due, min: (new Date(due.due_at!).getTime() - startOfDay(day).getTime()) / 60_000 }))
+    .filter(({ min }) => min >= from * 60 && min <= to * 60);
   const nowMin = (now.getTime() - startOfDay(now).getTime()) / 60_000;
   const { current, next } = isToday ? nowAndNext(segments, nowMin) : { current: null, next: null };
   const top = (min: number) => (min - from * 60) * PPM;
@@ -133,6 +139,25 @@ export function PlannerDay({ day, today, now, blocks, loading, onOpen }: Planner
                     delay={k * 0.02}
                     onOpen={onOpen}
                   />
+                ))}
+                {dueMarks.map(({ due, min }) => (
+                  <button
+                    key={itemKey(due)}
+                    type="button"
+                    onClick={(e) => onOpen(due, e.currentTarget)}
+                    onContextMenu={(e) => {
+                      e.preventDefault();
+                      onOpen(due, e.currentTarget);
+                    }}
+                    className="absolute right-0 z-[5] flex -translate-y-1/2 items-center gap-2 text-left"
+                    style={{ top: top(min), left: 0 }}
+                  >
+                    <span className="shrink-0 rounded-full bg-[color-mix(in_srgb,var(--clay)_18%,transparent)] px-2 py-[2px] text-[10.5px] font-semibold tabular-nums text-[color-mix(in_srgb,var(--clay)_70%,var(--ink))]">
+                      due {formatTime(due.due_at!)}
+                    </span>
+                    <span className="truncate text-[12px] text-ink-muted">{due.title}</span>
+                    <span className="h-px min-w-6 flex-1 border-t border-dashed border-[color-mix(in_srgb,var(--clay)_55%,transparent)]" />
+                  </button>
                 ))}
                 {isToday && nowMin >= from * 60 && nowMin <= to * 60 ? (
                   <div aria-hidden className="pointer-events-none absolute right-0 z-10 flex -translate-y-1/2 items-center" style={{ top: top(nowMin), left: -GUTTER_PX }}>
