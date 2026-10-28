@@ -103,7 +103,7 @@ function SomedaySkeleton({ rows }: { rows: number }) {
 export function SomedayRail({ onOpen }: SomedayProps) {
   const query = useSomeday();
   return (
-    <aside className="flex w-[min(230px,28%)] shrink-0 flex-col border-l border-dashed border-sage-line pl-3">
+    <aside className="flex w-[min(230px,28%)] shrink-0 flex-col border-l border-dashed border-sage-line pl-3 portrait:max-h-[24%] portrait:w-full portrait:border-t portrait:border-l-0 portrait:pt-3 portrait:pl-0">
       <span className="mb-2 flex items-baseline justify-between text-[11px] font-medium tracking-[2px] text-sage-deep">
         NEEDS A TIME
         {query.data ? <span className="tracking-normal text-ink-ghost">{query.data.length}</span> : null}
@@ -115,7 +115,7 @@ export function SomedayRail({ onOpen }: SomedayProps) {
       ) : query.data.length === 0 ? (
         <p className="text-[12px] text-ink-ghost">Nothing waiting for a time</p>
       ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden">
+        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden portrait:grid portrait:grid-cols-3 portrait:content-start">
           <AnimatePresence>
             {sorted(query.data).map((item, i) => (
               <Entry key={itemKey(item)} item={item} index={i} onOpen={onOpen} keeper={null} />

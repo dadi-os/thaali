@@ -238,7 +238,7 @@ export function TimelineCalendar({
   const openBlock = openedBlock === null ? null : (blocks.find((b) => itemKey(b) === openedBlock.key) ?? null);
 
   return (
-    <div className={`flex h-full min-h-0 gap-3 ${className}`}>
+    <div className={`flex h-full min-h-0 gap-3 portrait:flex-col ${className}`}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <Glider options={VIEW_OPTIONS} value={view} onChange={setView} label="Timeline view" />
