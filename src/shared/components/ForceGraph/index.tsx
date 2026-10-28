@@ -50,6 +50,8 @@ const SWEEP_RATE = 7;
 const SWEEP_HANDOFF = 0.75;
 /** Exponential rate (per second) of the camera flight to a focused node. */
 const FLIGHT_RATE = 4;
+/** The least reach (world units) a focus frames, so a node with few relatives is not flown into. */
+const MIN_FOCUS_REACH = 60;
 /** Link brightness toward a hovered node. */
 const HOVER_LINK = 0.6;
 /** Layout ticks run before the first frame so the bloom opens on a settled shape. */
@@ -141,6 +143,8 @@ export type ForceGraphProps<R extends { id: string }, E extends ForceEdge> = {
   onNodeLeave?: () => void;
   /** User zoomed the camera (wheel or two-finger pinch), e.g. to drop the focus. */
   onZoom?: () => void;
+  /** Pixels a docked sheet covers at the canvas's right edge; the view centers in what is left. */
+  rightInset?: number;
 };
 
 /** Orbit controls surface this scene drives (GraphSpace registers them as default). */
@@ -207,8 +211,18 @@ export function ForceGraph<R extends { id: string }, E extends ForceEdge>({
   onNodeHover,
   onNodeLeave,
   onZoom,
+  rightInset = 0,
 }: ForceGraphProps<R, E>) {
   const { camera, controls, scene, gl, size } = useThree();
+
+  useEffect(() => {
+    const lens = camera as THREE.PerspectiveCamera;
+    if (rightInset > 0) {
+      lens.setViewOffset(size.width, size.height, rightInset / 2, 0, size.width, size.height);
+    } else {
+      lens.clearViewOffset();
+    }
+  }, [camera, size.width, size.height, rightInset]);
   const theme = useThemeTokens(THEME);
   const groups = useRef(new Map<string, THREE.Group>());
   const meshes = useRef(new Map<string, THREE.Mesh>());
@@ -440,7 +454,7 @@ export function ForceGraph<R extends { id: string }, E extends ForceEdge>({
       for (const n of scope) {
         reach = Math.max(reach, Math.hypot(n.x - mid.x, n.y - mid.y, n.z - mid.z) + radius(n));
       }
-      const want = (reach + 20) / Math.sin(fov / 2);
+      const want = (Math.max(reach, MIN_FOCUS_REACH) + 20) / Math.sin(fov / 2);
       const k = 1 - Math.exp(-dt * FLIGHT_RATE);
       offset.copy(camera.position).sub(pivot);
       const distance = offset.length();

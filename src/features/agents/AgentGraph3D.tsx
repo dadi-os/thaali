@@ -54,6 +54,9 @@ const SHOW_OPTIONS: Array<{ value: AgentShow; label: string }> = [
 /** Resolved theme colors the agent scene draws with. */
 type AgentTheme = Record<(typeof THEME)[number], string>;
 
+/** What the docked details cover at the graph's right edge: the 460 px panel and its 12 px gap. */
+const DOCKED_INSET_PX = 472;
+
 export type AgentGraph3DProps = {
   /** Changes on each arrival at the page; resets the simulation and open details. */
   entranceKey: string;
@@ -317,6 +320,7 @@ export function AgentGraph3D({
             );
           }}
           onZoom={interactive ? clearFocus : undefined}
+          rightInset={pinnedId !== null ? DOCKED_INSET_PX : 0}
           onNodeHover={
             interactive
               ? (n, at) => {

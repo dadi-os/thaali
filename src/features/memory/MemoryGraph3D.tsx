@@ -25,6 +25,9 @@ import { MemorySheet } from "./MemorySheet";
 const KIND_TOKENS = Object.values(KIND_TOKEN);
 const KINDS = Object.keys(KIND_TOKEN) as NodeKind[];
 
+/** What the docked sheet covers at the graph's right edge: its width and the gap around it. */
+const SHEET_INSET_PX = 376;
+
 /** Each kind's chip label. */
 const KIND_LABEL = { person: "People", place: "Places", memory: "Memories", plan: "Plans" } as const satisfies Record<NodeKind, string>;
 const EMPTY: GraphData = { nodes: [], edges: [] };
@@ -216,6 +219,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, filters, sheet, className,
           revealSeeds={revealSeeds}
           edgeLabel={(link) => link.type.replace(/_/g, " ")}
           onZoom={clearFocus}
+          rightInset={focusId !== null ? SHEET_INSET_PX : 0}
           onNodeHover={(node, at) => details.hover(node.id, at)}
           onNodeLeave={details.leave}
           onNodeClick={(node) => {
