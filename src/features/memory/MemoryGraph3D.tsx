@@ -111,7 +111,11 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
     [graph.nodes],
   );
 
-  const selected = graph.nodes.find((n) => n.id === details.id) ?? null;
+  /** The focused node's details stay docked at the graph's right edge; otherwise the hovered node's float beside it. */
+  const shownId = focusId ?? details.id;
+  const selected = graph.nodes.find((n) => n.id === shownId) ?? null;
+  const root = rootRef.current;
+  const anchor = focusId !== null && root ? { x: root.clientWidth - 12, y: root.clientHeight / 2, radius: 0 } : details.anchor;
 
   if (!connected) {
     return (
@@ -215,15 +219,15 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
         </span>
       </div>
 
-      {selected && details.anchor ? (
+      {selected && anchor ? (
         <MemoryPopover
-          open={details.open}
+          open={focusId !== null || details.open}
           node={selected}
           links={graph.links}
-          anchor={details.anchor}
+          anchor={anchor}
           containerRef={rootRef as RefObject<HTMLElement | null>}
-          hover={{ onInside: details.keep, onOutside: details.leave }}
-          onClose={details.close}
+          {...(focusId === null ? { hover: { onInside: details.keep, onOutside: details.leave } } : {})}
+          onClose={focusId === null ? details.close : clearFocus}
           onSelect={(nodeId) => {
             details.close();
             setFocusId(nodeId);

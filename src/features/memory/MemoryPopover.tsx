@@ -23,8 +23,8 @@ export type MemoryPopoverProps = {
   links: MemoryLink[];
   anchor: PopoverAnchor;
   containerRef: RefObject<HTMLElement | null>;
-  /** Hover zone that keeps the panel open while the pointer is on the node or the panel. */
-  hover: PopoverHover;
+  /** Hover zone that keeps the panel open while the pointer is on the node or the panel; absent while it is docked for a focused node. */
+  hover?: PopoverHover;
   onClose: () => void;
   /** A connection was clicked: focus that node. */
   onSelect: (nodeId: string) => void;
