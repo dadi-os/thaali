@@ -20,6 +20,7 @@ import {
   glow,
   groupNames,
   headline,
+  isLight,
   isOn,
   rgbCss,
   roomSections,
@@ -81,7 +82,9 @@ export function GharHouse({ focus }: GharHouseProps) {
       ? { kind: "everywhere" }
       : filter;
   const sections = sectionsFor(shown, devices, rooms);
-  const selected = devices.find((device) => device.id === selectedId) ?? null;
+  /** What the inspector shows: the picked device, or until one is picked a lit light, else any light, so the panel opens on Khisso's light sheet instead of an empty "Nothing selected". */
+  const selected =
+    devices.find((device) => device.id === selectedId) ?? devices.find(isOn) ?? devices.find(isLight) ?? null;
   const total = summarize(devices);
 
   const createRoom = async (name: string) => {
