@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, yaad } from "../../shared/api";
 import type { NodeKind } from "../../types/yaad";
@@ -17,9 +18,15 @@ import {
   nodeRadius,
   truncate,
   type GraphData,
+  type MemoryLink,
 } from "./graph";
 import { MemoryPopover } from "./MemoryPopover";
+import { MemorySheet } from "./MemorySheet";
 const KIND_TOKENS = Object.values(KIND_TOKEN);
+const KINDS = Object.keys(KIND_TOKEN) as NodeKind[];
+
+/** Each kind's chip label. */
+const KIND_LABEL = { person: "People", place: "Places", memory: "Memories", plan: "Plans" } as const satisfies Record<NodeKind, string>;
 const EMPTY: GraphData = { nodes: [], edges: [] };
 
 /**
@@ -33,6 +40,10 @@ export type MemoryGraph3DProps = {
   entranceKey: string;
   /** Page header slot the search box renders into; no search while null. */
   toolbar: HTMLElement | null;
+  /** Slot under the header the kind chips render into. */
+  filters: HTMLElement | null;
+  /** Slot at the page's right edge the focused node's sheet docks into. */
+  sheet: HTMLElement | null;
   /** Extra classes on the root element. */
   className?: string;
   /** Node to focus on arrival (`/yaad?focus=<id>`, e.g. from the timeline). */
@@ -42,10 +53,11 @@ export type MemoryGraph3DProps = {
 /**
  * Full-page Yaad knowledge network — a live 3D force-directed graph.
  * Polls `POST /graph` for every node and edge; new nodes sprout from the node they attach to and the
- * layout relaxes around them. Every non-memory node is labelled; the search box
- * narrows to matching titles and flies to a lone match.
+ * layout relaxes around them. The kind chips and the search box narrow to matching nodes and
+ * fly to a lone match; a clicked node brings its connections forward and docks its sheet,
+ * hovering one floats its details, and Esc goes back to everything.
  */
-export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: MemoryGraph3DProps) {
+export function MemoryGraph3D({ entranceKey, toolbar, filters, sheet, className, focusNodeId }: MemoryGraph3DProps) {
   const { state: connection } = useConnection();
   const theme = useThemeTokens(KIND_TOKENS);
   const connected = isMeshOnline(connection);
@@ -54,6 +66,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
   const details = useHoverDetails(entranceKey);
   const [focusId, setFocusId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [kind, setKind] = useState<NodeKind | null>(null);
 
   const graphQuery = useQuery({
     queryKey: ["yaad", "graph", entranceKey],
@@ -64,6 +77,7 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
   useEffect(() => {
     setFocusId(focusNodeId);
     setQuery("");
+    setKind(null);
   }, [entranceKey]);
 
   const clearFocus = useCallback(() => {
@@ -78,13 +92,38 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
     return syncForceSimulation(sim, data.nodes, data.edges);
   }, [sim, graphQuery.data]);
 
+  useEffect(() => {
+    if (focusId === null) {
+      return;
+    }
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        clearFocus();
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [focusId, clearFocus]);
+
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q
-      ? new Set(graph.nodes.filter((n) => n.title.toLowerCase().includes(q)).map((n) => n.id))
-      : null;
-  }, [graph.nodes, query]);
+    if (!q && kind === null) {
+      return null;
+    }
+    return new Set(
+      graph.nodes.filter((n) => (kind === null || n.kind === kind) && (!q || n.title.toLowerCase().includes(q))).map((n) => n.id),
+    );
+  }, [graph.nodes, query, kind]);
+  const counts = useMemo(() => {
+    const byKind = new Map<NodeKind, number>();
+    for (const n of graph.nodes) {
+      byKind.set(n.kind, (byKind.get(n.kind) ?? 0) + 1);
+    }
+    return byKind;
+  }, [graph.nodes]);
   const onlyMatch = matches?.size === 1 ? [...matches][0]! : null;
+  /** What Enter in the search focuses: the lone match, else the node titled exactly as typed. */
+  const picked = onlyMatch ?? graph.nodes.find((n) => n.title.toLowerCase() === query.trim().toLowerCase())?.id ?? null;
 
   const pinnedLabels = useMemo(() => {
     const degree = new Map<string, number>();
@@ -111,11 +150,8 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
     [graph.nodes],
   );
 
-  /** The focused node's details stay docked at the graph's right edge; otherwise the hovered node's float beside it. */
-  const shownId = focusId ?? details.id;
-  const selected = graph.nodes.find((n) => n.id === shownId) ?? null;
-  const root = rootRef.current;
-  const anchor = focusId !== null && root ? { x: root.clientWidth - 12, y: root.clientHeight / 2, radius: 0 } : details.anchor;
+  const focused = focusId === null ? null : (graph.nodes.find((n) => n.id === focusId) ?? null);
+  const hovered = focusId === null ? (graph.nodes.find((n) => n.id === details.id) ?? null) : null;
 
   if (!connected && !graphQuery.data) {
     return (
@@ -194,12 +230,12 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
             <SearchField
               value={query}
               onChange={setQuery}
-              placeholder="Search Yaad"
+              placeholder="Search people, places, memories"
               matches={matches === null ? null : matches.size}
               onPick={() => {
-                if (onlyMatch) {
+                if (picked) {
                   details.close();
-                  setFocusId(onlyMatch);
+                  setFocusId(picked);
                 }
               }}
             />,
@@ -207,27 +243,76 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
           )
         : null}
 
-      <div className="pointer-events-none absolute bottom-3 left-3 flex gap-3 text-[10px] font-medium tracking-[1.5px] uppercase text-ink-muted">
-        {(Object.keys(KIND_TOKEN) as NodeKind[]).map((kind) => (
-          <span key={kind} className="flex items-center gap-1.5">
-            <span className="h-2 w-2 rounded-full" style={{ background: `var(${KIND_TOKEN[kind]})` }} />
-            {kind}
-          </span>
-        ))}
-        <span className="text-ink-ghost">
-          {graph.nodes.length} nodes · {graph.links.length} links
+      {filters
+        ? createPortal(
+            <div role="toolbar" aria-label="Kinds" className="flex flex-wrap gap-2">
+              <KindChip selected={kind === null} label="Everything" count={graph.nodes.length} onClick={() => setKind(null)} />
+              {KINDS.map((k) => (
+                <KindChip
+                  key={k}
+                  selected={kind === k}
+                  label={KIND_LABEL[k]}
+                  count={counts.get(k) ?? 0}
+                  token={KIND_TOKEN[k]}
+                  onClick={() => setKind(kind === k ? null : k)}
+                />
+              ))}
+            </div>,
+            filters,
+          )
+        : null}
+
+      {sheet
+        ? createPortal(
+            <AnimatePresence mode="popLayout">
+              {focused ? (
+                <MemorySheet
+                  key="sheet"
+                  node={focused}
+                  links={graph.links}
+                  onSelect={(nodeId) => {
+                    details.close();
+                    setFocusId(nodeId);
+                  }}
+                />
+              ) : null}
+            </AnimatePresence>,
+            sheet,
+          )
+        : null}
+
+      <div
+        className={`pointer-events-none absolute bottom-4 left-4 flex items-center justify-between gap-4 ${focused ? "right-[380px]" : "right-4"}`}
+      >
+        <span className="truncate text-[12.5px] text-ink-ghost">
+          {graph.nodes.length.toLocaleString()} things · {graph.links.length.toLocaleString()} links
+          {focused ? ` · showing ${truncate(focused.title, 40)} and its ${connectionsCount(focused.id, graph.links)} connections` : ""}
         </span>
+        <AnimatePresence>
+          {focused ? (
+            <motion.button
+              type="button"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: 6 }}
+              onClick={clearFocus}
+              className="pointer-events-auto shrink-0 rounded-full border border-dashed border-sage-line bg-bone/80 px-3.5 py-1.5 text-[13px] font-semibold text-sage-deep hover:border-sage"
+            >
+              Esc · back to everything
+            </motion.button>
+          ) : null}
+        </AnimatePresence>
       </div>
 
-      {selected && anchor ? (
+      {hovered && details.anchor ? (
         <MemoryPopover
-          open={focusId !== null || details.open}
-          node={selected}
+          open={details.open}
+          node={hovered}
           links={graph.links}
-          anchor={anchor}
+          anchor={details.anchor}
           containerRef={rootRef as RefObject<HTMLElement | null>}
-          {...(focusId === null ? { hover: { onInside: details.keep, onOutside: details.leave } } : {})}
-          onClose={focusId === null ? details.close : clearFocus}
+          hover={{ onInside: details.keep, onOutside: details.leave }}
+          onClose={details.close}
           onSelect={(nodeId) => {
             details.close();
             setFocusId(nodeId);
@@ -235,5 +320,37 @@ export function MemoryGraph3D({ entranceKey, toolbar, className, focusNodeId }: 
         />
       ) : null}
     </div>
+  );
+}
+
+/** How many edges touch `nodeId`. */
+function connectionsCount(nodeId: string, links: MemoryLink[]): number {
+  return links.filter((link) => link.source.id === nodeId || link.target.id === nodeId).length;
+}
+
+type KindChipProps = {
+  selected: boolean;
+  label: string;
+  count: number;
+  /** The kind's color token; Everything has none. */
+  token?: string;
+  onClick: () => void;
+};
+
+/** A kind filter chip with its dot and count; the chosen one is filled sage. */
+function KindChip({ selected, label, count, token, onClick }: KindChipProps) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onClick}
+      className={`flex h-9 items-center gap-2 rounded-full px-4 text-[14px] font-semibold transition-colors duration-slow ease-dadi ${
+        selected ? "bg-sage-deep text-bone" : "bg-sage-fill text-ink hover:bg-sage-active"
+      }`}
+    >
+      {token ? <span aria-hidden className="size-2 rounded-full" style={{ background: `var(${token})` }} /> : null}
+      {label}
+      <span className={`text-[12.5px] font-medium tabular-nums ${selected ? "text-bone/75" : "text-ink-muted"}`}>{count.toLocaleString()}</span>
+    </button>
   );
 }

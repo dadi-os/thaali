@@ -7,7 +7,7 @@ export type SearchFieldProps = {
   placeholder: string;
   /** Items matching the query; null while the query is empty. */
   matches: number | null;
-  /** Enter pressed while exactly one item matches. */
+  /** Enter pressed while something matches; the caller picks the lone match or an exact one. */
   onPick: () => void;
   /** Width utility; a page header's box is `w-80`. */
   className?: string;
@@ -15,7 +15,7 @@ export type SearchFieldProps = {
 
 /**
  * Page search box, rendered in the page header's trailing slot. Escape or the
- * clear button empties it; Enter with one match left picks that match.
+ * clear button empties it; Enter while anything matches asks the caller to pick.
  */
 export function SearchField({ value, onChange, placeholder, matches, onPick, className = "w-80" }: SearchFieldProps) {
   return (
@@ -30,7 +30,7 @@ export function SearchField({ value, onChange, placeholder, matches, onPick, cla
         onKeyDown={(e) => {
           if (e.key === "Escape") {
             onChange("");
-          } else if (e.key === "Enter" && matches === 1) {
+          } else if (e.key === "Enter" && matches !== null && matches > 0) {
             onPick();
           }
         }}
