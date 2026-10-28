@@ -38,7 +38,7 @@ export function HathPage() {
       <div className="pointer-events-none relative z-10">
         <PageHeader
           title="HATH"
-          hint="Drag to orbit · scroll to zoom · hover for details · click to open its chat and keep its details beside the graph"
+          hint="Drag to orbit · scroll to zoom · hover for details · click to open its chat and details"
           trailing={<div ref={setToolbar} className="flex items-center gap-2" />}
         />
       </div>

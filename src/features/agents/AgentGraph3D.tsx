@@ -25,6 +25,7 @@ import {
 } from "../../shared/components/ForceGraph";
 import { GraphPlaceholder } from "../../shared/components/GraphPlaceholder";
 import { GraphSpace } from "../../shared/components/GraphSpace";
+import { Glider } from "../../shared/components/Glider";
 import { SearchField } from "../../shared/components/SearchField";
 import { openAgent } from "../../store/chat";
 import { getRunning, seedRunningFromAgents, subscribeRunning } from "../../store/running";
@@ -40,6 +41,16 @@ import {
 } from "./tree";
 
 const THEME = ["--sage", "--sage-deep", "--ink-faint", "--bone"] as const;
+
+/** Which agents the page brings forward: every one, the ones mid-flight, top-level threads, or leaf sub-agents (one-shot workers). */
+type AgentShow = "all" | "working" | "threads" | "workers";
+
+const SHOW_OPTIONS: Array<{ value: AgentShow; label: string }> = [
+  { value: "all", label: "All" },
+  { value: "working", label: "Working" },
+  { value: "threads", label: "Threads" },
+  { value: "workers", label: "Workers" },
+];
 
 /** Resolved theme colors the agent scene draws with. */
 type AgentTheme = Record<(typeof THEME)[number], string>;
@@ -168,13 +179,21 @@ export function AgentGraph3D({
   /** The agent last clicked on the page: its details stay docked at the graph's right edge until closed. */
   const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
+  const [show, setShow] = useState<AgentShow>("all");
 
   const matches = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return q
-      ? new Set(graph.nodes.filter((n) => n.name.toLowerCase().includes(q)).map((n) => n.id))
-      : null;
-  }, [graph.nodes, query]);
+    if (!q && show === "all") {
+      return null;
+    }
+    const parents = new Set(graph.nodes.map((n) => n.parent_agent_id));
+    const kept = (n: (typeof graph.nodes)[number]) =>
+      show === "all" ||
+      (show === "working" && isLiveVisual(visualState(n, runningMap[n.id]))) ||
+      (show === "threads" && n.depth === 0) ||
+      (show === "workers" && n.depth > 0 && !parents.has(n.id));
+    return new Set(graph.nodes.filter((n) => kept(n) && (!q || n.name.toLowerCase().includes(q))).map((n) => n.id));
+  }, [graph.nodes, query, show, runningMap]);
   const onlyMatch = matches?.size === 1 ? [...matches][0]! : null;
 
   const roots = useMemo(
@@ -319,7 +338,9 @@ export function AgentGraph3D({
 
       {interactive && toolbar
         ? createPortal(
-            <SearchField
+            <>
+              <Glider options={SHOW_OPTIONS} value={show} onChange={setShow} label="Show agents" />
+              <SearchField
               value={query}
               onChange={setQuery}
               placeholder="Search agents"
@@ -329,7 +350,8 @@ export function AgentGraph3D({
                   focusAgent(onlyMatch);
                 }
               }}
-            />,
+            />
+            </>,
             toolbar,
           )
         : null}
