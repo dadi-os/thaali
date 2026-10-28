@@ -61,10 +61,16 @@ pub fn start(
         logutil::emit("info", "sysmesh already Running; skipping tailscale up");
         #[cfg(windows)]
         ensure_unattended(&bins, &socket)?;
+    } else if key_spent(&state_dir, auth_key) {
+        logutil::emit("info", "sysmesh setup code already used; resuming the saved login");
+        tailscale_up(&bins, &socket, control_url, None, hostname)
+            .map_err(|e| format!("{e}. If dadi no longer knows this device, make a new setup code in Preferences → Devices."))?;
+        wait_until_running(&bins, &socket)?;
     } else {
-        tailscale_up(&bins, &socket, control_url, auth_key, hostname)?;
+        tailscale_up(&bins, &socket, control_url, Some(auth_key), hostname)?;
         wait_until_running(&bins, &socket)?;
     }
+    mark_key_spent(&state_dir, auth_key)?;
     let port = crate::meshproxy::start()?;
     ensure_magic_dns_resolver()?;
     ensure_mesh_ca(app)?;
@@ -776,19 +782,36 @@ fn windows_daemon_ready_timeout(log_path: &Path) -> String {
     )
 }
 
-/// Joins the mesh with `tailscale up`. `--force-reauth` lets a new setup code log
-/// in even while the daemon still runs an earlier identity, which `up` otherwise
-/// refuses when the code's control URL differs ("can't change --login-server
-/// without --force-reauth"). `--timeout` bounds the CLI's own wait for Running so
-/// a stalled `up` returns an error instead of hanging the app. On Windows,
-/// tailscaled ties the session to the CLI client that started it and resets to NoState
-/// when that client exits, so `--unattended` (ForceDaemon) keeps the node up after
-/// `up` returns.
+/// Records the setup code that is now joined (`joined-key` in the sysmesh state
+/// dir), so a later start resumes the saved login instead of presenting it again.
+fn mark_key_spent(state_dir: &Path, auth_key: &str) -> Result<(), String> {
+    let path = state_dir.join("joined-key");
+    fs::write(&path, auth_key).map_err(|e| format!("write {}: {e}", path.display()))
+}
+
+/// True when `auth_key` already joined this device. Nas setup codes are single-use
+/// and expire after an hour, so presenting one again with `--force-reauth` throws
+/// away a node login Headscale still accepts ("authkey expired").
+fn key_spent(state_dir: &Path, auth_key: &str) -> bool {
+    fs::read_to_string(state_dir.join("joined-key"))
+        .map(|joined| joined == auth_key)
+        .unwrap_or(false)
+}
+
+/// Joins the mesh with `tailscale up`. With a fresh setup code, `--force-reauth`
+/// lets it log in even while the daemon still runs an earlier identity, which `up`
+/// otherwise refuses when the code's control URL differs ("can't change
+/// --login-server without --force-reauth"). Without one, `up` resumes the saved
+/// login (after a reboot, a daemon restart or `tailscale down`). `--timeout` bounds
+/// the CLI's own wait for Running so a stalled `up` returns an error instead of
+/// hanging the app. On Windows, tailscaled ties the session to the CLI client that
+/// started it and resets to NoState when that client exits, so `--unattended`
+/// (ForceDaemon) keeps the node up after `up` returns.
 fn tailscale_up(
     bins: &Bins,
     socket: &Path,
     control_url: &str,
-    auth_key: &str,
+    auth_key: Option<&str>,
     hostname: &str,
 ) -> Result<(), String> {
     let login = control_url.trim_end_matches('/');
@@ -796,13 +819,14 @@ fn tailscale_up(
     args.extend([
         "up".into(),
         format!("--login-server={login}"),
-        format!("--authkey={auth_key}"),
         format!("--hostname={hostname}"),
         "--accept-dns=true".into(),
         "--reset".into(),
-        "--force-reauth".into(),
         format!("--timeout={}s", JOIN_TIMEOUT.as_secs()),
     ]);
+    if let Some(key) = auth_key {
+        args.extend([format!("--authkey={key}"), "--force-reauth".into()]);
+    }
     #[cfg(windows)]
     args.push("--unattended".into());
     let mut cmd = Command::new(&bins.tailscale);
@@ -1170,7 +1194,18 @@ fn apple_escape(s: &str) -> String {
 
 #[cfg(test)]
 mod tests {
-    use super::{local_api_status_json_ok, parse_backend, Backend};
+    use super::{key_spent, local_api_status_json_ok, mark_key_spent, parse_backend, Backend};
+
+    #[test]
+    fn setup_code_spent_only_after_it_joined() {
+        let dir = std::env::temp_dir().join(format!("sysmesh-test-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        assert!(!key_spent(&dir, "first"));
+        mark_key_spent(&dir, "first").unwrap();
+        assert!(key_spent(&dir, "first"));
+        assert!(!key_spent(&dir, "second"));
+        std::fs::remove_dir_all(&dir).unwrap();
+    }
 
     #[test]
     fn backend_running_when_logged_in() {
