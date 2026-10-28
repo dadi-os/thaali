@@ -1,17 +1,14 @@
 import { useLayoutEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { isSameDay } from "./dates";
+import { isSameDay, shortTime } from "./dates";
 import type { TimelineItem } from "../../types/timeline";
-import { itemKey, plansOn, runsAsBar, spanOf } from "./plans";
+import { itemKey, plansOn, planTone, runsAsBar, spanOf } from "./plans";
 
 /** Height of one session row in a day column (time line plus title line plus gap). */
 const ROW_PX = 33;
 /** Height a day column spends on its weekday, date and all-day pill before its rows. */
 const HEAD_PX = 84;
-
-/** Kinds drawn in the course tone; deadlines take clay, everything else sage. */
-const COURSE_KINDS = new Set(["class", "lab", "exam"]);
 
 export type RibbonViewProps = {
   /** Mon–Sun of the shown week. */
@@ -28,12 +25,6 @@ export type RibbonViewProps = {
   onOpen: (item: TimelineItem, el: Element) => void;
   className?: string;
 };
-
-/** "8:00", "1:32": the hour and minutes without the period, as on the canvas. */
-function shortTime(iso: string): string {
-  const d = new Date(iso);
-  return `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
-}
 
 /**
  * Home Timeline tile, as on the canvas: seven day columns, today tinted with its date in a
@@ -105,7 +96,7 @@ export function RibbonView({ days, labels, today, now, plans, loading, onOpen, c
                   const due = p.start_at === null;
                   const at = p.start_at ?? p.due_at!;
                   const past = spanOf(p)!.end.getTime() < now.getTime() || p.outcome === "done";
-                  const tone = due ? "var(--clay)" : p.kind !== null && COURSE_KINDS.has(p.kind) ? "var(--tide)" : "var(--sage)";
+                  const tone = planTone(p);
                   return (
                     <motion.button
                       key={itemKey(p)}

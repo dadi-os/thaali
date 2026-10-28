@@ -66,13 +66,13 @@ function Entry({ item, index, onOpen }: EntryProps) {
           e.preventDefault();
           onOpen(item, e.currentTarget);
         }}
-        className={`flex w-full items-center gap-3 rounded-[10px] border px-3 py-2 text-left transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage hover:shadow-[var(--shadow)] ${
+        className={`flex w-full items-center gap-3 rounded-[12px] border px-3.5 py-2.5 text-left transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage hover:shadow-[var(--shadow)] ${
           line ? "border-rule bg-[var(--glass-sheet)]" : "border-dashed border-sage-line"
         }`}
       >
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[13px] text-ink">{item.title}</span>
-          <span className={`truncate text-[11.5px] ${line ? "text-[var(--clay)]" : "text-ink-ghost"}`}>{line ?? "Anytime"}</span>
+          <span className="truncate text-[14px] font-semibold text-ink">{item.title}</span>
+          <span className={`truncate text-[12.5px] ${line ? "text-[var(--clay)]" : "text-ink-ghost"}`}>{line ?? "Anytime"}</span>
         </span>
       </button>
     </motion.li>
@@ -89,7 +89,7 @@ function SomedaySkeleton({ rows }: { rows: number }) {
   return (
     <div role="status" aria-label="Loading" className="flex flex-col gap-1.5">
       {Array.from({ length: rows }, (_, i) => (
-        <span key={i} className="skeleton h-11 rounded-[10px]" />
+        <span key={i} className="skeleton h-[58px] rounded-[12px]" />
       ))}
     </div>
   );
@@ -102,10 +102,10 @@ function SomedaySkeleton({ rows }: { rows: number }) {
 export function SomedayRail({ onOpen }: SomedayProps) {
   const query = useSomeday();
   return (
-    <aside className="flex w-[min(230px,28%)] shrink-0 flex-col border-l border-dashed border-sage-line pl-3 portrait:max-h-[24%] portrait:w-full portrait:border-t portrait:border-l-0 portrait:pt-3 portrait:pl-0">
-      <span className="mb-2 flex items-baseline justify-between text-[11px] font-medium tracking-[2px] text-sage-deep">
+    <aside className="flex w-[min(264px,28%)] shrink-0 flex-col rounded-[18px] border border-(--glass-border) bg-(--glass-veil) p-3.5 shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)] portrait:max-h-[24%] portrait:w-full">
+      <span className="mb-2.5 flex items-baseline justify-between px-0.5 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">
         NEEDS A TIME
-        {query.data ? <span className="tracking-normal text-ink-ghost">{query.data.length}</span> : null}
+        {query.data ? <span className="text-[12px] font-semibold tracking-normal text-sage-deep">{query.data.length}</span> : null}
       </span>
       {query.isError && !query.data ? (
         <p className="text-[12px] text-error">{query.error.message}</p>
@@ -122,6 +122,9 @@ export function SomedayRail({ onOpen }: SomedayProps) {
           </AnimatePresence>
         </ul>
       )}
+      <p className="m-0 shrink-0 px-0.5 pt-3 text-[12px] leading-relaxed text-ink-ghost portrait:hidden">
+        Agents place these into open time. Click one to see it or message its keeper.
+      </p>
     </aside>
   );
 }

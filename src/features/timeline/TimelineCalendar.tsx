@@ -241,13 +241,13 @@ export function TimelineCalendar({
   return (
     <div className={`flex h-full min-h-0 gap-3 portrait:flex-col ${className}`}>
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <div className="mb-3 flex flex-wrap items-center gap-2">
-          <Glider options={VIEW_OPTIONS} value={view} onChange={setView} label="Timeline view" />
+        <div className="mb-3 flex flex-wrap items-center gap-3">
+          <Glider options={VIEW_OPTIONS} value={view} onChange={setView} label="Timeline view" size="lg" />
           <div className={`flex items-center gap-1 ${view === "someday" ? "invisible" : ""}`}>
             <button
               type="button"
               onClick={() => page(-1)}
-              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-active/40"
+              className="flex size-8 items-center justify-center rounded-full text-[16px] text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-ink"
               aria-label="Previous"
             >
               ‹
@@ -255,39 +255,41 @@ export function TimelineCalendar({
             <button
               type="button"
               onClick={goToday}
-              className="rounded-[6px] px-2 py-1 text-[11px] tracking-wide text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-active/40"
+              className="h-9 rounded-full bg-bone px-4 text-[14px] font-semibold text-ink shadow-[0_1px_2px_rgba(92,107,82,0.08),0_4px_12px_rgba(44,48,42,0.06)] transition-colors duration-slow ease-dadi hover:text-sage-deep"
             >
               Today
             </button>
             <button
               type="button"
               onClick={() => page(1)}
-              className="rounded-[6px] px-2 py-1 text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-active/40"
+              className="flex size-8 items-center justify-center rounded-full text-[16px] text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-ink"
               aria-label="Next"
             >
               ›
             </button>
           </div>
-          <div className="relative min-w-0 overflow-hidden">
-            <AnimatePresence mode="popLayout" initial={false} custom={direction}>
-              <motion.span
-                key={title}
-                custom={direction}
-                initial={{ opacity: 0, y: direction === 0 ? 4 : direction * 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: direction === 0 ? -4 : direction * -10 }}
-                transition={{ duration: SLOW_S, ease: EASE }}
-                className="block whitespace-nowrap text-[13px] text-ink"
-              >
-                {title}
-              </motion.span>
-            </AnimatePresence>
-          </div>
-
-          <div className="ml-auto flex min-w-0 items-center gap-2">
-            {planned ? null : <NextUp now={now} onOpen={openNode} />}
-          </div>
         </div>
+
+        {title ? (
+          <div className="mb-4 flex min-w-0 items-end justify-between gap-4">
+            <div className="relative min-w-0 overflow-hidden">
+              <AnimatePresence mode="popLayout" initial={false} custom={direction}>
+                <motion.h2
+                  key={title}
+                  custom={direction}
+                  initial={{ opacity: 0, y: direction === 0 ? 4 : direction * 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: direction === 0 ? -4 : direction * -10 }}
+                  transition={{ duration: SLOW_S, ease: EASE }}
+                  className="m-0 whitespace-nowrap text-[44px] leading-[1.05] font-bold tracking-[-1px] text-ink"
+                >
+                  {title}
+                </motion.h2>
+              </AnimatePresence>
+            </div>
+            <NextUp now={now} onOpen={openNode} />
+          </div>
+        ) : null}
 
         <div className="relative flex min-h-0 flex-1 flex-col">
           <AnimatePresence mode="popLayout" initial={false} custom={direction}>

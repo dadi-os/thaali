@@ -180,15 +180,29 @@ function byWhen(a: TimelineItem, b: TimelineItem): number {
   return whenOf(a)!.localeCompare(whenOf(b)!);
 }
 
-/** Chip classes per status: solid confirmed, dashed tentative, ghosted idea. */
+/** Kinds drawn in the course tone; deadlines take clay, everything else sage. */
+const COURSE_KINDS = new Set(["class", "lab", "exam"]);
+
+/** A plan's tone as a CSS color: clay for a deadline, tide for a class, lab or exam, sage for the rest. */
+export function planTone(item: TimelineItem): string {
+  if (item.start_at === null) {
+    return "var(--clay)";
+  }
+  return item.kind !== null && COURSE_KINDS.has(item.kind) ? "var(--tide)" : "var(--sage)";
+}
+
+/**
+ * Chip classes per status, tinted by the `--tone` the chip sets from `planTone`: confirmed
+ * fills with its tone, tentative is a fainter fill with a dashed edge, an idea stays bare.
+ */
 export function statusClass(status: TimelineItem["status"]): string {
   if (status === "tentative") {
-    return "border border-dashed border-sage-line bg-sage-faint/80 text-sage-text";
+    return "border border-dashed border-[color-mix(in_srgb,var(--tone)_45%,transparent)] bg-[color-mix(in_srgb,var(--tone)_7%,transparent)] text-[color-mix(in_srgb,var(--tone)_35%,var(--ink))]";
   }
   if (status === "idea") {
     return "border border-rule bg-bone text-ink-ghost";
   }
-  return "border border-transparent bg-sage-active text-ink";
+  return "border border-transparent bg-[color-mix(in_srgb,var(--tone)_15%,transparent)] text-[color-mix(in_srgb,var(--tone)_35%,var(--ink))]";
 }
 
 /** Popover anchor hugging `el`: the panel opens beside it, clear of its width. */

@@ -7,8 +7,8 @@ export type GliderProps<T extends string> = {
   onChange: (v: T) => void;
   /** Accessible name of the radiogroup. */
   label: string;
-  /** `sm` sits inside a field (the search bar); `md` stands alone in the toolbar. */
-  size?: "sm" | "md";
+  /** `sm` sits inside a field (the search bar); `md` stands alone in a toolbar; `lg` heads a page (the Timeline's views). */
+  size?: "sm" | "md" | "lg";
 };
 
 /**
@@ -25,7 +25,7 @@ export function Glider<T extends string>({ options, value, onChange, label, size
     <div
       role="radiogroup"
       aria-label={label}
-      className={`relative inline-grid shrink-0 rounded-full bg-sage-fill p-0.5 ${size === "sm" ? "h-6" : "h-8"}`}
+      className={`relative inline-grid shrink-0 rounded-full bg-sage-fill p-0.5 ${size === "sm" ? "h-6" : size === "md" ? "h-8" : "h-10"}`}
       style={{ gridTemplateColumns: `repeat(${n}, minmax(0, 1fr))` }}
     >
       <motion.div
@@ -47,8 +47,16 @@ export function Glider<T extends string>({ options, value, onChange, label, size
             aria-checked={on}
             onClick={() => onChange(opt.value)}
             className={`relative z-10 tracking-wide transition-colors duration-slow ease-dadi ${
-              size === "sm" ? "min-w-[2.1rem] px-1.5 text-[10.5px]" : "min-w-[2.6rem] px-2 text-[11px]"
-            } ${on ? "text-sage-deep" : "text-ink-ghost hover:text-ink-muted"}`}
+              size === "sm" ? "min-w-[2.1rem] px-1.5 text-[10.5px]" : size === "md" ? "min-w-[2.6rem] px-2 text-[11px]" : "px-4 text-[14px]"
+            } ${
+              size === "lg"
+                ? on
+                  ? "font-semibold text-ink"
+                  : "text-ink-muted hover:text-ink"
+                : on
+                  ? "text-sage-deep"
+                  : "text-ink-ghost hover:text-ink-muted"
+            }`}
           >
             {opt.label}
           </button>

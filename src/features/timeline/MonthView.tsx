@@ -1,17 +1,17 @@
 import { motion } from "motion/react";
-import { useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import type { TimelineItem } from "../../types/timeline";
-import { formatDayShort, isSameDay, isSameMonth } from "./dates";
+import { formatDayShort, isSameDay, isSameMonth, shortTime } from "./dates";
 import { BreathRing, LiveDot } from "./markers";
-import { itemKey, planStartsOn, spanOf, startLabel, statusClass, weekSlots } from "./plans";
+import { itemKey, planStartsOn, planTone, spanOf, statusClass, weekSlots } from "./plans";
 
 /** Delay per diagonal step as the grid washes in from the top-left. */
 const WAVE_STEP_S = 0.018;
-/** Height of the date strip atop each day, matching its `h-8`. */
-const HEADER_PX = 32;
-/** Height of one bar or plan line, matching their `h-[18px]`. */
-const SLOT_PX = 18;
+/** Height of the date strip atop each day, matching its `h-9`. */
+const HEADER_PX = 36;
+/** Height of one bar or plan line, matching their `h-[22px]`. */
+const SLOT_PX = 22;
 /** Gap between a week's slot lines and its bottom padding, in pixels, that a row keeps clear. */
 const ROW_PAD_PX = 8;
 
@@ -40,7 +40,8 @@ export type MonthViewProps = {
  * day's timed plans fill the slots its bars leave free as time-and-title lines that open
  * their popover, and a full day ends on "+N more" into its week. Week rows share the grid's
  * height and the lines each can hold follow from it, so a busy week folds into "+N more"
- * and the grid never scrolls. Clicking a day opens its week, and today breathes.
+ * and the grid never scrolls. Days are rounded cards (none outside the month), clicking one
+ * opens its week, and today is ringed in sage with its date in a breathing disc.
  */
 export function MonthView({
   days,
@@ -70,20 +71,20 @@ export function MonthView({
   const slotsFit = Math.max(Math.floor((rowPx - HEADER_PX - ROW_PAD_PX) / (SLOT_PX + 2)), 1);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="grid grid-cols-7 pb-1">
+      <div className="grid grid-cols-7 gap-x-1.5 pb-2">
         {labels.map((label) => (
-          <span key={label} className="text-center text-[10px] tracking-wide text-ink-ghost">
+          <span key={label} className="px-2.5 text-[11.5px] font-semibold tracking-[1.5px] text-ink-ghost uppercase">
             {label}
           </span>
         ))}
       </div>
-      <div ref={grid} className="grid min-h-0 flex-1 auto-rows-[1fr] overflow-hidden border-b border-rule/80">
+      <div ref={grid} className="grid min-h-0 flex-1 auto-rows-[1fr] gap-y-1.5 overflow-hidden">
         {weeks.map((week, w) => {
           const layout = weekSlots(plans, week, slotsFit);
           return (
             <div
               key={week[0]!.toISOString()}
-              className="grid min-h-0 grid-cols-7 gap-y-0.5 overflow-hidden border-t border-rule/80 pb-1.5"
+              className="grid min-h-0 grid-cols-7 gap-x-1.5 gap-y-0.5 overflow-hidden pb-1.5"
               style={{ gridTemplateRows: `${HEADER_PX}px ${`${SLOT_PX}px `.repeat(layout.slots)}1fr` }}
             >
               {week.map((day, i) => {
@@ -107,20 +108,18 @@ export function MonthView({
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: SLOW_S, ease: EASE, delay: (w + i) * WAVE_STEP_S }}
                     style={{ gridColumn: i + 1, gridRow: "1 / -1" }}
-                    className={`group -mb-1.5 min-w-0 cursor-pointer transition-colors duration-slow ease-dadi ${
-                      i > 0 ? "border-l border-rule/80" : ""
-                    } ${isToday ? "bg-sage-faint/40" : "hover:bg-sage-fill/40"}`}
+                    className={`group -mb-1.5 min-w-0 cursor-pointer rounded-[14px] transition-colors duration-slow ease-dadi ${
+                      isToday
+                        ? "bg-sage-fill ring-1 ring-sage-line"
+                        : inMonth
+                          ? "bg-[color-mix(in_srgb,var(--sage-fill)_45%,transparent)] hover:bg-sage-fill"
+                          : "hover:bg-[color-mix(in_srgb,var(--sage-fill)_45%,transparent)]"
+                    }`}
                   >
-                    <div className="flex h-8 items-center px-1">
+                    <div className="flex h-9 items-center px-1.5">
                       <span
-                        className={`relative flex size-6 shrink-0 items-center justify-center rounded-full text-[11px] tabular-nums ${
-                          isToday
-                            ? "bg-ink font-medium text-bone"
-                            : !inMonth
-                              ? "text-ink-ghost"
-                              : isPast
-                                ? "text-ink-faint"
-                                : "text-ink"
+                        className={`relative flex size-7 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold tabular-nums ${
+                          isToday ? "bg-sage-deep text-bone" : !inMonth ? "text-ink-ghost" : isPast ? "text-ink-muted" : "text-ink"
                         }`}
                       >
                         {day.getDate()}
@@ -137,7 +136,7 @@ export function MonthView({
                       <motion.span
                         key={day.toISOString()}
                         style={{ gridColumn: i + 1, gridRow: 2 }}
-                        className="mx-1 h-3 w-3/4 self-center rounded-[3px] bg-sage-fill"
+                        className="mx-2 h-3 w-3/4 self-center rounded-[4px] bg-sage-fill"
                         animate={{ opacity: [0.35, 0.8, 0.35] }}
                         transition={{ duration: BREATH_S / 2, repeat: Infinity, delay: (w + i) * WAVE_STEP_S }}
                       />
@@ -178,7 +177,7 @@ export function MonthView({
                     type="button"
                     onClick={() => onSelectDay(week[i]!)}
                     style={{ gridColumn: i + 1, gridRow: more.slot + 2 }}
-                    className="mx-1 self-center justify-self-start rounded-[4px] px-1 text-[10px] text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-ink"
+                    className="mx-1.5 self-center justify-self-start rounded-[6px] px-1 text-[11.5px] font-medium text-ink-muted transition-colors duration-slow ease-dadi hover:bg-sage-fill hover:text-ink"
                   >
                     +{more.count} more
                   </button>
@@ -229,10 +228,10 @@ function MonthBar({ plan, lane, from, to, week, now, delay, onOpen }: MonthBarPr
         e.preventDefault();
         onOpen(plan, e.currentTarget);
       }}
-      style={{ gridColumn: `${from + 1} / ${to + 2}`, gridRow: lane + 2 }}
-      className={`relative flex h-[18px] min-w-0 items-center px-1 text-left text-[10.5px] leading-none ${statusClass(plan.status)} ${
-        starts ? "ml-1 rounded-l-[6px]" : "rounded-l-none border-l-0 pl-2"
-      } ${ends ? "mr-1 rounded-r-[6px]" : "rounded-r-none border-r-0"}`}
+      style={{ gridColumn: `${from + 1} / ${to + 2}`, gridRow: lane + 2, "--tone": planTone(plan) } as CSSProperties}
+      className={`relative flex h-[22px] min-w-0 items-center px-2 text-left text-[12px] leading-none font-semibold ${statusClass(plan.status)} ${
+        starts ? "ml-1 rounded-l-[8px]" : "rounded-l-none border-l-0 pl-2.5"
+      } ${ends ? "mr-1 rounded-r-[8px]" : "rounded-r-none border-r-0"}`}
     >
       <span className="truncate">{plan.title}</span>
     </motion.button>
@@ -255,12 +254,14 @@ type MonthItemProps = {
 };
 
 /**
- * One timed plan as a line: a status dot (solid confirmed, hollow tentative, live pulse
- * while it is happening), its start time and title. Fades once it has passed.
+ * One timed plan as a line: a dot in its tone (solid confirmed, hollow tentative, live pulse
+ * while it is happening), its short time ("due 11:59" in clay for a deadline) and title.
+ * Fades once it has passed.
  */
 function MonthItem({ plan, col, slot, dim, now, delay, onOpen }: MonthItemProps) {
   const span = spanOf(plan)!;
   const ongoing = span.start <= now && now < span.end;
+  const due = plan.start_at === null;
   return (
     <motion.button
       type="button"
@@ -273,8 +274,8 @@ function MonthItem({ plan, col, slot, dim, now, delay, onOpen }: MonthItemProps)
         e.preventDefault();
         onOpen(plan, e.currentTarget);
       }}
-      style={{ gridColumn: col + 1, gridRow: slot + 2 }}
-      className="relative mx-1 flex h-[18px] min-w-0 items-center gap-1 rounded-[4px] px-1 text-left text-[10.5px] leading-none transition-colors duration-slow ease-dadi hover:bg-sage-fill"
+      style={{ gridColumn: col + 1, gridRow: slot + 2, "--tone": planTone(plan) } as CSSProperties}
+      className="relative mx-1 flex h-[22px] min-w-0 items-center gap-1.5 rounded-[6px] px-1.5 text-left text-[12px] leading-none transition-colors duration-slow ease-dadi hover:bg-sage-fill"
     >
       {ongoing ? (
         <LiveDot />
@@ -282,12 +283,16 @@ function MonthItem({ plan, col, slot, dim, now, delay, onOpen }: MonthItemProps)
         <span
           aria-hidden
           className={`size-1.5 shrink-0 rounded-full ${
-            plan.status === "tentative" ? "border border-sage-deep" : "bg-sage-deep"
+            plan.status === "tentative" ? "border border-[var(--tone)]" : "bg-[var(--tone)]"
           }`}
         />
       )}
-      <span className="shrink-0 tabular-nums text-ink-muted">{startLabel(plan)}</span>
-      <span className="min-w-0 truncate text-ink">{plan.title}</span>
+      <span
+        className={`shrink-0 font-medium tabular-nums ${due ? "text-[color-mix(in_srgb,var(--clay)_75%,var(--ink))]" : "text-ink-ghost"}`}
+      >
+        {due ? `due ${shortTime(plan.due_at!)}` : shortTime(plan.start_at!)}
+      </span>
+      <span className="min-w-0 truncate font-semibold text-ink">{plan.title}</span>
     </motion.button>
   );
 }

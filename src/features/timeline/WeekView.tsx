@@ -1,9 +1,10 @@
+import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import type { TimelineItem } from "../../types/timeline";
-import { formatTime, isSameDay } from "./dates";
-import { BreathRing, LiveDot, SessionMark } from "./markers";
-import { itemKey, lanesThrough, plansOn, planStartsOn, runsAsBar, spanLanes, spanOf, startLabel, statusClass } from "./plans";
+import { isSameDay, shortTime } from "./dates";
+import { LiveDot, SessionMark } from "./markers";
+import { itemKey, lanesThrough, plansOn, planStartsOn, planTone, runsAsBar, spanLanes, spanOf, startLabel, statusClass } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
 import { segmentsOn } from "./planner/blocks";
 import { usePortrait } from "../../shared/hooks/usePortrait";
@@ -34,15 +35,16 @@ export type WeekViewProps = {
 };
 
 /**
- * Seven day columns of session chips. All-day and multi-day sessions run as bars across
- * the columns under the dates. Columns cascade in, chips settle after them, and today
- * breathes and carries a now marker between what happened and what is next.
+ * Seven day columns of session chips tinted by kind, as on the canvas. All-day and multi-day
+ * sessions run as pills across the columns under the dates. Columns cascade in, chips settle
+ * after them, and today is a sage block over a tinted column with the clay now marker
+ * between what happened and what is next.
  */
 export function WeekView({ days, labels, today, now, plans, loading, onOpen }: WeekViewProps) {
   const lanes = spanLanes(plans, days);
   const portrait = usePortrait();
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-7 overflow-hidden">
+    <div className="grid min-h-0 flex-1 grid-cols-7 gap-x-1 overflow-hidden">
       {days.map((day, i) => {
         const dayPlans = plansOn(plans, day).filter((p) => !runsAsBar(p));
         const dayLanes = lanesThrough(lanes, day);
@@ -56,26 +58,25 @@ export function WeekView({ days, labels, today, now, plans, loading, onOpen }: W
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: SLOW_S, ease: EASE, delay: base }}
-            className={`group flex min-h-0 flex-col px-1.5 py-2 ${i > 0 ? "border-l border-rule/80" : ""} ${
-              isToday ? "rounded-[var(--radius)] bg-sage-faint/40" : ""
+            className={`group flex min-h-0 flex-col rounded-[16px] px-1 pb-2 ${
+              isToday ? "bg-[linear-gradient(to_bottom,var(--sage-fill),transparent)]" : ""
             }`}
           >
-            <div className="mb-2 flex flex-col items-center gap-1">
-              <span className={`text-[11px] tracking-wide ${isToday ? "text-sage-deep" : "text-ink-ghost"}`}>
-                {labels[i]}
-              </span>
+            <div
+              className={`mb-2 flex shrink-0 flex-col items-center rounded-[14px] py-2 ${isToday ? "bg-sage-deep text-bone" : ""}`}
+            >
+              <span className={`text-[13px] ${isToday ? "text-bone/85" : "text-ink-muted"}`}>{labels[i]}</span>
               <span
-                className={`relative flex size-9 items-center justify-center rounded-full text-[13px] ${
-                  isToday ? "bg-ink text-bone" : isPast ? "text-ink-faint" : "text-ink"
+                className={`text-[22px] leading-tight font-semibold tabular-nums ${
+                  isToday ? "text-bone" : isPast ? "text-ink-muted" : "text-ink"
                 }`}
               >
                 {day.getDate()}
-                {isToday ? <BreathRing /> : null}
               </span>
             </div>
 
             {dayLanes.length > 0 ? (
-              <div className="mb-1.5 flex flex-col gap-0.5">
+              <div className="mb-2 flex shrink-0 flex-col gap-1">
                 {dayLanes.map((lane, r) => (
                   <SpanLaneCell
                     key={r}
@@ -93,7 +94,7 @@ export function WeekView({ days, labels, today, now, plans, loading, onOpen }: W
             {portrait && !loading ? (
               <TimeColumn day={day} plans={plans} now={now} isToday={isToday} first={i === 0} delay={base} onOpen={onOpen} />
             ) : (
-              <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto overflow-x-hidden">
+              <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden px-0.5">
                 {loading ? (
                   <Shimmer delay={base} />
                 ) : (
@@ -218,9 +219,9 @@ type PlanChipProps = {
 };
 
 /**
- * One session: lifts on hover, fades once it has passed or is completed, pulses while it is
- * happening, carries Khisso's Completed circle when it has a time, and is struck through when
- * cancelled or completed.
+ * One session as a card tinted by its kind (clay deadline, tide class, sage otherwise): its time
+ * over its title, lifting on hover, softened once it has passed, pulsing while it is happening,
+ * with Khisso's Completed circle when it has a time, and struck through when cancelled or completed.
  */
 function PlanChip({ plan, day, now, delay, onOpen, slot }: PlanChipProps) {
   const span = spanOf(plan)!;
@@ -232,7 +233,7 @@ function PlanChip({ plan, day, now, delay, onOpen, slot }: PlanChipProps) {
       layout="position"
       type="button"
       initial={{ opacity: 0, y: 6, scale: 0.97 }}
-      animate={{ opacity: past ? 0.55 : 1, y: 0, scale: 1 }}
+      animate={{ opacity: past ? 0.7 : 1, y: 0, scale: 1 }}
       exit={{ opacity: 0, scale: 0.94 }}
       transition={{ duration: SLOW_S, ease: EASE, delay }}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
@@ -242,27 +243,30 @@ function PlanChip({ plan, day, now, delay, onOpen, slot }: PlanChipProps) {
         e.preventDefault();
         onOpen(plan, e.currentTarget);
       }}
-      className={`relative w-full overflow-hidden rounded-[6px] px-1.5 py-1 text-left ${slot ? "h-full" : ""} text-[11px] leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.status)} ${
+      style={{ "--tone": planTone(plan) } as CSSProperties}
+      className={`relative w-full shrink-0 overflow-hidden text-left ${
+        slot ? "h-full rounded-[8px] px-1.5 py-1" : "rounded-[12px] px-2.5 py-2"
+      } leading-snug transition-shadow duration-slow ease-dadi hover:shadow-[var(--shadow)] ${statusClass(plan.status)} ${
         plan.state === "cancelled" || plan.outcome === "done" ? "line-through" : ""
       }`}
     >
       {planStartsOn(plan, day) && slot !== "short" ? (
-        <span className="mb-0.5 flex items-center gap-1 text-[10px] opacity-70">
+        <span className="mb-0.5 flex items-center gap-1 text-[12px] font-medium opacity-75">
           {ongoing ? <LiveDot /> : null}
           {startLabel(plan)}
           {plan.start_at !== null && !plan.all_day ? (
             <span className="ml-auto flex">
-              <SessionMark item={plan} now={now} className="size-3" />
+              <SessionMark item={plan} now={now} className="size-3.5" />
             </span>
           ) : null}
         </span>
       ) : null}
-      <span className={slot === "short" ? "block truncate" : "line-clamp-3"}>{plan.title}</span>
+      <span className={`text-[14px] font-semibold ${slot === "short" ? "block truncate text-[12px]" : "line-clamp-3"}`}>{plan.title}</span>
     </motion.button>
   );
 }
 
-/** Clay line in today's column between what already started and what is still ahead. */
+/** The clay time pill and line in today's column between what already started and what is still ahead. */
 function NowMarker({ now }: { now: Date }) {
   return (
     <motion.div
@@ -270,11 +274,12 @@ function NowMarker({ now }: { now: Date }) {
       initial={{ opacity: 0, scaleX: 0.6 }}
       animate={{ opacity: 1, scaleX: 1 }}
       transition={{ duration: SLOW_S, ease: EASE }}
-      className="flex items-center gap-1.5 py-0.5 pl-1.5"
+      className="flex shrink-0 items-center gap-1 py-0.5"
     >
-      <LiveDot />
-      <span className="h-px flex-1" style={{ background: "color-mix(in srgb, var(--clay) 55%, transparent)" }} />
-      <span className="text-[9.5px] tabular-nums text-[var(--clay)]">{formatTime(now.toISOString())}</span>
+      <span className="rounded-full bg-[var(--clay)] px-1.5 py-px text-[10.5px] font-semibold tabular-nums text-bone">
+        {shortTime(now.toISOString())}
+      </span>
+      <span className="h-[1.5px] flex-1 bg-[var(--clay)]" />
     </motion.div>
   );
 }
@@ -286,7 +291,7 @@ function Shimmer({ delay }: { delay: number }) {
       {[0, 1].map((k) => (
         <motion.div
           key={k}
-          className="h-7 rounded-[6px] bg-sage-fill"
+          className="h-12 shrink-0 rounded-[12px] bg-sage-fill"
           initial={{ opacity: 0 }}
           animate={{ opacity: [0.35, 0.8, 0.35] }}
           transition={{ duration: BREATH_S / 2, repeat: Infinity, delay: delay + k * 0.1 }}

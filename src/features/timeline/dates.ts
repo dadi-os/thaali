@@ -116,6 +116,12 @@ export function formatDayHeader(d: Date): string {
   }).format(d);
 }
 
+/** "8:00", "1:32": the hour and minutes without the period, as on the canvas. */
+export function shortTime(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getHours() % 12 || 12}:${String(d.getMinutes()).padStart(2, "0")}`;
+}
+
 /** Local time for an ISO timestamp. */
 export function formatTime(iso: string): string {
   return new Intl.DateTimeFormat(undefined, {
