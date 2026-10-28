@@ -172,6 +172,13 @@ export function SystemMap({ className }: SystemMapProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
 
+  const clientsQuery = useQuery({
+    queryKey: ["nas", "clients"],
+    queryFn: () => nas.listClients(),
+    enabled: connected,
+    refetchInterval: POLL_MS,
+  });
+
   const statusQuery = useQuery({
     queryKey: ["nas", "status"],
     queryFn: () => nas.getStatus(),
@@ -210,51 +217,99 @@ export function SystemMap({ className }: SystemMapProps) {
   const services = serviceHealth(status);
   const resources = resourceRows(status);
 
+  const meters = resources.filter((row) => !row.key.startsWith("disk-"));
+  const drives = resources.filter((row) => row.key.startsWith("disk-"));
+  const devices = clientsQuery.data?.clients ?? null;
+  const label = "px-1 pt-1.5 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost";
+  const card = "rounded-[18px] border border-(--glass-border) bg-(--glass-veil) shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)]";
+
   return (
-    <div className={`flex h-full min-h-0 flex-col gap-4 ${className ?? ""}`}>
-      <HealthCard services={services} rows={resources} uptimeSeconds={status.uptime_seconds} />
-      <ServiceRows services={services} />
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        <ErrorLogCards limit={6} />
-      </div>
+    <div className={`flex min-h-0 flex-col gap-2.5 ${className ?? ""}`}>
+      <HealthCard services={services} rows={meters.concat(drives).slice(0, 4)} uptimeSeconds={status.uptime_seconds} />
+
+      <span className={label}>SERVICES</span>
+      <ul className="grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2.5">
+        {services.map((s, i) => (
+          <motion.li
+            key={s.name}
+            initial={{ opacity: 0, y: 6 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: SLOW_S, ease: EASE, delay: 0.1 + i * 0.04 }}
+            className={`flex items-center gap-3 px-4 py-3.5 ${card}`}
+          >
+            <span
+              aria-hidden
+              className={`size-[9px] shrink-0 rounded-full ${s.ok ? "bg-sage shadow-[0_0_0_3px_color-mix(in_srgb,var(--sage)_20%,transparent)]" : "border border-dashed border-ink-faint"}`}
+            />
+            <span className={`flex-1 truncate text-[15px] font-semibold capitalize ${s.ok ? "text-ink" : "text-ink-ghost"}`}>{s.name}</span>
+            <span className="text-[12.5px] text-ink-ghost">{s.ok ? "Healthy" : "Offline"}</span>
+          </motion.li>
+        ))}
+      </ul>
+
+      {drives.length > 0 ? (
+        <>
+          <span className={label}>DRIVES</span>
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(220px,1fr))] gap-2.5">
+            {drives.map((d, i) => (
+              <motion.li
+                key={d.key}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: SLOW_S, ease: EASE, delay: 0.25 + i * 0.05 }}
+                className={`flex flex-col gap-2.5 p-4 ${card}`}
+              >
+                <span className="flex items-baseline justify-between gap-2">
+                  <span className="text-[14px] font-semibold text-ink">{d.kind}</span>
+                  <span className="text-[12.5px] text-ink-ghost">{d.detail?.split(" · ")[0]}</span>
+                </span>
+                <span className="h-1.5 overflow-hidden rounded-[3px] bg-rule">
+                  <motion.span
+                    className="block h-full rounded-[3px] bg-sage"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${d.pct ?? 0}%` }}
+                    transition={{ duration: SLOW_S * 3, ease: EASE, delay: 0.4 }}
+                  />
+                </span>
+                <span className="truncate font-mono text-[11.5px] text-ink-ghost">{d.name}</span>
+              </motion.li>
+            ))}
+          </ul>
+        </>
+      ) : null}
+
+      <span className={label}>DEVICES ON DADI</span>
+      <ul className={`flex flex-col px-3.5 py-1 ${card}`}>
+        {devices === null ? (
+          <li className="flex flex-col gap-2 py-3">
+            <span className="skeleton h-3 w-1/3" />
+            <span className="skeleton h-2.5 w-1/4" />
+          </li>
+        ) : (
+          devices.map((c) => (
+            <li key={c.node_name} className="flex items-center gap-3 border-b border-rule/50 py-2.5 last:border-b-0">
+              <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <span className="truncate text-[14px] font-semibold text-ink">{c.node_name}</span>
+                <span className="truncate font-mono text-[11.5px] text-ink-ghost">{c.ip_addresses[0] ?? "no address"}</span>
+              </span>
+              <span
+                className={`rounded-full px-2.5 py-1 text-[12px] font-semibold ${
+                  c.pending ? "border border-dashed border-sage-line text-sage-text" : c.online ? "bg-sage-fill text-sage-text" : "text-ink-ghost"
+                }`}
+              >
+                {c.pending ? "Waiting" : c.online ? "Online" : "Offline"}
+              </span>
+            </li>
+          ))
+        )}
+      </ul>
+
+      <span className={label}>ERRORS</span>
+      <ErrorLogCards limit={6} />
     </div>
   );
 }
 
-function ServiceRows({
-  services,
-}: {
-  services: Array<{ name: string; ok: boolean }>;
-}) {
-  return (
-    <ul className="flex flex-col gap-1.5">
-      {services.map((s, i) => (
-        <motion.li
-          key={s.name}
-          initial={{ opacity: 0, x: -4 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.03 }}
-          className="flex items-center justify-between gap-3 border-b border-dashed border-rule/80 py-2 last:border-b-0"
-        >
-          <span className="text-[13px] text-ink">{s.name}</span>
-          <span
-            className={`inline-flex items-center gap-1.5 text-[11px] tracking-wide ${
-              s.ok ? "text-sage-deep" : "text-ink-ghost"
-            }`}
-          >
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${
-                s.ok ? "bg-sage" : "border border-dashed border-ink-ghost"
-              }`}
-              aria-hidden
-            />
-            {s.ok ? "reachable" : "offline"}
-          </span>
-        </motion.li>
-      ))}
-    </ul>
-  );
-}
 
 /** Ink for a load ring: sage while easy, clay past two thirds, error past 85%. */
 function gaugeTone(pct: number): string {

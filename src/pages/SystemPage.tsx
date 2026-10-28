@@ -6,7 +6,8 @@ import { SystemMap } from "../features/system/SystemMap";
 import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 
 /**
- * Split system view: health on one side, log explorer on the other.
+ * Split system view, as on the canvas: the health card, services, drives, devices and recent
+ * errors on one side, the log explorer in a card on the other.
  * Device provisioning lives on the desktop tray / app menu (Dadi → Provision client).
  * Stacks under `@container` when the page body is narrow. `?service=&q=&at=` (from an
  * error toast) focuses the explorer on that log line.
@@ -26,25 +27,15 @@ export function SystemPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
     >
-      <PageHeader title="SYSTEM" hint="Reachability · devices · logs" />
+      <PageHeader title="SYSTEM" hint="Services, drives, devices on dadi, and the box's logs" />
 
       <div className="@container min-h-0 flex-1 px-1 pb-1">
-        <div className="grid h-full min-h-0 grid-cols-1 gap-4 @min-[720px]:grid-cols-2 @min-[720px]:gap-5">
-          <section className="flex min-h-0 min-w-0 flex-col gap-4 overflow-hidden rounded-[var(--radius)] border border-dashed border-sage-line bg-bone/40 px-3 py-3">
-            <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-              <span className="mb-3 shrink-0 text-[11px] font-medium tracking-[2px] text-sage-deep">
-                DADI
-              </span>
-              <div className="min-h-0 min-w-0 flex-1 overflow-y-auto">
-                <SystemMap />
-              </div>
-            </div>
-          </section>
-
-          <section className="flex min-h-[min(420px,48vh)] min-w-0 flex-col overflow-hidden rounded-[var(--radius)] border border-dashed border-sage-line bg-bone/40 px-3 py-3 @min-[720px]:min-h-0">
-            <span className="mb-3 shrink-0 text-[11px] font-medium tracking-[2px] text-sage-deep">
-              LOGS
-            </span>
+        <div className="grid h-full min-h-0 grid-cols-1 gap-5 @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          <div className="min-h-0 min-w-0 overflow-y-auto pr-1 pb-4 [scrollbar-width:thin]">
+            <SystemMap />
+          </div>
+          <section className="flex min-h-[min(460px,52vh)] min-w-0 flex-col overflow-hidden rounded-[18px] border border-(--glass-border) bg-(--glass-veil) p-[18px] shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)] @min-[900px]:min-h-0">
+            <span className="mb-3 shrink-0 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">LOGS</span>
             <div className="min-h-0 min-w-0 flex-1">
               <LogExplorer focus={focus} />
             </div>
