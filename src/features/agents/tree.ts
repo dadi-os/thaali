@@ -25,12 +25,12 @@ export type AgentNode = ForceNode<AgentGraphNode>;
 /** The agents view's 3D force simulation. */
 export type AgentSimulation = ForceGraphSimulation<AgentGraphNode, AgentEdge>;
 
-/** Visual lane for an agent node — fill weight encodes reasoning vs conversation. */
+/** Visual lane for an agent node — fill weight encodes work vs process. */
 export type NodeVisual =
   | "retired"
   | "idle"
-  | "reasoning"
-  | "conversation"
+  | "work"
+  | "process"
   | "both";
 
 /** Radius of the shell top-level agents sit on. */
@@ -107,24 +107,24 @@ export function createAgentSimulation(): AgentSimulation {
 /**
  * Map agent active + lane occupancy to a node visual.
  * Prefers live lane occupancy overrides when provided.
- * Fill language: soft = reasoning, solid = conversation, solid+core = both.
+ * Fill language: soft = work, solid = process, solid+core = both.
  */
 export function visualState(
   agent: AgentRecord,
-  running: { reasoning: boolean; conversation: boolean } | undefined,
+  running: { work: boolean; process: boolean } | undefined,
 ): NodeVisual {
   if (!agent.active) {
     return "retired";
   }
   const lanes = running ?? agent.running;
-  if (lanes.reasoning && lanes.conversation) {
+  if (lanes.work && lanes.process) {
     return "both";
   }
-  if (lanes.reasoning) {
-    return "reasoning";
+  if (lanes.work) {
+    return "work";
   }
-  if (lanes.conversation) {
-    return "conversation";
+  if (lanes.process) {
+    return "process";
   }
   return "idle";
 }
@@ -132,8 +132,8 @@ export function visualState(
 /** True when the node is mid-flight on either lane. */
 export function isLiveVisual(visual: NodeVisual): boolean {
   return (
-    visual === "reasoning" ||
-    visual === "conversation" ||
+    visual === "work" ||
+    visual === "process" ||
     visual === "both"
   );
 }
@@ -141,20 +141,20 @@ export function isLiveVisual(visual: NodeVisual): boolean {
 /** Human-readable status for the agent popover / legend. */
 export function statusLabel(
   visual: NodeVisual,
-  running: { reasoning: boolean; conversation: boolean },
+  running: { work: boolean; process: boolean },
 ): string {
   if (visual === "retired") {
     return "Retired";
   }
   if (isLiveVisual(visual)) {
-    if (running.reasoning && running.conversation) {
-      return `In flight · ${LANE_LABEL.conversation} + ${LANE_LABEL.reasoning}`;
+    if (running.work && running.process) {
+      return `In flight · ${LANE_LABEL.process} + ${LANE_LABEL.work}`;
     }
-    if (running.reasoning) {
-      return `In flight · ${LANE_LABEL.reasoning}`;
+    if (running.work) {
+      return `In flight · ${LANE_LABEL.work}`;
     }
-    if (running.conversation) {
-      return `In flight · ${LANE_LABEL.conversation}`;
+    if (running.process) {
+      return `In flight · ${LANE_LABEL.process}`;
     }
     return "In flight";
   }

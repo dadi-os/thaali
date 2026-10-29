@@ -1,4 +1,4 @@
-/** Lane occupancy: the floating pill above the composer, its thinking mark, and the working sheen it shares with the list. */
+/** Lane occupancy: the floating pill above the composer, its processing mark, and the working sheen it shares with the list. */
 
 import { useRef } from "react";
 import { AnimatePresence, motion, useAnimationFrame, useReducedMotion } from "motion/react";
@@ -6,27 +6,27 @@ import { LANE_LABEL } from "../../shared/lib/ux/lanes";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 
 export type LaneChipProps = {
-  /** Conversation lane busy: the agent is thinking toward a reply. */
-  conversation: boolean;
-  /** Reasoning lane busy: the agent is working in the background. */
-  reasoning: boolean;
+  /** Process lane busy: the agent is reading what arrived and answering it. */
+  process: boolean;
+  /** Work lane busy: the agent is doing the job in the background. */
+  work: boolean;
 };
 
-/** Lane chip copy from conversation / reasoning occupancy. */
+/** Lane chip copy from process / work occupancy. */
 export type LaneChipLabel =
   | (typeof LANE_LABEL)[keyof typeof LANE_LABEL]
-  | `${typeof LANE_LABEL.conversation} + ${typeof LANE_LABEL.reasoning}`;
+  | `${typeof LANE_LABEL.process} + ${typeof LANE_LABEL.work}`;
 
-/** Lane chip copy from conversation / reasoning occupancy. */
-export function laneChipLabel(conversation: boolean, reasoning: boolean): LaneChipLabel | null {
-  if (conversation && reasoning) {
-    return `${LANE_LABEL.conversation} + ${LANE_LABEL.reasoning}`;
+/** Lane chip copy from process / work occupancy. */
+export function laneChipLabel(processing: boolean, working: boolean): LaneChipLabel | null {
+  if (processing && working) {
+    return `${LANE_LABEL.process} + ${LANE_LABEL.work}`;
   }
-  if (conversation) {
-    return LANE_LABEL.conversation;
+  if (processing) {
+    return LANE_LABEL.process;
   }
-  if (reasoning) {
-    return LANE_LABEL.reasoning;
+  if (working) {
+    return LANE_LABEL.work;
   }
   return null;
 }
@@ -52,11 +52,11 @@ function flowPose(i: number, ms: number): { transform: string; opacity: string }
 }
 
 /**
- * Thinking mark: three dots flowing left to right, each dropping off the end and
+ * Processing mark: three dots flowing left to right, each dropping off the end and
  * reappearing at the start, driven per frame without re-rendering. Reduced motion holds
  * them still mid-flow.
  */
-export function ThinkingMark() {
+export function ProcessingMark() {
   const reduced = useReducedMotion() ?? false;
   const dots = useRef<Array<HTMLSpanElement | null>>([]);
 
@@ -86,12 +86,12 @@ export function ThinkingMark() {
 
 /**
  * Soft glass pill that floats above the composer while a lane is busy, the one place a
- * thread shows what its agent is doing. The two lanes read at different levels: thinking
+ * thread shows what its agent is doing. The two lanes read at different levels: processing
  * plays the flowing dots inside the pill, working runs a sheen on the pill itself (the
  * `lane-sheen` glass), and both play together when both lanes run.
  */
-export function LaneChip({ conversation, reasoning }: LaneChipProps) {
-  const label = laneChipLabel(conversation, reasoning);
+export function LaneChip({ process: processing, work: working }: LaneChipProps) {
+  const label = laneChipLabel(processing, working);
   return (
     <AnimatePresence initial={false}>
       {label ? (
@@ -110,20 +110,20 @@ export function LaneChip({ conversation, reasoning }: LaneChipProps) {
             layout
             transition={{ duration: SLOW_S, ease: EASE }}
             className={`lane-chip inline-flex items-center gap-2 rounded-full py-1 text-[11px] font-medium ${
-              conversation ? "pr-3 pl-2" : "px-3"
-            } ${reasoning ? "lane-sheen" : ""}`}
+              processing ? "pr-3 pl-2" : "px-3"
+            } ${working ? "lane-sheen" : ""}`}
           >
             <AnimatePresence initial={false}>
-              {conversation ? (
+              {processing ? (
                 <motion.span
-                  key="thinking"
+                  key="processing"
                   className="inline-flex"
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: "auto" }}
                   exit={{ opacity: 0, width: 0 }}
                   transition={{ duration: SLOW_S, ease: EASE }}
                 >
-                  <ThinkingMark />
+                  <ProcessingMark />
                 </motion.span>
               ) : null}
             </AnimatePresence>

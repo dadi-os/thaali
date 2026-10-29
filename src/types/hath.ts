@@ -1,5 +1,5 @@
-/** Reasoning vs conversation lane on an agent. */
-export type Lane = "reasoning" | "conversation";
+/** Work vs process lane on an agent. */
+export type Lane = "work" | "process";
 
 /**
  * Agent log event kinds from Hath. `response` is one model call's output,
@@ -94,7 +94,7 @@ export type AgentRecord = {
   system_prompt: string;
   parent_agent_id: string | null;
   active: boolean;
-  running: { reasoning: boolean; conversation: boolean };
+  running: { work: boolean; process: boolean };
   sessions: AgentSessions;
   created_at: string;
   updated_at: string;

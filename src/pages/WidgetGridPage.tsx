@@ -35,7 +35,7 @@ export function WidgetGridPage() {
   const navigate = useNavigate();
   const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
   const running = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
-  const working = Object.values(running).filter((lanes) => lanes.reasoning || lanes.conversation).length;
+  const working = Object.values(running).filter((lanes) => lanes.work || lanes.process).length;
   const counts = useQueries({
     queries: COUNTED_KINDS.map((kind) => ({ queryKey: kindCountKey(kind), enabled: false })),
     combine: (results) => (results.every((q) => q.data) ? results.reduce((sum, q) => sum + (q.data as KindCount).thisWeek, 0) : null),
@@ -45,7 +45,7 @@ export function WidgetGridPage() {
   const down = health.data ? serviceHealth(health.data).filter((s) => !s.ok).length : null;
   const busy = (agents.data ?? []).flatMap((agent) => {
     const lanes = running[agent.id];
-    return lanes?.reasoning ? [`${agent.name} · working`] : lanes?.conversation ? [`${agent.name} · thinking`] : [];
+    return lanes?.work ? [`${agent.name} · working`] : lanes?.process ? [`${agent.name} · processing`] : [];
   });
   const agentsAside = agents.data
     ? `${working} working · ${agents.data.filter((agent) => agent.active).length} agents`

@@ -1,10 +1,10 @@
 import type { Lane } from "../../../types/hath";
 
 /**
- * What the UI calls each lane, everywhere a lane is named: the conversation lane is the
- * agent thinking with you, the reasoning lane is it working in the background.
+ * What the UI calls each lane, everywhere a lane is named: the process lane is the
+ * agent reading what arrived and answering it, the work lane is it doing the job.
  */
 export const LANE_LABEL = {
-  conversation: "thinking",
-  reasoning: "working",
+  process: "processing",
+  work: "working",
 } as const satisfies Record<Lane, string>;

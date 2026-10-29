@@ -28,14 +28,14 @@ type LaneFilter = Lane | "all";
 
 const FILTER_OPTIONS: Array<{ value: LaneFilter; label: string }> = [
   { value: "all", label: "all" },
-  { value: "conversation", label: LANE_LABEL.conversation },
-  { value: "reasoning", label: LANE_LABEL.reasoning },
+  { value: "process", label: LANE_LABEL.process },
+  { value: "work", label: LANE_LABEL.work },
 ];
 
-/** A lane's mark on the timeline rail: a filled dot for thinking, a ring for working. */
+/** A lane's mark on the timeline rail: a filled dot for processing, a ring for working. */
 const LANE_DOT: Record<Lane, string> = {
-  conversation: "bg-sage",
-  reasoning: "bg-bone ring-1 ring-inset ring-sage-deep/60",
+  process: "bg-sage",
+  work: "bg-bone ring-1 ring-inset ring-sage-deep/60",
 };
 
 /** What set a wake off: who messaged, or which lanes started on their own. */
@@ -316,7 +316,7 @@ export function AgentActivity({ logs: logsQuery, running, scrollRef }: AgentActi
   }, [scrollRef]);
 
   const liveKey =
-    wakes.length > 0 && (running.conversation || running.reasoning) ? wakes[0].key : null;
+    wakes.length > 0 && (running.process || running.work) ? wakes[0].key : null;
   let newCount = 0;
   const shown: Array<{ wake: ActivityWake; steps: ActivityStep[] }> = [];
   for (const wake of wakes) {

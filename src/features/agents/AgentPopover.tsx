@@ -107,7 +107,7 @@ export function AgentPopover({
   const [editingSchedule, setEditingSchedule] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const lanes = agentId ? runningMap[agentId] : undefined;
-  const busy = lanes !== undefined && (lanes.reasoning || lanes.conversation);
+  const busy = lanes !== undefined && (lanes.work || lanes.process);
 
   const detailQuery = useQuery({
     ...agentDetailQuery(agentId),
@@ -149,7 +149,7 @@ export function AgentPopover({
   const running =
     runningMap[agentId] ??
     detail?.running ??
-    listAgent?.running ?? { reasoning: false, conversation: false };
+    listAgent?.running ?? { work: false, process: false };
   const active = detail?.active ?? listAgent?.active ?? false;
   const name = detail?.name ?? listAgent?.name ?? "…";
   const createdAt = detail?.created_at ?? listAgent?.created_at;
@@ -173,7 +173,7 @@ export function AgentPopover({
   const status = statusLabel(visual, running);
   const parentId = detail?.parent_agent_id ?? listAgent?.parent_agent_id ?? null;
   const parent = parentId ? agentsById.get(parentId) : undefined;
-  const live = running.reasoning || running.conversation;
+  const live = running.work || running.process;
   const command = terminal?.last_command?.replace(/\s+/g, " ").trim();
   const hostCaption =
     command && command.length > 0

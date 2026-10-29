@@ -1,6 +1,6 @@
 import type { AgentRecord, Lane } from "../types/hath";
 
-export type RunningMap = Record<string, { reasoning: boolean; conversation: boolean }>;
+export type RunningMap = Record<string, { work: boolean; process: boolean }>;
 
 type Listener = (running: RunningMap) => void;
 
@@ -51,8 +51,8 @@ function runningMapsEqual(a: RunningMap, b: RunningMap): boolean {
     const right = b[id];
     if (
       !right ||
-      left.reasoning !== right.reasoning ||
-      left.conversation !== right.conversation
+      left.work !== right.work ||
+      left.process !== right.process
     ) {
       return false;
     }
@@ -66,7 +66,7 @@ export function setLaneRunning(
   lane: Lane,
   isRunning: boolean,
 ): void {
-  const current = running[agentId] ?? { reasoning: false, conversation: false };
+  const current = running[agentId] ?? { work: false, process: false };
   running = {
     ...running,
     [agentId]: { ...current, [lane]: isRunning },

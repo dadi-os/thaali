@@ -5,7 +5,7 @@ import { EASE } from "../../shared/lib/ux/motion";
 import type { Conversation, HistoryStatus } from "../../store/chat";
 import type { RunningMap } from "../../store/running";
 import { formatListTime, groupConversations } from "./format";
-import { ThinkingMark } from "./LaneChip";
+import { ProcessingMark } from "./LaneChip";
 
 export interface ConversationListProps {
   /** Thread-agent conversations (excludes Dadi). */
@@ -14,7 +14,7 @@ export interface ConversationListProps {
   selectedAgentId: string | null;
   historyStatus: HistoryStatus;
   historyError: string | null;
-  /** Lanes running per agent: a thinking chat shows the flowing dots in its row, a working one the sheen across it. */
+  /** Lanes running per agent: a processing chat shows the flowing dots in its row, a working one the sheen across it. */
   running: RunningMap;
   /** Messages to you held while you were busy, per agent; those rows read bold with a count. */
   unread: Record<string, number>;
@@ -127,8 +127,8 @@ export function ConversationList({
                 </p>
                 {group.items.map((conv) => {
                   const selected = conv.agent_id === selectedAgentId;
-                  const thinking = running[conv.agent_id]?.conversation === true;
-                  const working = running[conv.agent_id]?.reasoning === true;
+                  const processing = running[conv.agent_id]?.process === true;
+                  const working = running[conv.agent_id]?.work === true;
                   const held = unread[conv.agent_id];
                   return (
                     <button
@@ -155,9 +155,9 @@ export function ConversationList({
                             {formatListTime(conv.last_at)}
                           </time>
                         </span>
-                        {thinking ? (
+                        {processing ? (
                           <span className="flex h-[18px] items-center">
-                            <ThinkingMark />
+                            <ProcessingMark />
                           </span>
                         ) : (
                           <span className={`truncate text-[12.5px] ${held ? "text-ink" : "text-ink-muted"}`}>
@@ -213,7 +213,7 @@ export function ConversationList({
             </span>
             {dadi.busy ? (
               <span className="flex items-center gap-1.5 text-[12px] text-sage-text">
-                <ThinkingMark />
+                <ProcessingMark />
                 routing
               </span>
             ) : (

@@ -64,7 +64,7 @@ function formatRowTime(iso: string): string {
 export type ErrorCardCopy = {
   /** Human-readable cause — shown as the primary line. */
   title: string;
-  /** Short operational context (e.g. "reasoning lane failed"). */
+  /** Short operational context (e.g. "work lane failed"). */
   context: string | null;
   /** Provider/HTTP status when parseable. */
   code: number | null;

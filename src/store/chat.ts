@@ -24,8 +24,8 @@ export type ChatMessage = {
   /** The real error from the failed send, shown on the bubble; cleared on retry. */
   sendError?: string;
   /**
-   * Waiting locally because the conversation lane is busy. Not POSTed yet — can cancel.
-   * Rendered after settled messages as a draft (reasoning-busy does not queue).
+   * Waiting locally because the process lane is busy. Not POSTed yet — can cancel.
+   * Rendered after settled messages as a draft (work-busy does not queue).
    */
   queued?: boolean;
   /** Outbound files, kept only while queued/pending so retry can re-POST; cleared once Hath confirms. */

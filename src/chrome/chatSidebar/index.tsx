@@ -218,13 +218,13 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     });
   }, [draftKey]);
 
-  const conversationBusy =
+  const processBusy =
     viewingThread && openAgentId
-      ? running[openAgentId]?.conversation === true
+      ? running[openAgentId]?.process === true
       : dadiBusy;
-  const reasoningBusy =
+  const workBusy =
     viewingThread && openAgentId
-      ? running[openAgentId]?.reasoning === true
+      ? running[openAgentId]?.work === true
       : false;
 
   const scrollToBottom = useEffectEvent((behavior: ScrollBehavior = "auto") => {
@@ -249,7 +249,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return;
     }
     el.scrollTop = el.scrollHeight;
-  }, [threadMessages, conversationBusy, reasoningBusy, viewingThread, composerHeight]);
+  }, [threadMessages, processBusy, workBusy, viewingThread, composerHeight]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -275,7 +275,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   /**
    * Load the open thread, then keep it fresh. SSE has no replay, so a dropped
    * stream or tunnel flap would otherwise hide replies until the thread is
-   * reopened. Refreshes run on a slow interval, when the agent's conversation lane
+   * reopened. Refreshes run on a slow interval, when the agent's process lane
    * goes idle, and when the window regains focus or becomes visible.
    */
   useEffect(() => {
@@ -411,8 +411,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return;
     }
 
-    const conversationHeld = running[toId]?.conversation === true;
-    const queueLocally = existingTempSeq === undefined && conversationHeld;
+    const processHeld = running[toId]?.process === true;
+    const queueLocally = existingTempSeq === undefined && processHeld;
 
     let tempSeq: number;
     if (existingTempSeq !== undefined) {
@@ -461,7 +461,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const flushingRef = useRef(new Set<string>());
 
   /**
-   * Send every agent's queued messages, oldest first, once its conversation lane is idle,
+   * Send every agent's queued messages, oldest first, once its process lane is idle,
    * whether or not its thread is open, so a queue never outlives leaving the chat.
    */
   const flushQueues = useEffectEvent(async () => {
@@ -469,7 +469,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return;
     }
     for (const agentId of queuedAgentIds()) {
-      if (running[agentId]?.conversation === true || flushingRef.current.has(agentId)) {
+      if (running[agentId]?.process === true || flushingRef.current.has(agentId)) {
         continue;
       }
       flushingRef.current.add(agentId);
@@ -489,7 +489,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const wasBusyRef = useRef(false);
   useEffect(() => {
-    if (conversationBusy) {
+    if (processBusy) {
       wasBusyRef.current = true;
       return;
     }
@@ -498,7 +498,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     }
     wasBusyRef.current = false;
     refreshThreadRef.current?.();
-  }, [conversationBusy]);
+  }, [processBusy]);
 
   const cancelQueued = (seq: number) => {
     if (openAgentId) {
@@ -631,8 +631,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     ? "Connect to message Dadi"
     : viewingDadi
       ? "Message Dadi…"
-      : conversationBusy
-        ? `Thinking…`
+      : processBusy
+        ? `Processing…`
         : `Message agent`;
 
   const canSubmit =
@@ -824,9 +824,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
               setDraft={setDraft}
               placeholder={placeholder}
               canSubmit={canSubmit}
-              thinkingMode={conversationBusy}
-              workingMode={reasoningBusy && !conversationBusy}
-              lanes={{ conversation: conversationBusy, reasoning: reasoningBusy }}
+              processingMode={processBusy}
+              workingMode={workBusy && !processBusy}
+              lanes={{ process: processBusy, work: workBusy }}
               textareaRef={textareaRef}
               fileInputRef={fileInputRef}
               cameraInputRef={cameraInputRef}

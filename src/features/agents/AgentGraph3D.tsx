@@ -42,12 +42,12 @@ import {
 
 const THEME = ["--sage", "--sage-deep", "--ink-faint", "--bone"] as const;
 
-/** Which agents the page brings forward: every one, the ones thinking (conversation lane running), or the ones working (reasoning lane running). */
-type AgentShow = "all" | "thinking" | "working";
+/** Which agents the page brings forward: every one, the ones processing (process lane running), or the ones working (work lane running). */
+type AgentShow = "all" | "processing" | "working";
 
 const SHOW_OPTIONS: Array<{ value: AgentShow; label: string }> = [
   { value: "all", label: "All" },
-  { value: "thinking", label: "Thinking" },
+  { value: "processing", label: "Processing" },
   { value: "working", label: "Working" },
 ];
 
@@ -84,7 +84,7 @@ function agentLook(theme: AgentTheme, visual: NodeVisual): ForceGraphNodeLook {
   if (visual === "idle") {
     return { color: theme["--sage"], opacity: 1, emissiveIntensity: 0.1, wireframe: false };
   }
-  if (visual === "reasoning") {
+  if (visual === "work") {
     return { color: theme["--sage-deep"], opacity: 0.6, emissiveIntensity: 0.4, wireframe: false };
   }
   return { color: theme["--sage-deep"], opacity: 1, emissiveIntensity: 0.5, wireframe: false };
@@ -190,8 +190,8 @@ export function AgentGraph3D({
     }
     const kept = (n: (typeof graph.nodes)[number]) =>
       show === "all" ||
-      (show === "thinking" && runningMap[n.id]?.conversation === true) ||
-      (show === "working" && runningMap[n.id]?.reasoning === true);
+      (show === "processing" && runningMap[n.id]?.process === true) ||
+      (show === "working" && runningMap[n.id]?.work === true);
     return new Set(graph.nodes.filter((n) => kept(n) && (!q || n.name.toLowerCase().includes(q))).map((n) => n.id));
   }, [graph.nodes, query, show, runningMap]);
   const onlyMatch = matches?.size === 1 ? [...matches][0]! : null;

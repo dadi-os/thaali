@@ -32,7 +32,7 @@ export type TrayAgent = {
   id: string;
   name: string;
   active: boolean;
-  running: { reasoning: boolean; conversation: boolean };
+  running: { work: boolean; process: boolean };
 };
 
 /** Live list, still loading, or last fetch failed. */
@@ -237,11 +237,11 @@ async function setEnabledIf(item: MenuItem, enabled: boolean): Promise<void> {
 
 function agentSlotLabel(agent: TrayAgent): string {
   const statusBits: string[] = [];
-  if (agent.running.reasoning) {
-    statusBits.push("reasoning");
+  if (agent.running.work) {
+    statusBits.push("work");
   }
-  if (agent.running.conversation) {
-    statusBits.push("conversation");
+  if (agent.running.process) {
+    statusBits.push("process");
   }
   const status =
     statusBits.length > 0

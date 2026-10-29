@@ -196,9 +196,9 @@ describe("chatSidebar lanes", () => {
 describe("lane chip and tool signature", () => {
   it("maps lane occupancy to chip labels", () => {
     expect(laneChipLabel(false, false)).toBeNull();
-    expect(laneChipLabel(true, false)).toBe("thinking");
+    expect(laneChipLabel(true, false)).toBe("processing");
     expect(laneChipLabel(false, true)).toBe("working");
-    expect(laneChipLabel(true, true)).toBe("thinking + working");
+    expect(laneChipLabel(true, true)).toBe("processing + working");
   });
 
   it("formats a compact tool signature", () => {
@@ -651,7 +651,7 @@ describe("agent tree", () => {
     system_prompt: "sys",
     parent_agent_id: null,
     active: true,
-    running: { reasoning: false, conversation: false },
+    running: { work: false, process: false },
     sessions: { browsers: [], terminals: [] },
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
@@ -678,32 +678,32 @@ describe("agent tree", () => {
   });
 
   it("marks running lanes by fill key", () => {
-    expect(visualState(planner, { reasoning: true, conversation: false })).toBe(
-      "reasoning",
+    expect(visualState(planner, { work: true, process: false })).toBe(
+      "work",
     );
-    expect(visualState(planner, { reasoning: false, conversation: true })).toBe(
-      "conversation",
+    expect(visualState(planner, { work: false, process: true })).toBe(
+      "process",
     );
-    expect(visualState(planner, { reasoning: true, conversation: true })).toBe(
+    expect(visualState(planner, { work: true, process: true })).toBe(
       "both",
     );
     expect(visualState({ ...planner, active: false }, undefined)).toBe("retired");
   });
 
   it("labels live fills and treats them as in-flight", () => {
-    expect(isLiveVisual("reasoning")).toBe(true);
-    expect(isLiveVisual("conversation")).toBe(true);
+    expect(isLiveVisual("work")).toBe(true);
+    expect(isLiveVisual("process")).toBe(true);
     expect(isLiveVisual("both")).toBe(true);
     expect(isLiveVisual("idle")).toBe(false);
     expect(isLiveVisual("retired")).toBe(false);
     expect(
-      statusLabel("reasoning", { reasoning: true, conversation: false }),
+      statusLabel("work", { work: true, process: false }),
     ).toMatch(/working/);
     expect(
-      statusLabel("both", { reasoning: true, conversation: true }),
-    ).toMatch(/thinking \+ working/);
+      statusLabel("both", { work: true, process: true }),
+    ).toMatch(/processing \+ working/);
     expect(
-      statusLabel("idle", { reasoning: false, conversation: false }),
+      statusLabel("idle", { work: false, process: false }),
     ).toBe("Idle");
   });
 
@@ -1251,7 +1251,7 @@ describe("countNoun", () => {
 describe("buildActivity", () => {
   const log = (
     partial: Partial<LogRecord> & Pick<LogRecord, "id" | "event" | "payload" | "created_at">,
-  ): LogRecord => ({ agent_id: "coding-manager", lane: "conversation", ...partial });
+  ): LogRecord => ({ agent_id: "coding-manager", lane: "process", ...partial });
   const at = (seconds: number) => new Date(Date.UTC(2026, 9, 2, 17, 40, 0) + seconds * 1000).toISOString();
   const response = (id: string, lane: Lane, seconds: number, content: unknown[], stop = "tool_use") =>
     log({ id, lane, event: "response", payload: { content, stop_reason: stop }, created_at: at(seconds) });
@@ -1264,15 +1264,15 @@ describe("buildActivity", () => {
   it("keeps a wake's interleaved lanes in one timeline, hiding yield and delivered dispatches", () => {
     const logs = [
       message("m-in", 0, { direction: "receive", from_agent_id: null }),
-      response("c1", "conversation", 1, [{ type: "thinking", thinking: "Okay.\n\n**Steering Reasoning**\n\nIt should close t5." }, tool("s1", "steer_reasoning")]),
-      result("c1r", "conversation", 1.1, "s1", "steer_reasoning"),
-      response("r1", "reasoning", 2, [{ type: "thinking", thinking: "Close the terminal." }, tool("t1", "terminal_close", { terminal_id: "t5" })]),
-      result("r1r", "reasoning", 2.1, "t1", "terminal_close", true),
-      response("c2", "conversation", 3, [{ type: "thinking", thinking: "Reply." }, tool("d1", "dispatch_message"), tool("y1", "yield")]),
+      response("c1", "process", 1, [{ type: "thinking", thinking: "Okay.\n\n**Steering Reasoning**\n\nIt should close t5." }, tool("s1", "steer_work")]),
+      result("c1r", "process", 1.1, "s1", "steer_work"),
+      response("r1", "work", 2, [{ type: "thinking", thinking: "Close the terminal." }, tool("t1", "terminal_close", { terminal_id: "t5" })]),
+      result("r1r", "work", 2.1, "t1", "terminal_close", true),
+      response("c2", "process", 3, [{ type: "thinking", thinking: "Reply." }, tool("d1", "dispatch_message"), tool("y1", "yield")]),
       message("m-out", 3.1, { direction: "send", to_agent_id: null }),
-      result("c2r", "conversation", 3.2, "d1", "dispatch_message"),
-      result("c2y", "conversation", 3.3, "y1", "yield"),
-      response("r2", "reasoning", 4, [{ type: "text", text: "Done." }, tool("y2", "yield")]),
+      result("c2r", "process", 3.2, "d1", "dispatch_message"),
+      result("c2y", "process", 3.3, "y1", "yield"),
+      response("r2", "work", 4, [{ type: "text", text: "Done." }, tool("y2", "yield")]),
     ].reverse();
 
     const wakes = buildActivity(logs);
@@ -1280,13 +1280,13 @@ describe("buildActivity", () => {
     expect(wakes).toHaveLength(1);
     const [wake] = wakes;
     expect(wake!.key).toBe("m-in");
-    expect(wake!.lanes).toEqual(["conversation", "reasoning"]);
+    expect(wake!.lanes).toEqual(["process", "work"]);
     expect(wake!.toolCount).toBe(3);
     expect(wake!.errorCount).toBe(1);
     expect(wake!.steps.map((step) => step.key)).toEqual(["m-in", "c1", "r1", "m-out", "r2"]);
     const [, steer, close] = wake!.steps;
-    expect(steer).toMatchObject({ kind: "turn", lane: "conversation", thought: { gist: "Steering Reasoning" } });
-    expect(close).toMatchObject({ kind: "turn", lane: "reasoning", thought: { gist: "Close the terminal." } });
+    expect(steer).toMatchObject({ kind: "turn", lane: "process", thought: { gist: "Steering Reasoning" } });
+    expect(close).toMatchObject({ kind: "turn", lane: "work", thought: { gist: "Close the terminal." } });
     expect(close!.kind === "turn" && close!.parts[0]).toMatchObject({
       kind: "tool",
       tool: { name: "terminal_close", result: { isError: true } },
@@ -1298,11 +1298,11 @@ describe("buildActivity", () => {
     const logs = [
       message("old", -3600, { direction: "receive", from_agent_id: null }),
       stamped(message("w1-in", 0, { direction: "receive", from_agent_id: null }), "w1"),
-      stamped(response("w1-r1", "reasoning", 5, [tool("w1-wait", "wait")]), "w1"),
-      stamped(result("w1-r1r", "reasoning", 6, "w1-wait", "wait"), "w1"),
+      stamped(response("w1-r1", "work", 5, [tool("w1-wait", "wait")]), "w1"),
+      stamped(result("w1-r1r", "work", 6, "w1-wait", "wait"), "w1"),
       stamped(message("w2-in", 60, { direction: "receive", from_agent_id: "career-manager" }), "w2"),
-      stamped(response("w2-c1", "conversation", 61, [{ type: "text", text: "on it" }, tool("w2-y", "yield")]), "w2"),
-      stamped(response("w1-r2", "reasoning", 20 * 60, [{ type: "text", text: "resumed after the wait" }, tool("w1-y", "yield")]), "w1"),
+      stamped(response("w2-c1", "process", 61, [{ type: "text", text: "on it" }, tool("w2-y", "yield")]), "w2"),
+      stamped(response("w1-r2", "work", 20 * 60, [{ type: "text", text: "resumed after the wait" }, tool("w1-y", "yield")]), "w1"),
     ].reverse();
 
     const wakes = buildActivity(logs);
@@ -1315,10 +1315,10 @@ describe("buildActivity", () => {
   it("starts a new wake when a message or call arrives after both lanes stopped, or after a long gap", () => {
     const logs = [
       message("a", 0, { direction: "receive", from_agent_id: "browser-manager" }),
-      response("a1", "conversation", 1, [{ type: "text", text: "on it" }], "end_turn"),
-      response("b1", "reasoning", 30, [tool("b1t", "terminal_list")]),
+      response("a1", "process", 1, [{ type: "text", text: "on it" }], "end_turn"),
+      response("b1", "work", 30, [tool("b1t", "terminal_list")]),
       message("c", 40, { direction: "receive", from_agent_id: "career-manager", schedule_id: "s-1" }),
-      response("d1", "reasoning", 40 + 11 * 60, [{ type: "text", text: "later" }]),
+      response("d1", "work", 40 + 11 * 60, [{ type: "text", text: "later" }]),
     ].reverse();
 
     const wakes = buildActivity(logs);
@@ -1331,9 +1331,9 @@ describe("buildActivity", () => {
   it("keeps a wake's key when the log window slides past its first row", () => {
     const logs = [
       message("in", 0, { direction: "receive", from_agent_id: null }),
-      response("c1", "conversation", 1, [{ type: "text", text: "first" }]),
-      response("c2", "conversation", 2, [{ type: "text", text: "second" }]),
-      response("c3", "conversation", 3, [{ type: "text", text: "third" }]),
+      response("c1", "process", 1, [{ type: "text", text: "first" }]),
+      response("c2", "process", 2, [{ type: "text", text: "second" }]),
+      response("c3", "process", 3, [{ type: "text", text: "third" }]),
     ].reverse();
     const before = buildActivity(logs);
     const slid = buildActivity(logs.slice(0, 3));
@@ -1344,9 +1344,9 @@ describe("buildActivity", () => {
   it("keeps the lane a handoff wakes in the wake that handed off", () => {
     const logs = [
       message("in", 0, { direction: "receive", from_agent_id: "cse-431-specialist" }),
-      response("c1", "conversation", 1, [tool("s1", "steer_reasoning", { instruction: "spawn it" }), tool("y1", "yield")]),
-      result("c1r", "conversation", 1.1, "s1", "steer_reasoning"),
-      response("r1", "reasoning", 8, [tool("l1", "list_tools")]),
+      response("c1", "process", 1, [tool("s1", "steer_work", { instruction: "spawn it" }), tool("y1", "yield")]),
+      result("c1r", "process", 1.1, "s1", "steer_work"),
+      response("r1", "work", 8, [tool("l1", "list_tools")]),
     ].reverse();
 
     expect(buildActivity(logs).map((wake) => wake.steps.map((step) => step.key))).toEqual([["in", "c1", "r1"]]);
@@ -1355,12 +1355,12 @@ describe("buildActivity", () => {
   it("starts a new wake when a steered lane failed instead of running", () => {
     const logs = [
       message("ask", 0, { direction: "receive", from_agent_id: null }),
-      response("c1", "conversation", 1, [tool("s1", "steer_reasoning"), tool("y1", "yield")]),
-      result("c1r", "conversation", 1.1, "s1", "steer_reasoning"),
+      response("c1", "process", 1, [tool("s1", "steer_work"), tool("y1", "yield")]),
+      result("c1r", "process", 1.1, "s1", "steer_work"),
       message("dead", 3, {
         direction: "send",
         to_agent_id: null,
-        content: "[runtime] My reasoning lane failed and this wake stopped before finishing: credit balance too low.",
+        content: "[runtime] My work lane failed and this wake stopped before finishing: credit balance too low.",
       }),
       message("again", 60, { direction: "receive", from_agent_id: null }),
     ].reverse();
@@ -1373,7 +1373,7 @@ describe("buildActivity", () => {
 
   it("drops calls that only yield and wakes with nothing left to show", () => {
     const wakes = buildActivity([
-      response("y", "conversation", 0, [{ type: "thinking", thinking: "nothing to do" }, tool("y1", "yield")]),
+      response("y", "process", 0, [{ type: "thinking", thinking: "nothing to do" }, tool("y1", "yield")]),
     ]);
 
     expect(wakes).toEqual([]);

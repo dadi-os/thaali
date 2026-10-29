@@ -2,7 +2,7 @@
 
 import { messageKey, type ChatMessage } from "../../store/chat";
 
-/** Split messages into settled and queued (local hold while conversation busy). */
+/** Split messages into settled and queued (local hold while the process lane is busy). */
 export function partitionByQueued(messages: ChatMessage[]): {
   settled: ChatMessage[];
   queued: ChatMessage[];

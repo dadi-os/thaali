@@ -1,7 +1,7 @@
 /**
  * Shape an agent's durable logs into wakes for the agent popover's activity feed. A wake
  * is one stretch of work: from a received message (or a lane starting cold) until both
- * lanes have yielded, with the thinking and working lanes' turns interleaved in the
+ * lanes have yielded, with the process and work lanes' turns interleaved in the
  * order they happened. Hath stamps every row a wake writes with its `wake_id`, so rows
  * are grouped by it; only rows from before wake ids fall back to guessing wakes from
  * lane state and gaps.
@@ -25,13 +25,13 @@ const RUNTIME_REPORT_PREFIX = "[runtime] ";
 
 /**
  * Tools that handed work to the other lane in rows without a wake id (see guessWakes),
- * which then ran once the caller stopped: conversation steers reasoning, and reasoning's
- * hand_off (and, before that, its send_message) asked conversation to send the message.
+ * which then ran once the caller stopped: the process lane steers the work lane, and the work lane's
+ * hand_off (and, before that, its send_message) asked the process lane to send the message.
  */
 const HANDOFF: Partial<Record<string, Lane>> = {
-  steer_reasoning: "reasoning",
-  send_message: "conversation",
-  hand_off: "conversation",
+  steer_work: "work",
+  send_message: "process",
+  hand_off: "process",
 };
 
 /** A tool call's logged result. */
@@ -145,8 +145,8 @@ function resultsById(logs: LogRecord[]): Map<string, ToolOutcome> {
 /**
  * Whether a tool call is left off the timeline: yield ends every lane turn, and a
  * delivered dispatch_message or send_message already shows as its own sent message. A
- * send_message from before reasoning sent its own messages only handed the message to
- * conversation, so it still shows. Failures always show.
+ * send_message from before the work lane sent its own messages only handed the message to
+ * the process lane, so it still shows. Failures always show.
  */
 function isHiddenTool(tool: ActivityTool): boolean {
   if (tool.result?.isError) {
@@ -343,8 +343,8 @@ export function buildActivity(logs: LogRecord[]): ActivityWake[] {
  */
 function guessWakes(chronological: LogRecord[], results: Map<string, ToolOutcome>): ActivityWake[] {
   const wakes: ActivityWake[] = [];
-  const busy: Record<Lane, boolean> = { conversation: false, reasoning: false };
-  const pending: Record<Lane, boolean> = { conversation: false, reasoning: false };
+  const busy: Record<Lane, boolean> = { process: false, work: false };
+  const pending: Record<Lane, boolean> = { process: false, work: false };
   let current: ActivityWake | null = null;
   let lastAt = 0;
 
@@ -355,27 +355,27 @@ function guessWakes(chronological: LogRecord[], results: Map<string, ToolOutcome
     const at = Date.parse(log.created_at);
     const opens =
       (log.event === "response" && !pending[log.lane]) || log.payload.direction === "receive";
-    const idle = !busy.conversation && !busy.reasoning;
+    const idle = !busy.process && !busy.work;
     if (current === null || at - lastAt > WAKE_GAP_MS || (opens && idle)) {
       current = openWake(log);
       wakes.push(current);
-      busy.conversation = false;
-      busy.reasoning = false;
-      pending.conversation = false;
-      pending.reasoning = false;
+      busy.process = false;
+      busy.work = false;
+      pending.process = false;
+      pending.work = false;
     }
     lastAt = at;
 
     if (log.event === "message") {
       const step = addMessage(current, log);
       if (log.payload.direction === "receive") {
-        busy.conversation = true;
+        busy.process = true;
       }
       if (step?.wakeStopped) {
-        busy.conversation = false;
-        busy.reasoning = false;
-        pending.conversation = false;
-        pending.reasoning = false;
+        busy.process = false;
+        busy.work = false;
+        pending.process = false;
+        pending.work = false;
       }
       continue;
     }

@@ -451,7 +451,7 @@
   backdrop-filter: blur(20px);
 }
 
-.composer-glass--thinking {
+.composer-glass--processing {
   border-color: color-mix(in srgb, var(--sage-line) 28%, transparent);
 }
 
