@@ -21,6 +21,7 @@ import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { dispatchDesktopShell } from "../store/desktopShell";
 import { isTauriRuntime } from "../shared/api/runtime";
+import { LANE_LABEL } from "../shared/lib/ux/lanes";
 
 const TRAY_ID = "dadi-tray";
 
@@ -238,10 +239,10 @@ async function setEnabledIf(item: MenuItem, enabled: boolean): Promise<void> {
 function agentSlotLabel(agent: TrayAgent): string {
   const statusBits: string[] = [];
   if (agent.running.work) {
-    statusBits.push("work");
+    statusBits.push(LANE_LABEL.work);
   }
   if (agent.running.process) {
-    statusBits.push("process");
+    statusBits.push(LANE_LABEL.process);
   }
   const status =
     statusBits.length > 0
