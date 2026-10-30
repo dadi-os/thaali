@@ -9,8 +9,8 @@ import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 export type HostPinProps = {
   /** Live Nas browser to pin, or null when this agent has none. */
   browserId: number | null;
-  /** Live Nas terminal and the agent's last command in it, or null. */
-  terminal: { id: string; last_command: string | null } | null;
+  /** Live Nas terminal id to pin, or null when this agent has none. */
+  terminalId: string | null;
 };
 
 /** Which host view is blown up into the modal. */
@@ -23,10 +23,10 @@ type Expanded = "browser" | "terminal" | null;
  * blows it up, frameless, over the frosted window; ESC, the close button or a click on
  * the frost puts it back.
  */
-export function HostPin({ browserId, terminal }: HostPinProps) {
+export function HostPin({ browserId, terminalId }: HostPinProps) {
   const [expanded, setExpanded] = useState<Expanded>(null);
   const shown =
-    (expanded === "browser" && browserId !== null) || (expanded === "terminal" && terminal !== null)
+    (expanded === "browser" && browserId !== null) || (expanded === "terminal" && terminalId !== null)
       ? expanded
       : null;
 
@@ -43,7 +43,7 @@ export function HostPin({ browserId, terminal }: HostPinProps) {
     return () => window.removeEventListener("keydown", onKey);
   }, [shown]);
 
-  if (browserId === null && terminal === null) {
+  if (browserId === null && terminalId === null) {
     return null;
   }
 
@@ -65,10 +65,10 @@ export function HostPin({ browserId, terminal }: HostPinProps) {
           </div>
         </button>
       ) : null}
-      {terminal !== null ? (
+      {terminalId !== null ? (
         <button type="button" className={card} aria-label="Expand terminal" onClick={() => setExpanded("terminal")}>
           <div className="p-1.5">
-            <TerminalScreen terminalId={terminal.id} command={terminal.last_command} variant="rail" className="rounded-[11px]" />
+            <TerminalScreen terminalId={terminalId} variant="rail" className="rounded-[11px]" />
           </div>
         </button>
       ) : null}
@@ -111,13 +111,8 @@ export function HostPin({ browserId, terminal }: HostPinProps) {
                 {shown === "browser" && browserId !== null ? (
                   <BrowserFrame browserId={browserId} variant="full" />
                 ) : null}
-                {shown === "terminal" && terminal !== null ? (
-                  <TerminalScreen
-                    terminalId={terminal.id}
-                    command={terminal.last_command}
-                    variant="full"
-                    className="h-full"
-                  />
+                {shown === "terminal" && terminalId !== null ? (
+                  <TerminalScreen terminalId={terminalId} variant="full" className="h-full" />
                 ) : null}
               </motion.div>
             </motion.div>

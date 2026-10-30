@@ -4,7 +4,7 @@ The desktop app for dadi: macOS, Windows, and Linux, plus a browser build. Thaal
 
 ## Dependencies
 
-- Nas (`http://nas.dadi`) — provision, status, logs, module config
+- Nas (`http://nas.dadi`) — provision, status, logs, module config, helper tasks (`/tasks`) and their live browser and terminal views
 - Hath (`http://hath.dadi`) — agents, messages, events
 - Yaad (`http://yaad.dadi`) — memory graph
 - Chaavi (`http://chaavi.dadi` API, `https://chaavi.dadi` Bitwarden) — full password manager over Chaavi's `/v1` (logins with TOTP and passkeys, notes, cards, identities, SSH keys, custom fields, folders with drag-and-drop); extension for browser autofill
@@ -19,8 +19,8 @@ The desktop app for dadi: macOS, Windows, and Linux, plus a browser build. Thaal
 thaali/
   src/
     pages/                 route construction sites
-    features/<domain>/     agents, memory, timeline, ghar, chaavi, system, logs
-      agents/              tree, popover (activity: each model turn's thinking, text and tool calls), host-session peek (browser frame + terminal chip)
+    features/<domain>/     agents, memory, timeline, ghar, chaavi, system (incl. the Tasks list), logs
+      agents/              tree, popover (activity: each model turn's thinking, text and tool calls), the status block (job, work state, step, last five calls, tasks, queued messages; statusView.ts maps Hath's `running.status` to its lines), tasks with their live browser frame or terminal screen (only the newest working task shows its view at once, the rest on expand; sessions.ts maps Hath's tasks to Nas's resources)
       memory/              graph forces + connections, 3D network, node popover
     chrome/                AppShell, Header, chatSidebar/, shell hooks (tray, updater, device commands, provisioning)
       chatSidebar/         portable unit (index = construction site)

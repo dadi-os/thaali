@@ -64,11 +64,11 @@ import {
 import { syncForceSimulation } from "./shared/components/ForceGraph";
 import { buildActivity, carryWakeKeys, thoughtGist } from "./features/agents/activity/wakes";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
-import {
-  hasRememberedSessions,
-  pickLiveBrowser,
-  pickLiveTerminal,
-} from "./features/agents/sessions";
+import { autoLiveTaskId, pickLiveViews, showsLiveView, taskLiveView, waitingLabel } from "./features/agents/sessions";
+import { statusView } from "./features/agents/statusView";
+import type { AgentStatus, AgentTask } from "./types/hath";
+import { taskResourceLabel } from "./features/system/TasksSection";
+import type { NasTask } from "./shared/api/nas";
 import {
   addDays,
   isSameDay,
@@ -651,8 +651,8 @@ describe("agent tree", () => {
     system_prompt: "sys",
     parent_agent_id: null,
     active: true,
-    running: { work: false, process: false },
-    sessions: { browsers: [], terminals: [] },
+    running: { work: false, process: false, waiting_on: null, status: null },
+    sessions: { tasks: [] },
     created_at: "2026-01-01T00:00:00Z",
     updated_at: "2026-01-01T00:00:00Z",
   };
@@ -942,28 +942,143 @@ describe("memory network simulation", () => {
   });
 });
 
-describe("agent host sessions", () => {
-  it("picks the newest live browser and terminal", () => {
-    expect(pickLiveBrowser([10, 12, 11], [{ id: 10 }, { id: 11 }])).toBe(11);
-    expect(pickLiveBrowser([10], [{ id: 12 }])).toBeNull();
-    expect(
-      pickLiveTerminal(
-        [
-          { id: "t1", last_command: "ls" },
-          { id: "t2", last_command: "pwd" },
-        ],
-        [{ id: "t2" }],
-      ),
-    ).toEqual({ id: "t2", last_command: "pwd" });
-    expect(
-      hasRememberedSessions({ browsers: [], terminals: [] }),
-    ).toBe(false);
-    expect(
-      hasRememberedSessions({
-        browsers: [10],
-        terminals: [],
-      }),
-    ).toBe(true);
+describe("agent tasks", () => {
+  const nasTask = (task: string, status: NasTask["status"], resource?: string): NasTask => ({
+    task,
+    kind: task.includes("/browser/") ? "browser" : "terminal",
+    id: task.split("/")[2] ?? "",
+    owner: "planner",
+    steered_by: "planner",
+    purpose: "p",
+    status,
+    ...(resource === undefined ? {} : { resource }),
+    state: "s",
+    created_at: "2026-10-29T10:00:00Z",
+    last_activity: "2026-10-29T10:05:00Z",
+  });
+  const row = (id: string): AgentRecord["sessions"]["tasks"][number] => ({
+    id,
+    kind: id.includes("/browser/") ? "browser" : "terminal",
+    status: "working",
+    purpose: "p",
+    current: "c",
+    last_activity: "2026-10-29T10:05:00Z",
+  });
+
+  it("maps a task to its live view and none while it sleeps", () => {
+    expect(taskLiveView(nasTask("task/browser/3", "working", "2"))).toEqual({ kind: "browser", browserId: 2 });
+    expect(taskLiveView(nasTask("task/terminal/1", "idle", "t9"))).toEqual({ kind: "terminal", terminalId: "t9" });
+    expect(taskLiveView(nasTask("task/browser/3", "asleep"))).toBeNull();
+    expect(taskLiveView(undefined)).toBeNull();
+  });
+
+  it("pins the newest live browser and terminal among an agent's tasks", () => {
+    const nas = [
+      nasTask("task/browser/1", "working", "1"),
+      nasTask("task/browser/2", "idle", "2"),
+      nasTask("task/browser/3", "asleep"),
+      nasTask("task/terminal/4", "idle", "tm"),
+    ];
+    const sessions = { tasks: [row("task/browser/3"), row("task/browser/2"), row("task/browser/1"), row("task/terminal/4")] };
+    expect(pickLiveViews(sessions, nas)).toEqual({ browserId: 2, terminalId: "tm" });
+    expect(pickLiveViews({ tasks: [row("task/browser/3")] }, nas)).toEqual({ browserId: null, terminalId: null });
+    expect(pickLiveViews({ tasks: [] }, nas)).toEqual({ browserId: null, terminalId: null });
+  });
+
+  it("labels a task's slot or terminal", () => {
+    expect(taskResourceLabel(nasTask("task/browser/3", "working", "2"))).toBe("slot 2");
+    expect(taskResourceLabel(nasTask("task/terminal/1", "idle", "t9"))).toBe("t9");
+    expect(taskResourceLabel(nasTask("task/browser/3", "asleep"))).toBe("—");
+  });
+
+  it("says what a waiting agent waits on and since when", () => {
+    const since = new Date(2026, 9, 29, 10, 20).toISOString();
+    expect(waitingLabel({ targets: ["task/browser/3", "task/terminal/1"], since, wakes_by: since })).toBe(
+      "Waiting on task/browser/3, task/terminal/1 since 10:20",
+    );
+  });
+});
+
+describe("agent status block", () => {
+  const base: AgentStatus = {
+    job: { from: null, at: new Date(2026, 9, 29, 9, 5).toISOString(), content: "book the flight" },
+    work: { state: "running", since: new Date(2026, 9, 29, 9, 40).toISOString(), waiting_on: [] },
+    step: "web_fetch https://x.test",
+    recent: [
+      { name: "read_file", arg: "/a.txt", ok: true },
+      { name: "web_fetch", arg: "https://x.test", ok: false },
+      { name: "wait", arg: "", ok: null },
+    ],
+    tasks: [{ id: "task/browser/3", status: "working", current: "on x.test" }],
+    tasks_unreadable: null,
+    pending: [{ id: 7, to: "planner", expects_reply: true, preview: "which date?" }],
+  };
+  const nameOf = (id: string) => (id === "planner" ? "Planner" : id);
+
+  it("shows nothing when hath sends no status", () => {
+    expect(statusView(null, nameOf)).toBeNull();
+  });
+
+  it("says who asked, what is running, the last calls with their marks, tasks and queued messages", () => {
+    const view = statusView(base, nameOf);
+    expect(view?.job).toBe("Ankur asked at 09:05: book the flight");
+    expect(view?.work).toBe("Working, last step 09:40");
+    expect(view?.step).toBe("web_fetch https://x.test");
+    expect(view?.recent).toEqual([
+      { text: "read_file /a.txt", mark: "ok" },
+      { text: "web_fetch https://x.test", mark: "error" },
+      { text: "wait", mark: "running" },
+    ]);
+    expect(view?.tasks).toEqual(["task/browser/3 · working · on x.test"]);
+    expect(view?.pending).toEqual(["To Planner (expects a reply): which date?"]);
+  });
+
+  it("says what a waiting agent waits on and since when, and idle when it does nothing", () => {
+    const since = new Date(2026, 9, 29, 10, 20).toISOString();
+    const waiting = statusView({ ...base, work: { state: "waiting", since, waiting_on: ["task/browser/3", "bob"] } }, nameOf);
+    expect(waiting?.work).toBe("Waiting on task/browser/3, bob since 10:20");
+    expect(statusView({ ...base, job: null, work: { state: "idle", since: null, waiting_on: [] } }, nameOf)).toMatchObject({
+      job: null,
+      work: "Idle",
+    });
+  });
+
+  it("states plainly that tasks could not be read", () => {
+    const view = statusView({ ...base, tasks: [], tasks_unreadable: "nas is down" }, nameOf);
+    expect(view?.tasksUnreadable).toBe("Helper tasks could not be read: nas is down");
+    expect(view?.tasks).toEqual([]);
+    expect(statusView({ ...base, pending: [] }, nameOf)?.pending).toEqual([]);
+  });
+});
+
+describe("popover live views", () => {
+  const task = (id: string, status: AgentTask["status"], lastActivity: string): AgentTask => ({
+    id,
+    kind: "browser",
+    status,
+    purpose: "p",
+    current: "c",
+    last_activity: lastActivity,
+  });
+  const tasks = [
+    task("task/browser/1", "working", "2026-10-29T10:01:00Z"),
+    task("task/browser/2", "working", "2026-10-29T10:05:00Z"),
+    task("task/browser/3", "idle", "2026-10-29T10:09:00Z"),
+    task("task/browser/4", "asleep", "2026-10-29T09:00:00Z"),
+  ];
+
+  it("auto-shows only the newest working task", () => {
+    expect(autoLiveTaskId(tasks)).toBe("task/browser/2");
+    expect(autoLiveTaskId(tasks.filter((t) => t.status !== "working"))).toBeNull();
+    expect(autoLiveTaskId([])).toBeNull();
+    const shown = tasks.filter((t) => showsLiveView(t.id, "task/browser/2", {})).map((t) => t.id);
+    expect(shown).toEqual(["task/browser/2"]);
+  });
+
+  it("loads a view on expand and releases it on collapse, whatever the auto choice", () => {
+    expect(showsLiveView("task/browser/3", "task/browser/2", { "task/browser/3": true })).toBe(true);
+    expect(showsLiveView("task/browser/2", "task/browser/2", { "task/browser/2": false })).toBe(false);
+    expect(showsLiveView("task/browser/3", "task/browser/2", { "task/browser/3": false })).toBe(false);
   });
 });
 

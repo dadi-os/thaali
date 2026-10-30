@@ -27,7 +27,7 @@ export function SystemPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
     >
-      <PageHeader title="SYSTEM" hint="Services, drives, devices on dadi, and the box's logs" />
+      <PageHeader title="SYSTEM" hint="Services, drives, tasks, devices on dadi, and the box's logs" />
 
       <div className="@container min-h-0 flex-1 px-1 pb-1">
         <div className="grid h-full min-h-0 grid-cols-1 gap-5 @min-[900px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">

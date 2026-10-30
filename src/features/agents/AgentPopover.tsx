@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { queryOptions, useQuery } from "@tanstack/react-query";
-import { hath, isMeshOnline } from "../../shared/api";
+import { hath, isMeshOnline, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { MarkdownBody } from "../../shared/components/Markdown";
@@ -10,11 +10,14 @@ import { Tooltip } from "../../shared/components/Tooltip";
 import { openAgent } from "../../store/chat";
 import { getRunning } from "../../store/running";
 import { AgentActivity } from "./activity";
-import { BrowserFrame } from "./BrowserFrame";
 import { ScheduleSection } from "./ScheduleSection";
 import { REVEAL } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
+import { autoLiveTaskId, showsLiveView, taskLiveView, waitingLabel } from "./sessions";
+import { StatusBlock } from "./StatusBlock";
+import { statusView } from "./statusView";
+import { TaskLive, TaskStatusBadge } from "./TaskLive";
 import { statusLabel, visualState } from "./tree";
 
 /** Longest the panel waits for its first data before opening anyway. */
@@ -70,10 +73,6 @@ export type AgentPopoverProps = {
   runningMap: ReturnType<typeof getRunning>;
   anchor: PopoverAnchor | null;
   containerRef: RefObject<HTMLElement | null>;
-  /** Live Nas browser for this agent, or null. */
-  browserId: number | null;
-  /** Live terminal caption, or null. */
-  terminal: { id: string; last_command: string | null } | null;
   onClose: () => void;
   onSelectParent: (id: string) => void;
   /** Hover zone that keeps the panel open while the pointer is on the node or the panel; absent when it opens on click. */
@@ -95,8 +94,6 @@ export function AgentPopover({
   runningMap,
   anchor,
   containerRef,
-  browserId,
-  terminal,
   onClose,
   onSelectParent,
   hover,
@@ -120,9 +117,20 @@ export function AgentPopover({
     refetchInterval: busy ? POLL_MS : false,
   });
 
+  const tasksQuery = useQuery({
+    queryKey: ["nas", "tasks"],
+    queryFn: () => nas.listTasks(),
+    enabled: connected && open,
+  });
+
   useEffect(() => {
     setPromptOpen(false);
   }, [agentId]);
+
+  const [viewOverrides, setViewOverrides] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    setViewOverrides({});
+  }, [agentId, open]);
 
   const [settling, setSettling] = useState(true);
   const loading = detailQuery.isLoading || activityQuery.isLoading;
@@ -149,7 +157,10 @@ export function AgentPopover({
   const running =
     runningMap[agentId] ??
     detail?.running ??
-    listAgent?.running ?? { work: false, process: false };
+    listAgent?.running ?? { work: false, process: false, waiting_on: null, status: null };
+  const waiting = detail?.running.waiting_on ?? listAgent?.running.waiting_on ?? null;
+  const agentStatus = detail?.running.status ?? listAgent?.running.status ?? null;
+  const statusLines = statusView(agentStatus, (id) => agentsById.get(id)?.name ?? id);
   const active = detail?.active ?? listAgent?.active ?? false;
   const name = detail?.name ?? listAgent?.name ?? "…";
   const createdAt = detail?.created_at ?? listAgent?.created_at;
@@ -163,10 +174,10 @@ export function AgentPopover({
       system_prompt: "",
       parent_agent_id: detail?.parent_agent_id ?? listAgent?.parent_agent_id ?? null,
       active,
-      running,
+      running: { ...running, waiting_on: waiting, status: agentStatus },
       created_at: createdAt ?? new Date(0).toISOString(),
       updated_at: lastActiveAt ?? updatedAt ?? new Date(0).toISOString(),
-      sessions: { browsers: [], terminals: [] },
+      sessions: { tasks: [] },
     },
     running,
   );
@@ -174,13 +185,9 @@ export function AgentPopover({
   const parentId = detail?.parent_agent_id ?? listAgent?.parent_agent_id ?? null;
   const parent = parentId ? agentsById.get(parentId) : undefined;
   const live = running.work || running.process;
-  const command = terminal?.last_command?.replace(/\s+/g, " ").trim();
-  const hostCaption =
-    command && command.length > 0
-      ? command
-      : terminal
-        ? terminal.id
-        : null;
+  const tasks = detail?.sessions.tasks ?? listAgent?.sessions.tasks ?? [];
+  const autoLiveId = autoLiveTaskId(tasks);
+  const nasTasksById = new Map((tasksQuery.data ?? []).map((t) => [t.task, t]));
 
   return (
     <Popover
@@ -211,6 +218,7 @@ export function AgentPopover({
               )}
               {status}
             </p>
+            {waiting && statusLines === null ? <p className="mt-0.5 text-[12px] text-ink-muted">{waitingLabel(waiting)}</p> : null}
           </div>
           {active ? (
             <button
@@ -224,20 +232,42 @@ export function AgentPopover({
         </div>
       </header>
 
-      {browserId !== null ? (
-        <div className="shrink-0 border-b border-rule/60 px-3 py-3">
-          {hostCaption ? (
-            <p
-              className="mb-2 truncate font-mono text-[11px] text-ink-muted"
-              title={hostCaption}
-            >
-              {hostCaption}
-            </p>
-          ) : null}
-          <div className="overflow-hidden rounded-[12px] border border-sage-line/70">
-            <BrowserFrame browserId={browserId} variant="detail" />
-          </div>
-        </div>
+      {statusLines ? <StatusBlock view={statusLines} /> : null}
+
+      {tasks.length > 0 ? (
+        <ul className="flex max-h-[44%] shrink-0 flex-col gap-3 overflow-y-auto border-b border-rule/60 px-3 py-3">
+          {tasks.map((task) => {
+            const showLive = showsLiveView(task.id, autoLiveId, viewOverrides);
+            return (
+            <li key={task.id} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2 px-1 text-[11px]">
+                <button
+                  type="button"
+                  aria-expanded={showLive}
+                  onClick={() => setViewOverrides((prev) => ({ ...prev, [task.id]: !showLive }))}
+                  className="min-w-0 flex-1 truncate text-left font-mono text-ink-muted"
+                  title={task.id}
+                >
+                  {showLive ? "▾" : "▸"} {task.id}
+                </button>
+                <TaskStatusBadge status={task.status} />
+                <Tooltip content={formatAbsolute(task.last_activity)}>
+                  <span className="shrink-0 text-ink-ghost">{formatRelative(task.last_activity)}</span>
+                </Tooltip>
+              </div>
+              <p className="truncate px-1 text-[12.5px] text-ink" title={task.purpose}>
+                {task.purpose}
+              </p>
+              {task.status !== "asleep" ? (
+                <p className="truncate px-1 font-mono text-[11px] text-ink-muted" title={task.current}>
+                  {task.current}
+                </p>
+              ) : null}
+              {showLive ? <TaskLive view={taskLiveView(nasTasksById.get(task.id))} summary={task.current} /> : null}
+            </li>
+            );
+          })}
+        </ul>
       ) : null}
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-5 py-4 [overflow-anchor:none]">
@@ -320,9 +350,7 @@ export function AgentPopover({
                   <ul className="flex flex-wrap gap-1.5">
                     {detail.tools.map((t) => (
                       <li key={t.name}>
-                        <Tooltip content={t.usage}>
-                          <span className="block rounded-[7px] bg-sage-fill px-2 py-[3px] font-mono text-[11px] text-sage-text">{t.name}</span>
-                        </Tooltip>
+                        <span className="block rounded-[7px] bg-sage-fill px-2 py-[3px] font-mono text-[11px] text-sage-text">{t.name}</span>
                       </li>
                     ))}
                   </ul>

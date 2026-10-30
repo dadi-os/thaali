@@ -37,3 +37,8 @@ export function formatSpan(ms: number): string {
   }
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
+
+/** Local clock time of day (e.g. "10:20"). */
+export function formatClock(iso: string): string {
+  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+}
