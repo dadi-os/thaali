@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { isMeshOnline, nas } from "../../shared/api";
 import type { NasStatus } from "../../shared/api/nas";
 import { ErrorLogCards } from "../logs/LogExplorer";
+import { TasksSection } from "./TasksSection";
 import { StateView } from "../../shared/components/states";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
@@ -166,7 +167,7 @@ function shortDiskKind(d: {
 
 /**
  * The System page's health column: the health card with its gauges, every module with
- * whether it answers, and the recent errors.
+ * whether it answers, the helper tasks, and the recent errors.
  */
 export function SystemMap({ className }: SystemMapProps) {
   const { state: connection } = useConnection();
@@ -277,6 +278,9 @@ export function SystemMap({ className }: SystemMapProps) {
           </ul>
         </>
       ) : null}
+
+      <span className={label}>TASKS</span>
+      <TasksSection />
 
       <span className={label}>DEVICES ON DADI</span>
       <ul className={`flex flex-col px-3.5 py-1 ${card}`}>

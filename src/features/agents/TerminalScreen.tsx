@@ -11,8 +11,6 @@ const LINES = { rail: 14, full: 400 } as const;
 export type TerminalScreenProps = {
   /** Nas terminal (tmux session) id. */
   terminalId: string;
-  /** Agent's most recent command in it, shown as the prompt line; null when unknown. */
-  command: string | null;
   /** `rail` is the compact sidebar pin; `full` fills its parent and scrolls (the expanded view). */
   variant: "rail" | "full";
   /** Extra classes on the screen, e.g. its radius or height. */
@@ -35,7 +33,7 @@ function visibleSnapshot(): boolean {
  * re-captured every second while the mesh is connected and the webview is visible, pinned
  * to the newest line. A failed capture shows Nas's message in place of the output.
  */
-export function TerminalScreen({ terminalId, command, variant, className = "" }: TerminalScreenProps) {
+export function TerminalScreen({ terminalId, variant, className = "" }: TerminalScreenProps) {
   const { state: connection } = useConnection();
   const visible = useSyncExternalStore(subscribeVisibility, visibleSnapshot);
   const live = isMeshOnline(connection) && visible;
@@ -55,14 +53,12 @@ export function TerminalScreen({ terminalId, command, variant, className = "" }:
     }
   }, [capture.data]);
 
-  const trimmed = command?.replace(/\s+/g, " ").trim();
-
   return (
     <div className={`terminal-screen flex min-h-0 flex-col font-mono ${className}`}>
       <div className="flex shrink-0 items-center gap-2 px-3 pt-2 pb-1 text-[10.5px]">
         <span className="terminal-screen__prompt shrink-0">$</span>
-        <span className="min-w-0 truncate terminal-screen__command" title={trimmed || terminalId}>
-          {trimmed || terminalId}
+        <span className="min-w-0 truncate terminal-screen__command" title={terminalId}>
+          {terminalId}
         </span>
       </div>
       <pre

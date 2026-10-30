@@ -81,10 +81,60 @@ export type PostRouterResponse = {
   messages: RoutedMessage[];
 };
 
-/** Nas browsers/terminals this agent recently drove. Empty after Hath restart. */
+/** A helper task's lifecycle state in Nas. */
+export type TaskStatus = "working" | "idle" | "asking" | "asleep";
+
+/** One browser or terminal task in Nas that an agent owns or last steered. */
+export type AgentTask = {
+  /** The task's address, such as `task/browser/3`. */
+  id: string;
+  kind: "browser" | "terminal";
+  status: TaskStatus;
+  purpose: string;
+  /** The page a browser is on, or the directory and files a terminal has touched. */
+  current: string;
+  /** ISO time of the task's last activity. */
+  last_activity: string;
+};
+
+/** The helper tasks an agent owns or last steered, most recently active first. */
 export type AgentSessions = {
-  browsers: number[];
-  terminals: Array<{ id: string; last_command: string | null }>;
+  tasks: AgentTask[];
+};
+
+/** What an agent's work lane is waiting on, and since when. */
+export type AgentWaiting = {
+  targets: string[];
+  /** ISO time the wait began. */
+  since: string;
+  /** ISO time the wait times out. */
+  wakes_by: string;
+};
+
+/**
+ * Where an agent's work stands, from Hath (`running.status` on GET /agents): the answer to
+ * "what are you doing?". Null when no lane runs and the work lane is not waiting.
+ */
+export type AgentStatus = {
+  /** The latest message from whoever gave the agent its job; null when none has. */
+  job: { from: string | null; at: string; content: string } | null;
+  work: {
+    state: "running" | "waiting" | "idle";
+    /** ISO time the wait began, or the last step while running; null while idle. */
+    since: string | null;
+    /** What it waits on, when waiting. */
+    waiting_on: string[];
+  };
+  /** The work lane's current step (its last tool call and short argument); null before it has acted. */
+  step: string | null;
+  /** The work lane's last five tool calls, oldest first; `ok` is null while a call has no result. */
+  recent: { name: string; arg: string; ok: boolean | null }[];
+  /** The helper tasks the agent owns that are in flight. */
+  tasks: { id: string; status: string; current: string }[];
+  /** Why Nas could not be read for the tasks, or null. */
+  tasks_unreadable: string | null;
+  /** Messages the work lane queued that the process lane has not sent. */
+  pending: { id: number; to: string | null; expects_reply: boolean; preview: string }[];
 };
 
 /** Flat agent row from GET /agents. */
@@ -94,7 +144,7 @@ export type AgentRecord = {
   system_prompt: string;
   parent_agent_id: string | null;
   active: boolean;
-  running: { work: boolean; process: boolean };
+  running: { work: boolean; process: boolean; waiting_on: AgentWaiting | null; status: AgentStatus | null };
   sessions: AgentSessions;
   created_at: string;
   updated_at: string;
@@ -103,7 +153,7 @@ export type AgentRecord = {
 /** Agent detail including children and tool descriptors. */
 export type AgentDetail = AgentRecord & {
   children: AgentRecord[];
-  tools: Array<{ name: string; description: string; usage: string }>;
+  tools: Array<{ name: string; description: string }>;
 };
 
 /** A message Hath delivers from one agent to another at `run_at`, optionally repeating. */
@@ -179,7 +229,7 @@ export type HathEvent =
   | { type: "router_failed"; message: string; at: string }
   /** A scheduled message was created, edited, cancelled, delivered or advanced; names no schedule. */
   | { type: "schedules_changed"; at: string }
-  /** The browsers or terminals an agent is remembered to use changed; `sessions` on GET /agents is out of date. */
+  /** The tasks an agent owns or steered changed; `sessions` on GET /agents is out of date. */
   | { type: "sessions_changed"; at: string }
   | {
       type: "agent_spawned";

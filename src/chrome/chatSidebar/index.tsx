@@ -13,10 +13,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
-import {
-  pickLiveBrowser,
-  pickLiveTerminal,
-} from "../../features/agents/sessions";
+import { pickLiveViews } from "../../features/agents/sessions";
 import { AgentPopover } from "../../features/agents/AgentPopover";
 import type { PopoverAnchor } from "../../shared/components/Popover";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -162,15 +159,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     enabled: connected,
   });
 
-  const browsersQuery = useQuery({
-    queryKey: ["nas", "browsers"],
-    queryFn: () => nas.listBrowsers(),
-    enabled: connected,
-  });
-
-  const terminalsQuery = useQuery({
-    queryKey: ["nas", "terminals"],
-    queryFn: () => nas.listTerminals(),
+  const tasksQuery = useQuery({
+    queryKey: ["nas", "tasks"],
+    queryFn: () => nas.listTasks(),
     enabled: connected,
   });
 
@@ -648,22 +639,12 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const openAgentView = resolveOpenAgent(openAgentId, agentsQuery);
   const openAgentRecord = openAgentView?.kind === "ready" ? openAgentView.agent : undefined;
-  const liveBrowserId =
-    openAgentRecord && browsersQuery.isSuccess
-      ? pickLiveBrowser(
-          openAgentRecord.sessions.browsers,
-          browsersQuery.data,
-        )
-      : null;
-  const liveTerminal =
-    openAgentRecord && terminalsQuery.isSuccess
-      ? pickLiveTerminal(
-          openAgentRecord.sessions.terminals,
-          terminalsQuery.data,
-        )
-      : null;
+  const { browserId: liveBrowserId, terminalId: liveTerminalId } =
+    openAgentRecord && tasksQuery.isSuccess
+      ? pickLiveViews(openAgentRecord.sessions, tasksQuery.data)
+      : { browserId: null, terminalId: null };
   const showHostPin =
-    viewingThread && (liveBrowserId !== null || liveTerminal !== null);
+    viewingThread && (liveBrowserId !== null || liveTerminalId !== null);
 
   const showComposer =
     viewingDadi || (openAgentView?.kind === "ready" && openAgentView.agent.active);
@@ -751,7 +732,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 />
                 <div className="relative flex min-h-0 flex-1 flex-col">
                   {showHostPin ? (
-                    <HostPin browserId={liveBrowserId} terminal={liveTerminal} />
+                    <HostPin browserId={liveBrowserId} terminalId={liveTerminalId} />
                   ) : null}
                   <div className="relative min-h-0 flex-1">
                     {openAgentView?.kind === "error" ? (
@@ -850,8 +831,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
           runningMap={running}
           anchor={detailsAnchor}
           containerRef={asideRef}
-          browserId={liveBrowserId}
-          terminal={liveTerminal}
           onClose={() => setDetailsAnchor(null)}
           onSelectParent={openAgent}
         />

@@ -11,7 +11,7 @@ import { createPortal } from "react-dom";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { hath, isMeshOnline, nas } from "../../shared/api";
+import { hath, isMeshOnline } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useHoverDetails } from "../../shared/hooks/useHoverDetails";
@@ -30,7 +30,6 @@ import { SearchField } from "../../shared/components/SearchField";
 import { openAgent } from "../../store/chat";
 import { getRunning, seedRunningFromAgents, subscribeRunning } from "../../store/running";
 import { AgentPopover, agentActivityQuery, agentDetailQuery } from "./AgentPopover";
-import { pickLiveBrowser, pickLiveTerminal } from "./sessions";
 import {
   agentGraph,
   agentRadius,
@@ -132,18 +131,6 @@ export function AgentGraph3D({
       return agents;
     },
     enabled: connected,
-  });
-
-  const browsersQuery = useQuery({
-    queryKey: ["nas", "browsers"],
-    queryFn: () => nas.listBrowsers(),
-    enabled: connected && interactive,
-  });
-
-  const terminalsQuery = useQuery({
-    queryKey: ["nas", "terminals"],
-    queryFn: () => nas.listTerminals(),
-    enabled: connected && interactive,
   });
 
   const agents = useMemo(() => agentsQuery.data?.filter((a) => a.active), [agentsQuery.data]);
@@ -270,16 +257,7 @@ export function AgentGraph3D({
   }
 
   const shownId = pinnedId ?? details.id;
-  const detailAgent = shownId ? agentsById.get(shownId) : undefined;
   const root = rootRef.current;
-  const detailBrowserId =
-    detailAgent && browsersQuery.isSuccess
-      ? pickLiveBrowser(detailAgent.sessions.browsers, browsersQuery.data)
-      : null;
-  const detailTerminal =
-    detailAgent && terminalsQuery.isSuccess
-      ? pickLiveTerminal(detailAgent.sessions.terminals, terminalsQuery.data)
-      : null;
 
   return (
     <div ref={rootRef} className={`relative h-full min-h-0 w-full ${className ?? ""}`}>
@@ -365,8 +343,6 @@ export function AgentGraph3D({
           runningMap={runningMap}
           anchor={pinnedId !== null && root ? { x: root.clientWidth - 12, y: root.clientHeight / 2, radius: 0 } : details.anchor}
           containerRef={rootRef as RefObject<HTMLElement | null>}
-          browserId={detailBrowserId}
-          terminal={detailTerminal}
           {...(pinnedId === null ? { hover: { onInside: details.keep, onOutside: details.leave } } : {})}
           onClose={pinnedId === null ? details.close : () => setPinnedId(null)}
           onSelectParent={focusAgent}

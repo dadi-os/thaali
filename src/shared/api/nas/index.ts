@@ -33,6 +33,26 @@ export type NasBrowserInputEvent =
       modifiers: number;
     };
 
+/** One helper task as Nas GET /tasks lists it. */
+export type NasTask = {
+  /** The task's address, such as `task/browser/3`. */
+  task: string;
+  kind: "browser" | "terminal";
+  id: string;
+  /** The agent that started the task. */
+  owner: string;
+  /** The agent whose steer the task last answered. */
+  steered_by: string;
+  purpose: string;
+  status: "working" | "idle" | "asking" | "asleep";
+  /** The live thing the task holds: a browser slot or a terminal id; absent while it sleeps. */
+  resource?: string;
+  /** The helper's state summary. */
+  state: string;
+  created_at: string;
+  last_activity: string;
+};
+
 /** Per-CPU sample from Nas GET /status. */
 export type NasCpuStatus = {
   name: string;
@@ -239,13 +259,11 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /browsers — live headed Chromium sessions on Nas. */
-    listBrowsers(): Promise<
-      Array<{ id: number; display: string; cdp_url: string; healthy: boolean }>
-    > {
+    /** GET /tasks — every browser and terminal helper task, most recently active first. */
+    listTasks(): Promise<NasTask[]> {
       return transport.request({
         baseUrl,
-        path: "/browsers",
+        path: "/tasks",
         method: "GET",
       });
     },
@@ -270,17 +288,6 @@ export function createNasClient(transport: Transport, baseUrl: string) {
         path: `/browsers/${id}/input`,
         method: "POST",
         body: { events },
-      });
-    },
-
-    /** GET /terminals — live host terminal panes on Nas. */
-    listTerminals(): Promise<
-      Array<{ id: string; cwd: string; created_at: string; busy: boolean }>
-    > {
-      return transport.request({
-        baseUrl,
-        path: "/terminals",
-        method: "GET",
       });
     },
 
