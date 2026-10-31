@@ -122,7 +122,7 @@ export function createHathClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /agents/:id — detail with children and tools. */
+    /** GET /agents/:id — detail with children. */
     getAgent(id: string): Promise<AgentDetail> {
       return transport.request({
         baseUrl,

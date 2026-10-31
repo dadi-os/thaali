@@ -150,10 +150,9 @@ export type AgentRecord = {
   updated_at: string;
 };
 
-/** Agent detail including children and tool descriptors. */
+/** Agent detail including children. */
 export type AgentDetail = AgentRecord & {
   children: AgentRecord[];
-  tools: Array<{ name: string; description: string }>;
 };
 
 /** A message Hath delivers from one agent to another at `run_at`, optionally repeating. */

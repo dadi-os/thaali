@@ -324,7 +324,7 @@ export function AgentPopover({
           ) : null}
           {detail ? (
             <motion.div key="detail" {...REVEAL} className="overflow-hidden">
-              <section className="mb-4 border-t border-rule/60 pt-3.5">
+              <section className="mb-5 border-t border-rule/60 pt-3.5">
                 <div className="flex items-baseline justify-between">
                   <h3 className="text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">CHARTER</h3>
                   <button type="button" className="text-[12px] font-semibold text-sage-deep" onClick={() => setPromptOpen((v) => !v)}>
@@ -340,21 +340,6 @@ export function AgentPopover({
                     </motion.div>
                   ) : null}
                 </AnimatePresence>
-              </section>
-
-              <section className="mb-5 border-t border-rule/60 pt-3.5">
-                <h3 className="mb-2 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">TOOLS</h3>
-                {detail.tools.length === 0 ? (
-                  <p className="text-[13px] text-ink-muted">No granted tools.</p>
-                ) : (
-                  <ul className="flex flex-wrap gap-1.5">
-                    {detail.tools.map((t) => (
-                      <li key={t.name}>
-                        <span className="block rounded-[7px] bg-sage-fill px-2 py-[3px] font-mono text-[11px] text-sage-text">{t.name}</span>
-                      </li>
-                    ))}
-                  </ul>
-                )}
               </section>
             </motion.div>
           ) : null}
