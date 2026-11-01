@@ -93,6 +93,7 @@ npm run visual -- --out <dir> --pages hath,system --scenarios normal,asking --wi
 - A request no fixture route answers throws, so a missing fixture shows as a console error in the report. `window.__fixtures.emit(host, path, event)` pushes an event onto a fixture event stream (a toast, a live refetch).
 - `visual/snap.swift` loads each URL in a WKWebView at a size, runs steps (click, hover, wait, screenshot, checks) and records console errors. `visual/checks.js` reports text clipped without an ellipsis or a title, flex children missing `min-w-0`, content spilling its box, elements past their parent, targets under 32 px, controls with no accessible name, text under WCAG contrast, percentage `max-height`s, nested scroll containers, interactive elements with no transition, and elements that mount with no motion after `__mountSince`.
 - The output directory gets `shots/*.png` (2x), `results.json` and `report.md`. `--interact` also captures an expand at 120 ms and 640 ms and a hover.
+- Limits: WKWebView snapshots do not render `backdrop-filter`, so glass blur (popovers, toasts, the sidebar) shows as plain translucency; judge glass legibility in the running app. The capture window sits on screen at 1% opacity because a hidden window stops animations. The mesh-only dialogs (onboarding, provisioning, forget device), the tray menu and live browser frames (the H.264 stream is not synthesized; the frame shows its caption) are not captured.
 
 ### Container (Dockerfile)
 
