@@ -26,6 +26,7 @@ thaali/
       chatSidebar/         portable unit (index = construction site)
         thread/ message/ list.tsx composer.tsx
         format.ts lanes.ts constants.ts ActivityPulse.tsx
+    dev/                   dev-only fixture transport and typed fixtures (never in the production bundle)
     shared/
       api/                 transport + domain clients (hath/, yaad/, nas/)
         constants.ts       mesh URLs (no env fallbacks)
@@ -46,6 +47,7 @@ thaali/
     styles/
   src-tauri/               Rust shell + logutil
   net/                     Tailscale CLI build for the desktop mesh
+  visual/                  the visual loop: WKWebView snapshot tool, DOM checks, runner
   Dockerfile               web container (dev Vite / production static)
 ```
 
@@ -75,6 +77,22 @@ npm run dev
 Browser transport — no mesh join. Mesh services must already be reachable from the machine.
 
 `device_get_location`: macOS asks for Always (`NSLocationAlwaysAndWhenInUseUsageDescription` in [src-tauri/Info.plist](src-tauri/Info.plist)); Windows uses WinRT Geolocator (coords + coarse civic address, no Maps API key).
+
+### Visual loop
+
+Every page can be loaded against typed fixtures instead of the mesh, and captured in the engine the desktop app uses (WKWebView on macOS).
+
+```sh
+npm run dev -- --config vite.visual.config.ts   # then open http://127.0.0.1:5174/hath?fixtures=asking
+npm run visual -- --out /tmp/thaali-visual       # every page x scenario at 1440 wide, with DOM checks
+npm run visual -- --out <dir> --pages hath,system --scenarios normal,asking --widths 900,1440,1920,1080x1920 --interact
+```
+
+- `?fixtures=<scenario>` (dev server only) swaps the transport for `src/dev/fixtureTransport.ts`. Scenarios: `normal`, `loading` (requests never answer), `offline`, `blip` (connected, then the mesh drops after 4 s), `module-offline` (Ghar, Yaad and Chaavi answer 502), `errors` (every request fails), `empty`, `long` (long names, messages and paths), `many` (about 120 agents, 40 tasks, 1,800 memory nodes) and `asking` (a helper task waiting on Ankur).
+- Fixture data is typed against `src/types` and the API client types, so a changed contract fails `tsc`. Strings take their length and shape from real responses read from the box; the committed fixtures are synthetic.
+- A request no fixture route answers throws, so a missing fixture shows as a console error in the report. `window.__fixtures.emit(host, path, event)` pushes an event onto a fixture event stream (a toast, a live refetch).
+- `visual/snap.swift` loads each URL in a WKWebView at a size, runs steps (click, hover, wait, screenshot, checks) and records console errors. `visual/checks.js` reports text clipped without an ellipsis or a title, flex children missing `min-w-0`, content spilling its box, elements past their parent, targets under 32 px, controls with no accessible name, text under WCAG contrast, percentage `max-height`s, nested scroll containers, interactive elements with no transition, and elements that mount with no motion after `__mountSince`.
+- The output directory gets `shots/*.png` (2x), `results.json` and `report.md`. `--interact` also captures an expand at 120 ms and 640 ms and a hover.
 
 ### Container (Dockerfile)
 

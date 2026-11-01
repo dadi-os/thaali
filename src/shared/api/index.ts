@@ -53,10 +53,16 @@ export let ghar!: GharClient;
 /**
  * Select and wire the Transport + domain clients.
  * MeshTransport (and Rust invoke) load only when Tauri is present so they stay out of
- * the browser entry chunk.
+ * the browser entry chunk. A dev server URL with `?fixtures=<scenario>` wires the fixture
+ * transport instead (dev builds only; production bundles drop the branch).
  */
 export async function initApi(): Promise<void> {
-  if (selectTransportKind() === "mesh") {
+  const fixtures = import.meta.env.DEV ? (await import("../../dev/scenario")).readScenario(window.location.search) : null;
+  if (fixtures !== null) {
+    const { FixtureTransport } = await import("../../dev/fixtureTransport");
+    transport = new FixtureTransport(fixtures);
+    usingMesh = false;
+  } else if (selectTransportKind() === "mesh") {
     const { MeshTransport } = await import("./mesh-transport");
     transport = new MeshTransport();
     usingMesh = true;

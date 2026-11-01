@@ -31,3 +31,4 @@ src-tauri/bin/**/wintun.dll
 *.sw?
 
 .claude/
+visual/.build/
