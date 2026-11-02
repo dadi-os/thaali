@@ -11,7 +11,7 @@
  * A case may also be a whole `page`: `appPath` is the app route to load (with its `?fixtures=` scenario), and `root` names
  * the element to compare on each side (`{ design: ".app", app: "#root > div" }`).
  *
- * A case may carry `force` (pointer and focus states to put on elements), `toggle` (classes to add, starting a
+ * A case may carry `force` (pointer and focus states to put on elements), `toggle` (classes to add, or remove with a third element "remove", starting a
  * transition) and `times` (ms at which to compare frames); see gen/gate.mjs in the design generator.
  *
  * `DESIGN_REF_DIR` is required: the generator's `site/` directory, holding `gate/manifest.json`, `gate/<case>.html`

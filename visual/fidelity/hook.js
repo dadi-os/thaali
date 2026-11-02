@@ -3,7 +3,7 @@
  * URL carries `__clock=<ISO>`, and defines `window.__ds`, the gate's browser-side half:
  *   prepare(opts)  mark or place the case root (a primitive is placed on a plain ground; a `page` is left as it is), clone :hover/:active/:focus rules onto classes
  *   force(pairs)   put a state on matching elements (and their ancestors, as a real pointer would)
- *   addClass(pairs) add a real class, starting the transition it triggers
+ *   addClass(pairs) add a real class, or remove it with a third element "remove", starting the transition it triggers
  *   finish()       jump every running transition and finite animation to its end, infinite ones to the start
  *   seek(ms)       jump every animation and transition to `ms` after its start
  *   extract(root)  the element tree: tag, own text, attributes, box, computed style, pseudo-element content
@@ -154,9 +154,13 @@
     /** Adds a real class to matching elements, starting whatever transition that class triggers: the gate's stand-in for a click that opens something. */
     addClass(pairs) {
       const root = ds.root();
-      for (const [selector, name] of pairs) {
+      for (const [selector, name, op] of pairs) {
         for (const el of root.querySelectorAll(selector)) {
-          el.classList.add(name);
+          if (op === "remove") {
+            el.classList.remove(name);
+          } else {
+            el.classList.add(name);
+          }
         }
       }
       return pairs.length;
