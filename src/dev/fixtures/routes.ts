@@ -67,6 +67,7 @@ export class Fixtures {
     if (route === "POST /devices/presence") {
       return { ...(body as { node_name: string; platform: string; app_version: string }), at: ago(0) };
     }
+    if (route === "GET /router") return { running: [] };
     if (route === "POST /router") return { messages: [] };
     if (route === "POST /messages") {
       const sent = body as { to_agent_id: string; content: string };

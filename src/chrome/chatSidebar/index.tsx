@@ -43,9 +43,9 @@ import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
 import { failureTarget, pushToast } from "../../store/toasts";
 import {
   getRunning,
-  isDadiBusy,
+  isRouting,
   seedRunningFromAgents,
-  setDadiBusy,
+  setLocalSend,
   subscribeRunning,
 } from "../../store/running";
 import {
@@ -147,7 +147,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const [detailsAnchor, setDetailsAnchor] = useState<PopoverAnchor | null>(null);
   const asideRef = useRef<HTMLElement>(null);
 
-  const dadiBusy = isDadiBusy();
+  const dadiBusy = isRouting();
 
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
@@ -168,7 +168,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   useEffect(() => {
     if (connection === "disconnected") {
       clearLiveChat();
-      setDadiBusy(false);
     }
   }, [connection]);
 
@@ -550,7 +549,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     setDraft("");
     setRouteError(null);
     setRouting({ text: trimmed, attachments: attachments?.length ?? 0 });
-    setDadiBusy(true);
+    setLocalSend(true);
     requestAnimationFrame(() => {
       textareaRef.current?.focus();
     });
@@ -582,7 +581,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       logLine("error", message, "dadi_send_failed");
     } finally {
       setRouting(null);
-      setDadiBusy(false);
+      setLocalSend(false);
     }
   };
 

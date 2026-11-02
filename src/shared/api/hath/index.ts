@@ -9,6 +9,7 @@ import type {
   MessageAttachment,
   PatchScheduleRequest,
   PostRouterResponse,
+  RouterState,
   PostMessageResponse,
   ScheduledMessage,
   ThreadReadMark,
@@ -97,6 +98,15 @@ export function createHathClient(transport: Transport, baseUrl: string) {
         path: `/attachments/${id}`,
         method: "GET",
         responseType: "text",
+      });
+    },
+
+    /** GET /router — the router runs in flight, for a device that connects mid-run (the event stream has no replay). */
+    getRouter(): Promise<RouterState> {
+      return transport.request({
+        baseUrl,
+        path: "/router",
+        method: "GET",
       });
     },
 

@@ -81,6 +81,19 @@ export type PostRouterResponse = {
   messages: RoutedMessage[];
 };
 
+/** One router run in flight, from the moment Hath accepts a POST /router until it finishes or fails. */
+export type RouterRun = {
+  /** Ties the run to its `router_finished` or `router_failed`; runs can overlap. */
+  run_id: string;
+  /** ISO time the run was accepted. */
+  at: string;
+};
+
+/** Response from Hath GET /router: the runs in flight, none when the router is idle. */
+export type RouterState = {
+  running: RouterRun[];
+};
+
 /** A helper task's lifecycle state in Nas. */
 export type TaskStatus = "working" | "idle" | "asking" | "asleep";
 
@@ -223,9 +236,9 @@ export type HathEvent =
       at: string;
     }
   | { type: "thread_read"; agent_id: string; read_seq: number; unread: number; at: string }
-  | { type: "router_started"; at: string }
-  | { type: "router_finished"; at: string }
-  | { type: "router_failed"; message: string; at: string }
+  | { type: "router_started"; run_id: string; at: string }
+  | { type: "router_finished"; run_id: string; at: string }
+  | { type: "router_failed"; run_id: string; message: string; at: string }
   /** A scheduled message was created, edited, cancelled, delivered or advanced; names no schedule. */
   | { type: "schedules_changed"; at: string }
   /** The tasks an agent owns or steered changed; `sessions` on GET /agents is out of date. */

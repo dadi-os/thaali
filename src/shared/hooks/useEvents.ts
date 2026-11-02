@@ -15,7 +15,15 @@ import {
   setHistoryState,
   upsertConversation,
 } from "../../store/chat";
-import { seedRunningFromAgents, setDadiBusy, setLaneRunning } from "../../store/running";
+import {
+  clearRouterRuns,
+  endRouterRun,
+  hasLocalSend,
+  seedRouterRuns,
+  seedRunningFromAgents,
+  setLaneRunning,
+  startRouterRun,
+} from "../../store/running";
 import { failureTarget, pushToast } from "../../store/toasts";
 import { logLine } from "../lib/platform/log";
 import { notifyAgentMessage } from "../lib/platform/notify";
@@ -188,13 +196,13 @@ export function useEvents(): void {
       }
 
       if (data.type === "router_started") {
-        setDadiBusy(true);
+        startRouterRun(data.run_id);
         return;
       }
 
       if (data.type === "router_finished" || data.type === "router_failed") {
-        setDadiBusy(false);
-        if (data.type === "router_failed") {
+        endRouterRun(data.run_id);
+        if (data.type === "router_failed" && !hasLocalSend()) {
           pushToast({
             key: "router_failed",
             tone: "error",
@@ -286,6 +294,7 @@ export function useEvents(): void {
 
       try {
         await refetchAgents(queryClient);
+        seedRouterRuns((await hath.getRouter()).running.map((run) => run.run_id));
         if (gen !== generation) {
           return;
         }
@@ -339,7 +348,7 @@ export function useEvents(): void {
         generation += 1;
         clearTimer();
         teardownStream();
-        setDadiBusy(false);
+        clearRouterRuns();
       }
     };
 

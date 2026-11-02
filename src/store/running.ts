@@ -5,7 +5,10 @@ export type RunningMap = Record<string, { work: boolean; process: boolean }>;
 type Listener = (running: RunningMap) => void;
 
 let running: RunningMap = {};
-let dadiBusy = false;
+/** Router runs Hath reported in flight, by run id. */
+let routerRuns = new Set<string>();
+/** This device's own POST /router calls in flight. */
+let localSends = 0;
 const listeners = new Set<Listener>();
 
 function emit(): void {
@@ -74,17 +77,55 @@ export function setLaneRunning(
   emit();
 }
 
-/** True while POST /router is running. */
-export function isDadiBusy(): boolean {
-  return dadiBusy;
+/** True while the router has a run in flight anywhere, or this device's own POST /router has not answered. */
+export function isRouting(): boolean {
+  return routerRuns.size > 0 || localSends > 0;
 }
 
-/** Set from SSE `router_started` / `router_finished` / `router_failed`. */
-export function setDadiBusy(next: boolean): void {
-  if (dadiBusy === next) {
+/** True while this device's own POST /router has not answered; its rejection toasts there, so the event for the same failure stays quiet. */
+export function hasLocalSend(): boolean {
+  return localSends > 0;
+}
+
+/** Replaces the known runs with Hath's list: on connect, since a device that joins mid-run gets no event for the run. */
+export function seedRouterRuns(runIds: string[]): void {
+  routerRuns = new Set(runIds);
+  running = { ...running };
+  emit();
+}
+
+/** Records a `router_started` run. */
+export function startRouterRun(runId: string): void {
+  routerRuns = new Set(routerRuns).add(runId);
+  running = { ...running };
+  emit();
+}
+
+/** Records the end of a run, finished or failed; a run it never heard start is ignored. */
+export function endRouterRun(runId: string): void {
+  if (!routerRuns.has(runId)) {
     return;
   }
-  dadiBusy = next;
+  const next = new Set(routerRuns);
+  next.delete(runId);
+  routerRuns = next;
+  running = { ...running };
+  emit();
+}
+
+/** Counts this device's own POST /router while it is in flight, so routing shows before and without its events. */
+export function setLocalSend(inFlight: boolean): void {
+  localSends = Math.max(0, localSends + (inFlight ? 1 : -1));
+  running = { ...running };
+  emit();
+}
+
+/** Forgets every run: the mesh went away, so none of them can be known to still be running. */
+export function clearRouterRuns(): void {
+  if (routerRuns.size === 0) {
+    return;
+  }
+  routerRuns = new Set();
   running = { ...running };
   emit();
 }
