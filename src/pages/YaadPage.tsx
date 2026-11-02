@@ -36,7 +36,6 @@ export function YaadPage() {
       <div className="pointer-events-none relative z-10 flex min-h-0 flex-1 flex-col">
         <PageHeader
           title="YAAD"
-          hint="Click anything to bring its connections forward · drag to orbit · scroll to zoom"
           trailing={<div ref={setToolbar} className="flex items-center gap-2" />}
         />
         <div ref={setFilters} className="pointer-events-auto self-start px-1" />

@@ -1,45 +1,37 @@
 import type { ReactNode } from "react";
-import { useNavigate } from "react-router-dom";
-import { IconBack, IconButton } from "../shared/components/IconButton";
-import { Tooltip } from "../shared/components/Tooltip";
+import { Link } from "react-router-dom";
+import { Icon } from "../shared/components/Icon";
+import { Truncate } from "../shared/components/Truncate";
 
 export type PageHeaderProps = {
   title: string;
-  hint: string;
-  /** Optional control on the right — same row height as other pages. */
+  /** One line under the title that sums up what the page holds, from its data. */
+  meta?: string;
+  /** Optional control on the right, on the title's row. */
   trailing?: ReactNode;
 };
 
 /**
- * Shared sub-header for full pages under AppShell. Same back control, type,
- * hint, and padding on every route — keep actions in `trailing`, not stacked
- * under the title.
+ * The sub-header of a full page under the app frame: a back control to Home, the page's name in
+ * tracked capitals and, under it, a line that says what the page holds. Actions go in `trailing`,
+ * not stacked under the title.
  */
-export function PageHeader({ title, hint, trailing }: PageHeaderProps) {
-  const navigate = useNavigate();
-
+export function PageHeader({ title, meta, trailing }: PageHeaderProps) {
   return (
-    <div className="mb-3 flex shrink-0 items-center gap-3 px-1">
-      <Tooltip content="Back home">
-        <span className="pointer-events-auto inline-flex">
-          <IconButton
-            label="Back home"
-            size="sm"
-            onClick={() => navigate("/")}
-          >
-            <IconBack />
-          </IconButton>
-        </span>
-      </Tooltip>
-      <div className="min-w-0 flex-1">
-        <span className="text-[11px] font-medium tracking-[2.5px] text-sage-deep">
-          {title}
-        </span>
-        <p className="mt-1 text-[11px] text-ink-ghost">{hint}</p>
+    <div style={{ display: "flex", alignItems: "center", gap: 14, minHeight: 40, flex: "none" }}>
+      <Link
+        to="/"
+        aria-label="Back to home"
+        className="ui-trans ui-hover-fill"
+        style={{ width: 32, height: 32, borderRadius: 9, border: "1px dashed var(--sage-line)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sage-deep)", flex: "none" }}
+      >
+        <Icon name="back" size={14} />
+      </Link>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 3 }}>
+        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "var(--sage-deep)", textTransform: "uppercase" }}>{title}</span>
+        {meta ? <Truncate text={meta} style={{ fontSize: 13, color: "var(--ink-muted)" }} /> : null}
       </div>
-      {trailing ? (
-        <div className="pointer-events-auto shrink-0">{trailing}</div>
-      ) : null}
+      {trailing}
     </div>
   );
 }

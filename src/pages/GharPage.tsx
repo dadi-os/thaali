@@ -17,7 +17,7 @@ export function GharPage() {
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: SLOW_S, ease: EASE }}
     >
-      <PageHeader title="GHAR" hint="Click a light to switch it · hold it or use its controls to adjust it" />
+      <PageHeader title="GHAR" />
       <div className="min-h-0 flex-1 px-1 pb-1">
         <GharHouse focus={deviceId ? { deviceId, key: location.key } : null} />
       </div>

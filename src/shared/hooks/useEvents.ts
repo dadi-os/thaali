@@ -24,7 +24,7 @@ import {
   setLaneRunning,
   startRouterRun,
 } from "../../store/running";
-import { failureTarget, pushToast } from "../../store/toasts";
+import { pushToast } from "../../store/toasts";
 import { logLine } from "../lib/platform/log";
 import { notifyAgentMessage } from "../lib/platform/notify";
 
@@ -83,7 +83,7 @@ async function refetchAgents(queryClient: QueryClient): Promise<void> {
   queryClient.setQueryData(AGENTS_QUERY_KEY, agents);
 }
 
-/** Seed conversation list from durable GET /threads. */
+/** Seed conversation list from durable GET /threads. A failure is the rail's to show, with a retry. */
 export async function hydrateHistory(): Promise<void> {
   setHistoryState("loading");
   try {
@@ -94,13 +94,6 @@ export async function hydrateHistory(): Promise<void> {
     const message = err instanceof Error ? err.message : String(err);
     setHistoryState("error", message);
     logLine("error", message, "history_load_failed");
-    pushToast({
-      key: "history_load_failed",
-      tone: "error",
-      title: "Chat history failed to load",
-      body: message,
-      target: failureTarget(err),
-    });
   }
 }
 

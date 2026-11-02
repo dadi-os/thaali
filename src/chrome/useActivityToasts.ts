@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { ghar, timeline } from "../shared/api";
 import { GHAR_DEVICES_KEY } from "../shared/api/ghar";
 import { useConnection } from "../shared/hooks/useConnection";
-import { failureTarget, pushToast } from "../store/toasts";
+import { pushToast } from "../store/toasts";
 import { formatTime } from "../features/timeline/dates";
 import { isMultiDay, itemKey, spanOf } from "../features/timeline/plans";
 
@@ -18,7 +18,7 @@ const PLAN_STARTING_MS = 2 * 60_000;
  * Toast what happens around the house while the app is open: a Ghar device turning on or
  * off (any source: an agent, a wall switch, the house page; picked up by the shared
  * GET /devices poll), and a timed commitment (the home tile's view: no routines, nothing
- * hidden or cancelled) ten minutes before it starts and again as it starts. A failed poll toasts its real error, linked to the service's log line for it.
+ * hidden or cancelled) ten minutes before it starts and again as it starts. A failed poll is not toasted: the Ghar and timeline tiles show their own failures.
  */
 export function useActivityToasts(): void {
   const { state: connection } = useConnection();
@@ -111,28 +111,4 @@ export function useActivityToasts(): void {
       });
     }
   }, [plansQuery.data, now]);
-
-  useEffect(() => {
-    if (devicesQuery.error) {
-      pushToast({
-        key: "ghar_devices_failed",
-        tone: "error",
-        title: "Ghar devices failed to load",
-        body: devicesQuery.error.message,
-        target: failureTarget(devicesQuery.error),
-      });
-    }
-  }, [devicesQuery.error, devicesQuery.errorUpdatedAt]);
-
-  useEffect(() => {
-    if (plansQuery.error) {
-      pushToast({
-        key: "plans_soon_failed",
-        tone: "error",
-        title: "Upcoming plans failed to load",
-        body: plansQuery.error.message,
-        target: failureTarget(plansQuery.error),
-      });
-    }
-  }, [plansQuery.error, plansQuery.errorUpdatedAt]);
 }

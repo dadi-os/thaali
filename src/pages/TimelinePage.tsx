@@ -22,7 +22,6 @@ export function TimelinePage() {
     >
       <PageHeader
         title="TIMELINE"
-        hint="Click a session to mark it completed or message the agent that keeps it"
       />
       <div className="min-h-0 flex-1 px-1 pb-1">
         <TimelineCalendar mode="full" view={view} onViewChange={setView} />

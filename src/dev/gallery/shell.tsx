@@ -1,8 +1,11 @@
 import { useRef } from "react";
+import { MemoryRouter } from "react-router-dom";
+import { PageHeader } from "../../chrome/PageHeader";
 import { ConversationList, RailRow } from "../../chrome/chatSidebar/list";
 import { Dock } from "../../chrome/chatSidebar/Dock";
 import { ResizeHandle, type RailWidth } from "../../chrome/chatSidebar/ResizeHandle";
 import { TitleBar } from "../../chrome/TitleBar";
+import { Button } from "../../shared/components/Button";
 import { OfflineNotice } from "../../shared/components/OfflineNotice";
 import type { DraftAttachment } from "../../shared/lib/content/attachments";
 import type { Conversation, HistoryStatus } from "../../store/chat";
@@ -11,7 +14,7 @@ import type { Scenario } from "../scenario";
 import * as hath from "../fixtures/hath";
 import { CASES } from "./cases";
 
-/** The shell's cases: the title bar, the conversation rail in each of its states, its rows and handle, and the router dock. */
+/** The shell's cases: the title bar, the page header, the conversation rail in each of its states, its rows and handle, and the router dock. */
 
 /** The agent whose conversation the rail highlights. */
 const SELECTED = "finance-specialist";
@@ -106,6 +109,22 @@ for (const [name, notice] of [
 ] as const) {
   CASES[`shell.titlebar.${name}`] = () => <TitleBar wordmark notice={notice} onHome={noop} />;
 }
+
+CASES["shell.pageheader.plain"] = () => (
+  <MemoryRouter>
+    <PageHeader title="Hath" />
+  </MemoryRouter>
+);
+CASES["shell.pageheader.meta"] = () => (
+  <MemoryRouter>
+    <PageHeader title="Hath" meta="2 working · 18 agents" trailing={<Button tone="outline">Retry</Button>} />
+  </MemoryRouter>
+);
+CASES["shell.pageheader.hover"] = () => (
+  <MemoryRouter>
+    <PageHeader title="Hath" meta="2 working · 18 agents" />
+  </MemoryRouter>
+);
 
 for (const width of [260, 300, 420, 560]) {
   CASES[`rail.normal.${width}`] = () => <Rail scenario="normal" width={width} history="ready" selected />;
