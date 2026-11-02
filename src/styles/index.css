@@ -9,6 +9,7 @@
 @import "./shell.css";
 @import "./home.css";
 @import "./hath.css";
+@import "./chaavi.css";
 @source "../../node_modules/streamdown/dist/*.js";
 @source "../../node_modules/@streamdown/code/dist/*.js";
 @source "../../node_modules/@streamdown/math/dist/*.js";
@@ -170,39 +171,6 @@ body {
   .skeleton {
     animation: none;
   }
-}
-
-/* Ticker: each digit is a one-line window onto a 0–9 strip that rolls behind it. */
-.ticker__slot {
-  display: inline-block;
-  height: 1em;
-  overflow: hidden;
-  -webkit-mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
-  mask-image: linear-gradient(to bottom, transparent, #000 18%, #000 82%, transparent);
-}
-
-.ticker__strip {
-  display: flex;
-  flex-direction: column;
-}
-
-.ticker__strip > span {
-  height: 1em;
-}
-
-@keyframes ticker-spin {
-  from {
-    transform: translateY(0);
-  }
-  to {
-    transform: translateY(-10em);
-  }
-}
-
-.ticker__strip--spin {
-  animation: ticker-spin 0.7s linear infinite;
-  opacity: 0.32;
-  filter: blur(0.6px);
 }
 
 /* ── Chat markdown ────────────────────────────────────────────── */

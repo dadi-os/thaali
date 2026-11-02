@@ -8,29 +8,28 @@ import type {
   ChaaviCreateItem,
   ChaaviSecretField,
   ChaaviFieldInput,
-  ChaaviFolder,
   ChaaviItem,
   ChaaviItemType,
   ChaaviLinkedTarget,
   ChaaviUpdateItem,
   ChaaviUriMatch,
 } from "../../types/chaavi";
-import { isWithin } from "./folders";
+import type { IconName } from "../../shared/components/Icon";
 
-/** Display names per item type. */
-export const TYPE_META: Record<ChaaviItemType, { one: string; many: string }> = {
-  login: { one: "Login", many: "Logins" },
-  note: { one: "Secure note", many: "Secure notes" },
-  card: { one: "Card", many: "Cards" },
-  identity: { one: "Identity", many: "Identities" },
-  sshKey: { one: "SSH key", many: "SSH keys" },
-  bankAccount: { one: "Bank account", many: "Bank accounts" },
-  driversLicense: { one: "Driver's license", many: "Licenses" },
-  passport: { one: "Passport", many: "Passports" },
+/** Display names and the icon of each item type. */
+export const TYPE_META: Record<ChaaviItemType, { one: string; many: string; icon: IconName }> = {
+  login: { one: "Login", many: "Logins", icon: "key" },
+  note: { one: "Secure note", many: "Secure notes", icon: "note" },
+  card: { one: "Card", many: "Cards", icon: "card" },
+  identity: { one: "Identity", many: "Identities", icon: "user" },
+  sshKey: { one: "SSH key", many: "SSH keys", icon: "key" },
+  bankAccount: { one: "Bank account", many: "Bank accounts", icon: "card" },
+  driversLicense: { one: "Driver's license", many: "Licenses", icon: "card" },
+  passport: { one: "Passport", many: "Passports", icon: "doc" },
 };
 
-/** Item types in ledger order. */
-export const ITEM_TYPES: ChaaviItemType[] = ["login", "note", "card", "identity", "sshKey", "bankAccount", "driversLicense", "passport"];
+/** Item types in the order the folder pane lists them. */
+export const ITEM_TYPES: ChaaviItemType[] = ["login", "card", "bankAccount", "identity", "note", "sshKey", "driversLicense", "passport"];
 
 /** The item types whose data is a flat set of named strings, each public or secret. */
 export type FlatType = "bankAccount" | "driversLicense" | "passport";
@@ -151,37 +150,25 @@ export const LINK_TARGETS: Record<ChaaviItemType, Array<{ id: ChaaviLinkedTarget
   passport: [],
 };
 
-/** How a login website is matched, with labels. */
-export const URI_MATCHES: Array<{ id: ChaaviUriMatch; label: string }> = [
-  { id: "default", label: "Default match" },
-  { id: "domain", label: "Base domain" },
-  { id: "host", label: "Host" },
-  { id: "startsWith", label: "Starts with" },
-  { id: "exact", label: "Exact" },
-  { id: "regex", label: "Regular expression" },
-  { id: "never", label: "Never" },
-];
-
-/** Which part of the vault the list shows. */
+/** Which part of the vault the list shows: everything, the favorites, one kind of item or one folder (its own items). */
 export type VaultScope =
   | { kind: "all" }
   | { kind: "favorites" }
-  | { kind: "none" }
-  | { kind: "folder"; path: string };
+  | { kind: "type"; type: ChaaviItemType }
+  | { kind: "folder"; id: string };
 
-/** True when `item` belongs to `scope`; a folder scope takes its subfolders too. */
-export function inScope(item: ChaaviItem, scope: VaultScope, folders: ChaaviFolder[]): boolean {
-  if (scope.kind === "all") {
-    return true;
+/** True when `item` belongs to `scope`. */
+export function inScope(item: ChaaviItem, scope: VaultScope): boolean {
+  switch (scope.kind) {
+    case "all":
+      return true;
+    case "favorites":
+      return item.favorite;
+    case "type":
+      return item.type === scope.type;
+    case "folder":
+      return item.folderId === scope.id;
   }
-  if (scope.kind === "favorites") {
-    return item.favorite;
-  }
-  if (scope.kind === "none") {
-    return item.folderId === null;
-  }
-  const own = folders.find((folder) => folder.id === item.folderId);
-  return own !== undefined && isWithin(own.name, scope.path);
 }
 
 /**
@@ -243,12 +230,15 @@ export function hostOf(uri: string): string {
   return match ? match[1]! : uri;
 }
 
+/** The address to open for a login website: the website itself, or `https://` before one written without a scheme. */
+export function websiteUrl(uri: string): string {
+  return /^[a-z][a-z0-9+.-]*:/i.test(uri) ? uri : `https://${uri}`;
+}
+
 /** One quiet line under an item's name in the list; never a secret. */
 export function itemSubtitle(item: ChaaviItem): string {
   if (item.type === "login") {
-    const parts = [item.login.username, item.login.uris[0] ? hostOf(item.login.uris[0].uri) : null];
-    const shown = parts.filter((part): part is string => part !== null && part.length > 0);
-    return shown.length > 0 ? shown.join(" · ") : "No username";
+    return item.login.username ?? (item.login.uris[0] ? hostOf(item.login.uris[0].uri) : "");
   }
   if (item.type === "card") {
     const parts = [item.card.brand, item.card.expMonth && item.card.expYear ? `${item.card.expMonth.padStart(2, "0")}/${item.card.expYear.slice(-2)}` : null];
@@ -266,7 +256,7 @@ export function itemSubtitle(item: ChaaviItem): string {
     const pick = (key: string) => (typeof flat[key] === "string" ? (flat[key] as string) : null);
     const parts =
       item.type === "bankAccount"
-        ? [pick("bankName"), pick("accountType")]
+        ? [pick("bankName")]
         : item.type === "driversLicense"
           ? [[pick("firstName"), pick("lastName")].filter(Boolean).join(" ") || null, pick("issuingState")]
           : [[pick("givenName"), pick("surname")].filter(Boolean).join(" ") || null, pick("nationality")];
@@ -434,7 +424,7 @@ export function draftFromItem(item: ChaaviItem): ItemDraft {
   return draft;
 }
 
-const IDENTITY_TEXT = [
+export const IDENTITY_TEXT = [
   "title",
   "firstName",
   "middleName",
@@ -452,13 +442,14 @@ const IDENTITY_TEXT = [
   "username",
 ] as const;
 
-const IDENTITY_SECRETS = ["ssn", "passportNumber", "licenseNumber"] as const;
+export const IDENTITY_SECRETS = ["ssn", "passportNumber", "licenseNumber"] as const;
 
 /**
  * What stops the draft from saving, or null when it can: a name, field names that are
- * present and unique, a value for a new or renamed hidden field, and a link target.
+ * present and unique, a value for a new or renamed hidden field, a link target and, on a new
+ * SSH key, all three of its parts or none.
  */
-export function draftProblem(draft: ItemDraft): string | null {
+export function draftProblem(draft: ItemDraft, creating: boolean): string | null {
   if (!draft.name.trim()) {
     return "Give the item a name.";
   }
@@ -479,7 +470,7 @@ export function draftProblem(draft: ItemDraft): string | null {
       return `Choose what “${name}” links to.`;
     }
   }
-  if (draft.type === "sshKey") {
+  if (creating && draft.type === "sshKey") {
     const given = [draft.sshKey.privateKey.dirty, draft.sshKey.publicKey.trim() !== "", draft.sshKey.keyFingerprint.trim() !== ""];
     if (given.some(Boolean) && !given.every(Boolean)) {
       return "Give the private key, public key and fingerprint together, or leave all three empty to generate a key.";

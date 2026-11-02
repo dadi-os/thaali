@@ -1,0 +1,14 @@
+/*
+ * The Chaavi page's own style: the bare text field inside a sheet's field row, which the row's box surrounds. The
+ * values come from the design (the Thaali design artifact's generator, gen/chaavi.mjs); the fidelity gate holds them to it.
+ */
+
+@layer components {
+  .cinp {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+  }
+}

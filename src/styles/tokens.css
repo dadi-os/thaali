@@ -143,33 +143,6 @@
   z-index: 1;
 }
 
-/*
- * A widget: a bounded glass card with no shadow of its own, so nothing pools dark in the
- * gaps and padding around it and the cards sit on the field as one surface.
- */
-.widget-frame {
-  position: relative;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  background: var(--glass-veil);
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--glass-border);
-  border-radius: 18px;
-  box-shadow: 0 1px 2px rgba(92, 107, 82, 0.05), 0 10px 30px rgba(44, 48, 42, 0.05);
-}
-
-.widget-frame::before {
-  content: "";
-  pointer-events: none;
-  position: absolute;
-  inset: 0 0 auto 0;
-  height: 1px;
-  background: var(--glass-rim-top);
-  z-index: 2;
-}
-
 /* Floating popover: one clean sheet of translucent glass; content fades across when it changes. */
 .popover-glass {
   background: var(--glass-veil);
@@ -198,34 +171,6 @@
   .popover-glass__body {
     animation: none;
   }
-}
-
-.widget-frame__chrome {
-  position: relative;
-  z-index: 1;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 14px 18px 0;
-}
-
-.widget-frame__title {
-  color: var(--sage-text);
-  font-size: 13px;
-  font-weight: 600;
-  line-height: 1.2;
-  white-space: nowrap;
-}
-
-.widget-frame__aside {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  color: var(--ink-ghost);
-  font-size: 12px;
-  white-space: nowrap;
 }
 
 /*
@@ -598,14 +543,6 @@
   .routing-thread::after {
     animation: none;
   }
-}
-
-.widget-frame__body {
-  position: relative;
-  z-index: 0;
-  min-height: 0;
-  flex: 1;
-  overflow: hidden;
 }
 
 /* Glass card: the onboarding and confirm surfaces, khisso's 32 pt glass. */

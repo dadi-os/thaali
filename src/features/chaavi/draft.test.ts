@@ -1,8 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { ChaaviFolder, ChaaviItem } from "../../types/chaavi";
-import { createBody, draftFromItem, draftProblem, emptyDraft, inScope, itemSubtitle, retype, searchItems, updateBody } from "./draft";
-
-const folders: ChaaviFolder[] = [{ id: "dev", name: "development/fliks-gg" }];
+import type { ChaaviItem } from "../../types/chaavi";
+import { createBody, draftFromItem, draftProblem, emptyDraft, inScope, itemSubtitle, retype, searchItems, updateBody, websiteUrl } from "./draft";
 
 const login: ChaaviItem = {
   id: "l1",
@@ -68,19 +66,27 @@ describe("vault search and scopes", () => {
     expect(searchItems([login, card], "  ")).toEqual([login, card]);
   });
 
-  it("scopes by folder, no folder and favorites", () => {
-    expect(inScope(login, { kind: "folder", path: "development" }, folders)).toBe(true);
-    expect(inScope(login, { kind: "folder", path: "development/fliks-gg" }, folders)).toBe(true);
-    expect(inScope(login, { kind: "folder", path: "dev" }, folders)).toBe(false);
-    expect(inScope(card, { kind: "none" }, folders)).toBe(true);
-    expect(inScope(login, { kind: "none" }, folders)).toBe(false);
-    expect(inScope(card, { kind: "favorites" }, folders)).toBe(false);
+  it("scopes by folder, kind and favorites", () => {
+    expect(inScope(login, { kind: "folder", id: "dev" })).toBe(true);
+    expect(inScope(login, { kind: "folder", id: "other" })).toBe(false);
+    expect(inScope(card, { kind: "folder", id: "dev" })).toBe(false);
+    expect(inScope(card, { kind: "type", type: "card" })).toBe(true);
+    expect(inScope(login, { kind: "type", type: "card" })).toBe(false);
+    expect(inScope(login, { kind: "favorites" })).toBe(true);
+    expect(inScope(card, { kind: "favorites" })).toBe(false);
+    expect(inScope(card, { kind: "all" })).toBe(true);
   });
 
   it("subtitles show public fields only", () => {
-    expect(itemSubtitle(login)).toBe("octocat · github.com");
+    expect(itemSubtitle(login)).toBe("octocat");
     expect(itemSubtitle(card)).toBe("Visa · 08/29");
-    expect(itemSubtitle(bank)).toBe("Acme Bank · checking");
+    expect(itemSubtitle(bank)).toBe("Acme Bank");
+  });
+
+  it("opens a website with its own scheme, or over https when it has none", () => {
+    expect(websiteUrl("github.com")).toBe("https://github.com");
+    expect(websiteUrl("http://router.local/admin")).toBe("http://router.local/admin");
+    expect(websiteUrl("androidapp://com.example")).toBe("androidapp://com.example");
   });
 
   it("searches a bank account's public fields", () => {
@@ -159,17 +165,17 @@ describe("editor bodies", () => {
 
   it("names what blocks a save", () => {
     const draft = draftFromItem(login);
-    expect(draftProblem(draft)).toBeNull();
+    expect(draftProblem(draft, false)).toBeNull();
     draft.fields[0]!.name = "Renamed";
-    expect(draftProblem(draft)).toBe("Type a value for the hidden field “Renamed”.");
+    expect(draftProblem(draft, false)).toBe("Type a value for the hidden field “Renamed”.");
     draft.fields[0]!.name = "Recovery";
     draft.fields[1]!.name = "Recovery";
-    expect(draftProblem(draft)).toBe("Two custom fields are named “Recovery”.");
+    expect(draftProblem(draft, false)).toBe("Two custom fields are named “Recovery”.");
     const blank = emptyDraft("note", null);
-    expect(draftProblem(blank)).toBe("Give the item a name.");
+    expect(draftProblem(blank, true)).toBe("Give the item a name.");
     const ssh = emptyDraft("sshKey", null);
     ssh.name = "k";
     ssh.sshKey.publicKey = "ssh-ed25519 AAAA";
-    expect(draftProblem(ssh)).toMatch(/together/);
+    expect(draftProblem(ssh, true)).toMatch(/together/);
   });
 });

@@ -19,7 +19,8 @@
   }
 
   input,
-  textarea {
+  textarea,
+  select {
     font: inherit;
     color: inherit;
   }
@@ -120,6 +121,37 @@
   }
 }
 
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+@keyframes slide-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateX(14px);
+  }
+}
+
+@keyframes slide-down {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
 @keyframes slide-in {
   from {
     opacity: 0;
@@ -139,21 +171,22 @@
       opacity var(--fast) var(--ease);
   }
 
+  /* A hover or press beats a background a control carries inline, such as a chosen row's wash. */
   .ui-hover-fill:hover:not(:disabled) {
-    background-color: var(--sage-fill);
+    background-color: var(--sage-fill) !important;
   }
 
   .ui-hover-fill:active:not(:disabled) {
-    background-color: var(--sage-active);
+    background-color: var(--sage-active) !important;
     transform: scale(0.985);
   }
 
   .ui-hover-solid:hover:not(:disabled) {
-    background-color: var(--sage-deep-hover);
+    background-color: var(--sage-deep-hover) !important;
   }
 
   .ui-hover-solid:active:not(:disabled) {
-    background-color: var(--sage-deep-press);
+    background-color: var(--sage-deep-press) !important;
     transform: scale(0.98);
   }
 
@@ -168,7 +201,7 @@
   }
 
   .ui-hover-danger:hover:not(:disabled) {
-    background-color: var(--error-hover);
+    background-color: var(--error-hover) !important;
   }
 
   /* Buttons: one scale (height, radius, type, side padding), five tones. */
