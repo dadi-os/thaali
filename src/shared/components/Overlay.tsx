@@ -31,7 +31,7 @@ export function Dialog({ title, subtitle, children, footer, zIndex = "var(--z-sc
       <div className={leaving ? "dialog-panel dialog-leaving" : "dialog-panel"}>
         <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
           <span style={{ fontSize: 17, fontWeight: 600 }}>{title}</span>
-          {subtitle ? <Truncate text={subtitle} style={{ fontSize: 13, color: "var(--ink-muted)" }} /> : null}
+          {subtitle ? <Truncate text={subtitle} style={{ minWidth: 0, fontSize: 13, color: "var(--ink-muted)" }} /> : null}
         </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>
         {footer ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{footer}</div> : null}
@@ -66,9 +66,9 @@ export function DialogOption({ tone, title, detail, onClick }: DialogOptionProps
 export type ModalProps = {
   /** The accessible name, such as "Browser 3f2a91". */
   label: string;
-  /** Panel width and height in px. */
-  width: number;
-  height: number;
+  /** Panel width and height: px, or any CSS length such as `min(1120px, calc(100% - 96px))`. */
+  width: number | string;
+  height: number | string;
   /** Where the panel grows from, as a CSS transform origin; the preview it opened from. */
   origin?: string;
   /** Leaves with its exit animation. */

@@ -22,13 +22,18 @@ export type BrowserFrameProps = {
   /** Nas browser id whose virtual display to stream. */
   browserId: number;
   className?: string;
-  /** `peek` thumbnail, `rail` sidebar pin, `detail` the agent panel, `full` the whole 16:9 display at its parent's width (the expanded view). */
-  variant: "peek" | "rail" | "detail" | "full";
+  /** Called each time Ankur acts on a driven frame: a press, a key or the wheel. Nas pauses the helper at the first input. */
+  onDrive?: () => void;
+  /**
+   * `peek` thumbnail, `rail` sidebar pin, `detail` the agent panel, `full` the whole 16:9 display at its parent's width (the expanded view),
+   * `fill` a watched picture that covers its parent, and `page` the driven 16:9 display as large as its parent (a size container) allows.
+   */
+  variant: "peek" | "rail" | "detail" | "full" | "fill" | "page";
 };
 
 /** The stream each variant draws: the expanded view is driven, the rest only watch. */
 function profileFor(variant: BrowserFrameProps["variant"]): StreamProfile {
-  return variant === "full" ? DRIVE_PROFILE : WATCH_PROFILE;
+  return variant === "full" || variant === "page" ? DRIVE_PROFILE : WATCH_PROFILE;
 }
 
 /** What the frame shows over (or instead of) the picture. */
@@ -68,17 +73,17 @@ function paintCover(canvas: HTMLCanvasElement, frame: VideoFrame): void {
  * while the mesh is connected and the webview is visible, so a hidden window or an
  * unmounted frame lets the connection close. The caption shows until the first frame; a
  * reconnect keeps the last frame under a badge; a failure shows the error and a retry.
- * The `full` variant is also a remote control: pointer, wheel and key events go to the
+ * The `full` and `page` variants are also a remote control: pointer, wheel and key events go to the
  * browser through Nas with no lock, so the agent keeps working alongside.
  */
-export function BrowserFrame({ browserId, className, variant }: BrowserFrameProps) {
+export function BrowserFrame({ browserId, className, onDrive, variant }: BrowserFrameProps) {
   const { state: connection } = useConnection();
   const visible = useSyncExternalStore(subscribeVisibility, visibleSnapshot);
   const live = connection === "connected" && visible;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [overlay, setOverlay] = useState<Overlay>({ kind: "caption" });
   const [inputError, setInputError] = useState<string | null>(null);
-  const driving = variant === "full";
+  const driving = variant === "full" || variant === "page";
   const profile = profileFor(variant);
   const sender = useMemo(() => createInputSender(browserId, setInputError), [browserId]);
 
@@ -119,17 +124,19 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
     }
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
+      onDrive?.();
       sender.push(wheelInput(canvas, e));
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, [driving, sender]);
+  }, [driving, sender, onDrive]);
 
   const driveHandlers = {
     onPointerDown: (e: PointerEvent<HTMLCanvasElement>) => {
       e.currentTarget.focus();
       e.currentTarget.setPointerCapture(e.pointerId);
       setInputError(null);
+      onDrive?.();
       sender.push(pointerInput("down", e.currentTarget, e));
     },
     onPointerMove: (e: PointerEvent<HTMLCanvasElement>) => sender.push(pointerInput("move", e.currentTarget, e)),
@@ -146,6 +153,7 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
     const event = keyInput(kind, e);
     if (event) {
       e.preventDefault();
+      onDrive?.();
       sender.push(event);
     }
   };
@@ -157,7 +165,11 @@ export function BrowserFrame({ browserId, className, variant }: BrowserFrameProp
         ? "h-[228px] w-full"
         : variant === "full"
           ? "aspect-video w-full"
-          : "aspect-[16/10] w-full";
+          : variant === "fill"
+            ? "absolute inset-0"
+            : variant === "page"
+              ? "absolute top-1/2 left-1/2 aspect-video w-[min(100cqw,calc(100cqh*16/9))] -translate-x-1/2 -translate-y-1/2"
+              : "aspect-[16/10] w-full";
   const chrome =
     variant === "peek"
       ? "rounded-[var(--radius)] border border-dashed border-sage-line bg-bone/80"

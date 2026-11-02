@@ -310,6 +310,16 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
+    /** POST /browsers/:id/navigate — go back one page in the browser's history, or reload the page. */
+    navigateBrowser(id: number, action: "back" | "reload"): Promise<void> {
+      return transport.request({
+        baseUrl,
+        path: `/browsers/${id}/navigate`,
+        method: "POST",
+        body: { action },
+      });
+    },
+
     /** POST /terminals/:id/keys — type into the pane: `keys` as text when `literal`, else as tmux key names such as `Enter`. */
     terminalKeys(id: string, keys: string[], literal: boolean): Promise<{ sent: boolean }> {
       return transport.request({

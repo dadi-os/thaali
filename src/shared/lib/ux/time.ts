@@ -1,20 +1,19 @@
-/** Relative time label (e.g. "3 minutes ago"). */
+/** How long ago an instant was in words ("4 minutes ago", "1 day ago"); seconds under 45, then minutes, hours and days. An instant that has not come yet reads as 0 seconds ago. */
 export function formatRelative(iso: string, now = Date.now()): string {
-  const diffSec = Math.round((new Date(iso).getTime() - now) / 1000);
-  const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
-  const abs = Math.abs(diffSec);
-  if (abs < 60) {
-    return rtf.format(diffSec, "second");
+  const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  if (seconds < 45) {
+    return `${seconds} ${seconds === 1 ? "second" : "seconds"} ago`;
   }
-  const diffMin = Math.round(diffSec / 60);
-  if (Math.abs(diffMin) < 60) {
-    return rtf.format(diffMin, "minute");
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes} ${minutes === 1 ? "minute" : "minutes"} ago`;
   }
-  const diffHour = Math.round(diffMin / 60);
-  if (Math.abs(diffHour) < 24) {
-    return rtf.format(diffHour, "hour");
+  const hours = Math.round(minutes / 60);
+  if (hours < 24) {
+    return `${hours} ${hours === 1 ? "hour" : "hours"} ago`;
   }
-  return rtf.format(Math.round(diffHour / 24), "day");
+  const days = Math.round(hours / 24);
+  return `${days} ${days === 1 ? "day" : "days"} ago`;
 }
 
 /** Absolute local date+time for tooltips. */
@@ -41,6 +40,11 @@ export function formatSpan(ms: number): string {
 /** The clock time of day with its AM or PM mark (e.g. "10:20 AM"), in the device's zone, or in `zone` (an IANA name) when given. */
 export function formatClock(iso: string, zone?: string): string {
   return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", hour12: true, timeZone: zone }).format(new Date(iso));
+}
+
+/** The weekday, month and day of an instant (e.g. "Tue, Oct 27"), in the device's zone, or in `zone` (an IANA name) when given. */
+export function formatDay(iso: string, zone?: string): string {
+  return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: zone }).format(new Date(iso));
 }
 
 /** The short name of the zone at an instant (e.g. "EDT"), in the device's zone, or in `zone` (an IANA name) when given. */

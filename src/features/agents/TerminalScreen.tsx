@@ -1,10 +1,6 @@
-import { useLayoutEffect, useRef, useSyncExternalStore } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { isMeshOnline, nas } from "../../shared/api";
-import { useConnection } from "../../shared/hooks/useConnection";
+import { useLayoutEffect, useRef } from "react";
+import { useTerminalCapture } from "./terminalCapture";
 
-/** How often the pane is re-captured while it is on screen. */
-const CAPTURE_MS = 1_000;
 /** Lines captured for the sidebar pin and for the expanded view. */
 const LINES = { rail: 14, full: 400 } as const;
 
@@ -17,34 +13,14 @@ export type TerminalScreenProps = {
   className?: string;
 };
 
-/** Subscribe to the webview hiding or showing. */
-function subscribeVisibility(onChange: () => void): () => void {
-  document.addEventListener("visibilitychange", onChange);
-  return () => document.removeEventListener("visibilitychange", onChange);
-}
-
-/** True while the webview is visible. */
-function visibleSnapshot(): boolean {
-  return document.visibilityState === "visible";
-}
-
 /**
  * Live, view-only terminal: the tail of the pane from Nas `GET /terminals/:id/capture`,
  * re-captured every second while the mesh is connected and the webview is visible, pinned
  * to the newest line. A failed capture shows Nas's message in place of the output.
  */
 export function TerminalScreen({ terminalId, variant, className = "" }: TerminalScreenProps) {
-  const { state: connection } = useConnection();
-  const visible = useSyncExternalStore(subscribeVisibility, visibleSnapshot);
-  const live = isMeshOnline(connection) && visible;
   const scrollRef = useRef<HTMLPreElement>(null);
-
-  const capture = useQuery({
-    queryKey: ["nas", "terminal-capture", terminalId, variant],
-    queryFn: async () => (await nas.captureTerminal(terminalId, LINES[variant])).output.replace(/\s+$/, ""),
-    enabled: live,
-    refetchInterval: live ? CAPTURE_MS : false,
-  });
+  const { capture, live } = useTerminalCapture(terminalId, LINES[variant]);
 
   useLayoutEffect(() => {
     const el = scrollRef.current;
