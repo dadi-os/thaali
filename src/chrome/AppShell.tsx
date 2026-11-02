@@ -87,7 +87,7 @@ export function AppShell() {
     (boot.status !== "ready" || needsProvisioning || state === "disconnected" || state === "connecting");
 
   return (
-    <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
+    <div className="relative flex h-full flex-col overflow-hidden" style={{ background: "var(--field-bloom)" }}>
       <TitleBar wordmark={!showOnboarding} notice={<OfflinePill />} onHome={() => navigate("/")} />
 
       <div className="relative flex min-h-0 flex-1">
