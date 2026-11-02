@@ -9,15 +9,13 @@
  * `--flows` adds the scripted flows (agent popover, toasts, System task rows, chat thread) at
  * 1440 wide in the `normal`, `asking` and `long` scenarios; `--flows-only` runs just those.
  */
-import { spawn, spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
+import { spawnSync } from "node:child_process";
+import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { ensureServer, ensureTool, ORIGIN } from "./harness.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const root = resolve(here, "..");
-const PORT = 5174;
-const ORIGIN = `http://127.0.0.1:${PORT}`;
 
 const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", timeline: "/timeline", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
 const SCENARIOS = ["normal", "loading", "offline", "blip", "module-offline", "errors", "empty", "long", "many", "asking"];
@@ -40,36 +38,6 @@ function args() {
 
 function list(value, all) {
   return typeof value === "string" ? value.split(",") : all;
-}
-
-async function serverUp() {
-  try {
-    return (await fetch(`${ORIGIN}/?fixtures=normal`)).ok;
-  } catch {
-    return false;
-  }
-}
-
-async function ensureServer() {
-  if (await serverUp()) return null;
-  const child = spawn("npx", ["vite", "--config", "vite.visual.config.ts"], { cwd: root, stdio: "ignore", detached: true });
-  for (let i = 0; i < 60; i++) {
-    if (await serverUp()) return child;
-    await new Promise((r) => setTimeout(r, 500));
-  }
-  child.kill();
-  throw new Error("the vite visual server did not come up");
-}
-
-function ensureSnap() {
-  const bin = join(here, ".build", "snap");
-  const source = join(here, "snap.swift");
-  if (!existsSync(bin) || statSync(bin).mtimeMs < statSync(source).mtimeMs) {
-    mkdirSync(join(here, ".build"), { recursive: true });
-    const built = spawnSync("swiftc", ["-O", source, "-o", bin], { stdio: "inherit" });
-    if (built.status !== 0) throw new Error("swiftc failed to build the snapshot tool");
-  }
-  return bin;
 }
 
 /** Steps after the first settled capture: expand something, watch the transition, hover. */
@@ -195,7 +163,7 @@ const outDir = resolve(opts.out);
 mkdirSync(outDir, { recursive: true });
 const server = await ensureServer();
 try {
-  const bin = ensureSnap();
+  const bin = ensureTool("snap.swift", "snap");
   const planFile = join(outDir, "plan.json");
   const resultsFile = join(outDir, "results.json");
   writeFileSync(planFile, JSON.stringify(plan(opts, outDir), null, 1));

@@ -26,7 +26,7 @@ thaali/
       chatSidebar/         portable unit (index = construction site)
         thread/ message/ list.tsx composer.tsx
         format.ts lanes.ts constants.ts ActivityPulse.tsx
-    dev/                   dev-only fixture transport and typed fixtures (never in the production bundle)
+    dev/                   dev-only fixture transport, typed fixtures and the gallery the fidelity gate renders (never in the production bundle)
     shared/
       api/                 transport + domain clients (hath/, yaad/, nas/)
         constants.ts       mesh URLs (no env fallbacks)
@@ -40,14 +40,14 @@ thaali/
         platform/          logging, clipboard, notifications, downloads
         content/           attachments, branded QR
         ux/                motion (incl. REVEAL preset), poll intervals, time formatting
-      components/          IconButton, Popover/ (index + hover zone), ForceGraph/, Tooltip, WidgetFrame
+      components/          the primitives (Icon, Button, Segmented, Badge, Card, Skeleton, Truncate, ModuleState, OfflineNotice, Toast, Floating, Tooltip, Overlay, Disclosure, TaskPreview, TaskRow), Popover/ (index + hover zone), ForceGraph/, WidgetFrame, and the old IconButton and states/ until the pages that use them are rebuilt
       hooks/               useConnection, useEvents, useLiveQueries, useHoverDetails, useThemeTokens
     store/                 chat, connection, drafts, running, desktopShell
     types/                 API contracts per service (hath, yaad, chaavi, ghar) + d3-force-3d.d.ts
     styles/
   src-tauri/               Rust shell + logutil
   net/                     Tailscale CLI build for the desktop mesh
-  visual/                  the visual loop: WKWebView snapshot tool, DOM checks, runner
+  visual/                  the visual loop (WKWebView snapshot tool, DOM checks, runner) and fidelity/, the gate that holds the app to the design
   Dockerfile               web container (dev Vite / production static)
 ```
 
@@ -94,6 +94,21 @@ npm run visual -- --out <dir> --pages hath,system --scenarios normal,asking --wi
 - `visual/snap.swift` loads each URL in a WKWebView at a size, runs steps (click, hover, wait, screenshot, checks) and records console errors. `visual/checks.js` reports text clipped without an ellipsis or a title, flex children missing `min-w-0`, content spilling its box, elements past their parent, targets under 32 px, controls with no accessible name, text under WCAG contrast, percentage `max-height`s, nested scroll containers, interactive elements with no transition, and elements that mount with no motion after `__mountSince`.
 - The output directory gets `shots/*.png` (2x), `results.json` and `report.md`. `--interact` also captures an expand at 120 ms and 640 ms and a hover.
 - Limits: WKWebView snapshots do not render `backdrop-filter`, so glass blur (popovers, toasts, the sidebar) shows as plain translucency; judge glass legibility in the running app. The capture window sits on screen at 1% opacity because a hidden window stops animations. The mesh-only dialogs (onboarding, provisioning, forget device), the tray menu and live browser frames (the H.264 stream is not synthesized; the frame shows its caption) are not captured.
+
+### Fidelity gate
+
+The app is held to the Thaali design artifact rather than to a description of it. The design's generator (outside this repo) writes one plain-HTML reference page per case, a primitive in one state or a whole page board; the app renders the same case from `src/dev/gallery` (a primitive) or its own route (a page). The gate loads both in a WKWebView at 2x and compares them.
+
+```sh
+DESIGN_REF_DIR=<the generator's site/ directory> npm run fidelity -- --out <dir>
+DESIGN_REF_DIR=<...> npm run fidelity -- --out <dir> --cases button.,toast.info
+```
+
+- `DESIGN_REF_DIR` is required: the generator's `site/` directory, which holds `gate/manifest.json`, `gate/<case>.html` and `fonts/`. The machine must be in a zone that follows America/New_York (the design pins it). Exits 1 when any case frame fails.
+- A frame passes when no pixel differs by more than `channelTolerance` (2 of 255: the gradient animations differ by that much between two renders of the same CSS) and the element trees match: tag, own text, accessible attributes, box (x, y, width, height within `boxTolerance`) and every computed style in `visual/fidelity/hook.js`'s list, element by element, with `::before` and `::after` content. `ignoreProps` in `visual/fidelity/thresholds.json` lists what is excluded and why: `backdrop-filter` (the design's renders cannot draw glass, the app's cards blur) and `animation-name` (keyframe names are namespaced per codebase; the keyframes are compared by the frames below).
+- A case may force `:hover`, `:active` and focus states (the gate copies those rules onto classes and puts the class on the element and its ancestors), add a class to start a transition (`toggle`), and name `times` in ms: the gate then seeks every running animation and transition to each time, deterministically, and compares a frame at each. Animations are otherwise finished (infinite ones held at their start) before a frame is taken.
+- `--out` gets `report.md` and `report.json` (every case frame with its pixel diff, its DOM differences and console errors), `shots/` (design, app and heatmap images) and `failures/` (the design and app images of every failing frame). A page case's `appPath` is the app route (with its `?fixtures=` scenario) and `root` names the element to compare on each side; `__clock` in the URL pins `Date` on both sides to the instant the case names.
+- The gate is dev tooling like the visual loop: `visual/fidelity/` and `src/dev/gallery` are not in the production bundle.
 
 ### Container (Dockerfile)
 
@@ -192,7 +207,7 @@ Agents and memory render through `shared/components/ForceGraph` (one d3-force-3d
 
 ## Design tokens
 
-Bone glass — field bloom, frosted veil panels, sage accent; dark palette via `prefers-color-scheme`. Tokens in `src/styles/tokens.css` (same language as dadiOS). Fonts under `src/assets/fonts/`.
+Bone glass — field bloom, frosted veil panels, sage accent, in the light palette the design draws (the text-bearing inks are darkened to pass 4.5:1). Tokens in `src/styles/tokens.css` are the one source of values and match the Thaali design's generator exactly; `src/styles/primitives.css` holds the primitives' shared classes, under Tailwind's theme and utilities without its preflight, so the base is the design's own reset. Fonts under `src/assets/fonts/`.
 
 ## Scripts
 

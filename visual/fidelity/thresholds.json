@@ -1,0 +1,8 @@
+{
+  "channelTolerance": 2,
+  "maxDifferingPercent": 0,
+  "boxTolerance": 0.02,
+  "reportLimit": 30,
+  "ignoreProps": ["animation-name", "backdrop-filter"],
+  "ignoreAttrs": []
+}

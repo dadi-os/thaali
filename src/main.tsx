@@ -6,8 +6,19 @@ import "./styles/index.css";
 
 async function boot(): Promise<void> {
   await Promise.all([initApi(), prepareTarget()]);
+  const root = ReactDOM.createRoot(document.getElementById("root")!);
+  const gallery = import.meta.env.DEV ? await import("./dev/gallery") : null;
+  const galleryCase = gallery === null ? null : gallery.readGalleryCase(window.location.search);
+  if (gallery !== null && galleryCase !== null) {
+    root.render(
+      <React.StrictMode>
+        <gallery.Gallery id={galleryCase} />
+      </React.StrictMode>,
+    );
+    return;
+  }
   const { default: App } = await import("./App");
-  ReactDOM.createRoot(document.getElementById("root")!).render(
+  root.render(
     <React.StrictMode>
       <App />
     </React.StrictMode>,
