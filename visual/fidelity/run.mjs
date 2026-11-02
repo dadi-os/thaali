@@ -169,7 +169,7 @@ try {
       }
       const heat = join(outDir, "shots", `heat~${design.c.id}~${d.time ?? "end"}.png`);
       const pixels = typeof dTree === "string" && typeof aTree === "string" && !dTree.startsWith("ERR") && !aTree.startsWith("ERR")
-        ? pixelDiff(pixeldiff, join(plan.outDir, d.file), join(plan.outDir, a.file), heat, config.channelTolerance, design.c.root ? JSON.parse(dTree).rect : null)
+        ? pixelDiff(pixeldiff, join(plan.outDir, d.file), join(plan.outDir, a.file), heat, config.channelTolerance, design.c.root ? JSON.parse(dTree).page : null)
         : { sizeMismatch: true, percent: 100 };
       const pass = !pixels.sizeMismatch && pixels.percent <= config.maxDifferingPercent && diffs.length === 0 && errors.length === 0;
       results.push({ id: design.c.id, time: d.time, pass, pixels, diffs, errors });

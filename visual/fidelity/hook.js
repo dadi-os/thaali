@@ -6,7 +6,7 @@
  *   addClass(pairs) add a real class, or remove it with a third element "remove", starting the transition it triggers
  *   finish()       jump every running transition and finite animation to its end, infinite ones to the start
  *   seek(ms)       jump every animation and transition to `ms` after its start
- *   extract(root)  the element tree: tag, own text, attributes, box, computed style, pseudo-element content
+ *   extract(root)  the element tree: tag, own text, attributes, box, computed style, pseudo-element content, and the root's own rectangle on the page
  */
 (() => {
   window.__errs = [];
@@ -229,7 +229,9 @@
           children: Array.from(el.children).filter((c) => !SKIP.has(c.tagName)).map(walk),
         };
       };
-      return JSON.stringify(walk(root));
+      const tree = walk(root);
+      tree.page = { x: +origin.x.toFixed(2), y: +origin.y.toFixed(2), w: +origin.width.toFixed(2), h: +origin.height.toFixed(2) };
+      return JSON.stringify(tree);
     },
   };
   window.__ds = ds;
