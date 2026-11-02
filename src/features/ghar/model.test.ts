@@ -4,29 +4,26 @@ import {
   activePreset,
   allOff,
   applyCommand,
+  coverCommand,
   evening,
   eveningCommands,
   EVENING,
   groupNames,
   groupSection,
-  headline,
-  hueRgb,
-  kelvinRgb,
-  lightRgb,
+  liftCommand,
   roomSections,
   sectionLevel,
+  sectionLevelCommands,
+  sectionMeta,
   sectionsFor,
-  sectionStatus,
   sectionSwitch,
-  summarize,
-  tileLook,
-  tileStatus,
-  warmthFraction,
+  setpointCommand,
+  stateLine,
   warmthMireds,
+  warmthPercent,
 } from "./model";
 
 const AT = "2026-10-22T20:00:00.000Z";
-const LATER = "2026-10-22T21:00:00.000Z";
 
 const bedroom: GharRoom = { id: "r1", name: "Ankur's room" };
 const kitchen: GharRoom = { id: "r2", name: "Kitchen" };
@@ -90,92 +87,57 @@ const kettle: GharDevice = {
 };
 
 describe("grouping by room and tag", () => {
-  it("lists every named room by name, empty ones too, and Unplaced last only when it holds devices", () => {
-    const stray = light("d5", "Hall Lamp", { room: unplaced });
-    expect(roomSections([desk, kettle], [unplaced, kitchen, bedroom]).map((s) => s.title)).toEqual(["Ankur's room", "Kitchen"]);
-    expect(roomSections([stray, desk], [unplaced, kitchen, bedroom]).map((s) => s.title)).toEqual(["Ankur's room", "Kitchen", "Unplaced"]);
+  it("lists every named room in Ghar's order, empty ones too, and Unassigned last only when it holds devices", () => {
+    const sections = roomSections([desk, kettle], [unplaced, kitchen, bedroom]);
+    expect(sections.map((section) => [section.title, section.kind, section.devices.length])).toEqual([["Kitchen", "room", 1], ["Ankur's room", "room", 1]]);
+    const placed = roomSections([desk, { ...kettle, room: unplaced }], [unplaced, bedroom]);
+    expect(placed.map((section) => section.title)).toEqual(["Ankur's room", "Unassigned"]);
+    expect(placed[1]?.kind).toBe("unassigned");
   });
 
-  it("sorts a room's devices by name and brings in a room missing from the list", () => {
-    const sections = roomSections([right, desk, left, kettle], [bedroom]);
-    expect(sections[0]?.devices.map((d) => d.id)).toEqual(["d1", "d2", "d3"]);
-    expect(sections[1]?.room).toEqual(kitchen);
+  it("keeps a room's devices in Ghar's order and brings in a room missing from the list", () => {
+    const sections = roomSections([right, left, kettle], [bedroom]);
+    expect(sections[0]?.devices.map((device) => device.name)).toEqual(["Right Nightstand", "Left Nightstand"]);
+    expect(sections.map((section) => section.title)).toContain("Kitchen");
   });
 
   it("collects groups from tags and shows a group across rooms", () => {
-    const hall = light("d6", "Hall Lamp", { room: kitchen, tags: ["Nightstands", "Downstairs"] });
-    const devices = [desk, left, right, hall];
-    expect(groupNames(devices)).toEqual(["Downstairs", "Nightstands"]);
-    expect(groupSection(devices, "Nightstands").devices.map((d) => d.id)).toEqual(["d6", "d2", "d3"]);
+    expect(groupNames([desk, left, right, kettle])).toEqual(["Nightstands"]);
+    const group = groupSection([desk, left, right, kettle], "Nightstands");
+    expect([group.kind, group.devices.map((device) => device.id)]).toEqual(["group", ["d2", "d3"]]);
   });
 
-  it("filters to one room or one group", () => {
-    const devices = [desk, left, right, kettle];
-    expect(sectionsFor({ kind: "room", id: "r2" }, devices, [bedroom, kitchen]).map((s) => s.title)).toEqual(["Kitchen"]);
-    expect(sectionsFor({ kind: "group", name: "Nightstands" }, devices, [bedroom]).map((s) => s.room)).toEqual([null]);
-    expect(sectionsFor({ kind: "everywhere" }, devices, [bedroom, kitchen])).toHaveLength(2);
+  it("filters to one room or one group, hiding an Unassigned that holds nothing", () => {
+    const devices = [desk, left, kettle];
+    expect(sectionsFor({ kind: "everywhere" }, devices, [unplaced, bedroom, kitchen]).map((section) => section.title)).toEqual(["Ankur's room", "Kitchen"]);
+    expect(sectionsFor({ kind: "room", id: "r2" }, devices, [unplaced, bedroom, kitchen]).map((section) => section.title)).toEqual(["Kitchen"]);
+    expect(sectionsFor({ kind: "group", name: "Nightstands" }, devices, [bedroom])[0]?.devices).toEqual([left]);
   });
 });
 
-describe("the room summary", () => {
-  it("counts lit lights, averages their brightness and names their colors once", () => {
-    const summary = summarize([desk, left, right, kettle]);
-    expect(summary).toMatchObject({ lights: 3, on: 2, brightness: 70, names: ["Warm white", "Peach"] });
-    expect(sectionStatus(summary, 4)).toBe("2 of 3 on · Warm white, peach");
-    expect(headline(summary)).toBe("2 of 3 lights on");
+describe("what a section and a device say", () => {
+  it("counts lit lights, and a section with no light counts its devices", () => {
+    expect(sectionMeta([desk, left, right])).toBe("2 of 3 on");
+    expect(sectionMeta([kettle])).toBe("1 device");
+    expect(sectionMeta([])).toBe("0 devices");
   });
 
-  it("reads all off, no lights, and an empty room", () => {
-    const off = summarize([left]);
-    expect(off.brightness).toBeNull();
-    expect(off.color).toBeNull();
-    expect(sectionStatus(off, 1)).toBe("All off");
-    expect(headline(off)).toBe("All lights off");
-    expect(sectionStatus(summarize([kettle]), 1)).toBe("1 device");
-    expect(sectionStatus(summarize([]), 0)).toBe("Nothing here yet");
-    expect(headline(summarize([kettle]))).toBe("No lights yet");
+  it("averages the lit lights' brightness and reads 0 when none is lit", () => {
+    expect(sectionLevel([desk, right, left])).toBe(70);
+    expect(sectionLevel([left])).toBe(0);
   });
 
   it("does not count an offline light as on", () => {
-    expect(summarize([light("d7", "Porch", { on: true, online: false })]).on).toBe(0);
-  });
-});
-
-describe("tile color from state", () => {
-  it("lights a tile in its white, stronger the brighter it is", () => {
-    const look = tileLook(desk)!;
-    const [r, g, b] = kelvinRgb(1_000_000 / 357);
-    expect(look.disc).toBe(`rgb(${r} ${g} ${b})`);
-    expect(look.fill).toBe(`color-mix(in srgb, rgb(${r} ${g} ${b}) 32%, transparent)`);
-    expect(look.border).toBe(`color-mix(in srgb, rgb(${r} ${g} ${b}) 90%, transparent)`);
+    expect(sectionMeta([light("d9", "Hall", { on: true, online: false })])).toBe("0 of 1 on");
   });
 
-  it("leaves an off or offline tile quiet", () => {
-    expect(tileLook(left)).toBeNull();
-    expect(tileLook(light("d7", "Porch", { on: true, online: false }))).toBeNull();
-  });
-
-  it("colors a hue at full value, white at no saturation", () => {
-    expect(hueRgb(0, 1)).toEqual([255, 0, 0]);
-    expect(hueRgb(120, 0)).toEqual([255, 255, 255]);
-    expect(lightRgb(right)).toEqual(hueRgb((13 / 254) * 360, 124 / 254));
-  });
-
-  it("takes the reading that changed last when the light reports no color mode", () => {
-    const device = light("d8", "Lamp", { on: true });
-    device.state.color_temp = { value: 250, changed_at: AT };
-    device.state.hue = { value: 170, changed_at: LATER };
-    device.state.saturation = { value: 254, changed_at: LATER };
-    expect(lightRgb(device)).toEqual(hueRgb((170 / 254) * 360, 1));
-  });
-
-  it("says brightness and color when on, Off, Offline, or the kind for a device with no switch", () => {
-    expect(tileStatus(desk)).toBe("80% · Warm white");
-    expect(tileStatus(right)).toBe("60% · Peach");
-    expect(tileStatus(left)).toBe("Off");
-    expect(tileStatus(kettle)).toBe("On");
-    expect(tileStatus(light("d7", "Porch", { online: false }))).toBe("Offline");
-    expect(tileStatus({ ...kettle, kind: "air_quality", state: {} })).toBe("Air quality");
+  it("says brightness when on, Off, Offline, or what the kind reports", () => {
+    expect(stateLine(desk)).toBe("On · 80%");
+    expect(stateLine(left)).toBe("Off");
+    expect(stateLine({ ...desk, online: false })).toBe("Offline");
+    expect(stateLine(kettle)).toBe("On");
+    const blind = { ...kettle, kind: "cover" as const, state: { lift_percent_open: { value: 60, changed_at: AT } } };
+    expect(stateLine(blind)).toBe("60% open");
   });
 });
 
@@ -185,31 +147,22 @@ describe("Evening and the room controls", () => {
       { capability: "color", command: "temperature", params: { mireds: EVENING.mireds } },
       { capability: "level", command: "move_to", params: { level: EVENING.level } },
     ]);
-    expect(EVENING.level).toBe(40);
-    expect(Math.round(1_000_000 / EVENING.mireds)).toBeLessThan(3000);
   });
 
-  it("skips the white on a light that cannot show one, and leaves offline lights and plugs alone", () => {
-    expect(eveningCommands(light("d9", "Strip", { modes: ["hue_sat"] }))).toEqual([
-      { capability: "level", command: "move_to", params: { level: 40 } },
-    ]);
-    expect(evening([kettle, light("d7", "Porch", { online: false })])).toEqual([]);
+  it("skips the white on a light that cannot show one, and leaves offline lights alone", () => {
+    const dimOnly = light("d5", "Hall", { modes: [] });
+    expect(eveningCommands(dimOnly)).toEqual([{ capability: "level", command: "move_to", params: { level: EVENING.level } }]);
+    expect(evening([light("d6", "Out", { online: false })])).toEqual([]);
   });
 
   it("switches a room off when any light is on, else every light on", () => {
-    expect(sectionSwitch([desk, left, right])).toEqual([
-      { id: "d1", command: { capability: "on_off", command: "off" } },
-      { id: "d3", command: { capability: "on_off", command: "off" } },
-    ]);
-    expect(sectionSwitch([left])).toEqual([{ id: "d2", command: { capability: "on_off", command: "on" } }]);
-    expect(allOff([desk, left, kettle]).map((c) => c.id)).toEqual(["d1"]);
+    expect(sectionSwitch([desk, left]).map((c) => [c.id, c.command.command])).toEqual([["d1", "off"]]);
+    expect(sectionSwitch([left, light("d7", "Other")]).map((c) => c.command.command)).toEqual(["on", "on"]);
+    expect(allOff([desk, left, right]).map((c) => c.id)).toEqual(["d1", "d3"]);
   });
 
   it("sets every dimmable light in a room to one brightness", () => {
-    expect(sectionLevel([desk, left, kettle], 55).map((c) => [c.id, c.command.params])).toEqual([
-      ["d1", { level: 55 }],
-      ["d2", { level: 55 }],
-    ]);
+    expect(sectionLevelCommands([desk, left, kettle], 30).map((c) => c.id)).toEqual(["d1", "d2"]);
   });
 });
 
@@ -223,9 +176,18 @@ describe("accepted commands", () => {
     expect(applyCommand(desk, { capability: "on_off", command: "off" }).state.on?.value).toBe(false);
   });
 
-  it("maps the Warmth slider between its ends and back", () => {
-    expect(warmthFraction(500)).toBe(0);
-    expect(warmthMireds(1)).toBe(154);
-    expect(warmthMireds(warmthFraction(370))).toBe(370);
+  it("holds a cover's position and a thermostat's setpoint", () => {
+    const blind = { ...kettle, kind: "cover" as const, capabilities: [{ capability: "cover" as const, config: {} }], state: { lift_percent_open: { value: 60, changed_at: AT } } };
+    expect(applyCommand(blind, liftCommand(25)).state.lift_percent_open?.value).toBe(25);
+    expect(applyCommand(blind, coverCommand("close")).state.lift_percent_open?.value).toBe(0);
+    const heat = { ...kettle, kind: "thermostat" as const, state: { heat_setpoint: { value: 21, changed_at: AT } } };
+    expect(applyCommand(heat, setpointCommand(21.5)).state.heat_setpoint?.value).toBe(21.5);
+  });
+
+  it("maps the colour temperature slider between its ends and back", () => {
+    expect(warmthPercent(500)).toBe(0);
+    expect(warmthPercent(150)).toBe(100);
+    expect(warmthMireds(1)).toBe(150);
+    expect(warmthMireds(warmthPercent(370) / 100)).toBe(370);
   });
 });

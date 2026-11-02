@@ -1,331 +1,370 @@
-import { useState, type ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { ghar } from "../../shared/api";
+import type { ReactNode } from "react";
+import { Button, ButtonGroup, IconButton } from "../../shared/components/Button";
+import { Card } from "../../shared/components/Card";
+import { Reveal } from "../../shared/components/Disclosure";
+import { Icon } from "../../shared/components/Icon";
+import { Truncate } from "../../shared/components/Truncate";
+import { formatClock, formatRelative } from "../../shared/lib/ux/time";
 import type { GharCommand, GharDevice, GharRoom } from "../../types/ghar";
-import { REVEAL } from "../../shared/lib/ux/motion";
-import { formatRelative } from "../../shared/lib/ux/time";
-import { Pill, Switch, Track } from "./controls";
-import { IconChevron } from "./icons";
+import { Slider, Switch, useDraft } from "./controls";
 import {
   activePreset,
-  brightness,
   colorModes,
-  colorName,
-  glow,
+  coverCommand,
   has,
-  hue,
   hueCommand,
-  isOn,
+  isSwitchable,
   kelvinLabel,
   levelCommand,
+  liftCommand,
+  lightColor,
+  num,
+  presetCommand,
   presetsFor,
   roomTitle,
+  setpointCommand,
+  SETPOINT_STEP,
   switchCommand,
   temperatureCommand,
   UNASSIGNED_ROOM,
-  warmth,
-  warmthFraction,
   warmthMireds,
+  warmthPercent,
 } from "./model";
-import type { House } from "./useHouse";
 
-/** The Warmth track, warm at the bottom to cool at the top. */
-const WARMTH_GRADIENT = "linear-gradient(0deg, #f6a35c, #fbd3a6, #fdf1e4, #eef2fb)";
+/** Which of the two pickers is open. */
+export type InspectorPick = "room" | "groups" | null;
 
-/** The Color track, once around the hue wheel from the bottom. */
-const HUE_GRADIENT = "linear-gradient(0deg, #ff6b6b, #ffb86b, #fff06b, #7be38a, #6bc8ff, #8e7bff, #ff6bd6, #ff6b6b)";
-
-type InspectorProps = {
-  /** The selected device, or null before one is picked. */
-  device: GharDevice | null;
+export type InspectorProps = {
+  device: GharDevice;
+  /** Every room, for the room picker. */
   rooms: GharRoom[];
   /** Every group in the house, by name. */
   groups: string[];
-  house: House;
+  /** The card's width in px. */
+  width: number;
+  /** The picker that is open. */
+  pick: InspectorPick;
+  onPick: (next: InspectorPick) => void;
+  /** The name is an input. */
+  renaming: boolean;
+  onRenaming: (next: boolean) => void;
+  /** Ghar is unreachable: the controls show the last reading and do nothing. A device that is offline does the same. */
+  disabled: boolean;
+  onClose: () => void;
+  /** Send the device a command. */
+  onSend: (command: GharCommand) => void;
+  onRename: (name: string) => void;
+  onMove: (room: GharRoom) => void;
+  /** Set the groups the device carries. */
+  onTags: (names: string[]) => void;
+  onIdentify: () => void;
 };
 
-/**
- * The page's one panel: the selected device's name (click to rename) and switch, its tall
- * Brightness, Warmth and Color sliders, the named presets, then what the device is, its
- * connection, its last change, and its Room and Groups pickers.
- */
-export function Inspector({ device, rooms, groups, house }: InspectorProps) {
+type ControlProps = {
+  name: string;
+  /** The value, in words. */
+  reading: string;
+  children: ReactNode;
+};
+
+/** A control with its caps name and its value over it. */
+function Control({ name, reading, children }: ControlProps) {
   return (
-    <aside aria-label="Selected device" className="ghar-inspector">
-      {device ? (
-        <DeviceControls key={device.id} device={device} rooms={rooms} groups={groups} house={house} />
-      ) : (
-        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 text-center">
-          <span className="text-[16px] font-semibold text-ink">Nothing selected</span>
-          <span className="text-[13px] leading-relaxed text-ink-muted">
-            Hold a tile, right-click it or use its controls button to adjust it here.
-          </span>
-        </div>
-      )}
-    </aside>
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="ui-label">{name}</span>
+        <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{reading}</span>
+      </div>
+      {children}
+    </div>
   );
 }
 
-type DeviceControlsProps = InspectorProps & { device: GharDevice };
+type ChoiceProps = {
+  text: string;
+  kind: "radio" | "checkbox";
+  checked: boolean;
+  disabled: boolean;
+  onClick: () => void;
+};
 
-function DeviceControls({ device, rooms, groups, house }: DeviceControlsProps) {
-  const [renaming, setRenaming] = useState(false);
-  const [open, setOpen] = useState<"room" | "groups" | null>(null);
-  const disabled = !house.connected || !device.online || house.pending.has(device.id);
-  const on = isOn(device);
-  const modes = colorModes(device);
-  const mireds = warmth(device);
-  const shownHue = hue(device);
-  const presets = presetsFor(device);
-  const active = activePreset(device);
-  const send = (command: GharCommand) => house.run([{ id: device.id, command }]);
-
-  const rename = async (name: string) => {
-    const trimmed = name.trim();
-    setRenaming(false);
-    if (trimmed.length > 0 && trimmed !== device.name) {
-      await house.write(`Renaming ${device.name}`, () => ghar.renameDevice(device.id, trimmed));
-    }
-  };
-
-  const tagged = device.tags.map((tag) => tag.name);
-  const level = brightness(device);
-  const state = !device.online ? "Offline" : has(device, "on_off") ? (on ? (level === null ? "On" : `On · ${Math.round(level)}%`) : "Off") : null;
-  const changed = Object.values(device.state)
-    .map((attribute) => attribute.changed_at)
-    .reduce<string | null>((latest, at) => (latest === null || at > latest ? at : latest), null);
-  const seen = device.last_seen_at;
-  const setTags = (next: string[]) => house.write(`Grouping ${device.name}`, () => ghar.setDeviceTags(device.id, next));
-
+/** One row of a picker: a radio or a checkbox mark and a name. */
+function Choice({ text, kind, checked, disabled, onClick }: ChoiceProps) {
   return (
-    <>
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 flex-col gap-0.5">
-          {renaming ? (
-            <input
-              autoFocus
-              defaultValue={device.name}
-              aria-label="Device name"
-              onBlur={(event) => void rename(event.currentTarget.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter") {
-                  event.currentTarget.blur();
-                }
-                if (event.key === "Escape") {
-                  setRenaming(false);
-                }
-              }}
-              className="ghar-inline-input text-[20px] font-bold"
-            />
-          ) : (
-            <button
-              type="button"
-              title="Rename"
-              onClick={() => setRenaming(true)}
-              className="truncate text-left text-[20px] font-bold text-ink hover:text-sage-deep"
-            >
-              {device.name}
-            </button>
-          )}
-          <span className="truncate text-[13px] text-ink-muted">
-            {[roomTitle(device.room.name), state].filter((part): part is string => part !== null).join(" · ")}
-          </span>
-        </div>
-        {has(device, "on_off") ? (
-          <Switch on={on} label={`Switch ${device.name}`} disabled={disabled} onChange={(next) => void send(switchCommand(next))} />
-        ) : null}
-      </div>
-
-      {has(device, "level") || modes.length > 0 ? (
-        <div className="flex justify-center gap-4 pt-[26px]">
-          {has(device, "level") ? (
-            <Labelled label="Brightness">
-              <Pill value={level} color={glow(device)} on={on} disabled={disabled} onCommit={(next) => send(levelCommand(next))} />
-            </Labelled>
-          ) : null}
-          {modes.includes("color_temp") ? (
-            <Labelled label="Warmth">
-              <Track
-                label="Warmth"
-                reading={mireds === null ? "–" : kelvinLabel(mireds)}
-                value={mireds === null ? null : warmthFraction(mireds)}
-                gradient={WARMTH_GRADIENT}
-                disabled={disabled}
-                onCommit={(fraction) => send(temperatureCommand(warmthMireds(fraction)))}
-              />
-            </Labelled>
-          ) : null}
-          {modes.includes("hue_sat") ? (
-            <Labelled label="Color">
-              <Track
-                label="Color"
-                reading={colorName(device) ?? "–"}
-                value={shownHue === null ? null : shownHue.hue / 254}
-                gradient={HUE_GRADIENT}
-                disabled={disabled}
-                onCommit={(fraction) => send(hueCommand(Math.round(fraction * 254), shownHue === null ? 254 : shownHue.saturation))}
-              />
-            </Labelled>
-          ) : null}
-        </div>
-      ) : null}
-      {presets.length > 0 ? (
-        <div className="flex justify-between gap-2 pt-6">
-          {presets.map((preset) => (
-            <button
-              key={preset.name}
-              type="button"
-              aria-pressed={active === preset.name}
-              disabled={disabled}
-              onClick={() => void send(preset.command)}
-              className="flex min-w-0 flex-col items-center gap-2 text-[12px] text-ink-muted disabled:cursor-default"
-            >
-              <span className={`ghar-preset ${active === preset.name ? "ghar-preset--on" : ""}`} style={{ background: preset.swatch }} />
-              <span className="truncate">{preset.name}</span>
-            </button>
-          ))}
-        </div>
-      ) : null}
-
-      <dl className="m-0 mt-6 flex flex-col gap-2 border-t border-rule pt-5 text-[13px]">
-        {device.product_name ? <Fact label="Device">{device.product_name}</Fact> : null}
-        <Fact label="Connection">
-          {device.online ? (
-            <span className="text-sage-deep">{device.bridge_name ? `Online · via ${device.bridge_name}` : "Online"}</span>
-          ) : seen ? (
-            `Offline · seen ${formatRelative(seen)}`
-          ) : (
-            "Offline"
-          )}
-        </Fact>
-        {changed ? <Fact label="Last change">{formatRelative(changed)}</Fact> : null}
-      </dl>
-
-      <div className="flex flex-col pt-3">
-        <Picker
-          label="Room"
-          value={roomTitle(device.room.name)}
-          open={open === "room"}
-          onToggle={() => setOpen(open === "room" ? null : "room")}
-        >
-          {[...rooms]
-            .sort((a, b) => Number(a.name === UNASSIGNED_ROOM) - Number(b.name === UNASSIGNED_ROOM))
-            .map((room) => (
-              <label key={room.id} className="ghar-pick">
-                <input
-                  type="radio"
-                  name={`room-${device.id}`}
-                  checked={room.id === device.room.id}
-                  disabled={!house.connected}
-                  onChange={() => void house.write(`Moving ${device.name}`, () => ghar.moveDevice(device.id, room.id))}
-                />
-                {roomTitle(room.name)}
-              </label>
-            ))}
-        </Picker>
-        <Picker
-          label="Groups"
-          value={tagged.length === 0 ? "None" : tagged.join(", ")}
-          open={open === "groups"}
-          onToggle={() => setOpen(open === "groups" ? null : "groups")}
-        >
-          {groups.map((name) => (
-            <label key={name} className="ghar-pick">
-              <input
-                type="checkbox"
-                checked={tagged.includes(name)}
-                disabled={!house.connected}
-                onChange={(event) =>
-                  void setTags(event.currentTarget.checked ? [...tagged, name] : tagged.filter((tag) => tag !== name))
-                }
-              />
-              {name}
-            </label>
-          ))}
-          <input
-            placeholder="New group"
-            aria-label="New group"
-            disabled={!house.connected}
-            onKeyDown={(event) => {
-              const name = event.currentTarget.value.trim();
-              if (event.key === "Enter" && name.length > 0) {
-                event.currentTarget.value = "";
-                if (!tagged.includes(name)) {
-                  void setTags([...tagged, name]);
-                }
-              }
-            }}
-            className="ghar-inline-input mt-1 text-[14px]"
-          />
-        </Picker>
-      </div>
-    </>
+    <button
+      type="button"
+      role={kind}
+      aria-checked={checked}
+      className="ui-trans ui-hover-fill"
+      disabled={disabled}
+      onClick={onClick}
+      style={{ display: "flex", alignItems: "center", gap: 10, height: 32, padding: "0 10px", borderRadius: 9, fontSize: 13.5 }}
+    >
+      <span
+        style={{
+          width: 16,
+          height: 16,
+          borderRadius: kind === "radio" ? "50%" : 5,
+          border: `1.5px solid ${checked ? "var(--sage-deep)" : "var(--sage-line)"}`,
+          background: checked ? "var(--sage-deep)" : "transparent",
+          color: "var(--bone)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          flex: "none",
+        }}
+      >
+        {checked ? <Icon name="check" size={11} /> : null}
+      </span>
+      <Truncate text={text} style={{ flex: 1, minWidth: 0 }} />
+    </button>
   );
 }
 
 type PickerProps = {
-  label: string;
+  name: string;
+  /** The choice now, in words. */
   value: string;
   open: boolean;
   onToggle: () => void;
   children: ReactNode;
 };
 
-type LabelledProps = {
-  label: string;
-  children: ReactNode;
-};
-
-/** A tall slider with its name beneath it. */
-function Labelled({ label, children }: LabelledProps) {
+/** A row that reads the choice now and opens the choices under it. */
+function Picker({ name, value, open, onToggle, children }: PickerProps) {
   return (
-    <div className="flex flex-col items-center gap-2.5">
-      {children}
-      <span className="text-[13px] text-ink-muted">{label}</span>
-    </div>
-  );
-}
-
-type FactProps = {
-  label: string;
-  children: ReactNode;
-};
-
-/** One line of what the device is: a quiet label column, then the value. */
-function Fact({ label, children }: FactProps) {
-  return (
-    <div className="flex gap-3">
-      <dt className="w-[92px] shrink-0 text-ink-ghost">{label}</dt>
-      <dd className="m-0 min-w-0 truncate text-ink">{children}</dd>
-    </div>
-  );
-}
-
-/** A row that reads "Room · Ankur's room ›" and opens its choices beneath it. */
-function Picker({ label, value, open, onToggle, children }: PickerProps) {
-  return (
-    <div>
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={onToggle}
-        className="flex h-[30px] w-full items-center gap-3 text-[13px] text-ink hover:text-sage-deep"
-      >
-        <span className="w-[92px] shrink-0 text-left text-ink-ghost">{label}</span>
-        <span className="flex min-w-0 items-center gap-1">
-          <span className="truncate">{value}</span>
-          <span className="size-3.5 shrink-0">
-            <IconChevron open={open} />
+    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
+      <span className="ui-label">{name}</span>
+      <div className={open ? "open" : undefined} style={{ display: "flex", flexDirection: "column" }}>
+        <button
+          type="button"
+          className="ui-trans ui-hover-fill"
+          aria-expanded={open}
+          aria-label={`${name}, ${value}`}
+          onClick={onToggle}
+          style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px", borderRadius: 10, border: "1px solid var(--glass-border)", fontSize: 14, fontWeight: 500 }}
+        >
+          <Truncate text={value} style={{ flex: 1, minWidth: 0 }} />
+          <span style={{ display: "flex", color: "var(--ink-muted)", transform: open ? "rotate(180deg)" : undefined, transition: "transform 320ms cubic-bezier(.22,.61,.36,1)" }}>
+            <Icon name="chevDown" size={14} />
           </span>
-        </span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div {...REVEAL} className="overflow-hidden">
-            <div className="flex flex-col gap-1 pb-3">{children}</div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
+        </button>
+        <Reveal>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "6px 0 2px" }}>{children}</div>
+        </Reveal>
+      </div>
     </div>
+  );
+}
+
+/**
+ * The inspector for one device: its name (click to rename), where it is and whether it answers, a power card, the controls its
+ * capabilities offer (brightness, colour temperature, hue and saturation, presets, a cover's position and buttons, a thermostat's
+ * setpoint), its room and group pickers, what it can do, and Identify. Every control sends one command on release.
+ */
+export function Inspector({ device, rooms, groups, width, pick, onPick, renaming, onRenaming, disabled, onClose, onSend, onRename, onMove, onTags, onIdentify }: InspectorProps) {
+  const { state } = device;
+  const dis = disabled || !device.online;
+  const on = state.on?.value === true;
+  const tagged = device.tags.map((tag) => tag.name);
+  const modes = colorModes(device);
+  const presets = presetsFor(device);
+  const active = activePreset(device);
+  const [level, setLevel] = useDraft(num(device, "brightness") ?? 0);
+  const [warmth, setWarmth] = useDraft(warmthPercent(num(device, "color_temp") ?? 0));
+  const [hue, setHue] = useDraft(((num(device, "hue") ?? 0) / 254) * 100);
+  const [saturation, setSaturation] = useDraft(((num(device, "saturation") ?? 0) / 254) * 100);
+  const [lift, setLift] = useDraft(num(device, "lift_percent_open") ?? 0);
+  const changedAt = state.on?.changed_at;
+  const kelvin = kelvinLabel(warmthMireds(warmth / 100));
+  const hueDegrees = Math.round((hue / 100) * 360);
+  const saturationPercent = Math.round(saturation);
+  const heat = num(device, "heat_setpoint");
+  const rename = (name: string) => {
+    onRenaming(false);
+    if (name.trim().length > 0 && name.trim() !== device.name) {
+      onRename(name.trim());
+    }
+  };
+  return (
+    <Card style={{ width, flex: "none", background: "var(--glass-sheet)", minHeight: 0, animation: "slide-in 550ms var(--ease) both" }}>
+      <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "18px 18px 12px" }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 4 }}>
+          {renaming ? (
+            <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", margin: "0 -10px", borderRadius: 9, border: "1px solid var(--sage-line)", background: "var(--bone)" }}>
+              <input
+                className="cinp"
+                aria-label="Device name"
+                defaultValue={device.name}
+                autoComplete="off"
+                spellCheck={false}
+                autoFocus
+                style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em", color: "var(--ink)" }}
+                onBlur={(event) => rename(event.currentTarget.value)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter") {
+                    event.currentTarget.blur();
+                  } else if (event.key === "Escape") {
+                    onRenaming(false);
+                  }
+                }}
+              />
+            </div>
+          ) : (
+            <button type="button" title="Rename" disabled={disabled} onClick={() => onRenaming(true)} style={{ display: "block", minWidth: 0, textAlign: "left" }}>
+              <Truncate text={device.name} style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }} />
+            </button>
+          )}
+          <Truncate text={[roomTitle(device.room.name), device.product_name].filter(Boolean).join(" · ")} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: device.online ? "var(--sage-text)" : "var(--error)", marginTop: 2 }}>
+            <span style={{ width: 7, height: 7, borderRadius: "50%", background: device.online ? "var(--sage)" : "var(--error)", flex: "none" }} />
+            {device.online ? (device.bridge_name ? `Online · via ${device.bridge_name}` : "Online") : "Offline"}
+            {device.last_seen_at ? <span style={{ color: "var(--ink-muted)" }}>{`· seen ${formatRelative(device.last_seen_at)}`}</span> : null}
+          </div>
+        </div>
+        <IconButton icon="close" label="Close" onClick={onClose} />
+      </div>
+      <div className="scroll" style={{ flex: 1, minHeight: 0, padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 16 }}>
+        {isSwitchable(device) ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--sage-fill)", flex: "none" }}>
+            <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+              <span style={{ fontSize: 14.5, fontWeight: 600 }}>Power</span>
+              <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${on ? "On" : "Off"} since ${changedAt ? formatClock(changedAt) : "—"}`}</span>
+            </div>
+            <Switch on={on} label={`${device.name} power`} disabled={dis} onChange={(next) => onSend(switchCommand(next))} />
+          </div>
+        ) : null}
+        {state.brightness && has(device, "level") ? (
+          <Control name="Brightness" reading={`${Math.round(level)}%`}>
+            <Slider value={level} color={lightColor(device)} thickness={8} name="Brightness" text={`${Math.round(level)}%`} disabled={dis} onDrag={setLevel} onCommit={(f) => onSend(levelCommand(Math.max(1, Math.round(f * 100))))} />
+          </Control>
+        ) : null}
+        {state.color_temp && modes.includes("color_temp") ? (
+          <Control name="Colour temperature" reading={kelvin}>
+            <Slider value={warmth} color="#f0a868" thickness={8} name="Colour temperature" text={kelvin} disabled={dis} onDrag={setWarmth} onCommit={(f) => onSend(temperatureCommand(warmthMireds(f)))} />
+          </Control>
+        ) : null}
+        {state.hue && modes.includes("hue_sat") ? (
+          <>
+            <Control name="Hue" reading={`${hueDegrees}°`}>
+              <Slider value={hue} color={lightColor(device)} thickness={8} name="Hue" text={`${hueDegrees}°`} disabled={dis} onDrag={setHue} onCommit={(f) => onSend(hueCommand(Math.round(f * 254), num(device, "saturation") ?? 254))} />
+            </Control>
+            <Control name="Saturation" reading={`${saturationPercent}%`}>
+              <Slider value={saturation} color={lightColor(device)} thickness={8} name="Saturation" text={`${saturationPercent}%`} disabled={dis} onDrag={setSaturation} onCommit={(f) => onSend(hueCommand(num(device, "hue") ?? 0, Math.round(f * 254)))} />
+            </Control>
+          </>
+        ) : null}
+        {presets.length > 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none" }}>
+            <span className="ui-label">Presets</span>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 0 }}>
+              {presets.map((preset) => (
+                <button
+                  key={preset.name}
+                  type="button"
+                  aria-pressed={active === preset.name}
+                  disabled={dis}
+                  className="ui-trans ui-hover-fill"
+                  onClick={() => onSend(presetCommand(preset))}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64, padding: "6px 0", borderRadius: 10, fontSize: 11.5, color: "var(--ink-muted)", minWidth: 0, ...(dis ? { opacity: 0.45 } : {}) }}
+                >
+                  <span
+                    style={{ width: 28, height: 28, borderRadius: "50%", background: preset.swatch, border: `2px solid ${active === preset.name ? "var(--sage-deep)" : "var(--glass-border)"}`, boxShadow: active === preset.name ? "0 0 0 3px rgba(92,107,82,.15)" : "none" }}
+                  />
+                  <Truncate text={preset.name} style={{ maxWidth: "100%" }} />
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
+        {device.kind === "cover" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "none" }}>
+            <Control name="Position" reading={`${Math.round(lift)}% open`}>
+              <Slider value={lift} color="var(--sage)" thickness={8} name="Position" text={`${Math.round(lift)}% open`} disabled={dis} onDrag={setLift} onCommit={(f) => onSend(liftCommand(Math.round(f * 100)))} />
+            </Control>
+            <ButtonGroup>
+              {(["open", "stop", "close"] as const).map((name) => (
+                <Button key={name} tone="outline" size="lg" equal disabled={dis} onClick={() => onSend(coverCommand(name))}>
+                  {name === "open" ? "Open" : name === "stop" ? "Stop" : "Close"}
+                </Button>
+              ))}
+            </ButtonGroup>
+          </div>
+        ) : null}
+        {device.kind === "thermostat" ? (
+          <div style={{ display: "flex", flexDirection: "column", gap: 10, flex: "none" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="ui-label">Temperature</span>
+              <span style={{ marginLeft: "auto", fontSize: 22, fontWeight: 500 }}>{`${num(device, "local_temperature")}°`}</span>
+            </div>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span className="ui-label">Heat to</span>
+              <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{`${heat}°`}</span>
+              <ButtonGroup>
+                <Button tone="outline" size="sm" aria-label="Lower heat setpoint" disabled={dis || heat === null} style={{ minWidth: 32, padding: 0 }} onClick={() => heat !== null && onSend(setpointCommand(heat - SETPOINT_STEP))}>
+                  −
+                </Button>
+                <Button tone="outline" size="sm" aria-label="Raise heat setpoint" disabled={dis || heat === null} style={{ minWidth: 32, padding: 0 }} onClick={() => heat !== null && onSend(setpointCommand(heat + SETPOINT_STEP))}>
+                  +
+                </Button>
+              </ButtonGroup>
+            </div>
+          </div>
+        ) : null}
+        {device.kind === "occupancy" ? (
+          <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--sage-fill)", flex: "none" }}>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600 }}>{state.occupied?.value === true ? "Occupied" : "Not occupied"}</span>
+            <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`since ${state.occupied ? formatClock(state.occupied.changed_at) : "—"}`}</span>
+          </div>
+        ) : null}
+        <Picker name="Room" value={roomTitle(device.room.name)} open={pick === "room"} onToggle={() => onPick(pick === "room" ? null : "room")}>
+          {[...rooms]
+            .sort((a, b) => Number(a.name === UNASSIGNED_ROOM) - Number(b.name === UNASSIGNED_ROOM))
+            .map((room) => (
+              <Choice key={room.id} text={roomTitle(room.name)} kind="radio" checked={room.id === device.room.id} disabled={disabled} onClick={() => onMove(room)} />
+            ))}
+        </Picker>
+        <Picker name="Groups" value={tagged.length > 0 ? tagged.join(", ") : "None"} open={pick === "groups"} onToggle={() => onPick(pick === "groups" ? null : "groups")}>
+          {groups.map((name) => (
+            <Choice key={name} text={name} kind="checkbox" checked={tagged.includes(name)} disabled={disabled} onClick={() => onTags(tagged.includes(name) ? tagged.filter((tag) => tag !== name) : [...tagged, name])} />
+          ))}
+          <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", marginTop: 2, borderRadius: 9, border: "1px dashed var(--sage-line)" }}>
+            <input
+              className="cinp"
+              placeholder="New group"
+              aria-label="New group"
+              autoComplete="off"
+              spellCheck={false}
+              disabled={disabled}
+              style={{ fontSize: 13.5, color: "var(--ink)" }}
+              onKeyDown={(event) => {
+                const name = event.currentTarget.value.trim();
+                if (event.key === "Enter" && name.length > 0) {
+                  event.currentTarget.value = "";
+                  if (!tagged.includes(name)) {
+                    onTags([...tagged, name]);
+                  }
+                }
+              }}
+            />
+          </div>
+        </Picker>
+        <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
+          <span className="ui-label">Capabilities</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {device.capabilities.map((cap) => (
+              <span key={cap.capability} className="ui-mono" style={{ padding: "3px 9px", borderRadius: 8, background: "var(--sage-fill)", fontSize: 12, color: "var(--sage-text)" }}>
+                {cap.capability}
+              </span>
+            ))}
+          </div>
+        </div>
+        <ButtonGroup>
+          <Button tone="outline" size="md" icon="bolt" disabled={dis} onClick={onIdentify}>
+            Identify
+          </Button>
+        </ButtonGroup>
+      </div>
+    </Card>
   );
 }

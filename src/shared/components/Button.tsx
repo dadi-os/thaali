@@ -44,13 +44,15 @@ export function Button({ tone = "outline", size = "md", pill = false, icon, equa
 export type ButtonGroupProps = {
   /** Where the buttons sit along the row. */
   justify?: "flex-start" | "center" | "flex-end" | "space-between";
+  /** Let the buttons drop to a second line when the row is too narrow for them. */
+  wrap?: boolean;
   children: ReactNode;
 };
 
 /** Buttons side by side on one 8 px gap. Give each `equal` to share the width. */
-export function ButtonGroup({ justify = "flex-start", children }: ButtonGroupProps) {
+export function ButtonGroup({ justify = "flex-start", wrap = false, children }: ButtonGroupProps) {
   return (
-    <div className="btn-group" style={{ justifyContent: justify }}>
+    <div className="btn-group" style={{ justifyContent: justify, ...(wrap ? { flexWrap: "wrap" } : {}) }}>
       {children}
     </div>
   );

@@ -12,7 +12,9 @@
  * the element to compare on each side (`{ design: ".app", app: "#root > div" }`).
  *
  * A case may carry `force` (pointer and focus states to put on elements), `toggle` (classes to add, or remove with a third element "remove", starting a
- * transition) and `times` (ms at which to compare frames); see gen/gate.mjs in the design generator.
+ * transition), `times` (ms at which to compare frames) and `steps`: what a person does on the app's page before it is shot (`{ click: selector }`,
+ * `{ type: [selector, text] }`), each followed by `wait` ms (default 450) so what it opens has settled; the design's page is already in that state.
+ * See gen/gate.mjs in the design generator.
  *
  * `DESIGN_REF_DIR` is required: the generator's `site/` directory, holding `gate/manifest.json`, `gate/<case>.html`
  * and `fonts/`. `--cases` takes case ids or id prefixes; `--shards` (default 4) is how many snapshot tools run at once. The output directory gets `report.json` and `report.md`,
@@ -67,6 +69,17 @@ function sideJob(side, c, url) {
   addEval(`window.__ds.prepare(${JSON.stringify({ width: c.width, height: c.height, root: c.root?.[side] ?? null, page: c.page === true })})`);
   steps.push({ wait: 150 });
   addEval("window.__ds.finish()");
+  if (side === "app") {
+    for (const step of c.steps ?? []) {
+      if (step.click !== undefined) {
+        evalIndex.push(steps.length);
+        steps.push({ click: step.click });
+      } else {
+        addEval(`window.__ds.type(${JSON.stringify(step.type)})`);
+      }
+      steps.push({ wait: step.wait ?? 450 });
+    }
+  }
   const force = c.force.length > 0 ? addEval(`window.__ds.force(${JSON.stringify(c.force)})`) : null;
   if (c.toggle.length > 0) {
     addEval(`window.__ds.addClass(${JSON.stringify(c.toggle)})`);

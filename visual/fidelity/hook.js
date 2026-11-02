@@ -4,6 +4,7 @@
  * page case can start with the rail dragged wide), and defines `window.__ds`, the gate's browser-side half:
  *   prepare(opts)  mark or place the case root (a primitive is placed on a plain ground; a `page` is left as it is), clone :hover/:active/:focus rules onto classes
  *   force(pairs)   put a state on matching elements (and their ancestors, as a real pointer would)
+ *   type([selector, text]) put `text` in the matching text field the way typing does, so the page's own handlers see it
  *   addClass(pairs) add a real class, or remove it with a third element "remove", starting the transition it triggers
  *   finish()       jump every running transition and finite animation to its end, infinite ones to the start
  *   seek(ms)       jump every animation and transition to `ms` after its start
@@ -169,6 +170,18 @@
         }
       }
       return pairs.length;
+    },
+
+    /** Puts text in a field through the value setter the browser itself uses, then fires `input`, so a controlled field and its handlers see it as typing. */
+    type([selector, text]) {
+      const el = document.querySelector(selector);
+      if (!el) {
+        return "missing";
+      }
+      const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), "value").set;
+      setter.call(el, text);
+      el.dispatchEvent(new Event("input", { bubbles: true }));
+      return "typed";
     },
 
     /** Adds a real class to matching elements, starting whatever transition that class triggers: the gate's stand-in for a click that opens something. */

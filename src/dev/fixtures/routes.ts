@@ -1,5 +1,6 @@
 import type { NasTask } from "../../shared/api/nas";
-import type { GharCommand, GharDevice } from "../../types/ghar";
+import { applyCommand } from "../../features/ghar/model";
+import type { GharCommand, GharCommissionJob, GharDevice, GharRoom } from "../../types/ghar";
 import type { PostMessageResponse, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
 import type { TimelineRequest } from "../../types/timeline";
@@ -35,10 +36,12 @@ export type FixtureRequest = {
  */
 export class Fixtures {
   private readonly devices: GharDevice[];
+  private readonly rooms: GharRoom[];
   private readonly tasks: NasTask[];
 
   constructor(private readonly scenario: Scenario) {
     this.devices = ghar.devices(scenario);
+    this.rooms = ghar.rooms(scenario);
     this.tasks = nasTasks(scenario);
   }
 
@@ -150,31 +153,70 @@ export class Fixtures {
 
   private ghar(route: string, body: unknown): unknown {
     if (route === "GET /health") return { status: "ok" };
-    if (route === "GET /devices") return { devices: this.devices };
-    if (route === "GET /rooms") return { rooms: ghar.rooms(this.scenario) };
+    if (route === "GET /devices") return { devices: structuredClone(this.devices) };
+    if (route === "GET /rooms") return { rooms: structuredClone(this.rooms) };
     if (route === "GET /events") return { events: [] };
+    if (route === "POST /rooms") {
+      const room = { id: `r0000000-0000-4000-8000-${(this.rooms.length + 1).toString().padStart(12, "0")}`, name: (body as { name: string }).name };
+      this.rooms.push(room);
+      return room;
+    }
+    const room = /^(PATCH|DELETE) \/rooms\/([^/]+)$/.exec(route);
+    if (room) {
+      const index = this.rooms.findIndex((r) => r.id === room[2]);
+      if (index < 0) throw new Error(`fixtures: no ghar room ${room[2]}`);
+      if (room[1] === "DELETE") {
+        this.rooms.splice(index, 1);
+        return undefined;
+      }
+      this.rooms[index] = { ...this.rooms[index]!, name: (body as { name: string }).name };
+      for (const device of this.devices.filter((d) => d.room.id === room[2])) device.room = this.rooms[index]!;
+      return this.rooms[index];
+    }
+    const patch = /^PATCH \/devices\/([^/]+)$/.exec(route);
+    if (patch) return this.patchDevice(patch[1]!, body as { name?: string; room?: string; tags?: string[] });
     const command = /^POST \/devices\/([^/]+)\/command$/.exec(route);
     if (command) {
-      this.applyCommand(command[1]!, body as GharCommand);
+      const index = this.devices.findIndex((d) => d.id === command[1]);
+      if (index < 0) throw new Error(`fixtures: no ghar device ${command[1]}`);
+      this.devices[index] = applyCommand(this.devices[index]!, body as GharCommand);
       return undefined;
     }
+    if (/^POST \/devices\/[^/]+\/identify$/.test(route)) return undefined;
+    if (route === "POST /commission") return { job_id: this.commissionJob((body as { code: string }).code) };
+    const job = /^GET \/commission\/([^/]+)$/.exec(route);
+    if (job) return this.commission(job[1]!);
     throw new Error(`fixtures: no route for ghar ${route}`);
   }
 
-  private applyCommand(id: string, command: GharCommand): void {
+  private patchDevice(id: string, body: { name?: string; room?: string; tags?: string[] }): GharDevice {
     const device = this.devices.find((d) => d.id === id);
     if (!device) {
       throw new Error(`fixtures: no ghar device ${id}`);
     }
-    const now = ago(0);
-    if (command.capability === "on_off" && command.command !== "toggle") {
-      device.state.on = { value: command.command === "on", changed_at: now };
-    }
-    if (command.capability === "on_off" && command.command === "toggle") {
-      device.state.on = { value: device.state.on?.value !== true, changed_at: now };
-    }
-    if (command.capability === "level" && typeof command.params?.level === "number") {
-      device.state.brightness = { value: command.params.level, changed_at: now };
+    if (body.name !== undefined) device.name = body.name;
+    if (body.room !== undefined) device.room = this.rooms.find((r) => r.id === body.room) ?? device.room;
+    if (body.tags !== undefined) device.tags = body.tags.map((name) => ({ id: `t-${name}`, name }));
+    return device;
+  }
+
+  /** The commission job a setup code starts: its first four digits choose how far it gets (0000 listening, 1111 pairing, 2222 paired, else failed). */
+  private commissionJob(code: string): string {
+    const stage = { "0000": "discovering", "1111": "commissioning", "2222": "succeeded" }[code.slice(0, 4)] ?? "failed";
+    return `job-${stage}`;
+  }
+
+  private commission(jobId: string): GharCommissionJob {
+    const base = { id: jobId, node_id: null, started_at: ago(0), finished_at: null };
+    switch (jobId) {
+      case "job-discovering":
+        return { ...base, device_ids: null, status: "discovering", error: null };
+      case "job-commissioning":
+        return { ...base, device_ids: null, status: "commissioning", error: null };
+      case "job-succeeded":
+        return { ...base, device_ids: [this.devices[2]!.id], status: "succeeded", error: null, finished_at: ago(0) };
+      default:
+        return { ...base, device_ids: null, status: "failed", error: "Ghar found no device with that code.", finished_at: ago(0) };
     }
   }
 

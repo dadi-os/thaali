@@ -1,7 +1,6 @@
 /**
- * How the Ghar page and the home widget read the house: rooms and groups as sections, a
- * light's real color and brightness as a tile's look, a section's summary, the commands the
- * quick actions send, and the state Ghar holds once it accepts a command.
+ * How the Ghar page and the Home tile read the house: rooms and groups as sections, what a device says
+ * about itself, the commands the controls send, and the state Ghar holds once it accepts a command.
  */
 
 import type { GharCapabilityName, GharCommand, GharDevice, GharRoom } from "../../types/ghar";
@@ -9,21 +8,18 @@ import type { GharCapabilityName, GharCommand, GharDevice, GharRoom } from "../.
 /** Ghar's seeded room for devices not placed in a room yet. */
 export const UNASSIGNED_ROOM = "unassigned";
 
-/** 0–255 red, green and blue. */
-export type Rgb = readonly [number, number, number];
-
-/** What a lit light that reports no color glows: warm white. */
-export const WARM_WHITE: Rgb = [255, 206, 150];
-
-/** What anything lit that is not a light glows. */
-export const DEVICE_GLOW = "var(--sage)";
-
-/** The warm and cool ends of the Warmth slider, in kelvin. */
-export const WARMEST_K = 2000;
-export const COOLEST_K = 6500;
+/** The warm colour a light glows when it reports no colour of its own. */
+const WARM = "#f0a868";
 
 /** Evening: every light on at this brightness and this warm white (2700 K). */
 export const EVENING = { level: 40, mireds: 370 } as const;
+
+/** The coolest and warmest whites a light's colour temperature slider spans, in mireds. */
+const COOL_MIREDS = 150;
+const WARM_MIREDS = 500;
+
+/** Heat setpoint steps the thermostat's stepper takes, in degrees. */
+export const SETPOINT_STEP = 0.5;
 
 /** One command for one device. */
 export type DeviceCommand = { id: string; command: GharCommand };
@@ -33,6 +29,8 @@ export type Filter = { kind: "everywhere" } | { kind: "room"; id: string } | { k
 
 /** A run of tiles under one header: a room, or a group (a Ghar tag) across rooms. */
 export type Section = {
+  /** `room` and `unassigned` are rooms (the second holds the devices nobody has placed); `group` crosses rooms. */
+  kind: "room" | "unassigned" | "group";
   key: string;
   title: string;
   /** The room, for a room section; null for a group. */
@@ -40,52 +38,40 @@ export type Section = {
   devices: GharDevice[];
 };
 
-/** What a section's header and the widget say about a set of devices. */
-export type Summary = {
-  lights: number;
-  on: number;
-  /** Mean brightness 0–100 of the lit lights, or null when none is lit. */
-  brightness: number | null;
-  /** The lit lights' colors mixed, or null when none is lit. */
-  color: Rgb | null;
-  /** The lit lights' color names, each once, in tile order. */
-  names: string[];
-};
+/** A one-tap colour for a light: its white (mireds) or its hue and saturation (each 0 to 254). */
+export type Preset =
+  | { name: string; swatch: string; mode: "color_temp"; mireds: number }
+  | { name: string; swatch: string; mode: "hue_sat"; hue: number; saturation: number };
 
-/** A lit tile's colors; an off tile is drawn quiet by the stylesheet instead. */
-export type TileLook = {
-  fill: string;
-  border: string;
-  disc: string;
-  discInk: string;
-  statusInk: string;
-};
-
-/** A one-tap color for a light. */
-export type Preset = { name: string; swatch: string; command: GharCommand };
-
-/** Human label for a room. The seeded room is the unplaced pile. */
+/** Human label for a room. The seeded room is the pile of devices nobody has placed. */
 export function roomTitle(name: string): string {
-  return name === UNASSIGNED_ROOM ? "Unplaced" : name;
+  return name === UNASSIGNED_ROOM ? "Unassigned" : name;
 }
 
+/** Whether the device has a capability. */
 export function has(device: GharDevice, name: GharCapabilityName): boolean {
   return device.capabilities.some((cap) => cap.capability === name);
 }
 
-function num(device: GharDevice, key: string): number | null {
-  const value = device.state[key]?.value;
-  return typeof value === "number" ? value : null;
-}
-
-/** The color modes a light's color capability supports. */
+/** The colour modes a light's colour capability offers: `color_temp`, `hue_sat`. */
 export function colorModes(device: GharDevice): string[] {
   const modes = device.capabilities.find((cap) => cap.capability === "color")?.config.modes;
   return Array.isArray(modes) ? modes.filter((mode): mode is string => typeof mode === "string") : [];
 }
 
+/** A number the device reports under `key`, or null. */
+export function num(device: GharDevice, key: string): number | null {
+  const value = device.state[key]?.value;
+  return typeof value === "number" ? value : null;
+}
+
 export function isLight(device: GharDevice): boolean {
   return device.kind === "light";
+}
+
+/** True when the device reports whether it is on, so it has a switch. */
+export function isSwitchable(device: GharDevice): boolean {
+  return typeof device.state.on?.value === "boolean";
 }
 
 /** True when the device is reachable and Ghar last heard it on. */
@@ -98,192 +84,111 @@ export function isReachableLight(device: GharDevice): boolean {
   return device.online && isLight(device) && has(device, "on_off");
 }
 
-/** Brightness 0–100 for a dimmable device that has reported one, else null. */
-export function brightness(device: GharDevice): number | null {
-  return has(device, "level") ? num(device, "brightness") : null;
+/** The colour of a light's dot and slider: grey when off, its hue when it shows one, warm white otherwise. */
+export function lightColor(device: GharDevice): string {
+  if (device.state.on?.value !== true) {
+    return "var(--ink-ghost)";
+  }
+  if (device.state.color_mode?.value === "hue_sat") {
+    return `hsl(${Math.round((Number(device.state.hue?.value ?? 0) / 254) * 360)} ${Math.round((Number(device.state.saturation?.value ?? 0) / 254) * 100)}% 58%)`;
+  }
+  return WARM;
 }
 
-/**
- * kelvinRgb approximates the color of a white at `kelvin` (Tanner Helland's fit of the
- * blackbody curve, good from 1000 K to 40000 K).
- */
-export function kelvinRgb(kelvin: number): Rgb {
-  const t = Math.min(40_000, Math.max(1_000, kelvin)) / 100;
-  const clamp = (v: number) => Math.round(Math.min(255, Math.max(0, v)));
-  const red = t <= 66 ? 255 : 329.698727446 * (t - 60) ** -0.1332047592;
-  const green = t <= 66 ? 99.4708025861 * Math.log(t) - 161.1195681661 : 288.1221695283 * (t - 60) ** -0.0755148492;
-  const blue = t >= 66 ? 255 : t <= 19 ? 0 : 138.5177312231 * Math.log(t - 10) - 305.0447927307;
-  return [clamp(red), clamp(green), clamp(blue)];
-}
-
-/** The light of hue `degrees` at saturation 0–1 and full value: white at 0, the pure hue at 1. */
-export function hueRgb(degrees: number, saturation: number): Rgb {
-  const channel = (n: number) => {
-    const k = (n + degrees / 60) % 6;
-    return Math.round(255 * (1 - saturation * Math.max(0, Math.min(k, 4 - k, 1))));
-  };
-  return [channel(5), channel(3), channel(1)];
-}
-
-/** Whether a light is showing a white (color temperature) rather than a hue. */
-function showsWhite(device: GharDevice): boolean {
-  const mode = device.state.color_mode?.value;
-  if (mode === "color_temp" || mode === "hue_sat") {
-    return mode === "color_temp";
-  }
-  const hue = device.state.hue;
-  const temp = device.state.color_temp;
-  return !hue || (temp !== undefined && Date.parse(temp.changed_at) >= Date.parse(hue.changed_at));
-}
-
-/** A light's mireds when it shows a white, else null. */
-function whiteMireds(device: GharDevice): number | null {
-  const mireds = num(device, "color_temp");
-  return mireds !== null && mireds > 0 && showsWhite(device) ? mireds : null;
-}
-
-/** A light's hue in degrees and saturation 0–1 when it shows a hue, else null. */
-function hueReading(device: GharDevice): { degrees: number; saturation: number } | null {
-  const hue = num(device, "hue");
-  if (hue === null || whiteMireds(device) !== null) {
-    return null;
-  }
-  const saturation = num(device, "saturation");
-  return { degrees: (hue / 254) * 360, saturation: saturation === null ? 1 : saturation / 254 };
-}
-
-/** The color a light gives off: its white or hue, or warm white when it reports no color. */
-export function lightRgb(device: GharDevice): Rgb {
-  const mireds = whiteMireds(device);
-  if (mireds !== null) {
-    return kelvinRgb(1_000_000 / mireds);
-  }
-  const hue = hueReading(device);
-  return hue ? hueRgb(hue.degrees, hue.saturation) : WARM_WHITE;
-}
-
-export function rgbCss([r, g, b]: Rgb): string {
-  return `rgb(${r} ${g} ${b})`;
-}
-
-/** The CSS color a device glows when on: a light's own light, else sage. */
-export function glow(device: GharDevice): string {
-  return isLight(device) ? rgbCss(lightRgb(device)) : DEVICE_GLOW;
-}
-
-/** A white's everyday name. */
-export function kelvinName(kelvin: number): string {
-  if (kelvin < 2400) {
-    return "Candle";
-  }
-  if (kelvin < 3300) {
-    return "Warm white";
-  }
-  if (kelvin < 4500) {
-    return "Soft white";
-  }
-  if (kelvin < 5600) {
-    return "Neutral white";
-  }
-  return "Daylight";
-}
-
-/** A hue's everyday name; a pale one reads as white, a soft orange as peach. */
-export function hueName(degrees: number, saturation: number): string {
-  if (saturation < 0.15) {
-    return "White";
-  }
-  const h = ((degrees % 360) + 360) % 360;
-  if (h < 12 || h >= 345) {
-    return "Red";
-  }
-  if (h < 42) {
-    return saturation < 0.65 ? "Peach" : "Orange";
-  }
-  if (h < 68) {
-    return "Yellow";
-  }
-  if (h < 160) {
-    return saturation < 0.45 ? "Sage" : "Green";
-  }
-  if (h < 200) {
-    return "Cyan";
-  }
-  if (h < 255) {
-    return "Blue";
-  }
-  if (h < 295) {
-    return "Purple";
-  }
-  return "Pink";
-}
-
-/** A light's color by name, or null for a light that reports no color. */
-export function colorName(device: GharDevice): string | null {
-  const mireds = whiteMireds(device);
-  if (mireds !== null) {
-    return kelvinName(1_000_000 / mireds);
-  }
-  const hue = hueReading(device);
-  return hue ? hueName(hue.degrees, hue.saturation) : null;
-}
-
-/** A device's kind as words, for devices with nothing to switch. */
-function kindWords(device: GharDevice): string {
-  const spaced = device.kind.replace(/_/g, " ");
-  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
-}
-
-/** "80% · Warm white", "On", "Off", "Offline", or the device's kind when it has no switch. */
-export function tileStatus(device: GharDevice): string {
+/** What a device is doing now, in a few words: "On · 62%", "Off", "60% open", "Offline". */
+export function stateLine(device: GharDevice): string {
+  const { state } = device;
   if (!device.online) {
     return "Offline";
   }
-  const on = device.state.on?.value;
-  if (typeof on !== "boolean") {
-    return kindWords(device);
+  if (isSwitchable(device)) {
+    if (state.on?.value !== true) {
+      return "Off";
+    }
+    return isLight(device) || state.brightness ? `On · ${num(device, "brightness") ?? 100}%` : "On";
   }
-  if (!on) {
-    return "Off";
+  if (device.kind === "cover") {
+    return `${num(device, "lift_percent_open") ?? 0}% open`;
   }
-  const level = brightness(device);
-  const name = isLight(device) ? colorName(device) : null;
-  const parts = [level === null ? null : `${Math.round(level)}%`, name].filter((part): part is string => part !== null);
-  return parts.length > 0 ? parts.join(" · ") : "On";
+  if (device.kind === "thermostat") {
+    return `${num(device, "local_temperature")}° · heat to ${num(device, "heat_setpoint")}°`;
+  }
+  if (device.kind === "occupancy") {
+    return state.occupied?.value === true ? "Occupied" : "Not occupied";
+  }
+  return "Online";
 }
 
-/**
- * A lit tile's colors from its light: the fill and border strengthen with brightness (about
- * 32% and 90% at 80%), the icon disc is the full color, and the inks are the color pulled
- * toward dark (the disc) or the page's ink (the status line). Null when the device is off.
- */
-export function tileLook(device: GharDevice): TileLook | null {
-  if (!isOn(device)) {
-    return null;
-  }
-  const color = glow(device);
-  const level = (brightness(device) ?? 100) / 100;
-  const fill = Math.round(14 + 22 * level);
-  const border = Math.round(50 + 50 * level);
-  return {
-    fill: `color-mix(in srgb, ${color} ${fill}%, transparent)`,
-    border: `color-mix(in srgb, ${color} ${border}%, transparent)`,
-    disc: color,
-    discInk: `color-mix(in srgb, ${color} 35%, black)`,
-    statusInk: `color-mix(in srgb, ${color} 40%, var(--ink))`,
-  };
+/** "2800 K" for a white at `mireds`. */
+export function kelvinLabel(mireds: number): string {
+  return `${Math.round(1_000_000 / mireds)} K`;
+}
+
+/** Where a white sits on the colour temperature slider, 0 to 100: the warm end at 500 mireds, the cool end at 150. */
+export function warmthPercent(mireds: number): number {
+  return Math.max(0, Math.min(100, ((WARM_MIREDS - mireds) / (WARM_MIREDS - COOL_MIREDS)) * 100));
+}
+
+/** The mireds at a point 0 to 1 along the colour temperature slider. */
+export function warmthMireds(fraction: number): number {
+  return Math.round(WARM_MIREDS - fraction * (WARM_MIREDS - COOL_MIREDS));
+}
+
+/** A light's mireds when it shows a white, else null. */
+export function whiteMireds(device: GharDevice): number | null {
+  const mireds = num(device, "color_temp");
+  return mireds !== null && mireds > 0 && device.state.color_mode?.value !== "hue_sat" ? mireds : null;
+}
+
+/** The one-tap colours under the sliders. */
+export const PRESETS: readonly Preset[] = [
+  { name: "Candle", swatch: "#ffb46b", mode: "color_temp", mireds: 454 },
+  { name: "Warm white", swatch: "#ffe2bc", mode: "color_temp", mireds: 370 },
+  { name: "Daylight", swatch: "#f4f7ff", mode: "color_temp", mireds: 154 },
+  { name: "Peach", swatch: "#ffaa82", mode: "hue_sat", hue: 13, saturation: 124 },
+  { name: "Sage", swatch: "#a9c79a", mode: "hue_sat", hue: 71, saturation: 90 },
+];
+
+/** The presets a light can show: whites need colour temperature, hues need hue and saturation. */
+export function presetsFor(device: GharDevice): Preset[] {
+  const modes = colorModes(device);
+  return PRESETS.filter((preset) => modes.includes(preset.mode));
+}
+
+/** The preset a light is showing, within a step of its slider, or null. */
+export function activePreset(device: GharDevice): string | null {
+  const mireds = whiteMireds(device);
+  const match = presetsFor(device).find((preset) =>
+    preset.mode === "color_temp"
+      ? mireds !== null && Math.abs(mireds - preset.mireds) <= 10
+      : device.state.color_mode?.value === "hue_sat" &&
+        Math.abs((num(device, "hue") ?? -99) - preset.hue) <= 4 &&
+        Math.abs((num(device, "saturation") ?? -99) - preset.saturation) <= 12,
+  );
+  return match ? match.name : null;
+}
+
+/** The command that shows a preset. */
+export function presetCommand(preset: Preset): GharCommand {
+  return preset.mode === "color_temp" ? temperatureCommand(preset.mireds) : hueCommand(preset.hue, preset.saturation);
 }
 
 const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
 
 /**
- * Every room as a section, by name with Unplaced last (and only when it holds devices), each
- * with its devices by name. A device whose room is missing from `rooms` brings its own.
+ * Every room as a section in the order Ghar lists them with Unassigned last (and only when it holds devices),
+ * each with its devices as Ghar lists them. A device whose room is missing from `rooms` brings its own.
  */
 export function roomSections(devices: GharDevice[], rooms: GharRoom[]): Section[] {
   const sections = new Map<string, Section>();
   const add = (room: GharRoom) => {
-    const section = { key: `room:${room.id}`, title: roomTitle(room.name), room, devices: [] };
+    const section: Section = {
+      kind: room.name === UNASSIGNED_ROOM ? "unassigned" : "room",
+      key: `room:${room.id}`,
+      title: roomTitle(room.name),
+      room,
+      devices: [],
+    };
     sections.set(room.id, section);
     return section;
   };
@@ -295,13 +200,7 @@ export function roomSections(devices: GharDevice[], rooms: GharRoom[]): Section[
   for (const device of devices) {
     (sections.get(device.room.id) ?? add(device.room)).devices.push(device);
   }
-  for (const section of sections.values()) {
-    section.devices.sort((a, b) => byName(a.name, b.name));
-  }
-  return [...sections.values()].sort((a, b) => {
-    const unplaced = Number(a.room?.name === UNASSIGNED_ROOM) - Number(b.room?.name === UNASSIGNED_ROOM);
-    return unplaced !== 0 ? unplaced : byName(a.title, b.title);
-  });
+  return [...sections.values()].sort((a, b) => Number(a.kind === "unassigned") - Number(b.kind === "unassigned"));
 }
 
 /** Every group (Ghar tag) any device carries, by name. */
@@ -309,14 +208,9 @@ export function groupNames(devices: GharDevice[]): string[] {
   return [...new Set(devices.flatMap((device) => device.tags.map((tag) => tag.name)))].sort(byName);
 }
 
-/** One group as a section: the devices that carry the tag, by name. */
+/** One group as a section: the devices that carry the tag, as Ghar lists them. */
 export function groupSection(devices: GharDevice[], name: string): Section {
-  return {
-    key: `group:${name}`,
-    title: name,
-    room: null,
-    devices: devices.filter((device) => device.tags.some((tag) => tag.name === name)).sort((a, b) => byName(a.name, b.name)),
-  };
+  return { kind: "group", key: `group:${name}`, title: name, room: null, devices: devices.filter((device) => device.tags.some((tag) => tag.name === name)) };
 }
 
 /** The sections a filter shows: every room, one room, or one group. */
@@ -324,49 +218,26 @@ export function sectionsFor(filter: Filter, devices: GharDevice[], rooms: GharRo
   if (filter.kind === "group") {
     return [groupSection(devices, filter.name)];
   }
-  const all = roomSections(devices, rooms);
+  const all = roomSections(devices, rooms).filter((section) => section.kind !== "unassigned" || section.devices.length > 0);
   return filter.kind === "room" ? all.filter((section) => section.room?.id === filter.id) : all;
 }
 
-/** How many lights are on, how bright and what color they are together. */
-export function summarize(devices: GharDevice[]): Summary {
+/** How many lights a set of devices holds and how many are on. */
+export function countLights(devices: GharDevice[]): { lights: number; on: number } {
   const lights = devices.filter(isLight);
-  const lit = lights.filter(isOn);
-  const levels = lit.map(brightness).filter((level): level is number => level !== null);
-  const colors = lit.map(lightRgb);
-  const mean = (values: number[]) => values.reduce((sum, value) => sum + value, 0) / values.length;
-  const mix = (channel: 0 | 1 | 2) => Math.round(mean(colors.map((color) => color[channel])));
-  return {
-    lights: lights.length,
-    on: lit.length,
-    brightness: levels.length > 0 ? Math.round(mean(levels)) : null,
-    color: colors.length > 0 ? [mix(0), mix(1), mix(2)] : null,
-    names: [...new Set(lit.map(colorName).filter((name): name is string => name !== null))],
-  };
+  return { lights: lights.length, on: lights.filter(isOn).length };
 }
 
-/** "2 of 3 lights on", "All lights off", or "No lights yet". */
-export function headline(summary: Summary): string {
-  if (summary.lights === 0) {
-    return "No lights yet";
-  }
-  return summary.on === 0 ? "All lights off" : `${summary.on} of ${summary.lights} lights on`;
+/** A section's line next to its name: "1 of 2 on", or its device count when it holds no light. */
+export function sectionMeta(devices: GharDevice[]): string {
+  const { lights, on } = countLights(devices);
+  return lights > 0 ? `${on} of ${lights} on` : `${devices.length} ${devices.length === 1 ? "device" : "devices"}`;
 }
 
-/** A section's line under its name: "2 of 3 on · Warm white, peach", "All off", or its device count. */
-export function sectionStatus(summary: Summary, devices: number): string {
-  if (summary.lights === 0) {
-    return devices === 0 ? "Nothing here yet" : `${devices} ${devices === 1 ? "device" : "devices"}`;
-  }
-  if (summary.on === 0) {
-    return "All off";
-  }
-  const count = `${summary.on} of ${summary.lights} on`;
-  if (summary.names.length === 0) {
-    return count;
-  }
-  const names = summary.names.map((name, index) => (index === 0 ? name : name.toLowerCase())).join(", ");
-  return `${count} · ${names}`;
+/** The mean brightness 0 to 100 of the lit dimmable lights in a set, or 0 when none is lit. */
+export function sectionLevel(devices: GharDevice[]): number {
+  const levels = devices.filter((device) => isLight(device) && isOn(device) && has(device, "level")).map((device) => num(device, "brightness") ?? 100);
+  return levels.length > 0 ? Math.round(levels.reduce((sum, level) => sum + level, 0) / levels.length) : 0;
 }
 
 export function switchCommand(on: boolean): GharCommand {
@@ -385,13 +256,26 @@ export function hueCommand(hue: number, saturation: number): GharCommand {
   return { capability: "color", command: "hue_saturation", params: { hue, saturation } };
 }
 
+/** Open, stop or close a cover. */
+export function coverCommand(command: "open" | "stop" | "close"): GharCommand {
+  return { capability: "cover", command };
+}
+
+/** Move a cover to `percent` open. */
+export function liftCommand(percent: number): GharCommand {
+  return { capability: "cover", command: "go_to_lift", params: { percent_open: percent } };
+}
+
+/** Set a thermostat's heat setpoint to `celsius`. */
+export function setpointCommand(celsius: number): GharCommand {
+  return { capability: "thermostat", command: "set_setpoint", params: { heat_c: celsius } };
+}
+
 /** Switch every reachable light: all off when any is on, else all on. */
 export function sectionSwitch(devices: GharDevice[]): DeviceCommand[] {
   const lights = devices.filter(isReachableLight);
   const anyOn = lights.some(isOn);
-  return lights
-    .filter((device) => isOn(device) === anyOn)
-    .map((device) => ({ id: device.id, command: switchCommand(!anyOn) }));
+  return lights.filter((device) => isOn(device) === anyOn).map((device) => ({ id: device.id, command: switchCommand(!anyOn) }));
 }
 
 /** Every reachable light that is on, off. */
@@ -400,14 +284,12 @@ export function allOff(devices: GharDevice[]): DeviceCommand[] {
 }
 
 /** Every reachable dimmable light to `level`, which turns it on. */
-export function sectionLevel(devices: GharDevice[], level: number): DeviceCommand[] {
-  return devices
-    .filter((device) => isReachableLight(device) && has(device, "level"))
-    .map((device) => ({ id: device.id, command: levelCommand(level) }));
+export function sectionLevelCommands(devices: GharDevice[], level: number): DeviceCommand[] {
+  return devices.filter((device) => isReachableLight(device) && has(device, "level")).map((device) => ({ id: device.id, command: levelCommand(level) }));
 }
 
 /**
- * Evening for one light: warm white first where it can show a white (Ghar applies color while
+ * Evening for one light: warm white first where it can show a white (Ghar applies colour while
  * a light is off), then the evening brightness, which turns it on; a light that does not dim
  * is just switched on.
  */
@@ -447,70 +329,17 @@ export function applyCommand(device: GharDevice, command: GharCommand): GharDevi
   if (command.capability === "color" && command.command === "hue_saturation") {
     return set({ hue: params.hue, saturation: params.saturation, color_mode: "hue_sat" });
   }
+  if (command.capability === "cover" && command.command === "go_to_lift") {
+    return set({ lift_percent_open: params.percent_open });
+  }
+  if (command.capability === "cover" && command.command === "open") {
+    return set({ lift_percent_open: 100 });
+  }
+  if (command.capability === "cover" && command.command === "close") {
+    return set({ lift_percent_open: 0 });
+  }
+  if (command.capability === "thermostat" && command.command === "set_setpoint" && params.heat_c !== undefined) {
+    return set({ heat_setpoint: params.heat_c });
+  }
   return device;
-}
-
-/** A fraction 0–1 of the way along a track from `start` over `length`. */
-export function trackFraction(at: number, start: number, length: number): number {
-  return Math.min(1, Math.max(0, (at - start) / length));
-}
-
-/** Brightness 1–100 from a fraction; 0 would switch a light off, so a drag bottoms out at 1. */
-export function levelAt(fraction: number): number {
-  return Math.max(1, Math.round(fraction * 100));
-}
-
-/** Where a white sits on the Warmth slider: 0 at the warm end, 1 at the cool end. */
-export function warmthFraction(mireds: number): number {
-  return trackFraction(1_000_000 / mireds, WARMEST_K, COOLEST_K - WARMEST_K);
-}
-
-/** The mireds at a point on the Warmth slider. */
-export function warmthMireds(fraction: number): number {
-  return Math.round(1_000_000 / (WARMEST_K + fraction * (COOLEST_K - WARMEST_K)));
-}
-
-/** A light's mireds for the Warmth slider, or null when it is showing a hue. */
-export function warmth(device: GharDevice): number | null {
-  return whiteMireds(device);
-}
-
-/** A light's hue 0–254 and saturation 0–254 for the Color slider, or null when it shows a white. */
-export function hue(device: GharDevice): { hue: number; saturation: number } | null {
-  const reading = hueReading(device);
-  return reading ? { hue: Math.round((reading.degrees / 360) * 254), saturation: Math.round(reading.saturation * 254) } : null;
-}
-
-/** "2800 K", to the nearest hundred. */
-export function kelvinLabel(mireds: number): string {
-  return `${Math.round(1_000_000 / mireds / 100) * 100} K`;
-}
-
-/** The one-tap colors under the sliders. */
-export const PRESETS: readonly Preset[] = [
-  { name: "Candle", swatch: "#ffb46b", command: temperatureCommand(454) },
-  { name: "Warm white", swatch: "#ffe2bc", command: temperatureCommand(370) },
-  { name: "Daylight", swatch: "#f4f7ff", command: temperatureCommand(154) },
-  { name: "Peach", swatch: "#ffaa82", command: hueCommand(13, 124) },
-  { name: "Sage", swatch: "#a9c79a", command: hueCommand(71, 90) },
-];
-
-/** The presets a light can show: whites need color temperature, hues need hue and saturation. */
-export function presetsFor(device: GharDevice): Preset[] {
-  const modes = colorModes(device);
-  return PRESETS.filter((preset) => modes.includes(preset.command.command === "temperature" ? "color_temp" : "hue_sat"));
-}
-
-/** The preset a light is showing, within a step of the slider, or null. */
-export function activePreset(device: GharDevice): string | null {
-  const mireds = whiteMireds(device);
-  const shown = hue(device);
-  const match = PRESETS.find((preset) => {
-    const params = preset.command.params ?? {};
-    if (preset.command.command === "temperature") {
-      return mireds !== null && Math.abs(mireds - Number(params.mireds)) <= 10;
-    }
-    return shown !== null && Math.abs(shown.hue - Number(params.hue)) <= 4 && Math.abs(shown.saturation - Number(params.saturation)) <= 12;
-  });
-  return match ? match.name : null;
 }

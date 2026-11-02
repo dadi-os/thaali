@@ -1,221 +1,124 @@
+import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } from "react";
+
 /**
- * The Ghar page's controls, drawn straight on the page: the switch, the horizontal brightness
- * bar (a room, a group), the inspector's tall brightness pill and its tall gradient
- * sliders. A drag follows the pointer and sends once on release; the dragged value stays
- * until the command settles, by which point Ghar's accepted state is in the cache.
+ * A value the user is dragging, shown in place of the real one until the real one changes: the drag follows the pointer,
+ * the command is sent once on release, and the dragged value stays until Ghar's accepted state arrives.
+ * @returns the value to show and the setter a slider's `onDrag` calls
  */
+export function useDraft(value: number): [number, (next: number) => void] {
+  const [draft, setDraft] = useState<number | null>(null);
+  useEffect(() => setDraft(null), [value]);
+  return [draft ?? value, setDraft];
+}
 
-import {
-  useRef,
-  useState,
-  type CSSProperties,
-  type KeyboardEvent,
-  type MouseEvent,
-  type PointerEvent as ReactPointerEvent,
-} from "react";
-import { IconSun } from "./icons";
-import { levelAt, trackFraction } from "./model";
-
-type SwitchProps = {
+export type SwitchProps = {
   on: boolean;
+  /** The accessible name. */
   label: string;
-  disabled: boolean;
+  disabled?: boolean;
+  /** A command for it is in flight. */
+  busy?: boolean;
   onChange: (on: boolean) => void;
 };
 
-/** A 54 × 32 switch; the knob slides with a small overshoot. */
-export function Switch({ on, label, disabled, onChange }: SwitchProps) {
+/** A 44 x 32 switch whose knob slides. */
+export function Switch({ on, label, disabled = false, busy = false, onChange }: SwitchProps) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
       aria-label={label}
+      aria-busy={busy ? true : undefined}
       disabled={disabled}
-      onClick={(event) => {
-        event.stopPropagation();
-        onChange(!on);
-      }}
-      className={`ghar-switch ${on ? "ghar-switch--on" : ""}`}
+      className="ui-trans"
+      onClick={() => onChange(!on)}
+      style={{ width: 44, height: 32, borderRadius: 999, background: on ? "var(--sage-deep)" : "var(--rule)", position: "relative", flex: "none", ...(disabled ? { opacity: 0.45 } : {}) }}
     >
-      <span className="ghar-switch__knob" />
+      <span
+        style={{ position: "absolute", top: 4, left: on ? 16 : 4, width: 24, height: 24, borderRadius: "50%", background: "var(--bone)", boxShadow: "0 1px 3px rgba(44,48,42,.3)", transition: "left 180ms cubic-bezier(.22,.61,.36,1)" }}
+      />
     </button>
   );
 }
 
-/**
- * A fraction 0–1 that follows the pointer along `axis` while dragging and is sent on release
- * through `commit`; arrow keys step a tenth. Null while nothing is being dragged.
- */
-function useDrag(axis: "x" | "y", inset: number, current: number, disabled: boolean, commit: (fraction: number) => Promise<void>) {
-  const [draft, setDraft] = useState<number | null>(null);
-  const dragging = useRef(false);
+export type SliderProps = {
+  /** Where the knob sits, 0 to 100. */
+  value: number;
+  /** The colour of the fill and the knob's ring. */
+  color: string;
+  /** The track's thickness in px. */
+  thickness: number;
+  /** The accessible name. */
+  name: string;
+  /** What the value reads as, for assistive technology. */
+  text: string;
+  disabled?: boolean;
+  /** The value under the pointer or key while it moves, 0 to 100. */
+  onDrag: (percent: number) => void;
+  /** The value the user settled on, as a fraction 0 to 1; called once on release or key press. */
+  onCommit: (fraction: number) => void;
+};
 
-  const at = (event: ReactPointerEvent<HTMLElement>) => {
+/** A horizontal slider: a track, its fill and a knob. A drag follows the pointer and commits once on release; the arrow, page, home and end keys step it. */
+export function Slider({ value, color, thickness, name, text, disabled = false, onDrag, onCommit }: SliderProps) {
+  const drag = useRef<number | null>(null);
+  const at = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    return axis === "x"
-      ? trackFraction(event.clientX, rect.left + inset, rect.width - inset * 2)
-      : 1 - trackFraction(event.clientY, rect.top + inset, rect.height - inset * 2);
+    return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
   };
-
-  const send = (fraction: number) => {
-    setDraft(fraction);
-    void commit(fraction).finally(() => setDraft(null));
+  const press = (event: KeyboardEvent<HTMLDivElement>) => {
+    const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -10, PageUp: 10 }[event.key];
+    const target = event.key === "Home" ? 0 : event.key === "End" ? 100 : step === undefined ? null : Math.min(100, Math.max(0, value + step));
+    if (target === null) {
+      return;
+    }
+    event.preventDefault();
+    onDrag(target);
+    onCommit(target / 100);
   };
-
-  return {
-    draft,
-    handlers: {
-      onClick: (event: MouseEvent) => event.stopPropagation(),
-      onKeyDown: (event: KeyboardEvent<HTMLElement>) => {
-        const step =
-          event.key === "ArrowUp" || event.key === "ArrowRight" ? 0.1 : event.key === "ArrowDown" || event.key === "ArrowLeft" ? -0.1 : 0;
-        if (step === 0 || disabled) {
-          return;
-        }
-        event.preventDefault();
-        send(Math.min(1, Math.max(0, (draft ?? current) + step)));
-      },
-      onPointerDown: (event: ReactPointerEvent<HTMLElement>) => {
+  return (
+    <div
+      role="slider"
+      tabIndex={disabled ? undefined : 0}
+      aria-label={name}
+      aria-valuemin={0}
+      aria-valuemax={100}
+      aria-valuenow={Math.round(value)}
+      aria-valuetext={text}
+      aria-disabled={disabled ? true : undefined}
+      onPointerDown={(event) => {
         if (disabled || event.button !== 0) {
           return;
         }
-        event.stopPropagation();
-        dragging.current = true;
         event.currentTarget.setPointerCapture(event.pointerId);
-        setDraft(at(event));
-      },
-      onPointerMove: (event: ReactPointerEvent<HTMLElement>) => {
-        if (dragging.current) {
-          setDraft(at(event));
-        }
-      },
-      onPointerUp: (event: ReactPointerEvent<HTMLElement>) => {
-        if (!dragging.current) {
+        drag.current = at(event);
+        onDrag(drag.current * 100);
+      }}
+      onPointerMove={(event) => {
+        if (drag.current === null) {
           return;
         }
-        dragging.current = false;
-        send(at(event));
-      },
-      onPointerCancel: () => {
-        dragging.current = false;
-        setDraft(null);
-      },
-    },
-  };
-}
-
-type LevelBarProps = {
-  /** What the bar sets, before the value: "Room brightness", "Brightness". */
-  label: string;
-  /** Brightness 0–100, or null when nothing it sets is lit. */
-  value: number | null;
-  /** The color the bar fills with: the lit lights' color. */
-  color: string;
-  disabled: boolean;
-  /** Tailwind height and text size for where the bar sits. */
-  className: string;
-  onCommit: (level: number) => Promise<void>;
-};
-
-/** A rounded bar that fills with the lights' color to their brightness; dragging sets every light under it. */
-export function LevelBar({ label, value, color, disabled, className, onCommit }: LevelBarProps) {
-  const current = (value ?? 0) / 100;
-  const { draft, handlers } = useDrag("x", 0, current, disabled, (fraction) => onCommit(levelAt(fraction)));
-  const shown = draft ?? current;
-  const percent = Math.round(shown * 100);
-  return (
-    <div
-      role="slider"
-      tabIndex={disabled ? -1 : 0}
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={percent}
-      aria-disabled={disabled}
-      className={`ghar-bar ${disabled ? "ghar-bar--disabled" : ""} ${className}`}
-      style={{ "--bar-color": color } as CSSProperties}
-      {...handlers}
+        drag.current = at(event);
+        onDrag(drag.current * 100);
+      }}
+      onPointerUp={() => {
+        if (drag.current !== null) {
+          onCommit(drag.current);
+          drag.current = null;
+        }
+      }}
+      onPointerCancel={() => {
+        drag.current = null;
+      }}
+      onKeyDown={disabled ? undefined : press}
+      style={{ position: "relative", height: 24, display: "flex", alignItems: "center", touchAction: "none", ...(disabled ? { opacity: 0.45 } : {}) }}
     >
-      <span className="ghar-bar__fill" style={{ width: `${shown * 100}%` }} />
-      <span className="ghar-bar__label">
-        <span className="size-4">
-          <IconSun />
-        </span>
-        {label} · {value === null && draft === null ? "Off" : `${percent}%`}
-      </span>
-    </div>
-  );
-}
-
-type PillProps = {
-  /** Brightness 0–100, or null before the light has reported one. */
-  value: number | null;
-  color: string;
-  on: boolean;
-  disabled: boolean;
-  onCommit: (level: number) => Promise<void>;
-};
-
-/** The inspector's tall brightness pill: it fills from the bottom with the light's color. */
-export function Pill({ value, color, on, disabled, onCommit }: PillProps) {
-  const current = (value ?? 0) / 100;
-  const { draft, handlers } = useDrag("y", 0, current, disabled, (fraction) => onCommit(levelAt(fraction)));
-  const shown = draft ?? current;
-  return (
-    <div
-      role="slider"
-      tabIndex={disabled ? -1 : 0}
-      aria-label="Brightness"
-      aria-valuemin={1}
-      aria-valuemax={100}
-      aria-valuenow={Math.round(shown * 100)}
-      aria-disabled={disabled}
-      className={`ghar-pill ${on || draft !== null ? "ghar-pill--on" : ""} ${disabled ? "ghar-bar--disabled" : ""}`}
-      style={{ "--bar-color": color } as CSSProperties}
-      {...handlers}
-    >
-      <span className="ghar-pill__fill" style={{ height: `${shown * 100}%` }} />
-      <span className="ghar-pill__value">{value === null && draft === null ? "–" : `${Math.round(shown * 100)}%`}</span>
-    </div>
-  );
-}
-
-type TrackProps = {
-  label: string;
-  /** What the slider shows now, at its foot. */
-  reading: string;
-  /** Where the light sits on the track 0–1 from the bottom, or null when it is showing the other kind of color. */
-  value: number | null;
-  /** The CSS gradient the track is drawn with, bottom to top. */
-  gradient: string;
-  disabled: boolean;
-  onCommit: (fraction: number) => Promise<void>;
-};
-
-/** A tall gradient slider beside the brightness pill: a white bar marks the light, faint when it is showing the other kind of color; the reading sits at the foot, or the top once the bar is low enough to cross it. */
-export function Track({ label, reading, value, gradient, disabled, onCommit }: TrackProps) {
-  const { draft, handlers } = useDrag("y", 12, value ?? 0.5, disabled, onCommit);
-  const shown = draft ?? value;
-  return (
-    <div
-      role="slider"
-      tabIndex={disabled ? -1 : 0}
-      aria-label={label}
-      aria-valuemin={0}
-      aria-valuemax={100}
-      aria-valuenow={shown === null ? undefined : Math.round(shown * 100)}
-      aria-valuetext={reading}
-      aria-disabled={disabled}
-      className={`ghar-track ${disabled ? "ghar-bar--disabled" : ""}`}
-      style={{ background: gradient }}
-      {...handlers}
-    >
+      <span style={{ display: "block", width: "100%", height: thickness, borderRadius: thickness, background: "var(--rule)" }} />
+      <span style={{ position: "absolute", left: 0, width: `${value}%`, height: thickness, borderRadius: thickness, background: color }} />
       <span
-        className="ghar-track__bar"
-        style={{ bottom: `calc(${shown ?? 0.5} * (100% - 24px) + 10px)`, opacity: shown === null ? 0.45 : 1 }}
+        style={{ position: "absolute", left: `calc(${value}% - 10px)`, width: 20, height: 20, borderRadius: "50%", background: "var(--bone)", border: `2px solid ${color}`, boxShadow: "var(--shadow)" }}
       />
-      <span className={`ghar-track__reading ${(shown ?? 0.5) < 0.25 ? "ghar-track__reading--top" : ""}`}>{reading}</span>
     </div>
   );
 }

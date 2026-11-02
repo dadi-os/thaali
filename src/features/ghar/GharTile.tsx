@@ -6,23 +6,10 @@ import { useModuleState } from "../../shared/hooks/useModuleState";
 import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
-import { isLight, isOn, sectionSwitch } from "./model";
+import { isLight, isOn, lightColor, sectionSwitch } from "./model";
 import { useHouse } from "./useHouse";
 
-/** The warm colour a light glows when it reports no colour of its own. */
-const WARM = "#f0a868";
 const ROOM_HEIGHT = 72;
-
-/** The colour of a light's dot: grey when off, its hue when it reports one, warm white otherwise. */
-function lightColor(device: GharDevice): string {
-  if (device.state.on?.value !== true) {
-    return "var(--ink-ghost)";
-  }
-  if (device.state.color_mode?.value === "hue_sat") {
-    return `hsl(${Math.round((Number(device.state.hue?.value ?? 0) / 254) * 360)} ${Math.round((Number(device.state.saturation?.value ?? 0) / 254) * 100)}% 58%)`;
-  }
-  return WARM;
-}
 
 type Room = { name: string; lights: GharDevice[]; on: number };
 

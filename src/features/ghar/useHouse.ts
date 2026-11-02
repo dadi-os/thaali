@@ -4,8 +4,19 @@ import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY, GHAR_ROOMS_KEY } from "../../shared/api/ghar";
 import { useConnection } from "../../shared/hooks/useConnection";
 import type { GharDevice } from "../../types/ghar";
-import { shownError } from "./commission";
 import { applyCommand, type DeviceCommand } from "./model";
+
+/** First sentence of a transport or Ghar error, for the sheet. */
+export function shownError(err: unknown): string {
+  if (!(err instanceof Error)) {
+    return String(err);
+  }
+  const match = err.message.match(/"message":"((?:\\.|[^"\\])*)"/);
+  if (!match?.[1]) {
+    return err.message;
+  }
+  return match[1].replace(/\\"/g, '"');
+}
 
 /**
  * The house as the Ghar page and the Home tile use it: devices and rooms under the shared
