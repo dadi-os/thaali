@@ -1,10 +1,11 @@
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { hath, nas } from "../../../shared/api";
+import { hath, isMeshOnline, nas } from "../../../shared/api";
 import type { NasTask } from "../../../shared/api/nas";
 import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
 import { Button } from "../../../shared/components/Button";
 import { Dialog, DialogOption, Modal } from "../../../shared/components/Overlay";
+import { useConnection } from "../../../shared/hooks/useConnection";
 import { pushToast } from "../../../store/toasts";
 import { getTakeover, setTakeover, subscribeTakeover } from "../../../store/takeover";
 import { BrowserFrame } from "../BrowserFrame";
@@ -28,7 +29,8 @@ function failed(title: string, err: unknown): void {
  */
 export function TakeoverModal() {
   const address = useSyncExternalStore(subscribeTakeover, getTakeover);
-  const tasks = useQuery({ queryKey: ["nas", "tasks"], queryFn: () => nas.listTasks() });
+  const { state: connection } = useConnection();
+  const tasks = useQuery({ queryKey: ["nas", "tasks"], queryFn: () => nas.listTasks(), enabled: isMeshOnline(connection) });
   const task = address === null ? undefined : tasks.data?.find((candidate) => candidate.task === address);
   if (task === undefined || task.resource === undefined) {
     return null;
