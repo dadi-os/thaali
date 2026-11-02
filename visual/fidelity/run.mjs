@@ -28,6 +28,10 @@ import { ensureServer, ensureTool, ORIGIN, serveDir } from "../harness.mjs";
 const here = dirname(fileURLToPath(import.meta.url));
 const REF_PORT = 5290;
 const REF_ORIGIN = `http://127.0.0.1:${REF_PORT}`;
+/** How long a whole app page gets to load, fetch its fixtures and settle before it is compared; a page loads far more than a primitive does, and four tools at once slow it. */
+const PAGE_SETTLE_MS = 5000;
+/** The snapshot tool's device pixels per CSS pixel. */
+const SCALE = 2;
 /** Zones whose rules match the design's pinned America/New_York. */
 const DESIGN_ZONES = ["America/New_York", "America/Detroit"];
 
@@ -77,12 +81,13 @@ function sideJob(side, c, url) {
     steps.push({ shot: file });
     return { time, file, tree: addEval("window.__ds.extract()") };
   });
-  return { job: { name: `${side}~${c.id}`, url, width: c.w, height: c.h, settleMs: side === "app" ? 1800 : 500, steps }, shots, force };
+  return { job: { name: `${side}~${c.id}`, url, width: c.w, height: c.h, settleMs: side === "app" ? (c.page === true ? PAGE_SETTLE_MS : 1800) : 500, steps }, shots, force };
 }
 
-/** Runs the Swift pixel comparison of two screenshots and returns its JSON: sizes, differing pixel count, percent and the largest channel delta. */
-function pixelDiff(pixeldiff, design, app, heat, tolerance) {
-  const run = spawnSync(pixeldiff, [design, app, heat, String(tolerance)], { encoding: "utf8" });
+/** Runs the Swift pixel comparison of two screenshots, or of the part inside `crop` (the root's rect in CSS px) when the case's root is not the whole page, and returns its JSON: sizes, differing pixel count, percent and the largest channel delta. */
+function pixelDiff(pixeldiff, design, app, heat, tolerance, crop) {
+  const box = crop === null ? [] : [crop.x, crop.y, crop.w, crop.h].map((v) => String(Math.round(v * SCALE)));
+  const run = spawnSync(pixeldiff, [design, app, heat, String(tolerance), ...box], { encoding: "utf8" });
   if (run.status !== 0) throw new Error(`pixeldiff failed: ${run.stderr}`);
   return JSON.parse(run.stdout);
 }
@@ -164,7 +169,7 @@ try {
       }
       const heat = join(outDir, "shots", `heat~${design.c.id}~${d.time ?? "end"}.png`);
       const pixels = typeof dTree === "string" && typeof aTree === "string" && !dTree.startsWith("ERR") && !aTree.startsWith("ERR")
-        ? pixelDiff(pixeldiff, join(plan.outDir, d.file), join(plan.outDir, a.file), heat, config.channelTolerance)
+        ? pixelDiff(pixeldiff, join(plan.outDir, d.file), join(plan.outDir, a.file), heat, config.channelTolerance, design.c.root ? JSON.parse(dTree).rect : null)
         : { sizeMismatch: true, percent: 100 };
       const pass = !pixels.sizeMismatch && pixels.percent <= config.maxDifferingPercent && diffs.length === 0 && errors.length === 0;
       results.push({ id: design.c.id, time: d.time, pass, pixels, diffs, errors });

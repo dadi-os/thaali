@@ -111,7 +111,14 @@
 
     prepare({ width = null, height = null, root: rootSelector = null, page = false, ground = "#fafaf7" }) {
       if (rootSelector !== null) {
-        document.querySelector(rootSelector)?.setAttribute("data-ds-case", "page");
+        const chosen = document.querySelector(rootSelector);
+        if (chosen === null) {
+          throw new Error(`no element matches the case root "${rootSelector}"`);
+        }
+        for (const marked of document.querySelectorAll("[data-ds-case]")) {
+          marked.removeAttribute("data-ds-case");
+        }
+        chosen.setAttribute("data-ds-case", "page");
       }
       const root = ds.root();
       if (root === null) {

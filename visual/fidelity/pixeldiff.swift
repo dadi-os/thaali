@@ -39,18 +39,42 @@ func save(_ pixels: [UInt8], width: Int, height: Int, to path: String) {
     }
 }
 
+/// The part of `image` at (x, y) of size w by h, in pixels, or nil when it does not lie inside the image.
+func crop(_ image: Image, x: Int, y: Int, w: Int, h: Int) -> Image? {
+    guard x >= 0, y >= 0, w > 0, h > 0, x + w <= image.width, y + h <= image.height else {
+        return nil
+    }
+    var out = [UInt8](repeating: 0, count: w * h * 4)
+    for row in 0..<h {
+        let from = ((y + row) * image.width + x) * 4
+        out.replaceSubrange((row * w * 4)..<((row + 1) * w * 4), with: image.pixels[from..<(from + w * 4)])
+    }
+    return Image(width: w, height: h, pixels: out)
+}
+
 /// Compares two screenshots pixel by pixel. A pixel differs when any channel is off by more than `tolerance`.
 /// Prints `{width, height, differing, total, percent, maxDelta, sizeMismatch}` as JSON and writes a heatmap
-/// (the design faded, every differing pixel red) to the third argument.
+/// (the design faded, every differing pixel red) to the third argument. Four more arguments (x, y, width, height in
+/// pixels) compare only that part of each screenshot, for a case whose root is not the whole page.
 func main() {
     let arguments = CommandLine.arguments
-    guard arguments.count == 5, let tolerance = Int(arguments[4]) else {
-        FileHandle.standardError.write(Data("usage: pixeldiff <design.png> <app.png> <heatmap.png> <tolerance>\n".utf8))
+    guard arguments.count == 5 || arguments.count == 9, let tolerance = Int(arguments[4]) else {
+        FileHandle.standardError.write(Data("usage: pixeldiff <design.png> <app.png> <heatmap.png> <tolerance> [x y width height]\n".utf8))
         exit(2)
     }
-    guard let design = load(arguments[1]), let app = load(arguments[2]) else {
+    guard var design = load(arguments[1]), var app = load(arguments[2]) else {
         FileHandle.standardError.write(Data("could not read a screenshot\n".utf8))
         exit(1)
+    }
+    if arguments.count == 9 {
+        let box = arguments[5...8].compactMap { Int($0) }
+        guard box.count == 4, let croppedDesign = crop(design, x: box[0], y: box[1], w: box[2], h: box[3]),
+              let croppedApp = crop(app, x: box[0], y: box[1], w: box[2], h: box[3]) else {
+            FileHandle.standardError.write(Data("the case root does not lie inside the screenshots\n".utf8))
+            exit(1)
+        }
+        design = croppedDesign
+        app = croppedApp
     }
     if design.width != app.width || design.height != app.height {
         print("{\"sizeMismatch\":true,\"design\":[\(design.width),\(design.height)],\"app\":[\(app.width),\(app.height)],\"percent\":100,\"differing\":-1,\"total\":-1,\"maxDelta\":255}")
