@@ -35,3 +35,20 @@ export function laneState(agent: AgentRecord, live: Lanes | undefined): LaneStat
 export function isLive(state: LaneState): boolean {
   return state === "both" || state === "working" || state === "processing";
 }
+
+/** The chips that narrow the agents by what they are doing, and the states each one keeps. */
+export const LANE_FILTERS = {
+  All: ["both", "working", "processing", "waiting", "idle"],
+  Working: ["working", "both"],
+  Processing: ["processing", "both"],
+  Waiting: ["waiting"],
+  Idle: ["idle"],
+} as const satisfies Record<string, readonly LaneState[]>;
+
+/** The name of one filter chip. */
+export type LaneFilter = keyof typeof LANE_FILTERS;
+
+/** Whether a filter keeps an agent that is in `state`. */
+export function keepsState(filter: LaneFilter, state: LaneState): boolean {
+  return (LANE_FILTERS[filter] as readonly LaneState[]).includes(state);
+}

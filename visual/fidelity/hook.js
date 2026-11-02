@@ -7,6 +7,7 @@
  *   addClass(pairs) add a real class, or remove it with a third element "remove", starting the transition it triggers
  *   finish()       jump every running transition and finite animation to its end, infinite ones to the start
  *   seek(ms)       jump every animation and transition to `ms` after its start
+ *   relayoutSvgText()  lay every SVG text out again from the same state, so a parsed page and a built one measure alike
  *   extract(root)  the element tree: tag, own text, attributes, box, computed style, pseudo-element content, and the root's own rectangle on the page
  */
 (() => {
@@ -195,7 +196,24 @@
       return document.getAnimations().length;
     },
 
+    /**
+     * Lays every SVG text out again from the same state. WebKit measures an SVG text from the layout it last had, so the same markup
+     * measures up to 1/64 px apart when one page parsed it and another built it: each text's size is set to another value and back,
+     * which leaves both on the layout that follows a change.
+     */
+    relayoutSvgText() {
+      for (const text of ds.root().querySelectorAll("svg text")) {
+        const size = text.getAttribute("font-size");
+        if (size !== null) {
+          text.setAttribute("font-size", "1");
+          void text.getBoundingClientRect();
+          text.setAttribute("font-size", size);
+        }
+      }
+    },
+
     extract() {
+      ds.relayoutSvgText();
       const root = ds.root();
       const origin = root.getBoundingClientRect();
       const walk = (el) => {

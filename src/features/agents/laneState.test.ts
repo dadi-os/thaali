@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { agents } from "../../dev/fixtures/hath";
 import type { AgentRecord } from "../../types/hath";
-import { isLive, laneState } from "./laneState";
+import { isLive, keepsState, laneState, LANE_FILTERS, type LaneState } from "./laneState";
 
 const base: AgentRecord = agents("normal")[0]!;
 const withRunning = (running: Partial<AgentRecord["running"]>): AgentRecord => ({ ...base, running: { work: false, process: false, waiting_on: null, status: null, ...running } });
@@ -28,5 +28,27 @@ describe("laneState", () => {
     expect(["both", "working", "processing"].every((state) => isLive(state as never))).toBe(true);
     expect(isLive("waiting")).toBe(false);
     expect(isLive("idle")).toBe(false);
+  });
+});
+
+describe("keepsState", () => {
+  const states: LaneState[] = ["both", "working", "processing", "waiting", "idle"];
+
+  it("keeps every state under All", () => {
+    expect(states.every((state) => keepsState("All", state))).toBe(true);
+  });
+
+  it("counts an agent on both lanes under Working and under Processing", () => {
+    expect(states.filter((state) => keepsState("Working", state))).toEqual(["both", "working"]);
+    expect(states.filter((state) => keepsState("Processing", state))).toEqual(["both", "processing"]);
+  });
+
+  it("keeps a waiting agent only under Waiting and an idle one only under Idle", () => {
+    expect(states.filter((state) => keepsState("Waiting", state))).toEqual(["waiting"]);
+    expect(states.filter((state) => keepsState("Idle", state))).toEqual(["idle"]);
+  });
+
+  it("names a chip for each state group, All first", () => {
+    expect(Object.keys(LANE_FILTERS)).toEqual(["All", "Working", "Processing", "Waiting", "Idle"]);
   });
 });

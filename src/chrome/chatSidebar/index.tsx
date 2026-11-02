@@ -650,7 +650,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
             onBack={backToList}
             title={openAgentRecord ? openAgentRecord.name : null}
             error={openAgentView?.kind === "error" ? openAgentView.message : null}
-            onOpenDetails={openAgentId === null ? undefined : () => navigate("/hath", { state: { focusAgent: openAgentId } })}
+            onOpenDetails={openAgentId === null ? undefined : () => navigate({ pathname: "/hath", search: `?agent=${openAgentId}` })}
           />
           <div className="relative flex min-h-0 flex-1 flex-col">
             {showHostPin ? <HostPin browserId={liveBrowserId} terminalId={liveTerminalId} /> : null}

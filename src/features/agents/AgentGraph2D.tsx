@@ -1,6 +1,6 @@
 import { Fragment } from "react";
 import type { AgentRecord } from "../../types/hath";
-import { layoutForest, nodeRadius, viewForest, type ForestLink, type GraphLabels } from "./graph2d";
+import { layoutForest, nodeRadius, viewForest, type ForestLink, type ForestOptions, type GraphLabels } from "./graph2d";
 import { isLive, type LaneState } from "./laneState";
 
 /** The fill of a node by what its agent is doing: sage on a lane, tide on the process lane alone, a bone ring while it waits. */
@@ -17,6 +17,16 @@ export type AgentGraph2DProps = {
   labels: GraphLabels;
   /** Scales the nodes; 1 for a whole-page graph, smaller for a tile. */
   nodeScale: number;
+  /** The radius of the first ring and the distance between rings; a page spreads them wider than a tile. */
+  layout?: ForestOptions;
+  /** Scales the names. */
+  fontScale?: number;
+  /** The agent whose node is ringed in ink. */
+  selectedId?: string | null;
+  /** The agents a filter leaves out, drawn faint. */
+  dimmed?: ReadonlySet<string> | null;
+  /** Picks an agent; given, every node answers a click and grows under the pointer. */
+  onPick?: (agent: AgentRecord) => void;
 };
 
 /** The path of a link: a curve that bows a little away from the straight line. */
@@ -26,9 +36,17 @@ function curve({ from, to }: ForestLink): string {
   return `M${from.x.toFixed(1)} ${from.y.toFixed(1)} Q${(mx + (to.y - from.y) * 0.06).toFixed(1)} ${(my - (to.x - from.x) * 0.06).toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
 }
 
+/** The ring of a node: ink while it is the selected one, else by what its agent is doing. */
+function ringOf(state: LaneState, selected: boolean): string {
+  if (selected) {
+    return "#2c302a";
+  }
+  return state === "waiting" ? "#8fa382" : state === "both" ? "#7d9aa6" : "#fafaf7";
+}
+
 /** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes that have room for one. */
-export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale }: AgentGraph2DProps) {
-  const view = viewForest(layoutForest(agents, stateOf), { labels, width, height, nodeScale });
+export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale, layout, fontScale, selectedId = null, dimmed = null, onPick }: AgentGraph2DProps) {
+  const view = viewForest(layoutForest(agents, stateOf, layout), { labels, width, height, nodeScale, fontScale });
   const { nodes, links, unit } = view;
   return (
     <svg
@@ -58,10 +76,21 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
           const r = unit(nodeRadius(n.depth, nodeScale));
           const x = n.x.toFixed(1);
           const y = n.y.toFixed(1);
+          const selected = n.agent.id === selectedId;
           return (
             <Fragment key={n.agent.id}>
               {isLive(n.state) ? <circle cx={x} cy={y} r={r} fill="#8fa382" style={{ transformOrigin: `${x}px ${y}px`, animation: "ring 2.2s ease-out infinite" }} /> : null}
-              <circle cx={x} cy={y} r={r} fill={FILL[n.state]} stroke={n.state === "waiting" ? "#8fa382" : n.state === "both" ? "#7d9aa6" : "#fafaf7"} strokeWidth={unit(n.state === "waiting" || n.state === "both" ? 2 : 1.5)}>
+              <circle
+                className={onPick === undefined ? undefined : "gnode"}
+                opacity={dimmed?.has(n.agent.id) ? 0.2 : undefined}
+                onClick={onPick === undefined ? undefined : () => onPick(n.agent)}
+                cx={x}
+                cy={y}
+                r={r}
+                fill={FILL[n.state]}
+                stroke={ringOf(n.state, selected)}
+                strokeWidth={unit(selected ? 2.4 : n.state === "waiting" || n.state === "both" ? 2 : 1.5)}
+              >
                 <title>{`${n.agent.name} · ${n.state}`}</title>
               </circle>
             </Fragment>
@@ -79,6 +108,7 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
           return (
             <text
               key={n.agent.id}
+              opacity={dimmed?.has(n.agent.id) ? 0.25 : undefined}
               x={(n.x + (label.right ? 1 : -1) * (r + unit(7))).toFixed(1)}
               y={(n.y + label.size * 0.35).toFixed(1)}
               textAnchor={label.right ? "start" : "end"}

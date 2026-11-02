@@ -11,6 +11,7 @@ import { Skeleton } from "../shared/components/Skeleton";
 import { Truncate } from "../shared/components/Truncate";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
+import { useSize } from "../shared/hooks/useSize";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { POLL_MS } from "../shared/lib/ux/poll";
 import { formatAge, formatRelative } from "../shared/lib/ux/time";
@@ -20,7 +21,6 @@ import { capitalize, formatGb, formatUptime, loadTone } from "../features/system
 import { diskName, HealthCard } from "../features/system/HealthCard";
 import { SectionLabel } from "../features/system/SectionLabel";
 import { TasksBlock } from "../features/system/TasksBlock";
-import { useWidth } from "../features/system/useWidth";
 
 /** The logs column's widest width, and the share of the page it takes before that. */
 const LOGS_MAX = 460;
@@ -159,7 +159,7 @@ export function SystemPage() {
   const [params] = useSearchParams();
   const location = useLocation();
   const [chip, setChip] = useState<LogFocus | null>(null);
-  const [root, width] = useWidth<HTMLDivElement>();
+  const [root, { width }] = useSize<HTMLDivElement>();
 
   const statusQuery = useQuery({ queryKey: ["nas", "status"], queryFn: () => nas.getStatus(), enabled: isMeshOnline(connection), refetchInterval: POLL_MS });
   const state = useModuleState(statusQuery, () => false);

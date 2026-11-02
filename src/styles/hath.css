@@ -1,0 +1,36 @@
+/*
+ * The Hath page's own styles, from the design: the nodes of the agent graph answer a pointer by growing, their
+ * ring thickens when the node is picked, and the rows of the agent list mark the chosen agent.
+ */
+
+@layer components {
+  .gnode {
+    cursor: pointer;
+    transform-box: fill-box;
+    transform-origin: center;
+    transition:
+      transform 240ms var(--ease),
+      stroke-width 200ms var(--ease);
+  }
+
+  .gnode:hover {
+    transform: scale(1.3);
+  }
+
+  .agent-row {
+    background: transparent;
+  }
+
+  .agent-row[aria-current="true"] {
+    background: var(--sage-active);
+  }
+
+  .agent-row:hover:not(:disabled) {
+    background: var(--sage-fill);
+  }
+
+  .agent-row:active:not(:disabled) {
+    background: var(--sage-active);
+    transform: scale(0.985);
+  }
+}
