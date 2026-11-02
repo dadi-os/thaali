@@ -1,5 +1,7 @@
 /** Shared motion tokens — match CSS `--ease` / `--slow`. */
 export const EASE = [0.22, 0.61, 0.36, 1] as const;
+/** Hover, press and focus changes — match CSS `--fast`. */
+export const FAST_S = 0.18;
 /** Interactive UI motion — snappy but readable. */
 export const SLOW_S = 0.32;
 /** Longer transitions for enter/exit presence. */

@@ -38,7 +38,32 @@ export function formatSpan(ms: number): string {
   return `${Math.floor(minutes / 60)}h ${minutes % 60}m`;
 }
 
-/** Local clock time of day (e.g. "10:20"). */
-export function formatClock(iso: string): string {
-  return new Intl.DateTimeFormat("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(iso));
+/** The clock time of day with its AM or PM mark (e.g. "10:20 AM"), in the device's zone, or in `zone` (an IANA name) when given. */
+export function formatClock(iso: string, zone?: string): string {
+  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit", hour12: true, timeZone: zone }).format(new Date(iso));
+}
+
+/** The short name of the zone at an instant (e.g. "EDT"), in the device's zone, or in `zone` (an IANA name) when given. */
+export function formatZone(iso: string, zone?: string): string {
+  const name = new Intl.DateTimeFormat("en-US", { timeZoneName: "short", timeZone: zone })
+    .formatToParts(new Date(iso))
+    .find((part) => part.type === "timeZoneName");
+  if (name === undefined) {
+    throw new Error(`no zone name for ${iso} in ${zone ?? "the device's zone"}`);
+  }
+  return name.value;
+}
+
+/** The time since an instant in its shortest form ("42s", "3m", "5h", "2d"), as a task row's age reads. */
+export function formatAge(iso: string, now = Date.now()): string {
+  const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));
+  if (seconds < 45) {
+    return `${seconds}s`;
+  }
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) {
+    return `${minutes}m`;
+  }
+  const hours = Math.round(minutes / 60);
+  return hours < 24 ? `${hours}h` : `${Math.round(hours / 24)}d`;
 }

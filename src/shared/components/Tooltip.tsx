@@ -3,11 +3,12 @@ import {
   useLayoutEffect,
   useRef,
   useState,
+  type CSSProperties,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { EASE, SLOW_S } from "../lib/ux/motion";
+import { EASE, FAST_S } from "../lib/ux/motion";
 
 export type TooltipProps = {
   content: string;
@@ -17,6 +18,20 @@ export type TooltipProps = {
 };
 
 const PAD = 10;
+
+export type TooltipBubbleProps = {
+  children: ReactNode;
+  style?: CSSProperties;
+};
+
+/** A tooltip's bubble: dark ink on bone, fading in. {@link Tooltip} places it; position it with `style` to show one alone. */
+export function TooltipBubble({ children, style }: TooltipBubbleProps) {
+  return (
+    <div className="tooltip-bubble" style={style}>
+      {children}
+    </div>
+  );
+}
 
 /**
  * Portaled tooltip — floats above chrome, flips when near viewport edges.
@@ -29,7 +44,7 @@ export function Tooltip({
 }: TooltipProps) {
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement>(null);
-  const tipRef = useRef<HTMLSpanElement>(null);
+  const tipRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ left: 0, top: 0, placed: side });
 
@@ -72,19 +87,17 @@ export function Tooltip({
       {createPortal(
         <AnimatePresence>
           {open ? (
-            <motion.span
+            <motion.div
               ref={tipRef}
               id={id}
               role="tooltip"
-              className="pointer-events-none fixed z-[60] whitespace-nowrap rounded-[var(--radius)] border border-dashed border-sage-line bg-bone px-2 py-1 text-[11px] tracking-wide text-ink-muted shadow-[var(--shadow)]"
-              style={{ left: pos.left, top: pos.top }}
-              initial={{ opacity: 0, y: pos.placed === "top" ? 4 : -4 }}
-              animate={{ opacity: 1, y: 0 }}
+              className="tooltip-bubble pointer-events-none fixed"
+              style={{ left: pos.left, top: pos.top, zIndex: "var(--z-tooltip)" }}
               exit={{ opacity: 0 }}
-              transition={{ duration: SLOW_S, ease: EASE }}
+              transition={{ duration: FAST_S, ease: EASE }}
             >
               {content}
-            </motion.span>
+            </motion.div>
           ) : null}
         </AnimatePresence>,
         document.body,

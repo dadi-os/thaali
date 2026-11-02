@@ -994,7 +994,7 @@ describe("agent tasks", () => {
   it("says what a waiting agent waits on and since when", () => {
     const since = new Date(2026, 9, 29, 10, 20).toISOString();
     expect(waitingLabel({ targets: ["task/browser/3", "task/terminal/1"], since, wakes_by: since })).toBe(
-      "Waiting on task/browser/3, task/terminal/1 since 10:20",
+      "Waiting on task/browser/3, task/terminal/1 since 10:20 AM",
     );
   });
 });
@@ -1021,8 +1021,8 @@ describe("agent status block", () => {
 
   it("says who asked, what is running, the last calls with their marks, tasks and queued messages", () => {
     const view = statusView(base, nameOf);
-    expect(view?.job).toBe("Ankur asked at 09:05: book the flight");
-    expect(view?.work).toBe("Working, last step 09:40");
+    expect(view?.job).toBe("Ankur asked at 9:05 AM: book the flight");
+    expect(view?.work).toBe("Working, last step 9:40 AM");
     expect(view?.step).toBe("web_fetch https://x.test");
     expect(view?.recent).toEqual([
       { text: "read_file /a.txt", mark: "ok" },
@@ -1036,7 +1036,7 @@ describe("agent status block", () => {
   it("says what a waiting agent waits on and since when, and idle when it does nothing", () => {
     const since = new Date(2026, 9, 29, 10, 20).toISOString();
     const waiting = statusView({ ...base, work: { state: "waiting", since, waiting_on: ["task/browser/3", "bob"] } }, nameOf);
-    expect(waiting?.work).toBe("Waiting on task/browser/3, bob since 10:20");
+    expect(waiting?.work).toBe("Waiting on task/browser/3, bob since 10:20 AM");
     expect(statusView({ ...base, job: null, work: { state: "idle", since: null, waiting_on: [] } }, nameOf)).toMatchObject({
       job: null,
       work: "Idle",
