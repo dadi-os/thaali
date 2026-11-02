@@ -7,7 +7,8 @@
  *        [--widths 1440,900x700,1080x1920] [--interact] [--flows]
  *
  * `--flows` adds the scripted flows (agent sheet and takeover modal, toasts, System task rows and logs, chat thread) at
- * 1440 wide in the `normal`, `asking` and `long` scenarios; `--flows-only` runs just those.
+ * 1440 wide in the `normal`, `asking` and `long` scenarios; `--flows-only` runs just those, and `--flow <name>` just the flows
+ * whose name starts with it (`--flow chaavi`).
  */
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
@@ -57,6 +58,11 @@ function interactionSteps(tag) {
 }
 
 const sidebarRow = (agent) => `[...document.querySelectorAll("button")].find((b) => b.textContent.includes("${agent}"))?.click()`;
+/** Clicks the first element matching `selector` whose text holds `text`. */
+const clickText = (selector, text) => `[...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => b.textContent.includes(${JSON.stringify(text)}))?.click(); 0`;
+/** Types `value` into the first input matching `selector` the way a person does, so React sees it. */
+const typeInto = (selector, value) =>
+  `(() => { const el = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(el.constructor.prototype, "value").set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event("input", { bubbles: true })); })(); 0`;
 const emit = (event) => `window.__fixtures.emit("hath", "/events", ${JSON.stringify({ ...event, at: "NOW" }).replace('"NOW"', "new Date().toISOString()")}); 0`;
 const message = (seq, content) => ({ type: "message", agent_id: "finance-specialist", from_agent_id: "finance-specialist", to_agent_id: null, content, attachments: [], seq });
 
@@ -111,6 +117,42 @@ function flowJobs(scenario) {
       ...frames("system-log-service-chosen", [900]),
       { checks: "log-service" },
     ]),
+    job("chaavi-browse", "/chaavi", [
+      { eval: clickText("button", "Checking account") },
+      ...frames("chaavi-open-item", [120, 500]),
+      { checks: "item-open" },
+      { eval: '[...document.querySelectorAll("button[aria-label^=\'Reveal\']")][0]?.click(); 0' },
+      ...frames("chaavi-reveal-refused", [400, 900]),
+      { eval: clickText("button", "Favorites") },
+      ...frames("chaavi-favorites", [300]),
+      { eval: typeInto("input[aria-label='Search items']", "apple") },
+      ...frames("chaavi-search", [300]),
+      { eval: typeInto("input[aria-label='Search items']", "zzz") },
+      ...frames("chaavi-search-none", [300]),
+      { checks: "search-none" },
+    ]),
+    job("chaavi-sheet", "/chaavi", [
+      { eval: "window.__mountSince = performance.now(); 0" },
+      { eval: clickText("button", "New item") },
+      ...frames("chaavi-sheet-open", [80, 320, 700]),
+      { checks: "sheet-open" },
+      { eval: clickText("button", "Create") },
+      ...frames("chaavi-sheet-refused", [400]),
+      { eval: clickText(".segmented button", "Bank account") },
+      ...frames("chaavi-sheet-bank", [300]),
+      { eval: typeInto("input[aria-label='Name']", "Savings") },
+      { eval: clickText("button", "Create") },
+      ...frames("chaavi-sheet-create-failed", [900]),
+      { eval: '[...document.querySelectorAll("button[aria-label=Close]")][0]?.click(); 0' },
+      ...frames("chaavi-sheet-close", [100, 250, 600]),
+    ]),
+    job("chaavi-delete", "/chaavi", [
+      { eval: '[...document.querySelectorAll("button[aria-label=\'Delete item\']")][0]?.click(); 0' },
+      ...frames("chaavi-delete-open", [80, 320]),
+      { checks: "delete-open" },
+      { eval: clickText("button", "Cancel") },
+      ...frames("chaavi-delete-cancel", [100, 250, 600]),
+    ]),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },
       ...frames("chat-open", [120, 600]),
@@ -120,7 +162,7 @@ function flowJobs(scenario) {
 }
 
 function plan(opts, outDir) {
-  const pages = opts["flows-only"] ? [] : list(opts.pages, Object.keys(PAGES));
+  const pages = opts["flows-only"] || typeof opts.flow === "string" ? [] : list(opts.pages, Object.keys(PAGES));
   const scenarios = list(opts.scenarios, SCENARIOS);
   const sizes = list(opts.widths, ["1440"]);
   const jobs = [];
@@ -135,7 +177,10 @@ function plan(opts, outDir) {
       }
     }
   }
-  if (opts.flows || opts["flows-only"]) for (const scenario of ["normal", "asking", "long"]) jobs.push(...flowJobs(scenario));
+  if (opts.flows || opts["flows-only"] || typeof opts.flow === "string") for (const scenario of ["normal", "asking", "long"]) jobs.push(...flowJobs(scenario));
+  if (typeof opts.flow === "string") {
+    return { outDir: join(outDir, "shots"), hookScript: join(here, "hook.js"), checksScript: join(here, "checks.js"), jobs: jobs.filter((job) => job.name.startsWith(`flow-${opts.flow}`)) };
+  }
   return {
     outDir: join(outDir, "shots"),
     hookScript: join(here, "hook.js"),
