@@ -3,7 +3,8 @@ import { ApiError } from "../shared/api/errors";
 /** Most toasts on screen at once; a new one past this pushes out the oldest. */
 const MAX_TOASTS = 4;
 
-export type ToastTone = "info" | "error";
+/** `ok` confirms something Ankur did; `info` reports something that happened; `error` reports a failure. */
+export type ToastTone = "info" | "error" | "ok";
 
 /** Where clicking a toast takes you. */
 export type ToastTarget =
@@ -32,6 +33,8 @@ export type Toast = {
   at: number;
   /** Where clicking the toast goes; null makes it a plain notice. */
   target: ToastTarget | null;
+  /** Set once it is on its way out; the Toaster removes it when the exit animation ends. */
+  leaving: boolean;
 };
 
 /** What a caller supplies; the store fills in id, count and time. */
@@ -76,9 +79,9 @@ export function pushToast(input: ToastInput, now: number = Date.now()): void {
   };
   const existing = toasts.find((t) => t.key === input.key);
   if (existing) {
-    toasts = toasts.map((t) => (t === existing ? { ...t, ...fields, count: t.count + 1 } : t));
+    toasts = toasts.map((t) => (t === existing ? { ...t, ...fields, count: t.count + 1, leaving: false } : t));
   } else {
-    toasts = [...toasts, { id: nextId++, key: input.key, count: 1, ...fields }].slice(-MAX_TOASTS);
+    toasts = [...toasts, { id: nextId++, key: input.key, count: 1, leaving: false, ...fields }].slice(-MAX_TOASTS);
   }
   emit();
 }
@@ -92,8 +95,17 @@ export function failureTarget(err: unknown): ToastTarget | null {
   return err instanceof ApiError ? { kind: "logs", service: err.service, q: err.requestId, at: err.at } : null;
 }
 
-/** Take a toast off screen. */
+/** Start a toast's exit: it stays up, marked leaving, until {@link removeToast}. */
 export function dismissToast(id: number): void {
+  if (!toasts.some((t) => t.id === id && !t.leaving)) {
+    return;
+  }
+  toasts = toasts.map((t) => (t.id === id ? { ...t, leaving: true } : t));
+  emit();
+}
+
+/** Take a toast off screen once its exit animation has played. */
+export function removeToast(id: number): void {
   if (!toasts.some((t) => t.id === id)) {
     return;
   }

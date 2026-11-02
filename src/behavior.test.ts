@@ -43,7 +43,7 @@ import {
   upsertConversation,
 } from "./store/chat";
 import type { ChatMessage } from "./store/chat";
-import { failureTarget, getToasts, pushToast, resetToasts } from "./store/toasts";
+import { dismissToast, failureTarget, getToasts, pushToast, removeToast, resetToasts } from "./store/toasts";
 import { ApiError } from "./shared/api/errors";
 import type { DurableMessage, Lane, LogRecord } from "./types/hath";
 import {
@@ -641,6 +641,19 @@ describe("toasts", () => {
       ["k4", 1, 4],
       ["k5", 2, 9],
     ]);
+  });
+
+  it("keeps a dismissed toast on screen, leaving, until its exit has played, and a repeat brings it back", () => {
+    resetToasts();
+    pushToast({ key: "a", tone: "ok", title: "Password copied" }, 1);
+    const [toast] = getToasts();
+    dismissToast(toast.id);
+    expect(getToasts().map((t) => [t.title, t.leaving])).toEqual([["Password copied", true]]);
+    pushToast({ key: "a", tone: "ok", title: "Password copied" }, 2);
+    expect(getToasts().map((t) => [t.count, t.leaving])).toEqual([[2, false]]);
+    dismissToast(toast.id);
+    removeToast(toast.id);
+    expect(getToasts()).toEqual([]);
   });
 });
 
