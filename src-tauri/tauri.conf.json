@@ -17,6 +17,7 @@
         "backgroundThrottling": "disabled",
         "width": 1280,
         "height": 800,
+        "minWidth": 960,
         "decorations": true,
         "hiddenTitle": true,
         "titleBarStyle": "Overlay",

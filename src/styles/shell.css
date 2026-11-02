@@ -21,6 +21,12 @@
   }
 }
 
+@layer base {
+  body {
+    min-width: 960px;
+  }
+}
+
 @layer components {
   .titlebar {
     height: 40px;

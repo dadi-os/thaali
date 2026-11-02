@@ -12,6 +12,7 @@
  */
 
 import { defaultWindowIcon } from "@tauri-apps/api/app";
+import { Image } from "@tauri-apps/api/image";
 import {
   Menu,
   MenuItem,
@@ -22,10 +23,11 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { dispatchDesktopShell } from "../store/desktopShell";
 import { isTauriRuntime } from "../shared/api/runtime";
 import { LANE_LABEL } from "../shared/lib/ux/lanes";
+import unreadMarkUrl from "../assets/tray-unread.png";
 
 const TRAY_ID = "dadi-tray";
 
-/** Cap agent rows in the menu (full list is on the Agents page). */
+/** Cap agent rows in the menu (the full list is on the Hath page). */
 const AGENT_SLOTS_MAX = 16;
 
 /** One agent row in the Agents menu. */
@@ -46,8 +48,15 @@ export type TrayListState<T> =
 export type TraySnapshot = {
   meshConnected: boolean;
   updateInstalling: boolean;
+  /** Some conversation holds a message to you that you have not read: the tray's mark carries a dot. */
+  unread: boolean;
   agents: TrayListState<TrayAgent>;
 };
+
+/** The agents the Agents menu lists: those with a lane running, since the rest have nothing to show. */
+export function workingAgents(agents: TrayAgent[]): TrayAgent[] {
+  return agents.filter((agent) => agent.running.work || agent.running.process);
+}
 
 /** Items we mutate after install. Held so updates do not depend on Menu.get. */
 type LiveItems = {
@@ -69,6 +78,9 @@ let trayMenuBound = false;
 let chain: Promise<void> = Promise.resolve();
 let queued: TraySnapshot | null = null;
 let lastLiveKey: string | null = null;
+/** The tray's mark without and with its unread dot, loaded when first needed. */
+let marks: { plain: Image; unread: Image } | null = null;
+let markShowsUnread = false;
 
 /** Slot index → agent id for click handlers (shared by app + tray menus). */
 const slotAgentIds: Array<string | null> = Array.from(
@@ -119,6 +131,7 @@ async function applyDesktopShell(snapshot: TraySnapshot): Promise<void> {
     }
     installed = true;
     lastLiveKey = liveFingerprint(snapshot);
+    await syncMark(snapshot.unread);
     return;
   }
 
@@ -134,6 +147,34 @@ async function applyDesktopShell(snapshot: TraySnapshot): Promise<void> {
   if (trayLive) {
     await patchLive(trayLive, snapshot);
   }
+  await syncMark(snapshot.unread);
+}
+
+/** The tray's two marks: the app icon, and the app icon with the unread dot. */
+async function loadMarks(): Promise<{ plain: Image; unread: Image }> {
+  if (marks) {
+    return marks;
+  }
+  const plain = await defaultWindowIcon();
+  if (!plain) {
+    throw new Error("default window icon is missing for tray");
+  }
+  const response = await fetch(unreadMarkUrl);
+  if (!response.ok) {
+    throw new Error(`tray unread mark did not load: HTTP ${response.status}`);
+  }
+  marks = { plain, unread: await Image.fromBytes(await response.arrayBuffer()) };
+  return marks;
+}
+
+/** Show the unread dot on the tray's mark while there is something unread, and take it off when there is not. */
+async function syncMark(unread: boolean): Promise<void> {
+  if (!tray || unread === markShowsUnread) {
+    return;
+  }
+  const loaded = await loadMarks();
+  await tray.setIcon(unread ? loaded.unread : loaded.plain);
+  markShowsUnread = unread;
 }
 
 /** Create or reuse the Windows notification-area tray. */
@@ -196,7 +237,7 @@ async function syncAgentRows(
 ): Promise<void> {
   const desired =
     snapshot.agents.status === "ready"
-      ? snapshot.agents.items.slice(0, AGENT_SLOTS_MAX)
+      ? workingAgents(snapshot.agents.items).slice(0, AGENT_SLOTS_MAX)
       : [];
 
   while (live.agentRows.length < desired.length) {
@@ -236,40 +277,28 @@ async function setEnabledIf(item: MenuItem, enabled: boolean): Promise<void> {
   }
 }
 
+/** One working agent's row: its name and the lanes that are running. */
 function agentSlotLabel(agent: TrayAgent): string {
-  const statusBits: string[] = [];
-  if (agent.running.work) {
-    statusBits.push(LANE_LABEL.work);
-  }
-  if (agent.running.process) {
-    statusBits.push(LANE_LABEL.process);
-  }
-  const status =
-    statusBits.length > 0
-      ? statusBits.join(" · ")
-      : agent.active
-        ? "idle"
-        : "paused";
-  return `${agent.name}  ·  ${status}`;
+  const lanes = [agent.running.work ? LANE_LABEL.work : null, agent.running.process ? LANE_LABEL.process : null].filter((lane) => lane !== null);
+  return `${agent.name}  ·  ${lanes.join(" · ")}`;
 }
 
-function agentsStatusText(snapshot: TraySnapshot): string {
+/** The Agents menu's status line: how many agents are working, or why it cannot say. */
+export function agentsStatusText(snapshot: TraySnapshot): string {
   if (snapshot.agents.status === "error") {
     return "Agents unavailable";
   }
   if (snapshot.agents.status === "pending") {
-    return snapshot.meshConnected
-      ? "Loading agents…"
-      : "Connect to list agents";
+    return snapshot.meshConnected ? "Loading agents…" : "Connect to list agents";
   }
-  const n = snapshot.agents.items.length;
+  const n = workingAgents(snapshot.agents.items).length;
   if (n === 0) {
-    return snapshot.meshConnected ? "No agents yet" : "Connect to list agents";
+    return snapshot.meshConnected ? "Nothing working" : "Connect to list agents";
   }
   if (n > AGENT_SLOTS_MAX) {
-    return `${AGENT_SLOTS_MAX} of ${n} — Open Agents… for all`;
+    return `${AGENT_SLOTS_MAX} of ${n} working — Open Hath… for all`;
   }
-  return `${n} agent${n === 1 ? "" : "s"}`;
+  return `${n} working`;
 }
 
 /** Fingerprint of fields that drive in-place patches (skip no-op syncs). */
@@ -277,7 +306,7 @@ function liveFingerprint(snapshot: TraySnapshot): string {
   return JSON.stringify({
     meshConnected: snapshot.meshConnected,
     updateInstalling: snapshot.updateInstalling,
-    agents: snapshot.agents,
+    agents: snapshot.agents.status === "ready" ? { status: "ready", items: workingAgents(snapshot.agents.items) } : snapshot.agents,
   });
 }
 
@@ -400,7 +429,7 @@ async function createLiveItems(snapshot: TraySnapshot): Promise<{
 
   const desired =
     snapshot.agents.status === "ready"
-      ? snapshot.agents.items.slice(0, AGENT_SLOTS_MAX)
+      ? workingAgents(snapshot.agents.items).slice(0, AGENT_SLOTS_MAX)
       : [];
   const agentRows: MenuItem[] = [];
   for (let i = 0; i < desired.length; i++) {

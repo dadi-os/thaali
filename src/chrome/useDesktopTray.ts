@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useState } from "react";
+import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { hath, isMeshOnline } from "../shared/api";
@@ -11,7 +11,7 @@ import {
   type TraySnapshot,
 } from "./tray";
 import { logLine } from "../shared/lib/platform/log";
-import { openAgent } from "../store/chat";
+import { getChatState, openAgent, subscribeChat } from "../store/chat";
 import { subscribeDesktopShell } from "../store/desktopShell";
 import {
   getRunning,
@@ -54,6 +54,7 @@ export function useDesktopTray(opts: {
   const update = useDesktopUpdate();
   const online = isMeshOnline(state);
   const [running, setRunning] = useState<RunningMap>(() => getRunning());
+  const unread = useSyncExternalStore(subscribeChat, () => Object.values(getChatState().unread).some((count) => count > 0));
 
   const onProvision = useEffectEvent(opts.onProvision);
   const onForget = useEffectEvent(opts.onForget);
@@ -133,6 +134,7 @@ export function useDesktopTray(opts: {
     void syncDesktopTray({
       meshConnected: online,
       updateInstalling: update.installing,
+      unread,
       agents,
     }).catch((err) => {
       logLine(
@@ -144,6 +146,7 @@ export function useDesktopTray(opts: {
   }, [
     online,
     update.installing,
+    unread,
     agentsQuery.data,
     agentsQuery.isError,
     agentsQuery.isSuccess,
