@@ -9,6 +9,9 @@
  *   seek(ms)       jump every animation and transition to `ms` after its start
  *   relayoutSvgText()  lay every SVG text out again from the same state, so a parsed page and a built one measure alike
  *   extract(root)  the element tree: tag, own text, attributes, box, computed style, pseudo-element content, and the root's own rectangle on the page
+ *
+ * A `canvas` (the WebGL scene of the Yaad graph) is hidden on both sides and compared by its box alone: the scene is drawn from a live simulation and
+ * differs run to run, so everything around it decides the case, and the canvas decides only where it sits and how big it is.
  */
 (() => {
   window.__errs = [];
@@ -116,6 +119,10 @@
     root: () => document.querySelector("[data-ds-case]"),
 
     prepare({ width = null, height = null, root: rootSelector = null, page = false, ground = "#fafaf7" }) {
+      const hidden = document.createElement("style");
+      hidden.id = "__ds-canvas";
+      hidden.textContent = "canvas{visibility:hidden!important}";
+      document.head.appendChild(hidden);
       if (rootSelector !== null) {
         const chosen = document.querySelector(rootSelector);
         if (chosen === null) {
@@ -216,7 +223,11 @@
       ds.relayoutSvgText();
       const root = ds.root();
       const origin = root.getBoundingClientRect();
+      const box = (rect) => ({ x: +(rect.x - origin.x).toFixed(2), y: +(rect.y - origin.y).toFixed(2), w: +rect.width.toFixed(2), h: +rect.height.toFixed(2) });
       const walk = (el) => {
+        if (el.tagName === "CANVAS") {
+          return { tag: "canvas", text: "", attrs: {}, rect: box(el.getBoundingClientRect()), style: {}, pseudo: {}, children: [] };
+        }
         const cs = getComputedStyle(el);
         const style = {};
         for (const prop of PROPS) {
@@ -246,7 +257,7 @@
           tag: el.tagName.toLowerCase(),
           text: own,
           attrs,
-          rect: { x: +(rect.x - origin.x).toFixed(2), y: +(rect.y - origin.y).toFixed(2), w: +rect.width.toFixed(2), h: +rect.height.toFixed(2) },
+          rect: box(rect),
           style,
           pseudo,
           children: Array.from(el.children).filter((c) => !SKIP.has(c.tagName)).map(walk),
