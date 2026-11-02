@@ -6,7 +6,7 @@
  * Usage: node visual/run.mjs --out <dir> [--pages hath,system] [--scenarios normal,asking]
  *        [--widths 1440,900x700,1080x1920] [--interact] [--flows]
  *
- * `--flows` adds the scripted flows (agent sheet and takeover modal, toasts, System task rows, chat thread) at
+ * `--flows` adds the scripted flows (agent sheet and takeover modal, toasts, System task rows and logs, chat thread) at
  * 1440 wide in the `normal`, `asking` and `long` scenarios; `--flows-only` runs just those.
  */
 import { spawnSync } from "node:child_process";
@@ -91,10 +91,25 @@ function flowJobs(scenario) {
       { checks: "toasts" },
     ]),
     job("system-tasks", "/system", [
+      { eval: 'document.querySelector(".trow")?.scrollIntoView({ block: "center" }); 0' },
+      { wait: 200 },
       { eval: "window.__mountSince = performance.now(); 0" },
-      { eval: '[...document.querySelectorAll("button[aria-expanded]")].find((b) => b.textContent.includes("task/"))?.click(); 0' },
+      { eval: 'document.querySelector(".trow > button")?.click(); 0' },
       ...frames("system-task-open", [100, 450, 1200]),
       { checks: "task-open" },
+      { eval: '[...document.querySelectorAll("button[aria-pressed]")].find((b) => b.textContent.startsWith("Working"))?.click(); 0' },
+      ...frames("system-task-filtered", [300]),
+    ]),
+    job("system-logs", "/system", [
+      { eval: "window.__mountSince = performance.now(); 0" },
+      { eval: 'document.querySelector("[data-log-key] > button")?.click(); 0' },
+      ...frames("system-log-pinned", [100, 450]),
+      { checks: "log-pinned" },
+      { eval: 'document.querySelector("[aria-haspopup=menu]")?.click(); 0' },
+      ...frames("system-log-services", [200]),
+      { eval: '[...document.querySelectorAll("[role=menuitem]")].find((b) => b.textContent.includes("hath"))?.click(); 0' },
+      ...frames("system-log-service-chosen", [900]),
+      { checks: "log-service" },
     ]),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },
