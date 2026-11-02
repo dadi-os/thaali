@@ -439,6 +439,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       const message = err instanceof Error ? err.message : String(err);
       markFailed(toId, tempSeq, message);
       logLine("error", message, "thread_send_failed");
+      await reportSendFailure({ key: `thread_send_failed:${toId}`, text: trimmed, message, target: { kind: "chat", agentId: toId } });
     }
   };
 
