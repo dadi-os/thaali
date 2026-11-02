@@ -7,7 +7,7 @@ import {
   forceY,
   forceZ,
 } from "d3-force-3d";
-import type { EdgeRecord, NodeKind, NodeRecord } from "../../types/yaad";
+import type { EdgeRecord, NodeKind, NodeRecord, NodeSource } from "../../types/yaad";
 import type {
   ForceGraphSimulation,
   ForceLinkDatum,
@@ -15,13 +15,20 @@ import type {
   ForceNode,
 } from "../../shared/components/ForceGraph";
 
-/** Theme token that colors each node kind, in the scene, the legend, and the popover. */
+/** Theme token that colors each node kind, in the scene and in the sheet. */
 export const KIND_TOKEN = {
   person: "--sage-deep",
-  place: "--sage",
-  memory: "--ink-faint",
+  place: "--tide",
+  memory: "--sage",
   plan: "--clay",
 } as const satisfies Record<NodeKind, string>;
+
+/** How each write source reads where a node says who wrote it. */
+export const SOURCE_LABEL = {
+  manual: "added by hand",
+  agent: "added by an agent",
+  ingest: "learned in conversation",
+} as const satisfies Record<NodeSource, string>;
 
 /** Undirected-render edge between two Yaad node ids. */
 export type GraphEdge = {
@@ -47,7 +54,7 @@ export type MemorySimulation = ForceGraphSimulation<NodeRecord, GraphEdge>;
 /** Edge in the memory simulation, with both endpoints resolved to nodes. */
 export type MemoryLink = ForceLinkResolved<NodeRecord, GraphEdge>;
 
-/** A node's neighbor across one edge, as the popover lists it. */
+/** A node's neighbor across one edge, as the sheet lists it. */
 export type Connection = {
   /** Edge id. */
   id: string;

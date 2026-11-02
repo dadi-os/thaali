@@ -51,8 +51,7 @@ const LABEL_INK: Record<StateTone, string> = {
  * moves in its tone's way (an arc circling while loading, a dashed ring drifting when
  * offline, a slow ripple from a marked core on error, still when empty), a tracking-caps
  * label, and one quiet line. An error shows its own message and, when a dadi service
- * answered, the service, status and request with a way to that request's log line. Same
- * type and palette as GraphPlaceholder, which stays the graphs' own stand-in.
+ * answered, the service, status and request with a way to that request's log line.
  */
 export function StateView(props: StateViewProps) {
   const { tone, label, compact = false, className = "" } = props;

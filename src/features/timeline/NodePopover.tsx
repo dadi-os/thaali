@@ -8,8 +8,7 @@ import type { EdgeRecord, NodeRecord } from "../../types/yaad";
 import { Popover, type PopoverAnchor } from "../../shared/components/Popover";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
-import { KIND_ORDER, KIND_TOKEN } from "../memory/graph";
-import { SOURCE_LABEL } from "../memory/MemoryPopover";
+import { KIND_ORDER, KIND_TOKEN, SOURCE_LABEL } from "../memory/graph";
 import { formatDayShort, formatTime, isSameDay } from "./dates";
 import { SessionActions } from "./SessionActions";
 
