@@ -4,9 +4,9 @@ import { AppShell } from "./chrome/AppShell";
 import { ChaaviPage } from "./pages/ChaaviPage";
 import { GharPage } from "./pages/GharPage";
 import { HathPage } from "./pages/HathPage";
+import { HomePage } from "./pages/HomePage";
 import { SystemPage } from "./pages/SystemPage";
 import { TimelinePage } from "./pages/TimelinePage";
-import { WidgetGridPage } from "./pages/WidgetGridPage";
 import { YaadPage } from "./pages/YaadPage";
 import { failureTarget, pushToast } from "./store/toasts";
 
@@ -37,7 +37,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route element={<AppShell />}>
-            <Route index element={<WidgetGridPage />} />
+            <Route index element={<HomePage />} />
             <Route path="hath" element={<HathPage />} />
             <Route path="yaad" element={<YaadPage />} />
             <Route path="timeline" element={<TimelinePage />} />

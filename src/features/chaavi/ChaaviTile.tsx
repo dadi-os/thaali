@@ -1,136 +1,140 @@
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
 import { chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
-import { StateView } from "../../shared/components/states";
-import { Ticker } from "../../shared/components/Ticker";
+import { Skeleton } from "../../shared/components/Skeleton";
+import { Truncate } from "../../shared/components/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
-import { ITEM_TYPES, TYPE_META } from "./draft";
-import { buildFolderTree } from "./folders";
+import { useModuleState } from "../../shared/hooks/useModuleState";
+import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
+import { tileNotice } from "../home/notice";
+import { Tile, type TileGeometry } from "../home/Tile";
+import { TYPE_META } from "./draft";
 
-/** Top-level folders the tile lists at most. */
-const LIST_MAX = 7;
+/** The room the tile's blocks take: the label above the categories, the gap between blocks and the label above the folders. */
+const CHIP_HEIGHT = 32;
+const FOLDER_ROW = 31;
 
-/**
- * Home Chaavi tile, two rows tall, as on the canvas: an odometer per item type the vault holds
- * (Logins, Notes), its top-level folders with a bar each, and how many logins carry a passkey
- * and a one-time code.
- */
-export function ChaaviTile() {
-  const { state: connection } = useConnection();
-  const connected = isMeshOnline(connection);
+type BodyProps = {
+  items: ChaaviItem[];
+  folders: ChaaviFolder[];
+  geometry: TileGeometry;
+};
 
-  const healthQuery = useQuery({
-    queryKey: CHAAVI_HEALTH_KEY,
-    queryFn: () => chaavi.getHealth(),
-    enabled: connected,
-  });
-  const ready = healthQuery.data?.vault === "ready";
-  const itemsQuery = useQuery({
-    queryKey: CHAAVI_ITEMS_KEY,
-    queryFn: () => chaavi.listItems(),
-    enabled: connected && ready,
-  });
-  const foldersQuery = useQuery({
-    queryKey: CHAAVI_FOLDERS_KEY,
-    queryFn: () => chaavi.listFolders(),
-    enabled: connected && ready,
-  });
-
-  if (!connected && !itemsQuery.data) {
-    return <StateView tone="offline" label="Chaavi is offline" detail="The vault comes back when dadi reconnects" compact />;
+/** A chip for each kind of item the vault holds with how many, the folders that hold items with a bar each, and how many passkeys and one-time codes the logins carry. */
+function Body({ items, folders, geometry }: BodyProps) {
+  const types = new Map<ChaaviItemType, number>();
+  for (const item of items) {
+    types.set(item.type, (types.get(item.type) ?? 0) + 1);
   }
-  const failed = [healthQuery, itemsQuery, foldersQuery].find((query) => query.isError && !query.data);
-  if (failed) {
-    return <StateView tone="error" label="Could not reach Chaavi" error={failed.error} onRetry={() => void failed.refetch()} compact />;
+  const inFolders = folders.map((folder) => ({ ...folder, count: items.filter((item) => item.folderId === folder.id).length })).filter((folder) => folder.count > 0);
+  const passkeys = items.reduce((sum, item) => sum + (item.type === "login" ? item.login.passkeys.length : 0), 0);
+  const codes = items.filter((item) => item.type === "login" && item.login.hasTotp).length;
+  const widest = Math.max(...inFolders.map((folder) => folder.count), 1);
+  const chipWidths = [...types].map(([type, count]) => (count === 1 ? TYPE_META[type].one : TYPE_META[type].many).length * 6.6 + 46);
+  let chipRows = 1;
+  let used = 0;
+  for (const width of chipWidths) {
+    if (used > 0 && used + width > geometry.iw) {
+      chipRows++;
+      used = 0;
+    }
+    used += width + 8;
   }
-  if (healthQuery.data?.vault === "unconfigured") {
-    return <StateView tone="empty" label="Vault unconfigured" detail="Set the vault account in Preferences → Chaavi" compact />;
-  }
-
-  const items = itemsQuery.data?.items ?? null;
-  const folders = foldersQuery.data?.folders ?? null;
-  const kinds = items
-    ? ITEM_TYPES.map((type) => ({ type, n: items.filter((item) => item.type === type).length })).filter((entry) => entry.n > 0)
-    : null;
-  const folderRows =
-    items && folders
-      ? buildFolderTree(folders, items)
-          .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-          .slice(0, LIST_MAX)
-      : null;
-  const widest = folderRows ? Math.max(1, ...folderRows.map((row) => row.count)) : 1;
-  const passkeys = items ? items.filter((item) => item.type === "login" && item.login.passkeys.length > 0).length : null;
-  const codes = items ? items.filter((item) => item.type === "login" && item.login.hasTotp).length : null;
-
+  const categories = 14 + 8 + chipRows * CHIP_HEIGHT + (chipRows - 1) * 8;
+  const footer = 14 + 1 + 10 + 18;
+  const room = geometry.bh - categories - 14 - 21;
+  const showFooter = room - FOLDER_ROW >= footer + FOLDER_ROW || room >= footer + 4 * FOLDER_ROW;
+  const rows = Math.max(1, Math.min(inFolders.length, Math.floor((room - (showFooter ? footer : 0) + 7) / FOLDER_ROW)));
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 gap-5 px-4 pt-2 pb-3">
-        {kinds === null ? (
-          <span className="skeleton mt-1 h-8 w-24 rounded-[8px]" />
-        ) : (
-          kinds.map((entry, i) => (
-            <motion.div
-              key={entry.type}
-              initial={{ opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: SLOW_S, ease: EASE, delay: i * 0.04 }}
-              className="flex flex-col gap-0.5"
-            >
-              <Ticker value={entry.n} delay={i * 0.06} className="text-[28px] font-semibold tracking-[-0.02em] text-ink" />
-              <span className="text-[12px] text-ink-ghost">
-                {entry.n === 1 ? TYPE_META[entry.type].one : TYPE_META[entry.type].many}
-              </span>
-            </motion.div>
-          ))
-        )}
-      </div>
-
-      <div className="mx-4 h-px shrink-0 bg-rule" />
-
-      <div className="flex min-h-0 flex-1 flex-col gap-2 overflow-hidden px-4 py-3">
-        <span className="text-[11px] font-semibold text-ink-ghost">Folders</span>
-        {folderRows === null ? (
-          <Skeleton rows={4} />
-        ) : folderRows.length === 0 ? (
-          <p className="text-[12px] text-ink-ghost">No folders yet</p>
-        ) : (
-          folderRows.map((node) => (
-            <div key={node.path} className="grid grid-cols-[minmax(0,1fr)_54px_22px] items-center gap-2 text-[13px]">
-              <span className="truncate text-ink">{node.name}</span>
-              <span className="h-1 overflow-hidden rounded-full bg-rule">
-                <span className="block h-full rounded-full bg-sage" style={{ width: `${(node.count / widest) * 100}%` }} />
-              </span>
-              <span className="text-right font-numeric text-ink-ghost">{node.count}</span>
+    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 14, justifyContent: "flex-start" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none" }}>
+        <span className="ui-label" style={{ fontSize: 11 }}>Categories</span>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          {[...types].map(([type, count]) => (
+            <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, height: CHIP_HEIGHT, padding: "0 12px", borderRadius: 999, background: "var(--sage-fill)", fontSize: 13.5, whiteSpace: "nowrap", minWidth: 0 }}>
+              <Truncate text={count === 1 ? TYPE_META[type].one : TYPE_META[type].many} style={{ fontWeight: 500, color: "var(--sage-text)" }} />
+              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{count}</span>
             </div>
-          ))
-        )}
+          ))}
+        </div>
       </div>
-
-      <div className="flex shrink-0 gap-3 px-4 pt-1 pb-3 text-[12px] text-ink-ghost">
-        <span>
-          {passkeys ?? "–"} {passkeys === 1 ? "passkey" : "passkeys"}
-        </span>
-        <span>
-          {codes ?? "–"} {codes === 1 ? "one-time code" : "one-time codes"}
-        </span>
+      <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: "none", minHeight: 0 }}>
+        <span className="ui-label" style={{ fontSize: 11 }}>Folders</span>
+        {inFolders.slice(0, rows).map((folder) => (
+          <div key={folder.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 24 }}>
+            <Truncate text={folder.name} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
+            <span style={{ width: 56, height: 5, borderRadius: 3, background: "var(--rule)", overflow: "hidden", flex: "none" }}>
+              <span style={{ display: "block", height: "100%", width: `${(folder.count / widest) * 100}%`, background: "var(--sage)" }} />
+            </span>
+            <span style={{ minWidth: 20, textAlign: "right", fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", flex: "none" }}>{folder.count}</span>
+          </div>
+        ))}
       </div>
+      <div style={{ flex: 1 }} />
+      {showFooter ? (
+        <div style={{ display: "flex", alignItems: "center", gap: "4px 14px", flexWrap: "wrap", fontSize: 12.5, color: "var(--ink-muted)", flex: "none", whiteSpace: "nowrap", borderTop: "1px solid var(--rule)", paddingTop: 10 }}>
+          <span>{`${passkeys} ${passkeys === 1 ? "passkey" : "passkeys"}`}</span>
+          <span>{`${codes} one-time ${codes === 1 ? "code" : "codes"}`}</span>
+        </div>
+      ) : null}
     </div>
   );
 }
 
-type SkeletonProps = {
-  rows: number;
-};
-
-/** Pulsing lines while the catalog loads. */
-function Skeleton({ rows }: SkeletonProps) {
+/** Home's Chaavi tile: what the vault holds by kind and folder, and how many passkeys and one-time codes it keeps. */
+export function ChaaviTile({ order }: { order: number }) {
+  const { state: connection } = useConnection();
+  const connected = isMeshOnline(connection);
+  const health = useQuery({ queryKey: CHAAVI_HEALTH_KEY, queryFn: () => chaavi.getHealth(), enabled: connected });
+  const open = health.data?.vault === "ready";
+  const items = useQuery({ queryKey: CHAAVI_ITEMS_KEY, queryFn: () => chaavi.listItems(), enabled: connected && open });
+  const folders = useQuery({ queryKey: CHAAVI_FOLDERS_KEY, queryFn: () => chaavi.listFolders(), enabled: connected && open });
+  const healthState = useModuleState(health, () => false);
+  const itemsState = useModuleState(items, (answer) => answer.items.length === 0);
+  const foldersState = useModuleState(folders, () => false);
+  const failed = [healthState, itemsState, foldersState].find((state) => state.kind === "error" || state.kind === "module-offline");
+  const state = failed ?? itemsState;
+  const retry = () => void [health, items, folders].find((query) => query.isError)?.refetch();
+  const unconfigured = health.data?.vault === "unconfigured";
+  const ready = state.kind === "ready" && foldersState.kind === "ready";
+  const answer = state.kind === "ready" ? state.data.items : [];
   return (
-    <>
-      {Array.from({ length: rows }, (_, i) => (
-        <span key={i} className="h-3.5 animate-pulse rounded-[4px] bg-sage-fill/60" />
-      ))}
-    </>
+    <Tile
+      area="chaavi"
+      title="Chaavi"
+      to="/chaavi"
+      order={order}
+      summary={ready && answer.length > 0 ? `${answer.length} items` : undefined}
+      loading={!unconfigured && (state.kind === "loading" || (state.kind === "ready" && foldersState.kind === "loading"))}
+      notice={
+        unconfigured
+          ? { kind: "empty", title: "Vault unconfigured", detail: "Set the vault account in Preferences → Chaavi" }
+          : tileNotice(state, { name: "Chaavi", request: "GET /v1/items", empty: ["The vault is empty", "Logins and notes appear here once you add them."] }, retry)
+      }
+      skeleton={() => (
+        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            {Array.from({ length: 3 }, (_, i) => (
+              <Skeleton key={i} width={88 + i * 14} height={32} radius={999} />
+            ))}
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+            {Array.from({ length: 4 }, (_, i) => (
+              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                <Skeleton width="42%" height={14} />
+                <Skeleton width={56} height={5} style={{ marginLeft: "auto" }} />
+                <Skeleton width={14} height={13} />
+              </div>
+            ))}
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <Skeleton width={70} height={12} />
+            <Skeleton width={90} height={12} />
+          </div>
+        </div>
+      )}
+    >
+      {(g) => <Body items={answer} folders={foldersState.kind === "ready" ? foldersState.data.folders : []} geometry={g} />}
+    </Tile>
   );
 }

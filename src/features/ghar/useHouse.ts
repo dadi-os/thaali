@@ -8,7 +8,7 @@ import { shownError } from "./commission";
 import { applyCommand, type DeviceCommand } from "./model";
 
 /**
- * The house as the Ghar page and the home widget use it: devices and rooms under the shared
+ * The house as the Ghar page and the Home tile use it: devices and rooms under the shared
  * Ghar keys (kept live by Ghar's /changes stream), commands that run per device in order and
  * show their result as soon as Ghar accepts them, and writes whose failures surface as
  * `failure` until the next success or `dismiss`.

@@ -20,7 +20,7 @@ import { isWithin } from "./folders";
 /** Display names per item type. */
 export const TYPE_META: Record<ChaaviItemType, { one: string; many: string }> = {
   login: { one: "Login", many: "Logins" },
-  note: { one: "Secure note", many: "Notes" },
+  note: { one: "Secure note", many: "Secure notes" },
   card: { one: "Card", many: "Cards" },
   identity: { one: "Identity", many: "Identities" },
   sshKey: { one: "SSH key", many: "SSH keys" },

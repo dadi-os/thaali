@@ -1,0 +1,101 @@
+import { Fragment } from "react";
+import type { AgentRecord } from "../../types/hath";
+import { layoutForest, nodeRadius, viewForest, type ForestLink, type GraphLabels } from "./graph2d";
+import { isLive, type LaneState } from "./laneState";
+
+/** The fill of a node by what its agent is doing: sage on a lane, tide on the process lane alone, a bone ring while it waits. */
+const FILL: Record<LaneState, string> = { both: "#8fa382", working: "#8fa382", processing: "#7d9aa6", waiting: "#fafaf7", idle: "#b6bdac" };
+
+export type AgentGraph2DProps = {
+  agents: AgentRecord[];
+  /** What each agent is doing; a live agent's node has a ring that spreads. */
+  stateOf: (agent: AgentRecord) => LaneState;
+  /** The pixels the graph is drawn into; it is scaled to them, so names stay legible however far it shrinks. */
+  width: number;
+  height: number;
+  /** Which names are written. */
+  labels: GraphLabels;
+  /** Scales the nodes; 1 for a whole-page graph, smaller for a tile. */
+  nodeScale: number;
+};
+
+/** The path of a link: a curve that bows a little away from the straight line. */
+function curve({ from, to }: ForestLink): string {
+  const mx = (from.x + to.x) / 2;
+  const my = (from.y + to.y) / 2;
+  return `M${from.x.toFixed(1)} ${from.y.toFixed(1)} Q${(mx + (to.y - from.y) * 0.06).toFixed(1)} ${(my - (to.x - from.x) * 0.06).toFixed(1)} ${to.x.toFixed(1)} ${to.y.toFixed(1)}`;
+}
+
+/** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes that have room for one. */
+export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale }: AgentGraph2DProps) {
+  const view = viewForest(layoutForest(agents, stateOf), { labels, width, height, nodeScale });
+  const { nodes, links, unit } = view;
+  return (
+    <svg
+      viewBox={view.viewBox.map((x) => x.toFixed(0)).join(" ")}
+      style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }}
+      preserveAspectRatio="xMidYMid meet"
+      role="img"
+      aria-label={`Agent graph: ${nodes.length} agents`}
+    >
+      <g>
+        {links.map((link) => {
+          const live = isLive(link.to.state) || isLive(link.from.state);
+          return (
+            <path
+              key={`${link.from.agent.id}>${link.to.agent.id}`}
+              d={curve(link)}
+              fill="none"
+              stroke={live ? "rgba(143,163,130,.8)" : "rgba(185,201,171,.65)"}
+              strokeWidth={unit(live ? 1.6 : 1.1)}
+              strokeLinecap="round"
+            />
+          );
+        })}
+      </g>
+      <g>
+        {nodes.map((n) => {
+          const r = unit(nodeRadius(n.depth, nodeScale));
+          const x = n.x.toFixed(1);
+          const y = n.y.toFixed(1);
+          return (
+            <Fragment key={n.agent.id}>
+              {isLive(n.state) ? <circle cx={x} cy={y} r={r} fill="#8fa382" style={{ transformOrigin: `${x}px ${y}px`, animation: "ring 2.2s ease-out infinite" }} /> : null}
+              <circle cx={x} cy={y} r={r} fill={FILL[n.state]} stroke={n.state === "waiting" ? "#8fa382" : n.state === "both" ? "#7d9aa6" : "#fafaf7"} strokeWidth={unit(n.state === "waiting" || n.state === "both" ? 2 : 1.5)}>
+                <title>{`${n.agent.name} · ${n.state}`}</title>
+              </circle>
+            </Fragment>
+          );
+        })}
+      </g>
+      <g>
+        {nodes.map((n) => {
+          const label = view.labels.get(n);
+          if (label === undefined) {
+            return null;
+          }
+          const strong = n.depth === 1 || isLive(n.state);
+          const r = unit(nodeRadius(n.depth, nodeScale));
+          return (
+            <text
+              key={n.agent.id}
+              x={(n.x + (label.right ? 1 : -1) * (r + unit(7))).toFixed(1)}
+              y={(n.y + label.size * 0.35).toFixed(1)}
+              textAnchor={label.right ? "start" : "end"}
+              fontFamily="Inter, system-ui, sans-serif"
+              fontSize={label.size}
+              fontWeight={strong ? 600 : 500}
+              fill={strong ? "#2c302a" : "#5d6457"}
+              paintOrder="stroke"
+              stroke="#fafaf7"
+              strokeWidth={unit(3)}
+              strokeLinejoin="round"
+            >
+              {label.name}
+            </text>
+          );
+        })}
+      </g>
+    </svg>
+  );
+}

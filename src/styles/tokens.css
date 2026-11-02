@@ -228,17 +228,38 @@
   white-space: nowrap;
 }
 
-/* Home grid: named areas so the same six widgets reflow for a portrait monitor; each rises in turn. */
+/*
+ * The Home grid: named areas, so the six tiles keep one arrangement per window shape and always fill the page
+ * exactly. Landscape, with a main area of 1000 px or more, is 4 x 4 (Hath and Timeline 2 x 2, Yaad and Ghar
+ * 2 x 1, Chaavi and System 1 x 2); a narrower main area is 2 x 3; a portrait window is two columns of five rows.
+ * `[data-page="home"]` is the container the narrow rule asks about, so a wide rail narrows the grid too: its
+ * padding is 24 px a side, so 1000 px of main area is 952 px of content.
+ */
+[data-page="home"] {
+  container-type: inline-size;
+}
+
 .home-grid {
   display: grid;
   gap: 18px;
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(4, minmax(0, 1fr));
   grid-template-areas:
-    "agents agents timeline timeline"
-    "agents agents timeline timeline"
-    "memory memory chaavi system"
+    "hath hath timeline timeline"
+    "hath hath timeline timeline"
+    "yaad yaad chaavi system"
     "ghar ghar chaavi system";
+}
+
+@container (max-width: 951px) {
+  .home-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-areas:
+      "hath timeline"
+      "yaad ghar"
+      "chaavi system";
+  }
 }
 
 @media (orientation: portrait) {
@@ -246,44 +267,11 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: minmax(0, 22fr) minmax(0, 34fr) minmax(0, 9fr) minmax(0, 8fr) minmax(0, 24fr);
     grid-template-areas:
-      "agents agents"
+      "hath hath"
       "timeline timeline"
-      "memory memory"
+      "yaad yaad"
       "ghar ghar"
       "chaavi system";
-  }
-}
-
-.home-grid > .widget-frame {
-  animation: widget-rise var(--slower) var(--ease) backwards;
-}
-
-.home-grid > .widget-frame:nth-child(2) {
-  animation-delay: 60ms;
-}
-.home-grid > .widget-frame:nth-child(3) {
-  animation-delay: 120ms;
-}
-.home-grid > .widget-frame:nth-child(4) {
-  animation-delay: 180ms;
-}
-.home-grid > .widget-frame:nth-child(5) {
-  animation-delay: 240ms;
-}
-.home-grid > .widget-frame:nth-child(6) {
-  animation-delay: 300ms;
-}
-
-@keyframes widget-rise {
-  from {
-    opacity: 0;
-    transform: translateY(10px) scale(0.99);
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .home-grid > .widget-frame {
-    animation: none;
   }
 }
 
