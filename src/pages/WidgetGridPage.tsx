@@ -5,7 +5,7 @@ import { AgentGraph3D } from "../features/agents/AgentGraph3D";
 import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharWidget } from "../features/ghar/widget";
 import { COUNTED_KINDS, MemoryCounters, kindCountKey, type KindCount } from "../features/memory/MemoryCounters";
-import { serviceHealth } from "../features/system/SystemMap";
+import { serviceHealth } from "../features/system/health";
 import { SystemWidget } from "../features/system/SystemWidget";
 import type { NasStatus } from "../shared/api/nas";
 import { TimelineCalendar } from "../features/timeline/TimelineCalendar";

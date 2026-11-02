@@ -383,7 +383,7 @@
     font-variant-numeric: tabular-nums;
   }
 
-  .rail-search {
+  .search-field {
     display: flex;
     align-items: center;
     gap: 10px;

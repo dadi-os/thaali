@@ -1,7 +1,7 @@
 import type { UseQueryResult } from "@tanstack/react-query";
 import { describe, expect, it } from "vitest";
 import { ApiError } from "../../api/errors";
-import { moduleState } from "./moduleState";
+import { failureProps, moduleState } from "./moduleState";
 
 const options = { connected: true, isEmpty: (rows: string[]) => rows.length === 0 };
 
@@ -34,5 +34,17 @@ describe("moduleState", () => {
 
   it("reports an answer with nothing in it as empty", () => {
     expect(moduleState(query({ data: [] }), options)).toEqual({ kind: "empty" });
+  });
+});
+
+describe("failureProps", () => {
+  it("names the service, status and request of a failure a service answered, without the status its client put before the message", () => {
+    const failed = new ApiError("HTTP 500: nas failed while handling GET /status", "http://nas.dadi", "7be0c2d4", 500);
+    expect(failureProps(failed)).toEqual({ detail: "nas failed while handling GET /status", service: "nas", status: 500, requestId: "7be0c2d4" });
+  });
+
+  it("gives only the words of any other thrown value", () => {
+    expect(failureProps(new Error("Network error"))).toEqual({ detail: "Network error" });
+    expect(failureProps("boom")).toEqual({ detail: "boom" });
   });
 });

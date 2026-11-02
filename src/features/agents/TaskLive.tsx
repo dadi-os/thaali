@@ -5,6 +5,8 @@ import { useTerminalCapture } from "./terminalCapture";
 
 /** Lines of a terminal's pane the preview reads: more than its 132 px shows, so the newest line is always at the bottom. */
 const PREVIEW_LINES = 12;
+/** The heights of a preview: the agent sheet's, and the taller one the System page gives it. */
+const HEIGHT = { browser: { default: 150, tall: 330 }, terminal: { default: 132, tall: 288 } } as const;
 
 export type TaskPreviewLiveProps = {
   /** The task's address, such as `task/browser/3f2a91`. */
@@ -16,10 +18,12 @@ export type TaskPreviewLiveProps = {
   caption: string;
   /** The owner is driving it. */
   paused: boolean;
+  /** The taller preview of the System page, where a task has the width to show more. */
+  tall?: boolean;
 };
 
 /** The tail of a terminal's pane as the preview shows it, pinned to the newest line. */
-function TerminalTail({ terminalId }: { terminalId: string }) {
+function TerminalTail({ terminalId, height }: { terminalId: string; height: number }) {
   const { capture } = useTerminalCapture(terminalId, PREVIEW_LINES);
   return (
     <pre
@@ -29,7 +33,7 @@ function TerminalTail({ terminalId }: { terminalId: string }) {
         fontFamily: "var(--font-numeric)",
         fontSize: 11.5,
         lineHeight: "17px",
-        height: 132,
+        height,
         overflow: "hidden",
         whiteSpace: "pre-wrap",
         overflowWrap: "anywhere",
@@ -44,16 +48,17 @@ function TerminalTail({ terminalId }: { terminalId: string }) {
 }
 
 /** A helper task's live screen as a preview: its browser's picture or its terminal's tail, which a click opens in the takeover modal. */
-export function TaskPreviewLive({ task, kind, resource, caption, paused }: TaskPreviewLiveProps) {
+export function TaskPreviewLive({ task, kind, resource, caption, paused, tall = false }: TaskPreviewLiveProps) {
   const shortId = task.replace(/^task\//, "");
+  const height = HEIGHT[kind][tall ? "tall" : "default"];
   return (
     <TaskPreview kind={kind} caption={caption} label={`Open ${kind} task ${shortId}`} paused={paused} onOpen={() => setTakeover(task)}>
       {kind === "browser" ? (
-        <div style={{ position: "relative", height: 150 }}>
+        <div style={{ position: "relative", height }}>
           <BrowserFrame browserId={Number(resource)} variant="fill" />
         </div>
       ) : (
-        <TerminalTail terminalId={resource} />
+        <TerminalTail terminalId={resource} height={height} />
       )}
     </TaskPreview>
   );

@@ -134,7 +134,7 @@ export function ConversationList({
   return (
     <>
       <div style={{ padding: "14px 14px 8px", flex: "none" }}>
-        <label className="rail-search">
+        <label className="search-field">
           <Icon name="search" size={15} />
           <input
             type="search"

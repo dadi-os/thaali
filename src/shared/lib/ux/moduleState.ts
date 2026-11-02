@@ -43,3 +43,14 @@ export function moduleState<Data>(query: UseQueryResult<Data>, { connected, isEm
   }
   return connected ? { kind: "loading" } : { kind: "offline" };
 }
+
+/** What a state view says about a failed request: the failure's own words and, when a dadi service answered, which service, status and request. */
+export type FailureProps = { detail: string; service?: string; status?: number; requestId?: string };
+
+/** The detail, service, status and request id a state view shows for a thrown value; a service's answer loses the `HTTP 500: ` its client put in front. */
+export function failureProps(error: unknown): FailureProps {
+  if (error instanceof ApiError) {
+    return { detail: error.message.replace(/^HTTP \d+: /, ""), service: error.service, status: error.status, requestId: error.requestId };
+  }
+  return { detail: error instanceof Error ? error.message : String(error) };
+}

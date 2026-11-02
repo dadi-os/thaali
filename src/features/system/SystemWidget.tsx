@@ -5,7 +5,7 @@ import { StateView } from "../../shared/components/states";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { POLL_MS } from "../../shared/lib/ux/poll";
-import { resourceRows, serviceHealth } from "./SystemMap";
+import { resourceRows, serviceHealth } from "./health";
 
 /** Meters the tile shows at most: CPU, memory and the first two disks. */
 const METERS = 4;

@@ -16,8 +16,8 @@ export type TaskRowProps = {
   question?: string;
   open: boolean;
   onToggle: () => void;
-  /** The expanded content: the task's {@link TaskPreview} and any controls. Unused while the task sleeps. */
-  children: ReactNode;
+  /** The expanded content: the task's {@link TaskPreview} and any controls; a page mounts it only while the row is open or easing shut. Unused while the task sleeps. */
+  children?: ReactNode;
   now?: number;
 };
 
@@ -87,7 +87,7 @@ export function TaskRow({ task, owner, showOwner = false, question, open, onTogg
               <span>{`Asleep since ${formatClock(task.last_activity)}. It wakes on the next steer.`}</span>
             </div>
           ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>
+            children === undefined ? null : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>
           )}
         </div>
       </Reveal>

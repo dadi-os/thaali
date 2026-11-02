@@ -94,11 +94,9 @@ export function AppShell() {
         <ChatSidebar />
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
-          <div key={location.pathname} className="h-full min-h-0 overflow-hidden">
-            <ErrorBoundary label={location.pathname === "/" ? "Home" : location.pathname.slice(1)}>
-              <Outlet />
-            </ErrorBoundary>
-          </div>
+          <ErrorBoundary key={location.pathname} label={location.pathname === "/" ? "Home" : location.pathname.slice(1)}>
+            <Outlet />
+          </ErrorBoundary>
         </div>
 
         <AnimatePresence>

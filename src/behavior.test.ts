@@ -66,7 +66,6 @@ import { syncForceSimulation } from "./shared/components/ForceGraph";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
 import { autoLiveTaskId, pickLiveViews, showsLiveView, taskLiveView } from "./features/agents/sessions";
 import type { AgentTask } from "./types/hath";
-import { taskResourceLabel } from "./features/system/TasksSection";
 import type { NasTask } from "./shared/api/nas";
 import {
   addDays,
@@ -998,12 +997,6 @@ describe("agent tasks", () => {
     expect(pickLiveViews(sessions, nas)).toEqual({ browserId: 2, terminalId: "tm" });
     expect(pickLiveViews({ tasks: [row("task/browser/3")] }, nas)).toEqual({ browserId: null, terminalId: null });
     expect(pickLiveViews({ tasks: [] }, nas)).toEqual({ browserId: null, terminalId: null });
-  });
-
-  it("labels a task's slot or terminal", () => {
-    expect(taskResourceLabel(nasTask("task/browser/3", "working", "2"))).toBe("slot 2");
-    expect(taskResourceLabel(nasTask("task/terminal/1", "idle", "t9"))).toBe("t9");
-    expect(taskResourceLabel(nasTask("task/browser/3", "asleep"))).toBe("—");
   });
 });
 
