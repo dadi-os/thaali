@@ -9,7 +9,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
+import { AnimatePresence } from "motion/react";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
@@ -31,7 +31,6 @@ import {
   markPending,
   mergeConversations,
   openAgent,
-  openDadi,
   openList,
   removeMessage,
   resolveOptimistic,
@@ -40,6 +39,7 @@ import {
   type MessageAttachment,
 } from "../../store/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
+import { getDockRequests, subscribeDock } from "../../store/dock";
 import { failureTarget, pushToast } from "../../store/toasts";
 import {
   getRunning,
@@ -55,8 +55,9 @@ import {
   toMessageAttachments,
   type DraftAttachment,
 } from "../../shared/lib/content/attachments";
-import { EASE } from "../../shared/lib/ux/motion";
 import { logLine } from "../../shared/lib/platform/log";
+import { hydrateHistory } from "../../shared/hooks/useEvents";
+import { reportSendFailure } from "../sendFailure";
 import { FloatingComposer } from "./composer";
 import {
   COMPOSER_GAP,
@@ -66,10 +67,11 @@ import {
   LIST_REFRESH_MS,
   THREAD_REFRESH_MS,
 } from "./constants";
-import { DadiHome, type DadiRouting } from "./DadiHome";
+import { Dock } from "./Dock";
 import { partitionByQueued } from "./lanes";
-import { ConversationList } from "./list";
+import { ConversationList, WIDE_ROW_PX } from "./list";
 import { PaneHeader } from "./PaneHeader";
+import { ResizeHandle, useRailWidth } from "./ResizeHandle";
 import { ThreadView } from "./thread";
 import { useMarkRead } from "./useMarkRead";
 
@@ -128,13 +130,12 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   );
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const dockTextareaRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const stickToBottomRef = useRef(true);
-  /** Talk to Dadi send in flight: the text being routed, until a thread opens. */
-  const [routing, setRouting] = useState<DadiRouting | null>(null);
-  /** Server message from the last failed Talk to Dadi send. */
-  const [routeError, setRouteError] = useState<string | null>(null);
+  /** The router dock is open as a composer. */
+  const [dockOpen, setDockOpen] = useState(false);
   /** First history fetch outcome per open thread; the empty state waits on it. */
   const [threadLoad, setThreadLoad] = useState<{
     agentId: string;
@@ -147,7 +148,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const [detailsAnchor, setDetailsAnchor] = useState<PopoverAnchor | null>(null);
   const asideRef = useRef<HTMLElement>(null);
 
-  const dadiBusy = isRouting();
+  const routing = isRouting();
+  const rail = useRailWidth();
 
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
@@ -173,7 +175,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const openAgentId =
     chat.open.kind === "agent" ? chat.open.agentId : null;
-  const viewingDadi = chat.open.kind === "dadi";
   const viewingThread = chat.open.kind === "agent";
   const threadMessages = openAgentId
     ? (chat.threads[openAgentId] ?? [])
@@ -192,9 +193,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const setDraft = (text: string) => {
     setDraftText(text);
     saveDraft(draftKeyRef.current, text);
-    if (routeError) {
-      setRouteError(null);
-    }
   };
   useLayoutEffect(() => {
     if (draftKeyRef.current === draftKey) {
@@ -208,10 +206,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     });
   }, [draftKey]);
 
-  const processBusy =
-    viewingThread && openAgentId
-      ? running[openAgentId]?.process === true
-      : dadiBusy;
+  const processBusy = viewingThread && openAgentId ? running[openAgentId]?.process === true : false;
   const workBusy =
     viewingThread && openAgentId
       ? running[openAgentId]?.work === true
@@ -531,7 +526,11 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     });
   };
 
-  /** Hand a message to Dadi: it vanishes here, the router sends it on as you, and the router opens the chat it landed in. */
+  /**
+   * Hand a message to Dadi: it leaves the dock, the dock settles back to the bar, and the router
+   * sends it on as you. Nothing reports where it went. A message that fails comes back to the dock
+   * and a toast says it was copied; a second send waits for the router.
+   */
   const sendDadi = async (
     content: string,
     attachments?: MessageAttachment[],
@@ -540,19 +539,15 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     if (
       (!trimmed && (!attachments || attachments.length === 0)) ||
       !connected ||
-      dadiBusy
+      routing
     ) {
       return;
     }
     const savedDraft = draft;
     const savedAttachments = draftAttachments;
     setDraft("");
-    setRouteError(null);
-    setRouting({ text: trimmed, attachments: attachments?.length ?? 0 });
+    setDockOpen(false);
     setLocalSend(true);
-    requestAnimationFrame(() => {
-      textareaRef.current?.focus();
-    });
     try {
       const res = await hath.postRouter({
         content: trimmed,
@@ -576,11 +571,11 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       if (draftKeyRef.current === DADI_DRAFT_KEY) {
         setDraftText(savedDraft);
         setDraftAttachments(savedAttachments);
-        setRouteError(message);
+        setDockOpen(true);
       }
       logLine("error", message, "dadi_send_failed");
+      await reportSendFailure({ key: "dadi_send_failed", text: trimmed, message, target: { kind: "router" } });
     } finally {
-      setRouting(null);
       setLocalSend(false);
     }
   };
@@ -593,9 +588,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
         : undefined;
     if (viewingThread && openAgentId) {
       void sendThread(openAgentId, draft, undefined, attachments);
-      return;
     }
-    void sendDadi(draft, attachments);
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -608,27 +601,11 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const backToList = () => {
     openList();
     clearDraftAttachments();
-    setRouteError(null);
   };
 
-  const startNewChat = () => {
-    clearDraftAttachments();
-    setRouteError(null);
-    openDadi();
-  };
+  const placeholder = !connected ? "Connect to message agent" : processBusy ? `Processing…` : `Message agent`;
 
-  const placeholder = !connected
-    ? "Connect to message Dadi"
-    : viewingDadi
-      ? "Message Dadi…"
-      : processBusy
-        ? `Processing…`
-        : `Message agent`;
-
-  const canSubmit =
-    connected &&
-    !dadiBusy &&
-    (draft.trim().length > 0 || draftAttachments.length > 0);
+  const canSubmit = connected && (draft.trim().length > 0 || draftAttachments.length > 0);
   const composerPad = composerHeight + COMPOSER_GAP;
 
   const { settled: settledMessages, queued: queuedMessages } = partitionByQueued(
@@ -645,182 +622,160 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const showHostPin =
     viewingThread && (liveBrowserId !== null || liveTerminalId !== null);
 
-  const showComposer =
-    viewingDadi || (openAgentView?.kind === "ready" && openAgentView.agent.active);
+  const showComposer = openAgentView?.kind === "ready" && openAgentView.agent.active;
 
-  const paneKey = viewingThread
-    ? `agent:${openAgentId ?? ""}`
-    : viewingDadi
-      ? "dadi"
-      : "list";
+  const dockRequests = useSyncExternalStore(subscribeDock, getDockRequests, getDockRequests);
+  const seenDockRequests = useRef(dockRequests);
+  useEffect(() => {
+    if (dockRequests === seenDockRequests.current) {
+      return;
+    }
+    seenDockRequests.current = dockRequests;
+    openList();
+    setDraftText(loadDraft(DADI_DRAFT_KEY));
+    setDockOpen(true);
+  }, [dockRequests]);
 
-  const reducedMotion =
-    typeof window !== "undefined" &&
-    window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-  const paneTransition = {
-    duration: reducedMotion ? 0 : 0.24,
-    ease: EASE,
-  };
-
-  const listProps = {
-    conversations: chat.conversations,
-    selectedAgentId: openAgentId,
-    historyStatus: chat.historyStatus,
-    historyError: chat.historyError,
-    running,
-    unread: chat.unread,
-    onOpenAgent: openAgent,
-    onDismissKeyboard: dismissKeyboard,
-    dadi: {
-      available: connected,
-      selected: viewingDadi,
-      preview: null as string | null,
-      busy: dadiBusy,
-      onOpen: startNewChat,
-    },
+  const pickFiles = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.multiple = true;
+    input.onchange = () => void onPickFiles(input.files);
+    input.click();
   };
 
   return (
     <aside
       ref={asideRef}
-      className={`chat-rail relative flex h-full min-h-0 flex-col overflow-hidden ${className ?? ""}`}
+      className={`rail ${className ?? ""}`}
+      style={{ width: rail.width, height: "100%" }}
       data-agent-id={openAgentId ?? undefined}
     >
-      <div className="relative min-h-0 flex-1 overflow-hidden">
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={paneKey}
-            className="absolute inset-0 flex flex-col"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 18, pointerEvents: "none" }}
-            transition={paneTransition}
-          >
-            {paneKey === "list" ? (
-              <ConversationList {...listProps} />
-            ) : null}
-
-            {paneKey === "dadi" ? (
-              <>
-                <PaneHeader onBack={backToList} title="દાદી" gujarati />
-                <div className="relative min-h-0 flex-1">
-                  <DadiHome
-                    composerPad={composerPad}
-                    routing={routing}
-                    error={routeError}
-                  />
+      {viewingThread ? (
+        <div className="pane-in absolute inset-0 flex flex-col">
+          <PaneHeader
+            onBack={backToList}
+            title={openAgentRecord ? openAgentRecord.name : null}
+            error={openAgentView?.kind === "error" ? openAgentView.message : null}
+            detailsOpen={detailsAnchor !== null}
+            onOpenDetails={(box) => {
+              const rect = asideRef.current!.getBoundingClientRect();
+              setDetailsAnchor(
+                detailsAnchor
+                  ? null
+                  : { x: rect.width, y: box.top - rect.top + box.height / 2, radius: 0 },
+              );
+            }}
+          />
+          <div className="relative flex min-h-0 flex-1 flex-col">
+            {showHostPin ? <HostPin browserId={liveBrowserId} terminalId={liveTerminalId} /> : null}
+            <div className="relative min-h-0 flex-1">
+              {openAgentView?.kind === "error" ? (
+                <p
+                  role="alert"
+                  className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] leading-relaxed text-error"
+                  style={{ paddingBottom: composerPad }}
+                >
+                  Couldn't load this agent. {openAgentView.message}
+                </p>
+              ) : null}
+              {openAgentView?.kind === "loading" ? (
+                <div
+                  role="status"
+                  aria-label="Loading this agent"
+                  className="absolute inset-0 flex flex-col justify-end gap-3 px-4"
+                  style={{ paddingBottom: composerPad + 16 }}
+                >
+                  <span className="sk h-10 w-3/5 rounded-[14px]" />
+                  <span className="sk h-16 w-4/5 self-end rounded-[14px]" />
+                  <span className="sk h-12 w-2/3 rounded-[14px]" />
                 </div>
-              </>
-            ) : null}
-
-            {viewingThread ? (
-              <>
-                <PaneHeader
-                  onBack={backToList}
-                  title={openAgentRecord ? openAgentRecord.name : null}
-                  error={openAgentView?.kind === "error" ? openAgentView.message : null}
-                  detailsOpen={detailsAnchor !== null}
-                  onOpenDetails={(box) => {
-                    const rail = asideRef.current!.getBoundingClientRect();
-                    setDetailsAnchor(
-                      detailsAnchor
-                        ? null
-                        : { x: rail.width, y: box.top - rail.top + box.height / 2, radius: 0 },
-                    );
+              ) : null}
+              {openAgentId && openAgentRecord ? (
+                <ThreadView
+                  scrollRef={scrollRef}
+                  onScroll={onScroll}
+                  onDismissKeyboard={dismissKeyboard}
+                  composerPad={composerPad}
+                  fadeTop={showHostPin}
+                  settledMessages={settledMessages}
+                  queuedMessages={queuedMessages}
+                  onRetry={(msg) => {
+                    void sendThread(openAgentId, msg.content, msg.seq, msg.attachments);
+                  }}
+                  onCancel={cancelQueued}
+                  agentName={openAgentRecord.name}
+                  agent={openAgentRecord}
+                  load={threadLoad?.agentId === openAgentId ? threadLoad : null}
+                  onSuggest={(text) => {
+                    setDraft(text);
+                    requestAnimationFrame(() => {
+                      textareaRef.current?.focus();
+                    });
                   }}
                 />
-                <div className="relative flex min-h-0 flex-1 flex-col">
-                  {showHostPin ? (
-                    <HostPin browserId={liveBrowserId} terminalId={liveTerminalId} />
-                  ) : null}
-                  <div className="relative min-h-0 flex-1">
-                    {openAgentView?.kind === "error" ? (
-                      <p
-                        role="alert"
-                        className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] leading-relaxed text-error"
-                        style={{ paddingBottom: composerPad }}
-                      >
-                        Couldn't load this agent. {openAgentView.message}
-                      </p>
-                    ) : null}
-                    {openAgentView?.kind === "loading" ? (
-                      <div
-                        role="status"
-                        aria-label="Loading this agent"
-                        className="absolute inset-0 flex flex-col justify-end gap-3 px-4"
-                        style={{ paddingBottom: composerPad + 16 }}
-                      >
-                        <span className="skeleton h-10 w-3/5 rounded-[14px]" />
-                        <span className="skeleton h-16 w-4/5 self-end rounded-[14px]" />
-                        <span className="skeleton h-12 w-2/3 rounded-[14px]" />
-                      </div>
-                    ) : null}
-                    {openAgentId && openAgentRecord ? (
-                    <ThreadView
-                      scrollRef={scrollRef}
-                      onScroll={onScroll}
-                      onDismissKeyboard={dismissKeyboard}
-                      composerPad={composerPad}
-                      fadeTop={showHostPin}
-                      settledMessages={settledMessages}
-                      queuedMessages={queuedMessages}
-                      onRetry={(msg) => {
-                        void sendThread(
-                          openAgentId,
-                          msg.content,
-                          msg.seq,
-                          msg.attachments,
-                        );
-                      }}
-                      onCancel={cancelQueued}
-                      agentName={openAgentRecord.name}
-                      agent={openAgentRecord}
-                      load={
-                        threadLoad?.agentId === openAgentId ? threadLoad : null
-                      }
-                      onSuggest={(text) => {
-                        setDraft(text);
-                        requestAnimationFrame(() => {
-                          textareaRef.current?.focus();
-                        });
-                      }}
-                    />
-                    ) : null}
-                  </div>
-                </div>
-              </>
+              ) : null}
+            </div>
+          </div>
+          <AnimatePresence initial={false}>
+            {showComposer ? (
+              <FloatingComposer
+                key="composer"
+                connected={connected}
+                draft={draft}
+                setDraft={setDraft}
+                placeholder={placeholder}
+                canSubmit={canSubmit}
+                processingMode={processBusy}
+                workingMode={workBusy && !processBusy}
+                lanes={{ process: processBusy, work: workBusy }}
+                textareaRef={textareaRef}
+                fileInputRef={fileInputRef}
+                cameraInputRef={cameraInputRef}
+                attachments={draftAttachments}
+                onRemoveAttachment={removeDraftAttachment}
+                onPickFiles={onPickFiles}
+                onSubmit={onSubmit}
+                onKeyDown={onKeyDown}
+                onHeight={setComposerHeight}
+              />
             ) : null}
-
-
-          </motion.div>
-        </AnimatePresence>
-
-        <AnimatePresence initial={false}>
-          {showComposer ? (
-            <FloatingComposer
-              key="composer"
-              connected={connected}
-              draft={draft}
-              setDraft={setDraft}
-              placeholder={placeholder}
-              canSubmit={canSubmit}
-              processingMode={processBusy}
-              workingMode={workBusy && !processBusy}
-              lanes={{ process: processBusy, work: workBusy }}
-              textareaRef={textareaRef}
-              fileInputRef={fileInputRef}
-              cameraInputRef={cameraInputRef}
-              attachments={draftAttachments}
-              onRemoveAttachment={removeDraftAttachment}
-              onPickFiles={onPickFiles}
-              onSubmit={onSubmit}
-              onKeyDown={onKeyDown}
-              autoFocus={viewingDadi}
-              onHeight={setComposerHeight}
-            />
-          ) : null}
-        </AnimatePresence>
-      </div>
+          </AnimatePresence>
+        </div>
+      ) : (
+        <>
+          <ConversationList
+            conversations={chat.conversations}
+            selectedAgentId={null}
+            historyStatus={chat.historyStatus}
+            historyError={chat.historyError}
+            onRetry={() => void hydrateHistory()}
+            running={running}
+            unread={chat.unread}
+            offline={!connected}
+            wide={rail.width >= WIDE_ROW_PX}
+            now={Date.now()}
+            onOpenAgent={openAgent}
+            onDismissKeyboard={dismissKeyboard}
+          />
+          <Dock
+            open={dockOpen}
+            routing={routing}
+            offline={!connected}
+            draft={draft}
+            onDraft={setDraft}
+            attachments={draftAttachments}
+            onRemoveAttachment={removeDraftAttachment}
+            onPickFiles={onPickFiles}
+            onAttach={pickFiles}
+            onOpen={() => setDockOpen(true)}
+            onClose={() => setDockOpen(false)}
+            onSend={() => void sendDadi(draft, draftAttachments.length > 0 ? toMessageAttachments(draftAttachments) : undefined)}
+            textareaRef={dockTextareaRef}
+          />
+        </>
+      )}
+      <ResizeHandle rail={rail} />
 
       {openAgentView?.kind === "ready" ? (
         <AgentPopover

@@ -1,7 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { timeline } from "../../shared/api";
-import { openAgent, openDadi } from "../../store/chat";
+import { openAgent } from "../../store/chat";
+import { requestDock } from "../../store/dock";
 import { DADI_DRAFT_KEY, saveDraft } from "../../store/drafts";
 import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
@@ -157,7 +158,7 @@ function askAbout(item: TimelineItem, keeper: AgentRecord | null) {
     openAgent(keeper.id);
   } else {
     saveDraft(DADI_DRAFT_KEY, text);
-    openDadi();
+    requestDock();
   }
 }
 

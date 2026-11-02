@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { timeline } from "../../shared/api";
-import { openAgent, openDadi } from "../../store/chat";
+import { openAgent } from "../../store/chat";
+import { requestDock } from "../../store/dock";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
@@ -31,7 +32,7 @@ export function SessionActions({ item }: SessionActionsProps) {
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
-          onClick={() => (keeper === null ? openDadi() : openAgent(keeper.id))}
+          onClick={() => (keeper === null ? requestDock() : openAgent(keeper.id))}
           className="min-w-0 truncate text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
         >
           {keeper === null ? "Tell Dadi" : `Message ${keeper.name}`}

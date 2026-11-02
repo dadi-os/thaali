@@ -99,19 +99,6 @@
 }
 
 /* Bone glass surfaces */
-.titlebar-drag {
-  app-region: drag;
-  -webkit-app-region: drag;
-}
-
-.titlebar button,
-.titlebar a,
-.titlebar input,
-.window-controls {
-  app-region: no-drag;
-  -webkit-app-region: no-drag;
-}
-
 .frost-scrim {
   background: color-mix(in srgb, var(--bone) 28%, transparent);
   -webkit-backdrop-filter: blur(16px);
@@ -297,103 +284,6 @@
 @media (prefers-reduced-motion: reduce) {
   .home-grid > .widget-frame {
     animation: none;
-  }
-}
-
-/* Chat rail — olive strip in light, charcoal strip in dark. Contrasts widgets either way. */
-.chat-rail {
-  --ink: #2c302a;
-  --ink-muted: #6e7568;
-  --ink-faint: #9aa390;
-  --ink-ghost: #8a9180;
-  --rule: #d4dcc6;
-  --sage: #8fa382;
-  --sage-text: #5c6b52;
-  --sage-deep: #4a5642;
-  --sage-line: #c3cdb4;
-  --sage-faint: rgba(143, 163, 130, 0.16);
-  --sage-fill: rgba(143, 163, 130, 0.14);
-  --sage-active: rgba(143, 163, 130, 0.22);
-  --bone: #e6eadc;
-  --bone-raised: #eef1e6;
-  --glass-veil: #e6eadc;
-  --glass-sheet: #f4f6ee;
-  --glass-solid: #eef1e6;
-  --glass-border: color-mix(in srgb, var(--sage-line) 80%, transparent);
-  --color-ink: #2c302a;
-  --color-ink-muted: #6e7568;
-  --color-ink-faint: #9aa390;
-  --color-ink-ghost: #8a9180;
-  --color-rule: #d4dcc6;
-  --color-sage: #8fa382;
-  --color-sage-text: #5c6b52;
-  --color-sage-deep: #4a5642;
-  --color-sage-line: #c3cdb4;
-  --color-sage-faint: rgba(143, 163, 130, 0.16);
-  --color-sage-fill: rgba(143, 163, 130, 0.14);
-  --color-sage-active: rgba(143, 163, 130, 0.22);
-  --color-bone: #e6eadc;
-  --color-bone-raised: #eef1e6;
-  --color-glass-veil: #e6eadc;
-  --color-glass-sheet: #f4f6ee;
-  --chat-hover: rgba(44, 48, 42, 0.05);
-  --chat-active: rgba(44, 48, 42, 0.09);
-  --chat-edge: color-mix(in srgb, #c3cdb4 55%, transparent);
-  /* The search field and the floating Talk to Dadi card on the rail. */
-  --chat-field: rgba(250, 250, 247, 0.8);
-  --chat-card: rgba(250, 250, 247, 0.85);
-  --composer-fade-solid: #f4f6f0;
-  background: color-mix(in srgb, #f4f6f0 68%, transparent);
-  -webkit-backdrop-filter: blur(28px);
-  backdrop-filter: blur(28px);
-  color: #2c302a;
-  border-right: 1px solid var(--chat-edge);
-}
-
-@media (prefers-color-scheme: dark) {
-  .chat-rail {
-    --ink: #eceee6;
-    --ink-muted: #a4aa9a;
-    --ink-faint: #7a8072;
-    --ink-ghost: #6a7064;
-    --rule: #2c3028;
-    --sage: #a8b89a;
-    --sage-text: #b4c4a6;
-    --sage-deep: #d0dcc4;
-    --sage-line: #3d4538;
-    --sage-faint: rgba(168, 184, 154, 0.1);
-    --sage-fill: rgba(168, 184, 154, 0.14);
-    --sage-active: rgba(168, 184, 154, 0.2);
-    --bone: #171915;
-    --bone-raised: #1c1f1a;
-    --glass-veil: #171915;
-    --glass-sheet: #22251f;
-    --glass-solid: #1c1f1a;
-    --glass-border: rgba(255, 255, 255, 0.08);
-    --color-ink: #eceee6;
-    --color-ink-muted: #a4aa9a;
-    --color-ink-faint: #7a8072;
-    --color-ink-ghost: #6a7064;
-    --color-rule: #2c3028;
-    --color-sage: #a8b89a;
-    --color-sage-text: #b4c4a6;
-    --color-sage-deep: #d0dcc4;
-    --color-sage-line: #3d4538;
-    --color-sage-faint: rgba(168, 184, 154, 0.1);
-    --color-sage-fill: rgba(168, 184, 154, 0.14);
-    --color-sage-active: rgba(168, 184, 154, 0.2);
-    --color-bone: #171915;
-    --color-bone-raised: #1c1f1a;
-    --color-glass-veil: #171915;
-    --color-glass-sheet: #22251f;
-    --chat-hover: rgba(255, 255, 255, 0.055);
-    --chat-active: rgba(255, 255, 255, 0.1);
-    --chat-edge: rgba(255, 255, 255, 0.08);
-    --chat-field: rgba(255, 255, 255, 0.045);
-    --chat-card: rgba(255, 255, 255, 0.06);
-    --composer-fade-solid: #161814;
-    background: color-mix(in srgb, #161814 62%, transparent);
-    color: #eceee6;
   }
 }
 

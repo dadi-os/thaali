@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Outlet, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
+import { AnimatePresence } from "motion/react";
 import { ChatSidebar } from "./chatSidebar";
 import { ForgetDeviceDialog } from "./ForgetDevice";
-import { Header } from "./Header";
 import { OfflinePill } from "./OfflinePill";
 import { Onboarding, type BootState } from "./onboarding";
 import { ProvisionOverlay } from "./ProvisionOverlay";
+import { TitleBar } from "./TitleBar";
 import { Toaster } from "./Toaster";
 import { bootstrapMesh, prepareMesh } from "../store/connection";
 import { useConnection } from "../shared/hooks/useConnection";
@@ -16,8 +16,8 @@ import { useEvents } from "../shared/hooks/useEvents";
 import { useLiveQueries } from "../shared/hooks/useLiveQueries";
 import { useDeviceRemote } from "./useDeviceRemote";
 import { useNeedsProvisioning } from "./useNeedsProvisioning";
+import { requestDock } from "../store/dock";
 import { usingMesh } from "../shared/api";
-import { EASE, SLOW_S } from "../shared/lib/ux/motion";
 import { ErrorBoundary } from "../shared/components/states";
 import { logLine } from "../shared/lib/platform/log";
 
@@ -41,6 +41,7 @@ function settleBoot(run: Promise<void>, set: (boot: BootState) => void): void {
 export function AppShell() {
   const { state } = useConnection();
   const location = useLocation();
+  const navigate = useNavigate();
   const [provisionOpen, setProvisionOpen] = useState(false);
   const [forgetOpen, setForgetOpen] = useState(false);
   const needsProvisioning = useNeedsProvisioning();
@@ -64,6 +65,17 @@ export function AppShell() {
   }, []);
 
   useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        requestDock();
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  useEffect(() => {
     if (needsProvisioning) {
       setBoot((current) => (current.status === "failed" ? { status: "ready" } : current));
     }
@@ -75,46 +87,18 @@ export function AppShell() {
 
   return (
     <div className="relative flex h-full flex-col overflow-hidden bg-transparent">
-      <motion.div
-        className="glass-veil relative z-[60] border-b-0 shadow-[var(--shadow)]"
-        initial={{ opacity: 0, y: -14 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: SLOW_S, ease: EASE }}
-      >
-        <Header wordmark={!showOnboarding} />
-      </motion.div>
+      <TitleBar wordmark={!showOnboarding} notice={<OfflinePill />} onHome={() => navigate("/")} />
 
       <div className="relative flex min-h-0 flex-1">
-        <motion.div
-          className="w-[min(300px,32%)] shrink-0"
-          initial={{ opacity: 0, x: -28 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ duration: SLOW_S, ease: EASE, delay: 0.12 }}
-        >
-          <ChatSidebar className="h-full" />
-        </motion.div>
+        <ChatSidebar />
 
-        <motion.main
-          className="relative min-h-0 min-w-0 flex-1 overflow-hidden p-4"
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: SLOW_S, ease: EASE, delay: 0.2 }}
-        >
-          <div className="pointer-events-none absolute inset-x-0 top-3 z-[55] flex flex-col items-center gap-2 px-4">
-            <OfflinePill />
-            <Toaster />
+        <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+          <div key={location.pathname} className="h-full min-h-0 overflow-hidden">
+            <ErrorBoundary label={location.pathname === "/" ? "Home" : location.pathname.slice(1)}>
+              <Outlet />
+            </ErrorBoundary>
           </div>
-          <div className="h-full min-h-0 overflow-hidden">
-            <div
-              key={location.pathname}
-              className="h-full min-h-0 overflow-hidden"
-            >
-              <ErrorBoundary label={location.pathname === "/" ? "Home" : location.pathname.slice(1)}>
-                <Outlet />
-              </ErrorBoundary>
-            </div>
-          </div>
-        </motion.main>
+        </div>
 
         <AnimatePresence>
           {showOnboarding ? (
@@ -129,6 +113,7 @@ export function AppShell() {
           ) : null}
         </AnimatePresence>
       </div>
+      <Toaster />
       <ProvisionOverlay
         open={provisionOpen}
         onClose={() => setProvisionOpen(false)}

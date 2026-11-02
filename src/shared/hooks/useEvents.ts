@@ -84,7 +84,7 @@ async function refetchAgents(queryClient: QueryClient): Promise<void> {
 }
 
 /** Seed conversation list from durable GET /threads. */
-async function hydrateHistory(): Promise<void> {
+export async function hydrateHistory(): Promise<void> {
   setHistoryState("loading");
   try {
     const { threads } = await hath.listThreads();

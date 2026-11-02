@@ -17,7 +17,9 @@ export type ToastTarget =
   | { kind: "logs"; service: string; q: string; at: string }
   /** The house page with the device's controls open. */
   | { kind: "ghar"; deviceId: string }
-  | { kind: "timeline" };
+  | { kind: "timeline" }
+  /** The router dock, open with the draft that did not send. */
+  | { kind: "router" };
 
 /** One bottom-right notice: an agent's message, a system failure, or something that happened around the house. */
 export type Toast = {

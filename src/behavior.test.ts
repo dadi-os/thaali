@@ -2,11 +2,12 @@ import { describe, expect, it } from "vitest";
 import { focusSet } from "./shared/components/ForceGraph/focus";
 import { inHoverZone } from "./shared/components/Popover/zone";
 import {
-  conversationBucket,
-  formatListTime,
+  dayLabel,
   formatMessageTime,
+  formatRailTime,
   formatRelative,
-  groupConversations,
+  groupByDay,
+  plainPreview,
 } from "./chrome/chatSidebar/format";
 import {
   partitionByQueued,
@@ -222,11 +223,10 @@ describe("chat timestamps", () => {
   });
 
   it("dates a list row by its last activity", () => {
-    expect(formatListTime(at(2026, 9, 6, 14, 2), now)).toBe("2:02 PM");
-    expect(formatListTime(at(2026, 9, 5, 8, 0), now)).toBe("Yesterday");
-    expect(formatListTime(at(2026, 9, 2, 8, 0), now)).toBe("Fri");
-    expect(formatListTime(at(2026, 8, 20, 8, 0), now)).toBe("Sep 20");
-    expect(formatListTime(at(2025, 8, 20, 8, 0), now)).toBe("Sep 20, 2025");
+    expect(formatRailTime(at(2026, 9, 6, 14, 2), now)).toBe("2:02 PM");
+    expect(formatRailTime(at(2026, 9, 5, 8, 0), now)).toBe("Yesterday");
+    expect(formatRailTime(at(2026, 9, 2, 8, 0), now)).toBe("Fri, Oct 2");
+    expect(formatRailTime(at(2025, 8, 20, 8, 0), now)).toBe("Sat, Sep 20");
   });
 });
 
@@ -257,30 +257,34 @@ describe("conversation list refresh", () => {
   });
 });
 
-describe("conversationBucket", () => {
+describe("conversation list days", () => {
   const now = new Date(2026, 2, 10, 15, 0, 0).getTime();
   const today = new Date(2026, 2, 10, 10, 0, 0).toISOString();
   const todayEarlier = new Date(2026, 2, 10, 8, 0, 0).toISOString();
   const yesterday = new Date(2026, 2, 9, 20, 0, 0).toISOString();
-  const previous = new Date(2026, 2, 1, 0, 0, 0).toISOString();
+  const earlier = new Date(2026, 2, 1, 0, 0, 0).toISOString();
 
-  it("groups today, yesterday, and previous", () => {
-    expect(conversationBucket(today, now)).toBe("Today");
-    expect(conversationBucket(yesterday, now)).toBe("Yesterday");
-    expect(conversationBucket(previous, now)).toBe("Previous");
+  it("heads today and yesterday by name and any other day by its date", () => {
+    expect(dayLabel(today, now)).toBe("Today");
+    expect(dayLabel(yesterday, now)).toBe("Yesterday");
+    expect(dayLabel(earlier, now)).toBe("Sun, Mar 1");
   });
 
-  it("preserves newest-first order inside groups", () => {
-    const grouped = groupConversations(
+  it("makes one group per day and preserves newest-first order inside it", () => {
+    const grouped = groupByDay(
       [
         { last_at: today, id: "a" },
         { last_at: todayEarlier, id: "b" },
-        { last_at: previous, id: "c" },
+        { last_at: earlier, id: "c" },
       ],
       now,
     );
-    expect(grouped.map((g) => g.bucket)).toEqual(["Today", "Previous"]);
+    expect(grouped.map((g) => g.label)).toEqual(["Today", "Sun, Mar 1"]);
     expect(grouped[0]!.items.map((i) => i.id)).toEqual(["a", "b"]);
+  });
+
+  it("previews a message without its Markdown marks on one line", () => {
+    expect(plainPreview("**Two** applications:\n- `Northwind`\n- Contoso")).toBe("Two applications: Northwind Contoso");
   });
 });
 

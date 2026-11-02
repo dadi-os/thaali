@@ -2,14 +2,15 @@ import { useSyncExternalStore } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { Toast } from "../shared/components/Toast";
 import { openAgent } from "../store/chat";
+import { requestDock } from "../store/dock";
 import { dismissToast, getToasts, removeToast, subscribeToasts, type ToastTarget } from "../store/toasts";
 
 /** How long a toast stays up after its last push; hovering or focusing it holds the clock. */
 const VISIBLE_MS = 6_000;
 
 /**
- * Go where a toast points: its chat in the sidebar, or the page for a log line, a device
- * or the timeline. Page targets ride in the URL, so the page focuses them on arrival.
+ * Go where a toast points: its chat in the sidebar, the router dock, or the page for a log line,
+ * a device or the timeline. Page targets ride in the URL, so the page focuses them on arrival.
  */
 export function openTarget(target: ToastTarget, navigate: NavigateFunction): void {
   switch (target.kind) {
@@ -24,6 +25,9 @@ export function openTarget(target: ToastTarget, navigate: NavigateFunction): voi
       return;
     case "timeline":
       navigate("/timeline");
+      return;
+    case "router":
+      requestDock();
       return;
   }
 }

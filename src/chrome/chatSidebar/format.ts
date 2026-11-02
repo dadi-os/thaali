@@ -1,49 +1,77 @@
 /** Display helpers for the chat sidebar. */
 
-export type ConversationBucket = "Today" | "Yesterday" | "Previous";
+import { formatClock } from "../../shared/lib/ux/time";
+
+/** The calendar day of an instant in the device's zone, as `2026-10-28`. */
+function dayKey(ms: number): string {
+  return new Date(ms).toLocaleDateString("en-CA");
+}
+
+/** `Wed, Oct 28`: a day's weekday, month and date in the device's zone. */
+function weekdayDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+}
 
 /**
- * ChatGPT-style list grouping for a conversation's last activity.
+ * The heading of the day an instant falls on: "Today", "Yesterday", else the day itself
+ * ("Mon, Oct 26"), by the device's calendar.
  */
-export function conversationBucket(
+export function dayLabel(
   /** ISO-8601 timestamp. */
   iso: string,
   /** Reference instant in ms since epoch. */
   now = Date.now(),
-): ConversationBucket {
-  const at = new Date(iso).getTime();
-  const startToday = new Date(now);
-  startToday.setHours(0, 0, 0, 0);
-  const todayMs = startToday.getTime();
-  if (at >= todayMs) {
+): string {
+  const key = dayKey(new Date(iso).getTime());
+  if (key === dayKey(now)) {
     return "Today";
   }
-  const yesterdayMs = todayMs - 86_400_000;
-  if (at >= yesterdayMs) {
-    return "Yesterday";
-  }
-  return "Previous";
+  return key === dayKey(now - 86_400_000) ? "Yesterday" : weekdayDate(iso);
 }
 
 /**
- * Group conversations into Today / Yesterday / Previous, preserving newest-first order.
+ * Groups items under the day of their last activity, keeping their order (newest first):
+ * one group per day, headed by its {@link dayLabel}.
  */
-export function groupConversations<T extends { last_at: string }>(
-  conversations: T[],
+export function groupByDay<T extends { last_at: string }>(
+  items: T[],
   now = Date.now(),
-): Array<{ bucket: ConversationBucket; items: T[] }> {
-  const order: ConversationBucket[] = ["Today", "Yesterday", "Previous"];
-  const buckets: Record<ConversationBucket, T[]> = {
-    Today: [],
-    Yesterday: [],
-    Previous: [],
-  };
-  for (const conv of conversations) {
-    buckets[conversationBucket(conv.last_at, now)].push(conv);
+): Array<{ label: string; items: T[] }> {
+  const groups: Array<{ label: string; items: T[] }> = [];
+  for (const item of items) {
+    const label = dayLabel(item.last_at, now);
+    const group = groups.find((g) => g.label === label);
+    if (group) {
+      group.items.push(item);
+    } else {
+      groups.push({ label, items: [item] });
+    }
   }
-  return order
-    .filter((bucket) => buckets[bucket].length > 0)
-    .map((bucket) => ({ bucket, items: buckets[bucket] }));
+  return groups;
+}
+
+/** A message's text without its Markdown marks, on one line, for a list preview. */
+export function plainPreview(markdown: string): string {
+  return markdown
+    .replace(/\*\*(.+?)\*\*/g, "$1")
+    .replace(/`([^`]+)`/g, "$1")
+    .replace(/^[-*]\s+/gm, "")
+    .replace(/\s*\n+\s*/g, " ")
+    .trim();
+}
+
+/**
+ * A conversation's last activity, for the right edge of its list row: the time today,
+ * "Yesterday", else the day ("Mon, Oct 26").
+ */
+export function formatRailTime(
+  /** ISO-8601 timestamp. */
+  iso: string,
+  /** Reference instant in ms since epoch. */
+  now = Date.now(),
+): string {
+  const label = dayLabel(iso, now);
+  return label === "Today" ? formatClock(iso) : label === "Yesterday" ? label : weekdayDate(iso);
 }
 
 /**
@@ -104,33 +132,4 @@ export function formatMessageTime(
     day: "numeric",
     ...(sameYear ? {} : { year: "numeric" }),
   })}, ${time}`;
-}
-
-/**
- * A conversation's last activity, for the right edge of its list row: the time today,
- * "Yesterday", the weekday within a week, else "Oct 5" (with the year when it differs).
- */
-export function formatListTime(
-  /** ISO-8601 timestamp. */
-  iso: string,
-  /** Reference instant in ms since epoch. */
-  now = Date.now(),
-): string {
-  const at = new Date(iso);
-  const reference = new Date(now);
-  const days = daysAgo(at, reference);
-  if (days === 0) {
-    return at.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
-  }
-  if (days === 1) {
-    return "Yesterday";
-  }
-  if (days < 7) {
-    return at.toLocaleDateString("en-US", { weekday: "short" });
-  }
-  return at.toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-    ...(at.getFullYear() === reference.getFullYear() ? {} : { year: "numeric" }),
-  });
 }

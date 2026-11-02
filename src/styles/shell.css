@@ -1,0 +1,422 @@
+/*
+ * The shell's styles: the title bar, the conversation rail with its search, its scrolling list and its resize
+ * handle, and the router dock that grows from a bar into the composer. The values come from the design (the
+ * Thaali design artifact's generator, gen/lib.mjs) through the tokens in tokens.css; the fidelity gate
+ * (visual/fidelity) holds them to it.
+ */
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes ui-breath {
+  0%,
+  100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@layer components {
+  .titlebar {
+    height: 40px;
+    flex: none;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    background: rgba(250, 250, 247, 0.7);
+    border-bottom: 1px solid var(--glass-border);
+    -webkit-app-region: drag;
+    app-region: drag;
+    user-select: none;
+  }
+
+  .titlebar button,
+  .titlebar a,
+  .titlebar input,
+  .window-controls {
+    -webkit-app-region: no-drag;
+    app-region: no-drag;
+  }
+
+  .rail {
+    --chat-hover: rgba(44, 48, 42, 0.05);
+    --composer-fade-solid: #f4f6f0;
+    display: flex;
+    flex-direction: column;
+    flex: none;
+    position: relative;
+    min-height: 0;
+    border-right: 1px solid var(--glass-border);
+    background: rgba(250, 250, 247, 0.5);
+  }
+
+  .scroll {
+    overflow: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(143, 163, 130, 0.4) transparent;
+  }
+
+  .sfi {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 14px;
+    color: var(--ink);
+    padding: 0;
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .sfi::placeholder {
+    color: var(--ink-muted);
+    opacity: 1;
+  }
+
+  .sfi::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
+  .dock {
+    position: absolute;
+    left: 14px;
+    right: 14px;
+    bottom: 14px;
+    height: 62px;
+    border-radius: 22px;
+    background: rgba(250, 250, 247, 0.9);
+    border: 1px solid var(--glass-border);
+    box-shadow: var(--shadow-deep);
+    overflow: hidden;
+    transition:
+      height 340ms var(--ease),
+      box-shadow 340ms var(--ease),
+      border-color 220ms var(--ease),
+      opacity 220ms var(--ease);
+    z-index: 20;
+  }
+
+  .dock.open {
+    height: var(--dh);
+    border-color: var(--sage-line);
+    box-shadow:
+      0 2px 6px rgba(92, 107, 82, 0.08),
+      0 18px 48px rgba(44, 48, 42, 0.14);
+  }
+
+  .dock.disabled {
+    opacity: 0.6;
+  }
+
+  .dock .d-idle {
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: 0;
+    height: 62px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 0 14px;
+    width: 100%;
+    transition:
+      opacity 180ms var(--ease),
+      background-color 180ms var(--ease),
+      transform 180ms var(--ease);
+  }
+
+  .dock .d-idle:hover {
+    background-color: rgba(255, 255, 255, 0.7);
+  }
+
+  .dock .d-idle:active {
+    transform: scale(0.99);
+    background-color: var(--sage-fill);
+  }
+
+  .dock.open .d-idle {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  .dock .d-open {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    flex-direction: column;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(6px);
+    transition:
+      opacity 200ms var(--ease),
+      transform 340ms var(--ease);
+  }
+
+  .dock.open .d-open {
+    opacity: 1;
+    pointer-events: auto;
+    transform: none;
+    transition-delay: 70ms;
+  }
+
+  .dglyph {
+    position: relative;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--sage-fill);
+    color: var(--sage-text);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: "Noto Sans Gujarati", sans-serif;
+    font-size: 17px;
+    font-weight: 600;
+    flex: none;
+    line-height: 1;
+    padding-top: 2px;
+  }
+
+  .dring {
+    position: absolute;
+    inset: -4px;
+    border-radius: 50%;
+    opacity: 0;
+    transition: opacity 240ms var(--ease);
+    background: conic-gradient(from 0deg, rgba(143, 163, 130, 0) 0deg, rgba(143, 163, 130, 0) 90deg, var(--sage) 340deg, var(--sage-deep) 360deg);
+    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+    animation: ui-spin 1.1s linear infinite;
+  }
+
+  .routing .dring {
+    opacity: 1;
+  }
+
+  .dta {
+    display: block;
+    flex: 1;
+    min-width: 0;
+    min-height: 40px;
+    resize: none;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    font: inherit;
+    font-size: 15px;
+    line-height: 21px;
+    color: var(--ink);
+    padding: 10px 4px;
+    overflow-y: auto;
+  }
+
+  .dta::placeholder {
+    color: var(--ink-muted);
+    opacity: 0.75;
+  }
+
+  .dta:disabled {
+    cursor: default;
+  }
+
+  .dsend {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--ink);
+    color: var(--bone);
+    flex: none;
+    transition:
+      opacity 180ms var(--ease),
+      transform 180ms var(--ease),
+      background-color 180ms var(--ease);
+  }
+
+  .dsend:hover {
+    opacity: 0.88;
+  }
+
+  .dsend:active {
+    transform: scale(0.94);
+  }
+
+  .dsend:disabled {
+    background: transparent;
+    color: var(--ink-muted);
+    opacity: 0.7;
+    transform: none;
+  }
+
+  .dkbd {
+    font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    font-size: 11px;
+    padding: 1px 5px;
+    border-radius: 5px;
+    border: 1px solid var(--sage-line);
+    color: var(--ink-muted);
+    flex: none;
+    line-height: 16px;
+  }
+
+  .rz {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    right: 0;
+    width: 14px;
+    cursor: col-resize;
+    z-index: 30;
+    touch-action: none;
+    outline: none;
+    transition: background-color 160ms var(--ease);
+  }
+
+  .rz-l {
+    position: absolute;
+    right: 0;
+    top: 0;
+    bottom: 0;
+    width: 2px;
+    background: transparent;
+    transition:
+      background-color 160ms var(--ease),
+      box-shadow 160ms var(--ease);
+  }
+
+  .rz-g {
+    position: absolute;
+    right: 4px;
+    top: 50%;
+    width: 6px;
+    height: 44px;
+    margin-top: -22px;
+    border-radius: 3px;
+    background: var(--bone);
+    border: 1px solid var(--sage-line);
+    box-shadow: 0 1px 3px rgba(44, 48, 42, 0.12);
+    opacity: 0;
+    transform: scaleY(0.8);
+    transition:
+      opacity 160ms var(--ease),
+      transform 200ms var(--ease);
+  }
+
+  .rz:hover .rz-l {
+    background: var(--sage-line);
+  }
+
+  .rz:hover .rz-g,
+  .rz:focus-visible .rz-g,
+  .rz.drag .rz-g {
+    opacity: 1;
+    transform: none;
+  }
+
+  .rz:focus-visible .rz-l {
+    background: var(--sage-deep);
+  }
+
+  .rz.drag .rz-l {
+    background: var(--sage-deep);
+    box-shadow: 0 0 0 3px rgba(92, 107, 82, 0.14);
+  }
+
+  .rail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    background: transparent;
+    text-align: left;
+    position: relative;
+  }
+
+  .rail-row[aria-current="true"] {
+    background: var(--sage-active);
+  }
+
+  .rail-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: var(--sage);
+    flex: none;
+    animation: ui-pulse 1.4s ease-in-out infinite;
+  }
+
+  .rail-badge {
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 999px;
+    background: var(--sage-deep);
+    color: var(--bone);
+    font-size: 11.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .rail-search {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 40px;
+    padding: 0 13px;
+    border-radius: 12px;
+    background: rgba(250, 250, 247, 0.85);
+    border: 1px solid var(--glass-border);
+    width: 100%;
+    flex: none;
+    color: var(--ink-muted);
+  }
+
+  .rail-mark {
+    width: 40px;
+    height: 40px;
+    border-radius: 13px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .rail-mark-dadi {
+    font-family: "Noto Sans Gujarati", sans-serif;
+    font-size: 19px;
+    font-weight: 600;
+    padding-top: 2px;
+  }
+
+  .titlebar-mark {
+    font-family: "Noto Sans Gujarati", sans-serif;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--sage-text);
+    animation: ui-breath 4.8s ease-in-out infinite;
+    line-height: 1;
+  }
+
+  .pane-in {
+    animation: fade 240ms var(--ease) both;
+  }
+}

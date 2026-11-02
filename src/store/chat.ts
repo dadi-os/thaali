@@ -48,7 +48,6 @@ export type Conversation = {
 
 export type ChatOpen =
   | { kind: "list" }
-  | { kind: "dadi" }
   | { kind: "agent"; agentId: string };
 
 export type HistoryStatus = "idle" | "loading" | "ready" | "error";
@@ -246,15 +245,6 @@ export function announceAgentMessage(agentId: string, agentName: string, content
     body: content.replace(/\s+/g, " ").trim(),
     target: { kind: "chat", agentId },
   });
-}
-
-/** Open the Talk to Dadi composer (not an agent thread). */
-export function openDadi(): void {
-  if (state.open.kind === "dadi") {
-    return;
-  }
-  state = { ...state, open: { kind: "dadi" } };
-  emit();
 }
 
 /** Record history fetch progress. Failed loads keep any threads already in memory. */
