@@ -44,7 +44,7 @@ export type NasTask = {
   /** The agent whose steer the task last answered. */
   steered_by: string;
   purpose: string;
-  status: "working" | "idle" | "asking" | "asleep";
+  status: "working" | "paused" | "idle" | "asking" | "asleep";
   /** The live thing the task holds: a browser slot or a terminal id; absent while it sleeps. */
   resource?: string;
   /** The helper's state summary. */
@@ -288,6 +288,35 @@ export function createNasClient(transport: Transport, baseUrl: string) {
         path: `/browsers/${id}/input`,
         method: "POST",
         body: { events },
+      });
+    },
+
+    /** POST /tasks/:kind/:id/resume — hand a paused task back, with Ankur's note when he left one. */
+    resumeTask(task: Pick<NasTask, "kind" | "id">, note?: string): Promise<NasTask> {
+      return transport.request({
+        baseUrl,
+        path: `/tasks/${task.kind}/${task.id}/resume`,
+        method: "POST",
+        body: note === undefined ? {} : { note },
+      });
+    },
+
+    /** POST /tasks/:kind/:id/stop — put a paused task to sleep; its agent is told. */
+    stopTask(task: Pick<NasTask, "kind" | "id">): Promise<NasTask> {
+      return transport.request({
+        baseUrl,
+        path: `/tasks/${task.kind}/${task.id}/stop`,
+        method: "POST",
+      });
+    },
+
+    /** POST /terminals/:id/keys — type into the pane: `keys` as text when `literal`, else as tmux key names such as `Enter`. */
+    terminalKeys(id: string, keys: string[], literal: boolean): Promise<{ sent: boolean }> {
+      return transport.request({
+        baseUrl,
+        path: `/terminals/${encodeURIComponent(id)}/keys`,
+        method: "POST",
+        body: { keys, literal },
       });
     },
 

@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { agentTasks, nasTasks } from "../fixtures/tasks";
 import { terminalCapture } from "../fixtures/nas";
-import { Badge, type BadgeStatus } from "../../shared/components/Badge";
+import { Badge } from "../../shared/components/Badge";
 import { Button, ButtonGroup, IconButton, Pill, type ButtonSize, type ButtonTone } from "../../shared/components/Button";
 import { Dialog, DialogOption, Modal } from "../../shared/components/Overlay";
 import { MenuItem, MenuPanel, PopoverPanel } from "../../shared/components/Floating";
@@ -103,7 +103,7 @@ for (const option of ["Day", "Week", "Month"] as const) {
   CASES[`segmented.${option.toLowerCase()}`] = () => <Segmented options={["Day", "Week", "Month"]} value={option} onChange={noop} />;
 }
 
-for (const status of ["working", "idle", "asleep", "asking", "paused"] as BadgeStatus[]) {
+for (const status of ["working", "idle", "asleep", "asking", "paused"] as const) {
   CASES[`badge.${status}`] = () => <Badge status={status} />;
 }
 CASES["text.label"] = () => <span className="ui-label">Right now</span>;
@@ -250,9 +250,10 @@ function preview(id: string, { tall = false, paused = false } = {}) {
 }
 /** A task row for a fixture task, with its preview inside. */
 function row(id: string, { open = false, paused = false } = {}) {
-  const { nas, row: task } = taskFacts(id);
+  const { nas, row: fact } = taskFacts(id);
+  const task = paused ? { ...fact, status: "paused" as const } : fact;
   return (
-    <TaskRow task={task} owner={nas.owner} showOwner question={nas.state} paused={paused} open={open} onToggle={noop}>
+    <TaskRow task={task} owner={nas.owner} showOwner question={nas.state} open={open} onToggle={noop}>
       {preview(id, { paused })}
     </TaskRow>
   );

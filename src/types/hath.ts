@@ -94,8 +94,8 @@ export type RouterState = {
   running: RouterRun[];
 };
 
-/** A helper task's lifecycle state in Nas. */
-export type TaskStatus = "working" | "idle" | "asking" | "asleep";
+/** A helper task's lifecycle state in Nas; `paused` while its owner drives it. */
+export type TaskStatus = "working" | "paused" | "idle" | "asking" | "asleep";
 
 /** One browser or terminal task in Nas that an agent owns or last steered. */
 export type AgentTask = {

@@ -1,3 +1,4 @@
+import type { NasTask } from "../../shared/api/nas";
 import type { GharCommand, GharDevice } from "../../types/ghar";
 import type { PostMessageResponse, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
@@ -34,9 +35,11 @@ export type FixtureRequest = {
  */
 export class Fixtures {
   private readonly devices: GharDevice[];
+  private readonly tasks: NasTask[];
 
   constructor(private readonly scenario: Scenario) {
     this.devices = ghar.devices(scenario);
+    this.tasks = nasTasks(scenario);
   }
 
   /** The body of the response to `request`. */
@@ -92,13 +95,32 @@ export class Fixtures {
     const s = this.scenario;
     if (route === "GET /health") return { status: "ok" };
     if (route === "GET /status") return nas.status(s);
-    if (route === "GET /tasks") return nasTasks(s);
+    if (route === "GET /tasks") return this.tasks.map((task) => ({ ...task }));
+    const driven = /^POST \/(browsers|terminals)\/([^/]+)\/(input|keys)$/.exec(route);
+    if (driven) {
+      this.settleTask((task) => task.resource === driven[2] && task.kind === (driven[1] === "browsers" ? "browser" : "terminal"), "paused");
+      return driven[1] === "terminals" ? { sent: true } : undefined;
+    }
+    const handBack = /^POST \/tasks\/(browser|terminal)\/([^/]+)\/(resume|stop)$/.exec(route);
+    if (handBack) {
+      return this.settleTask((task) => task.kind === handBack[1] && task.id === handBack[2], handBack[3] === "stop" ? "asleep" : "working");
+    }
     if (route === "GET /logs/services") return { services: nas.logServices() };
     if (route === "GET /logs") return { entries: this.filterLogs(url) };
     if (route === "GET /clients") return nas.clients();
     if (route === "GET /headscale/publish") return nas.headscalePublish();
     if (/^GET \/terminals\/[^/]+\/capture$/.test(route)) return nas.terminalCapture();
     throw new Error(`fixtures: no route for nas ${route}${url.search}`);
+  }
+
+  /** Puts the task `match` finds in `status`, as Nas does when Ankur drives, hands back or stops it, and answers with it. */
+  private settleTask(match: (task: NasTask) => boolean, status: NasTask["status"]): NasTask {
+    const task = this.tasks.find(match);
+    if (task === undefined) {
+      throw new Error("fixtures: no task to settle");
+    }
+    task.status = status;
+    return { ...task };
   }
 
   private filterLogs(url: URL) {

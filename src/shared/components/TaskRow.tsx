@@ -14,8 +14,6 @@ export type TaskRowProps = {
   showOwner?: boolean;
   /** The helper's own words when it is waiting on its agent. */
   question?: string;
-  /** The owner is driving it. */
-  paused?: boolean;
   open: boolean;
   onToggle: () => void;
   /** The expanded content: the task's {@link TaskPreview} and any controls. Unused while the task sleeps. */
@@ -31,9 +29,9 @@ function shortId(id: string): string {
 /**
  * The one row for a helper task, shared by the agent sheet and the System page: its id, owner, status and age,
  * what it is for and where it is now, and an expanding panel for its live view. A task waiting on its agent shows
- * the question it asked, never as a request to Ankur.
+ * the question it asked, never as a request to Ankur. A task its owner is driving has the `paused` status.
  */
-export function TaskRow({ task, owner, showOwner = false, question, paused = false, open, onToggle, children, now = Date.now() }: TaskRowProps) {
+export function TaskRow({ task, owner, showOwner = false, question, open, onToggle, children, now = Date.now() }: TaskRowProps) {
   const waiting = task.status === "asking";
   const asleep = task.status === "asleep";
   return (
@@ -62,7 +60,7 @@ export function TaskRow({ task, owner, showOwner = false, question, paused = fal
           </span>
           <Truncate text={shortId(task.id)} style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-numeric)", fontSize: 12.5, color: "var(--ink)" }} />
           {showOwner && owner ? <NameTruncate name={owner} style={{ maxWidth: 150, fontSize: 12.5, color: "var(--ink-muted)" }} /> : null}
-          <Badge status={paused ? "paused" : task.status} />
+          <Badge status={task.status} />
           <span style={{ fontSize: 12, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", width: 30, textAlign: "right" }}>{formatAge(task.last_activity, now)}</span>
         </div>
         <div style={{ paddingLeft: 45 }}>

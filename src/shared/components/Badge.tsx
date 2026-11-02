@@ -1,15 +1,12 @@
 import type { TaskStatus } from "../../types/hath";
 import { Icon } from "./Icon";
 
-/** A helper task's status, or `paused` while its owner is driving it. */
-export type BadgeStatus = TaskStatus | "paused";
-
 export type BadgeProps = {
-  status: BadgeStatus;
+  status: TaskStatus;
 };
 
 /** A task asking is waiting on its agent, never on Ankur, so it reads that way. */
-const WORD: Record<BadgeStatus, string> = {
+const WORD: Record<TaskStatus, string> = {
   working: "working",
   idle: "idle",
   asleep: "asleep",
