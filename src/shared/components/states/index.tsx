@@ -1,9 +1,8 @@
-import { Component, useEffect, useState, type ErrorInfo, type MouseEvent, type ReactNode } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { motion, useReducedMotion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { openTarget } from "../../../chrome/Toaster";
 import { failureTarget } from "../../../store/toasts";
-import { logLine } from "../../lib/platform/log";
 import { BREATH_S, EASE, SLOW_S } from "../../lib/ux/motion";
 import { formatAbsolute, formatRelative } from "../../lib/ux/time";
 import { failureFacts } from "./failure";
@@ -289,50 +288,4 @@ export function StaleBanner({ label, since, error, detail, compact = false, clas
       </div>
     </motion.div>
   );
-}
-
-export type ErrorBoundaryProps = {
-  /** The unit guarded, as the user knows it ("Ghar", "hath"); heads the failure view. */
-  label: string;
-  /** Tile scale for the failure view. */
-  compact?: boolean;
-  children: ReactNode;
-};
-
-type ErrorBoundaryState = {
-  /** What the children threw while rendering; null while they render. */
-  caught: { error: unknown } | null;
-};
-
-/**
- * Keeps a render failure inside the unit that threw: the unit shows the thrown error's own
- * message in the error StateView, with a retry that renders it afresh, and the failure is
- * logged with its component stack, while everything around it keeps working.
- */
-export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { caught: null };
-
-  static getDerivedStateFromError(error: unknown): ErrorBoundaryState {
-    return { caught: { error } };
-  }
-
-  componentDidCatch(error: unknown, info: ErrorInfo): void {
-    logLine("error", `${this.props.label} failed to render: ${failureFacts(error).message}${info.componentStack}`, "render_failed");
-  }
-
-  render() {
-    const { caught } = this.state;
-    if (caught) {
-      return (
-        <StateView
-          tone="error"
-          label={`${this.props.label} could not render`}
-          error={caught.error}
-          compact={this.props.compact}
-          onRetry={() => this.setState({ caught: null })}
-        />
-      );
-    }
-    return this.props.children;
-  }
 }

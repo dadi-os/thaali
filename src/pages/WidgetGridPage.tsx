@@ -14,7 +14,7 @@ import { CHAAVI_ITEMS_KEY } from "../shared/api/chaavi";
 import { getRunning, subscribeRunning } from "../store/running";
 import type { AgentRecord } from "../types/hath";
 import { WidgetFrame } from "../shared/components/WidgetFrame";
-import { ErrorBoundary } from "../shared/components/states";
+import { ErrorBoundary } from "../shared/components/ErrorBoundary";
 
 const tile =
   "min-h-0 w-full cursor-pointer transition-[border-color,transform] duration-slow ease-dadi hover:border-sage hover:-translate-y-px focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sage";
