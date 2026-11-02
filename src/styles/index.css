@@ -1,7 +1,11 @@
+@layer theme, base, components, utilities;
+
 @import "./fonts.css";
 @import "./tokens.css";
 @import "./ghar.css";
-@import "tailwindcss";
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+@import "./primitives.css";
 @source "../../node_modules/streamdown/dist/*.js";
 @source "../../node_modules/@streamdown/code/dist/*.js";
 @source "../../node_modules/@streamdown/math/dist/*.js";
@@ -18,6 +22,19 @@
   --color-sage-faint: var(--sage-faint);
   --color-sage-fill: var(--sage-fill);
   --color-sage-active: var(--sage-active);
+  --color-sage-deep-hover: var(--sage-deep-hover);
+  --color-sage-deep-press: var(--sage-deep-press);
+
+  --color-clay: var(--clay);
+  --color-due-ink: var(--due-ink);
+  --color-due-fill: var(--due-fill);
+  --color-due-line: var(--due-line);
+
+  --color-tide: var(--tide);
+  --color-tide-ink: var(--tide-ink);
+  --color-tide-fill: var(--tide-fill);
+  --color-tide-line: var(--tide-line);
+  --color-tide-wash: var(--tide-wash);
 
   --color-ink: var(--ink);
   --color-ink-muted: var(--ink-muted);
@@ -27,6 +44,7 @@
   --color-error: var(--error);
   --color-error-line: var(--error-line);
   --color-error-fill: var(--error-fill);
+  --color-error-hover: var(--error-hover);
 
   --color-rule: var(--rule);
 
@@ -35,6 +53,8 @@
   --shadow-deep: var(--shadow-deep);
   --color-glass-veil: var(--glass-veil);
   --color-glass-sheet: var(--glass-sheet);
+  --color-glass-hover: var(--glass-hover);
+  --color-glass-border: var(--glass-border);
 
   --ease-dadi: var(--ease);
   --duration-slow: var(--slow);
@@ -51,6 +71,15 @@
   --color-sidebar: var(--bone-raised);
   --color-primary: var(--sage-deep);
   --color-primary-foreground: var(--bone);
+
+  --text-numeral: var(--type-numeral);
+  --text-title: var(--type-title);
+  --text-section: var(--type-section);
+  --text-row: var(--type-row);
+  --text-body: var(--type-body);
+  --text-secondary: var(--type-secondary);
+  --text-caption: var(--type-caption);
+  --text-label: var(--type-label);
 
   --font-sans: "Inter", sans-serif;
   --font-gujarati: "Noto Sans Gujarati", sans-serif;
@@ -78,8 +107,7 @@ body {
   color: var(--ink);
   font-family: "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
-  text-rendering: optimizeLegibility;
-  color-scheme: light dark;
+  color-scheme: light;
 }
 
 @keyframes breath {
