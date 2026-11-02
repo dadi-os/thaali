@@ -1,4 +1,6 @@
 import type { ReactNode } from "react";
+import type { NasTask } from "../../shared/api/nas";
+import type { AgentTask } from "../../types/hath";
 import { agentTasks, nasTasks } from "../fixtures/tasks";
 import { terminalCapture } from "../fixtures/nas";
 import { Badge } from "../../shared/components/Badge";
@@ -220,8 +222,7 @@ function taskFacts(id: string) {
 /** A stand-in block for page content the gate does not draw: the design fills the frame with these. */
 const placeholder = (width: number | string, height: number, radius = 6) => <span style={{ display: "block", width, height, borderRadius: radius, background: "rgba(44, 48, 42, 0.08)" }} />;
 /** The preview of a task with stand-in content: the real screen is a live stream, so the gate fills the frame as the design draws it. */
-function preview(id: string, { tall = false, paused = false } = {}) {
-  const { nas, row } = taskFacts(id);
+export function previewOf(nas: NasTask, row: AgentTask, { tall = false, paused = false } = {}) {
   const shortId = nas.task.replace(/^task\//, "");
   const label = `Open ${nas.kind} task ${shortId}`;
   if (nas.kind === "terminal") {
@@ -247,6 +248,11 @@ function preview(id: string, { tall = false, paused = false } = {}) {
       </div>
     </TaskPreview>
   );
+}
+/** The preview of a fixture task in the `asking` scenario. */
+function preview(id: string, options: { tall?: boolean; paused?: boolean } = {}) {
+  const { nas, row } = taskFacts(id);
+  return previewOf(nas, row, options);
 }
 /** A task row for a fixture task, with its preview inside. */
 function row(id: string, { open = false, paused = false } = {}) {

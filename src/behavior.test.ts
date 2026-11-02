@@ -46,7 +46,7 @@ import {
 import type { ChatMessage } from "./store/chat";
 import { dismissToast, failureTarget, getToasts, pushToast, removeToast, resetToasts } from "./store/toasts";
 import { ApiError } from "./shared/api/errors";
-import type { DurableMessage, Lane, LogRecord } from "./types/hath";
+import type { DurableMessage } from "./types/hath";
 import {
   agentGraph,
   createAgentSimulation,
@@ -63,11 +63,9 @@ import {
   type MemoryLink,
 } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/ForceGraph";
-import { buildActivity, carryWakeKeys, thoughtGist } from "./features/agents/activity/wakes";
 import { revealSchedule } from "./shared/components/ForceGraph/reveal";
-import { autoLiveTaskId, pickLiveViews, showsLiveView, taskLiveView, waitingLabel } from "./features/agents/sessions";
-import { statusView } from "./features/agents/statusView";
-import type { AgentStatus, AgentTask } from "./types/hath";
+import { autoLiveTaskId, pickLiveViews, showsLiveView, taskLiveView } from "./features/agents/sessions";
+import type { AgentTask } from "./types/hath";
 import { taskResourceLabel } from "./features/system/TasksSection";
 import type { NasTask } from "./shared/api/nas";
 import {
@@ -1007,68 +1005,9 @@ describe("agent tasks", () => {
     expect(taskResourceLabel(nasTask("task/terminal/1", "idle", "t9"))).toBe("t9");
     expect(taskResourceLabel(nasTask("task/browser/3", "asleep"))).toBe("—");
   });
-
-  it("says what a waiting agent waits on and since when", () => {
-    const since = new Date(2026, 9, 29, 10, 20).toISOString();
-    expect(waitingLabel({ targets: ["task/browser/3", "task/terminal/1"], since, wakes_by: since })).toBe(
-      "Waiting on task/browser/3, task/terminal/1 since 10:20 AM",
-    );
-  });
 });
 
-describe("agent status block", () => {
-  const base: AgentStatus = {
-    job: { from: null, at: new Date(2026, 9, 29, 9, 5).toISOString(), content: "book the flight" },
-    work: { state: "running", since: new Date(2026, 9, 29, 9, 40).toISOString(), waiting_on: [] },
-    step: "web_fetch https://x.test",
-    recent: [
-      { name: "read_file", arg: "/a.txt", ok: true },
-      { name: "web_fetch", arg: "https://x.test", ok: false },
-      { name: "wait", arg: "", ok: null },
-    ],
-    tasks: [{ id: "task/browser/3", status: "working", current: "on x.test" }],
-    tasks_unreadable: null,
-    pending: [{ id: 7, to: "planner", expects_reply: true, preview: "which date?" }],
-  };
-  const nameOf = (id: string) => (id === "planner" ? "Planner" : id);
-
-  it("shows nothing when hath sends no status", () => {
-    expect(statusView(null, nameOf)).toBeNull();
-  });
-
-  it("says who asked, what is running, the last calls with their marks, tasks and queued messages", () => {
-    const view = statusView(base, nameOf);
-    expect(view?.job).toBe("Ankur asked at 9:05 AM: book the flight");
-    expect(view?.work).toBe("Working, last step 9:40 AM");
-    expect(view?.step).toBe("web_fetch https://x.test");
-    expect(view?.recent).toEqual([
-      { text: "read_file /a.txt", mark: "ok" },
-      { text: "web_fetch https://x.test", mark: "error" },
-      { text: "wait", mark: "running" },
-    ]);
-    expect(view?.tasks).toEqual(["task/browser/3 · working · on x.test"]);
-    expect(view?.pending).toEqual(["To Planner (expects a reply): which date?"]);
-  });
-
-  it("says what a waiting agent waits on and since when, and idle when it does nothing", () => {
-    const since = new Date(2026, 9, 29, 10, 20).toISOString();
-    const waiting = statusView({ ...base, work: { state: "waiting", since, waiting_on: ["task/browser/3", "bob"] } }, nameOf);
-    expect(waiting?.work).toBe("Waiting on task/browser/3, bob since 10:20 AM");
-    expect(statusView({ ...base, job: null, work: { state: "idle", since: null, waiting_on: [] } }, nameOf)).toMatchObject({
-      job: null,
-      work: "Idle",
-    });
-  });
-
-  it("states plainly that tasks could not be read", () => {
-    const view = statusView({ ...base, tasks: [], tasks_unreadable: "nas is down" }, nameOf);
-    expect(view?.tasksUnreadable).toBe("Helper tasks could not be read: nas is down");
-    expect(view?.tasks).toEqual([]);
-    expect(statusView({ ...base, pending: [] }, nameOf)?.pending).toEqual([]);
-  });
-});
-
-describe("popover live views", () => {
+describe("agent sheet live views", () => {
   const task = (id: string, status: AgentTask["status"], lastActivity: string): AgentTask => ({
     id,
     kind: "browser",
@@ -1377,148 +1316,6 @@ describe("countNoun", () => {
     expect(countNoun(3, "MEMORY", "MEMORIES")).toBe("MEMORIES");
     expect(countNoun(1, "PERSON", "PEOPLE")).toBe("PERSON");
     expect(countNoun(0, "PERSON", "PEOPLE")).toBe("PEOPLE");
-  });
-});
-
-describe("buildActivity", () => {
-  const log = (
-    partial: Partial<LogRecord> & Pick<LogRecord, "id" | "event" | "payload" | "created_at">,
-  ): LogRecord => ({ agent_id: "coding-manager", lane: "process", ...partial });
-  const at = (seconds: number) => new Date(Date.UTC(2026, 9, 2, 17, 40, 0) + seconds * 1000).toISOString();
-  const response = (id: string, lane: Lane, seconds: number, content: unknown[], stop = "tool_use") =>
-    log({ id, lane, event: "response", payload: { content, stop_reason: stop }, created_at: at(seconds) });
-  const result = (id: string, lane: Lane, seconds: number, toolUseId: string, name: string, isError = false) =>
-    log({ id, lane, event: "tool_result", payload: { tool_use_id: toolUseId, name, content: "ok", is_error: isError }, created_at: at(seconds) });
-  const message = (id: string, seconds: number, payload: Record<string, unknown>) =>
-    log({ id, event: "message", payload: { content: "hi", ...payload }, created_at: at(seconds) });
-  const tool = (id: string, name: string, input: Record<string, unknown> = {}) => ({ type: "tool_use", id, name, input });
-
-  it("keeps a wake's interleaved lanes in one timeline, hiding yield and delivered dispatches", () => {
-    const logs = [
-      message("m-in", 0, { direction: "receive", from_agent_id: null }),
-      response("c1", "process", 1, [{ type: "thinking", thinking: "Okay.\n\n**Steering Reasoning**\n\nIt should close t5." }, tool("s1", "steer_work")]),
-      result("c1r", "process", 1.1, "s1", "steer_work"),
-      response("r1", "work", 2, [{ type: "thinking", thinking: "Close the terminal." }, tool("t1", "terminal_close", { terminal_id: "t5" })]),
-      result("r1r", "work", 2.1, "t1", "terminal_close", true),
-      response("c2", "process", 3, [{ type: "thinking", thinking: "Reply." }, tool("d1", "dispatch_message"), tool("y1", "yield")]),
-      message("m-out", 3.1, { direction: "send", to_agent_id: null }),
-      result("c2r", "process", 3.2, "d1", "dispatch_message"),
-      result("c2y", "process", 3.3, "y1", "yield"),
-      response("r2", "work", 4, [{ type: "text", text: "Done." }, tool("y2", "yield")]),
-    ].reverse();
-
-    const wakes = buildActivity(logs);
-
-    expect(wakes).toHaveLength(1);
-    const [wake] = wakes;
-    expect(wake!.key).toBe("m-in");
-    expect(wake!.lanes).toEqual(["process", "work"]);
-    expect(wake!.toolCount).toBe(3);
-    expect(wake!.errorCount).toBe(1);
-    expect(wake!.steps.map((step) => step.key)).toEqual(["m-in", "c1", "r1", "m-out", "r2"]);
-    const [, steer, close] = wake!.steps;
-    expect(steer).toMatchObject({ kind: "turn", lane: "process", thought: { gist: "Steering Reasoning" } });
-    expect(close).toMatchObject({ kind: "turn", lane: "work", thought: { gist: "Close the terminal." } });
-    expect(close!.kind === "turn" && close!.parts[0]).toMatchObject({
-      kind: "tool",
-      tool: { name: "terminal_close", result: { isError: true } },
-    });
-  });
-
-  it("groups rows by hath's wake id across long waits and interleaved wakes, guessing only for unstamped rows", () => {
-    const stamped = (record: LogRecord, wakeId: string): LogRecord => ({ ...record, wake_id: wakeId });
-    const logs = [
-      message("old", -3600, { direction: "receive", from_agent_id: null }),
-      stamped(message("w1-in", 0, { direction: "receive", from_agent_id: null }), "w1"),
-      stamped(response("w1-r1", "work", 5, [tool("w1-wait", "wait")]), "w1"),
-      stamped(result("w1-r1r", "work", 6, "w1-wait", "wait"), "w1"),
-      stamped(message("w2-in", 60, { direction: "receive", from_agent_id: "career-manager" }), "w2"),
-      stamped(response("w2-c1", "process", 61, [{ type: "text", text: "on it" }, tool("w2-y", "yield")]), "w2"),
-      stamped(response("w1-r2", "work", 20 * 60, [{ type: "text", text: "resumed after the wait" }, tool("w1-y", "yield")]), "w1"),
-    ].reverse();
-
-    const wakes = buildActivity(logs);
-
-    expect(wakes.map((wake) => wake.key)).toEqual(["w2-in", "w1-in", "old"]);
-    expect(wakes[1]!.steps.map((step) => step.key)).toEqual(["w1-in", "w1-r1", "w1-r2"]);
-    expect(wakes[1]!.toolCount).toBe(1);
-  });
-
-  it("starts a new wake when a message or call arrives after both lanes stopped, or after a long gap", () => {
-    const logs = [
-      message("a", 0, { direction: "receive", from_agent_id: "browser-manager" }),
-      response("a1", "process", 1, [{ type: "text", text: "on it" }], "end_turn"),
-      response("b1", "work", 30, [tool("b1t", "terminal_list")]),
-      message("c", 40, { direction: "receive", from_agent_id: "career-manager", schedule_id: "s-1" }),
-      response("d1", "work", 40 + 11 * 60, [{ type: "text", text: "later" }]),
-    ].reverse();
-
-    const wakes = buildActivity(logs);
-
-    expect(wakes.map((wake) => wake.key)).toEqual(["d1", "b1", "a"]);
-    expect(wakes[1]!.steps.map((step) => step.key)).toEqual(["b1", "c"]);
-    expect(wakes[1]!.steps[1]).toMatchObject({ kind: "message", peer: "career-manager", scheduled: true });
-  });
-
-  it("keeps a wake's key when the log window slides past its first row", () => {
-    const logs = [
-      message("in", 0, { direction: "receive", from_agent_id: null }),
-      response("c1", "process", 1, [{ type: "text", text: "first" }]),
-      response("c2", "process", 2, [{ type: "text", text: "second" }]),
-      response("c3", "process", 3, [{ type: "text", text: "third" }]),
-    ].reverse();
-    const before = buildActivity(logs);
-    const slid = buildActivity(logs.slice(0, 3));
-    expect(slid.map((wake) => wake.key)).toEqual(["c1"]);
-    expect(carryWakeKeys(before, slid).map((wake) => wake.key)).toEqual(["in"]);
-  });
-
-  it("keeps the lane a handoff wakes in the wake that handed off", () => {
-    const logs = [
-      message("in", 0, { direction: "receive", from_agent_id: "cse-431-specialist" }),
-      response("c1", "process", 1, [tool("s1", "steer_work", { instruction: "spawn it" }), tool("y1", "yield")]),
-      result("c1r", "process", 1.1, "s1", "steer_work"),
-      response("r1", "work", 8, [tool("l1", "list_tools")]),
-    ].reverse();
-
-    expect(buildActivity(logs).map((wake) => wake.steps.map((step) => step.key))).toEqual([["in", "c1", "r1"]]);
-  });
-
-  it("starts a new wake when a steered lane failed instead of running", () => {
-    const logs = [
-      message("ask", 0, { direction: "receive", from_agent_id: null }),
-      response("c1", "process", 1, [tool("s1", "steer_work"), tool("y1", "yield")]),
-      result("c1r", "process", 1.1, "s1", "steer_work"),
-      message("dead", 3, {
-        direction: "send",
-        to_agent_id: null,
-        content: "[runtime] My work lane failed and this wake stopped before finishing: credit balance too low.",
-      }),
-      message("again", 60, { direction: "receive", from_agent_id: null }),
-    ].reverse();
-
-    const wakes = buildActivity(logs);
-
-    expect(wakes.map((wake) => wake.key)).toEqual(["again", "ask"]);
-    expect(wakes[1]!.steps[2]).toMatchObject({ key: "dead", wakeStopped: true });
-  });
-
-  it("drops calls that only yield and wakes with nothing left to show", () => {
-    const wakes = buildActivity([
-      response("y", "process", 0, [{ type: "thinking", thinking: "nothing to do" }, tool("y1", "yield")]),
-    ]);
-
-    expect(wakes).toEqual([]);
-  });
-});
-
-describe("thoughtGist", () => {
-  it("takes a summary's bold heading over its filler opening", () => {
-    expect(thoughtGist("Okay, here's my take.\n\n**Message Handling Complete**\n\nAll sent.")).toBe("Message Handling Complete");
-  });
-
-  it("takes plain thinking's first line", () => {
-    expect(thoughtGist("Let me check the terminal list.\nThen report.")).toBe("Let me check the terminal list.");
   });
 });
 

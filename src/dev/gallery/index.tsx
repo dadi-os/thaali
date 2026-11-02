@@ -1,5 +1,7 @@
 import { CASES } from "./cases";
 import "./shell";
+import "./sheet";
+import "./takeover";
 
 /**
  * The fidelity gate's side of the app: `?gallery=<case id>` on a dev-server URL renders one primitive in one

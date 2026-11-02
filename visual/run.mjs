@@ -6,7 +6,7 @@
  * Usage: node visual/run.mjs --out <dir> [--pages hath,system] [--scenarios normal,asking]
  *        [--widths 1440,900x700,1080x1920] [--interact] [--flows]
  *
- * `--flows` adds the scripted flows (agent popover, toasts, System task rows, chat thread) at
+ * `--flows` adds the scripted flows (agent sheet and takeover modal, toasts, System task rows, chat thread) at
  * 1440 wide in the `normal`, `asking` and `long` scenarios; `--flows-only` runs just those.
  */
 import { spawnSync } from "node:child_process";
@@ -65,17 +65,21 @@ function flowJobs(scenario) {
   const job = (name, route, steps, settleMs = 2500) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}?fixtures=${scenario}`, width: 1440, height: 900, settleMs, steps });
   const frames = (tag, times) => times.flatMap((t, i) => [{ wait: i === 0 ? t : t - times[i - 1] }, { shot: `flow-${tag}~${scenario}~${t}ms.png` }]);
   return [
-    job("agent-popover", "/hath", [
+    job("agent-sheet", "/hath", [
       { eval: sidebarRow("finance-specialist") },
       { wait: 900 },
       { shot: `flow-agent-thread~${scenario}.png` },
       { eval: "window.__mountSince = performance.now(); 0" },
       { click: '[aria-label$=" details"]' },
-      ...frames("agent-popover-open", [80, 300, 900]),
-      { checks: "popover-open" },
+      ...frames("agent-sheet-open", [80, 300, 900]),
+      { checks: "sheet-open" },
       { eval: '[...document.querySelectorAll("[aria-expanded=\'false\']")].slice(0, 2).forEach((b) => b.click()); 0' },
-      ...frames("agent-popover-expand", [100, 400, 1000]),
-      { checks: "popover-expanded" },
+      ...frames("agent-sheet-expand", [100, 400, 1000]),
+      { checks: "sheet-expanded" },
+      { eval: "window.__mountSince = performance.now(); 0" },
+      { click: '[aria-label^="Open browser task"]' },
+      ...frames("takeover-open", [80, 300, 900]),
+      { checks: "takeover-open" },
     ]),
     job("toasts", "/system", [
       { eval: "window.__mountSince = performance.now(); 0" },

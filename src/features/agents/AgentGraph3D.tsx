@@ -5,19 +5,15 @@ import {
   useRef,
   useState,
   useSyncExternalStore,
-  type RefObject,
 } from "react";
 import { createPortal } from "react-dom";
 import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { hath, isMeshOnline } from "../../shared/api";
-import type { AgentRecord } from "../../types/hath";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { useHoverDetails } from "../../shared/hooks/useHoverDetails";
 import { useThemeTokens } from "../../shared/hooks/useThemeTokens";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
-import { POLL_MS } from "../../shared/lib/ux/poll";
 import {
   ForceGraph,
   syncForceSimulation,
@@ -27,9 +23,7 @@ import { GraphPlaceholder } from "../../shared/components/GraphPlaceholder";
 import { GraphSpace } from "../../shared/components/GraphSpace";
 import { Glider } from "../../shared/components/Glider";
 import { SearchField } from "../../shared/components/SearchField";
-import { openAgent } from "../../store/chat";
 import { getRunning, seedRunningFromAgents, subscribeRunning } from "../../store/running";
-import { AgentPopover, agentActivityQuery, agentDetailQuery } from "./AgentPopover";
 import {
   agentGraph,
   agentRadius,
@@ -53,20 +47,19 @@ const SHOW_OPTIONS: Array<{ value: AgentShow; label: string }> = [
 /** Resolved theme colors the agent scene draws with. */
 type AgentTheme = Record<(typeof THEME)[number], string>;
 
-/** What the docked details cover at the graph's right edge: the 460 px panel and its 12 px gap. */
-const DOCKED_INSET_PX = 472;
-
 export type AgentGraph3DProps = {
   /** Changes on each arrival at the page; resets the simulation and open details. */
   entranceKey: string;
   /**
-   * Page mode: orbit, hover details, click to focus and open chat, and a label on every live,
+   * Page mode: orbit, click to focus and select, and a label on every live,
    * top-level or parent agent (a leaf sub-agent, usually a one-shot worker, is labelled when
    * hovered, focused or matched). Off for the home tile, which labels live agents only.
    */
   interactive: boolean;
-  /** Agent to focus (and open in chat) on each arrival at the page, e.g. one picked on the home tile. */
+  /** Agent to focus and select on each arrival at the page, e.g. one picked on the home tile. */
   focusOnEntry: string | null;
+  /** Page mode: the agent a click focused, or null once the focus is cleared. The page docks that agent's sheet. */
+  onSelect?: (agentId: string | null) => void;
   /** Home tile: an agent node was clicked. Clicks that miss every node fall through to the tile. */
   onPick?: (agentId: string) => void;
   /** Page header slot the search box renders into; null on the home tile. */
@@ -113,6 +106,7 @@ export function AgentGraph3D({
   entranceKey,
   interactive,
   focusOnEntry,
+  onSelect,
   onPick,
   toolbar,
   className,
@@ -121,7 +115,6 @@ export function AgentGraph3D({
   const connected = isMeshOnline(connection);
   const runningMap = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
   const theme = useThemeTokens(THEME);
-  const rootRef = useRef<HTMLDivElement>(null);
 
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
@@ -134,13 +127,6 @@ export function AgentGraph3D({
   });
 
   const agents = useMemo(() => agentsQuery.data?.filter((a) => a.active), [agentsQuery.data]);
-  const agentsById = useMemo(() => {
-    const map = new Map<string, AgentRecord>();
-    for (const a of agents ?? []) {
-      map.set(a.id, a);
-    }
-    return map;
-  }, [agents]);
 
   const sim = useMemo(() => createAgentSimulation(), [entranceKey]);
 
@@ -162,11 +148,7 @@ export function AgentGraph3D({
     );
   }, [graph.nodes, runningMap, interactive]);
 
-  const details = useHoverDetails(entranceKey);
-  const queryClient = useQueryClient();
   const [focusId, setFocusId] = useState<string | null>(null);
-  /** The agent last clicked on the page: its details stay docked at the graph's right edge until closed. */
-  const [pinnedId, setPinnedId] = useState<string | null>(null);
   const [query, setQuery] = useState("");
   const [show, setShow] = useState<AgentShow>("all");
 
@@ -190,26 +172,18 @@ export function AgentGraph3D({
 
   useEffect(() => {
     setFocusId(focusOnEntry);
-    setPinnedId(null);
     setQuery("");
-    if (focusOnEntry !== null) {
-      openAgent(focusOnEntry);
-    }
+    onSelect?.(focusOnEntry);
   }, [entranceKey, focusOnEntry]);
 
   const clearFocus = useCallback(() => {
-    details.close();
     setFocusId(null);
-    setPinnedId(null);
-  }, [details.close]);
+    onSelect?.(null);
+  }, [onSelect]);
 
   const focusAgent = (agentId: string) => {
-    details.close();
     setFocusId(agentId);
-    openAgent(agentId);
-    if (interactive) {
-      setPinnedId(agentId);
-    }
+    onSelect?.(agentId);
   };
 
   if (!connected && !agentsQuery.data) {
@@ -256,11 +230,8 @@ export function AgentGraph3D({
     );
   }
 
-  const shownId = pinnedId ?? details.id;
-  const root = rootRef.current;
-
   return (
-    <div ref={rootRef} className={`relative h-full min-h-0 w-full ${className ?? ""}`}>
+    <div className={`relative h-full min-h-0 w-full ${className ?? ""}`}>
       <GraphSpace
         key={entranceKey}
         interactive={interactive}
@@ -273,7 +244,7 @@ export function AgentGraph3D({
           graph={graph}
           focusId={focusId ?? onlyMatch}
           focusScope="lineage"
-          hold={details.open || focusId !== null || matches !== null}
+          hold={focusId !== null || matches !== null}
           matches={matches}
           radius={(n) => agentRadius(n.depth, !n.active)}
           look={(n) => agentLook(theme, visualState(n, runningMap[n.id]))}
@@ -298,17 +269,6 @@ export function AgentGraph3D({
             );
           }}
           onZoom={interactive ? clearFocus : undefined}
-          rightInset={pinnedId !== null ? DOCKED_INSET_PX : 0}
-          onNodeHover={
-            interactive
-              ? (n, at) => {
-                  details.hover(n.id, at);
-                  void queryClient.prefetchQuery({ ...agentDetailQuery(n.id), staleTime: POLL_MS });
-                  void queryClient.prefetchQuery({ ...agentActivityQuery(n.id), staleTime: POLL_MS });
-                }
-              : undefined
-          }
-          onNodeLeave={interactive ? details.leave : undefined}
           onNodeClick={
             interactive ? (n) => focusAgent(n.id) : onPick ? (n) => onPick(n.id) : undefined
           }
@@ -335,19 +295,6 @@ export function AgentGraph3D({
           )
         : null}
 
-      {interactive ? (
-        <AgentPopover
-          open={pinnedId !== null || details.open}
-          agentId={shownId}
-          agentsById={agentsById}
-          runningMap={runningMap}
-          anchor={pinnedId !== null && root ? { x: root.clientWidth - 12, y: root.clientHeight / 2, radius: 0 } : details.anchor}
-          containerRef={rootRef as RefObject<HTMLElement | null>}
-          {...(pinnedId === null ? { hover: { onInside: details.keep, onOutside: details.leave } } : {})}
-          onClose={pinnedId === null ? details.close : () => setPinnedId(null)}
-          onSelectParent={focusAgent}
-        />
-      ) : null}
     </div>
   );
 }

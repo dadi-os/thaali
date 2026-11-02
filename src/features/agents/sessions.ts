@@ -1,6 +1,5 @@
-import type { AgentSessions, AgentTask, AgentWaiting } from "../../types/hath";
+import type { AgentSessions, AgentTask } from "../../types/hath";
 import type { NasTask } from "../../shared/api/nas";
-import { formatClock } from "../../shared/lib/ux/time";
 
 /** The live thing a task holds in Nas, which a view can show. */
 export type TaskLiveView =
@@ -43,13 +42,8 @@ export function pickLiveViews(
   return { browserId, terminalId };
 }
 
-/** What a waiting agent is waiting on and since when (e.g. "Waiting on task/browser/3 since 10:20"). */
-export function waitingLabel(waiting: AgentWaiting): string {
-  return `Waiting on ${waiting.targets.join(", ")} since ${formatClock(waiting.since)}`;
-}
-
 /**
- * The one task whose live view a popover shows without being asked: the most recently active
+ * The one task whose live view the agent sheet shows without being asked: the most recently active
  * task that is working. Every other task shows its status line and loads its view on expand.
  */
 export function autoLiveTaskId(tasks: AgentTask[]): string | null {

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
 import { ChatSidebar } from "./chatSidebar";
+import { TakeoverModal } from "../features/agents/takeover";
 import { ForgetDeviceDialog } from "./ForgetDevice";
 import { OfflinePill } from "./OfflinePill";
 import { Onboarding, type BootState } from "./onboarding";
@@ -113,6 +114,7 @@ export function AppShell() {
           ) : null}
         </AnimatePresence>
       </div>
+      <TakeoverModal />
       <Toaster />
       <ProvisionOverlay
         open={provisionOpen}

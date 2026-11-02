@@ -6,8 +6,8 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { Tooltip } from "../../shared/components/Tooltip";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
-import { taskLiveView } from "../agents/sessions";
-import { TaskLive, TaskStatusBadge } from "../agents/TaskLive";
+import { Badge } from "../../shared/components/Badge";
+import { TaskPreviewLive } from "../agents/TaskLive";
 
 /** The slot or terminal a task holds in Nas, or an em dash while it sleeps. */
 export function taskResourceLabel(task: NasTask): string {
@@ -75,7 +75,7 @@ export function TasksSection() {
                   <span className="truncate font-mono text-[11.5px] text-ink-ghost">{taskResourceLabel(task)}</span>
                 </span>
                 <span className="flex shrink-0 flex-col items-end gap-1">
-                  <TaskStatusBadge status={task.status} />
+                  <Badge status={task.status} />
                   <Tooltip content={formatAbsolute(task.last_activity)}>
                     <span className="text-[11.5px] text-ink-ghost">{formatRelative(task.last_activity)}</span>
                   </Tooltip>
@@ -83,7 +83,11 @@ export function TasksSection() {
               </button>
               {open ? (
                 <div className="pb-3">
-                  <TaskLive view={taskLiveView(task)} summary={task.state} tall />
+                  {task.resource === undefined || task.status === "asleep" ? (
+                    <p className="text-[12.5px] leading-relaxed text-ink-muted">{task.state}</p>
+                  ) : (
+                    <TaskPreviewLive task={task.task} kind={task.kind} resource={task.resource} caption={task.kind === "browser" ? task.state : `${task.id} · ${task.resource}`} paused={task.status === "paused"} />
+                  )}
                 </div>
               ) : null}
             </li>

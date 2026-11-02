@@ -9,13 +9,12 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
 import { pickLiveViews } from "../../features/agents/sessions";
-import { AgentPopover } from "../../features/agents/AgentPopover";
-import type { PopoverAnchor } from "../../shared/components/Popover";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
@@ -116,6 +115,7 @@ export interface ChatSidebarProps {
  */
 export function ChatSidebar({ className }: ChatSidebarProps) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const chat = useSyncExternalStore(subscribeChat, getChatState, getChatState);
@@ -144,9 +144,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   /** Measured floating composer height; the thread pads by it so text clears it. */
   const [composerHeight, setComposerHeight] = useState(0);
   const refreshThreadRef = useRef<(() => void) | null>(null);
-  /** Where the open agent's details popover anchors, relative to the rail: its right edge, level with the name bubble; null while closed. */
-  const [detailsAnchor, setDetailsAnchor] = useState<PopoverAnchor | null>(null);
-  const asideRef = useRef<HTMLElement>(null);
 
   const routing = isRouting();
   const rail = useRailWidth();
@@ -244,10 +241,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     el.style.height = "auto";
     el.style.height = `${Math.min(el.scrollHeight, TEXTAREA_MAX_PX)}px`;
   }, [draft, chat.open]);
-
-  useEffect(() => {
-    setDetailsAnchor(null);
-  }, [chat.open]);
 
   const draftAttachmentsRef = useRef(draftAttachments);
   draftAttachmentsRef.current = draftAttachments;
@@ -647,7 +640,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   return (
     <aside
-      ref={asideRef}
       className={`rail ${className ?? ""}`}
       style={{ width: rail.width, height: "100%" }}
       data-agent-id={openAgentId ?? undefined}
@@ -658,15 +650,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
             onBack={backToList}
             title={openAgentRecord ? openAgentRecord.name : null}
             error={openAgentView?.kind === "error" ? openAgentView.message : null}
-            detailsOpen={detailsAnchor !== null}
-            onOpenDetails={(box) => {
-              const rect = asideRef.current!.getBoundingClientRect();
-              setDetailsAnchor(
-                detailsAnchor
-                  ? null
-                  : { x: rect.width, y: box.top - rect.top + box.height / 2, radius: 0 },
-              );
-            }}
+            onOpenDetails={openAgentId === null ? undefined : () => navigate("/hath", { state: { focusAgent: openAgentId } })}
           />
           <div className="relative flex min-h-0 flex-1 flex-col">
             {showHostPin ? <HostPin browserId={liveBrowserId} terminalId={liveTerminalId} /> : null}
@@ -778,18 +762,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       )}
       <ResizeHandle rail={rail} />
 
-      {openAgentView?.kind === "ready" ? (
-        <AgentPopover
-          open={detailsAnchor !== null}
-          agentId={openAgentView.agent.id}
-          agentsById={new Map(openAgentView.agents.map((a) => [a.id, a]))}
-          runningMap={running}
-          anchor={detailsAnchor}
-          containerRef={asideRef}
-          onClose={() => setDetailsAnchor(null)}
-          onSelectParent={openAgent}
-        />
-      ) : null}
     </aside>
   );
 }
