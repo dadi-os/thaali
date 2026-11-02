@@ -10,6 +10,9 @@ const BLIP_AFTER_MS = 4_000;
 /** Services the `module-offline` scenario answers 502 for. */
 const DOWN_IN_MODULE_OFFLINE: readonly Host[] = ["ghar", "yaad", "chaavi"];
 
+/** The `X-Request-Id` every fixture failure carries, so a failure reads the same in every run and in the design's boards. */
+const FIXTURE_REQUEST_ID = "7be0c2d4-1f9a-4a68-b5c3-2a84e0d91c57";
+
 type Stream = { host: Host; path: string; onEvent: (data: unknown) => void; onClose?: () => void };
 
 declare global {
@@ -28,7 +31,7 @@ function hostOf(baseUrl: string): Host {
 }
 
 function apiError(baseUrl: string, status: number, text: string): ApiError {
-  return new ApiError(`HTTP ${status}: ${text}`, baseUrl, crypto.randomUUID(), status);
+  return new ApiError(`HTTP ${status}: ${text}`, baseUrl, FIXTURE_REQUEST_ID, status);
 }
 
 /**
@@ -130,6 +133,9 @@ export class FixtureTransport implements Transport {
     }
     if (this.scenario === "errors") {
       throw apiError(opts.baseUrl, 500, `${host} failed while handling ${opts.method} ${opts.path}`);
+    }
+    if (this.scenario === "tasks-error" && host === "nas" && opts.path === "/tasks") {
+      throw apiError(opts.baseUrl, 500, `nas failed while handling ${opts.method} ${opts.path}`);
     }
     if (this.scenario === "module-offline" && DOWN_IN_MODULE_OFFLINE.includes(host)) {
       throw apiError(opts.baseUrl, 502, `${host}.dadi is not answering`);

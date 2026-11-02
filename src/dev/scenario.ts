@@ -14,6 +14,7 @@ export const SCENARIOS = [
   "long",
   "many",
   "asking",
+  "tasks-error",
 ] as const;
 
 /** One of {@link SCENARIOS}. */
