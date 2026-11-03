@@ -1,7 +1,7 @@
 import type { NasTask } from "../../shared/api/nas";
 import { applyCommand } from "../../features/ghar/model";
 import type { GharCommand, GharCommissionJob, GharDevice, GharRoom } from "../../types/ghar";
-import type { PostMessageResponse, ThreadReadMark } from "../../types/hath";
+import type { PatchScheduleRequest, PostMessageResponse, ScheduledMessage, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
 import type { TimelineRequest } from "../../types/timeline";
 import type { Scenario } from "../scenario";
@@ -38,6 +38,7 @@ export class Fixtures {
   private readonly devices: GharDevice[];
   private readonly rooms: GharRoom[];
   private readonly tasks: NasTask[];
+  private readonly schedules = new Map<string, ScheduledMessage[]>();
 
   constructor(private readonly scenario: Scenario) {
     this.devices = ghar.devices(scenario);
@@ -80,18 +81,50 @@ export class Fixtures {
       const response: PostMessageResponse = { to_agent_id: sent.to_agent_id, content: sent.content, attachments: [], seq: 2000, created_at: ago(0) };
       return response;
     }
+    const schedule = /^(PATCH|DELETE) \/schedules\/([^/]+)$/.exec(route);
+    if (schedule) {
+      return schedule[1] === "PATCH" ? this.patchSchedule(schedule[2]!, body as PatchScheduleRequest) : this.cancelSchedule(schedule[2]!);
+    }
     if (agent) {
       const [, id, sub] = agent;
       if (route.startsWith("GET") && sub === undefined) return hath.agentDetail(s, id!);
       if (route.startsWith("GET") && sub === "/messages") return { messages: hath.messages(s, id!) };
       if (route.startsWith("GET") && sub === "/logs") return { logs: hath.agentLogs(id!) };
-      if (route.startsWith("GET") && sub === "/schedules") return { schedules: hath.schedules(id!) };
+      if (route.startsWith("GET") && sub === "/schedules") return { schedules: structuredClone(this.schedulesOf(id!)) };
       if (route.startsWith("POST") && sub === "/read") {
         const mark: ThreadReadMark = { agent_id: id!, read_seq: (body as { seq: number }).seq, unread: 0 };
         return mark;
       }
     }
     throw new Error(`fixtures: no route for hath ${route}${url.search}`);
+  }
+
+  /** The schedules of `agentId` a page may have edited or cancelled since it loaded. */
+  private schedulesOf(agentId: string): ScheduledMessage[] {
+    const held = this.schedules.get(agentId) ?? hath.schedules(agentId);
+    this.schedules.set(agentId, held);
+    return held;
+  }
+
+  private patchSchedule(id: string, body: PatchScheduleRequest): ScheduledMessage {
+    for (const held of this.schedules.values()) {
+      const found = held.find((schedule) => schedule.id === id);
+      if (found !== undefined) {
+        return Object.assign(found, body);
+      }
+    }
+    throw new Error(`fixtures: no schedule ${id}`);
+  }
+
+  private cancelSchedule(id: string): { cancelled: true; schedule_id: string } {
+    for (const held of this.schedules.values()) {
+      const index = held.findIndex((schedule) => schedule.id === id);
+      if (index >= 0) {
+        held.splice(index, 1);
+        return { cancelled: true, schedule_id: id };
+      }
+    }
+    throw new Error(`fixtures: no schedule ${id}`);
   }
 
   private nas(route: string, url: URL): unknown {

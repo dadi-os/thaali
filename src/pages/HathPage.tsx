@@ -18,6 +18,7 @@ import { useModuleState } from "../shared/hooks/useModuleState";
 import { useSize } from "../shared/hooks/useSize";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
+import { agentsMatching, pickedMatch } from "../features/agents/search";
 import { getRunning, subscribeRunning } from "../store/running";
 import type { AgentRecord } from "../types/hath";
 
@@ -121,7 +122,9 @@ export function HathPage() {
   const filter = FILTER_NAMES.find((name) => name === params.get("filter")) ?? "All";
   const sheeted = state.kind === "ready" && selectedId !== null && agents.some((agent) => agent.id === selectedId);
   const docked = width > DOCK_ABOVE;
-  const dimmed = filter === "All" ? null : new Set(agents.filter((_, i) => !keepsState(filter, states[i]!)).map((agent) => agent.id));
+  const search = params.get("q") ?? "";
+  const found = agentsMatching(agents, search);
+  const dimmed = filter === "All" && found === null ? null : new Set(agents.filter((agent, i) => !keepsState(filter, states[i]!) || (found !== null && !found.includes(agent))).map((agent) => agent.id));
   const many = agents.length > MANY_AGENTS;
   const room = { width: width - SIDES - (sheeted && docked ? SHEET_WIDTH + SHEET_GAP : 0), height: height - CHROME };
 
@@ -215,7 +218,7 @@ export function HathPage() {
   }
 
   const working = states.filter(isLive).length;
-  const sheet = sheeted ? <AgentSheet agentId={selectedId} /> : null;
+  const sheet = sheeted ? <AgentSheet agentId={selectedId} onSelect={(id) => setParam("agent", id)} /> : null;
   return (
     <div ref={page} data-page="hath" style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 16, padding: "18px 20px 20px", minHeight: 0 }}>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 12, minHeight: 0 }}>
@@ -223,7 +226,31 @@ export function HathPage() {
           title="Hath"
           meta={state.kind === "ready" ? `${working} working · ${agents.length} agents` : undefined}
           trailing={
-            <div style={{ display: "inline-flex", padding: 3, gap: 2, borderRadius: 999, background: "var(--sage-fill)", border: "1px solid var(--glass-border)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              {state.kind === "ready" ? (
+                <div style={{ width: 260 }}>
+                  <label className="search-field">
+                    <Icon name="search" size={15} />
+                    <input
+                      type="search"
+                      className="sfi"
+                      placeholder="Search agents"
+                      aria-label="Search agents"
+                      value={search}
+                      onChange={(event) => setParam("q", event.target.value === "" ? null : event.target.value)}
+                      onKeyDown={(event) => {
+                        const picked = pickedMatch(found, search);
+                        if (event.key === "Escape") {
+                          setParam("q", null);
+                        } else if (event.key === "Enter" && picked !== null) {
+                          pick(picked);
+                        }
+                      }}
+                    />
+                  </label>
+                </div>
+              ) : null}
+              <div style={{ display: "inline-flex", padding: 3, gap: 2, borderRadius: 999, background: "var(--sage-fill)", border: "1px solid var(--glass-border)" }}>
               {(
                 [
                   ["graph", "Graph"],
@@ -243,6 +270,7 @@ export function HathPage() {
                   <Icon name={name} size={16} />
                 </button>
               ))}
+              </div>
             </div>
           }
         />

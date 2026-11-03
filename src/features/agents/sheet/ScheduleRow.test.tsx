@@ -1,0 +1,92 @@
+// @vitest-environment happy-dom
+import { act } from "react";
+import { createRoot, type Root } from "react-dom/client";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import type { ScheduledMessage } from "../../../types/hath";
+import { ScheduleRow } from "./ScheduleRow";
+
+(globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
+
+const schedule: ScheduledMessage = { id: "s1", from_agent_id: "me", to_agent_id: "me", content: "Check the budget.", run_at: "2026-10-29T04:42:00.000Z", interval_minutes: 1440, created_at: "2026-10-01T00:00:00.000Z" };
+
+let host: HTMLElement;
+let root: Root;
+
+beforeEach(() => {
+  host = document.createElement("div");
+  document.body.appendChild(host);
+  root = createRoot(host);
+});
+
+afterEach(() => {
+  act(() => root.unmount());
+  host.remove();
+});
+
+/** The button whose text is `text`. */
+function button(text: string): HTMLButtonElement {
+  const found = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === text);
+  if (found === undefined) {
+    throw new Error(`no button ${text}`);
+  }
+  return found;
+}
+
+/** Sets a text control's value the way typing does. */
+function type(control: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement, value: string) {
+  const setter = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(control), "value")!.set!;
+  setter.call(control, value);
+  act(() => {
+    control.dispatchEvent(new Event(control instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+  });
+}
+
+function mount(onSave = vi.fn(() => Promise.resolve()), onCancel = vi.fn(() => Promise.resolve())) {
+  act(() => root.render(<ScheduleRow schedule={schedule} agentId="me" position={1} onSave={onSave} onCancel={onCancel} />));
+  return { onSave, onCancel };
+}
+
+describe("ScheduleRow", () => {
+  it("opens the editor from Edit, saves only what changed, and closes", async () => {
+    const { onSave } = mount();
+    act(() => button("Edit").click());
+    expect(button("Save").disabled).toBe(true);
+    type(host.querySelector("textarea")!, "Check it twice.");
+    type(host.querySelector("select")!, "10080");
+    expect(button("Save").disabled).toBe(false);
+    await act(async () => button("Save").click());
+    expect(onSave).toHaveBeenCalledWith("s1", { interval_minutes: 10080, content: "Check it twice." });
+    expect(host.querySelector("textarea")).toBeNull();
+  });
+
+  it("keeps the editor open and shows the reason when Hath refuses the save", async () => {
+    mount(vi.fn(() => Promise.reject(new Error("run_at must be in the future"))));
+    act(() => button("Edit").click());
+    type(host.querySelector("textarea")!, "Another message.");
+    await act(async () => button("Save").click());
+    expect(host.textContent).toContain("run_at must be in the future");
+    expect(host.querySelector("textarea")).not.toBeNull();
+  });
+
+  it("asks twice before cancelling, and Discard leaves the schedule alone", async () => {
+    const { onCancel } = mount();
+    act(() => button("Edit").click());
+    act(() => button("Cancel schedule").click());
+    expect(onCancel).not.toHaveBeenCalled();
+    expect(host.textContent).toContain("This schedule will not run again.");
+    await act(async () => button("Confirm cancel").click());
+    expect(onCancel).toHaveBeenCalledWith("s1");
+
+    act(() => button("Edit").click());
+    act(() => button("Discard").click());
+    expect(host.querySelector("textarea")).toBeNull();
+    expect(host.textContent).toContain("Check the budget.");
+  });
+
+  it("offers a repeat of its own beside the presets", () => {
+    mount();
+    act(() => button("Edit").click());
+    const options = [...host.querySelectorAll("option")].map((option) => option.textContent);
+    expect(options).toEqual(["Once", "Hourly", "Daily", "Weekly"]);
+  });
+});

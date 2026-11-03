@@ -1,5 +1,5 @@
-import type { ReactNode } from "react";
-import type { AgentRecord, AgentTask, ScheduledMessage } from "../../../types/hath";
+import { useRef, type ReactNode } from "react";
+import type { AgentRecord, AgentTask, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
 import { Button } from "../../../shared/components/Button";
 import { Card } from "../../../shared/components/Card";
 import { Disclosure } from "../../../shared/components/Disclosure";
@@ -7,7 +7,9 @@ import { Icon } from "../../../shared/components/Icon";
 import { TaskRow } from "../../../shared/components/TaskRow";
 import { Clamp, NameTruncate, Truncate } from "../../../shared/components/Truncate";
 import { formatClock, formatDay, formatRelative } from "../../../shared/lib/ux/time";
-import type { SheetWake } from "./wakes";
+import type { ActivityWake } from "./activity";
+import { ActivityFeed } from "./ActivityFeed";
+import { ScheduleRow } from "./ScheduleRow";
 import { workLine } from "./workLine";
 
 /** Characters per token Hath measured for the model's text; a charter's size in tokens is its characters over this. */
@@ -35,7 +37,15 @@ export type AgentSheetPanelProps = {
   tasks: SheetTask[];
   schedules: SheetFeed<ScheduledMessage>;
   /** The agent's newest wakes, newest first. */
-  wakes: SheetFeed<SheetWake>;
+  wakes: SheetFeed<ActivityWake>;
+  /** Saves a schedule's changes; rejects with Hath's reason. */
+  onSaveSchedule: (id: string, changes: PatchScheduleRequest) => Promise<void>;
+  /** Cancels a schedule; rejects with Hath's reason. */
+  onCancelSchedule: (id: string) => Promise<void>;
+  /** The agent's parent when it is one of the agents on the page; its name is a link. */
+  parent: AgentRecord | null;
+  /** Selects the parent agent. */
+  onSelectParent: (id: string) => void;
   /** Whether a section is open. */
   isOpen: (section: SheetSection) => boolean;
   onToggle: (section: SheetSection) => void;
@@ -111,7 +121,7 @@ function feedSummary<T>(feed: SheetFeed<T>, ready: (items: T[]) => string): stri
  * tasks it owns, and sections for its last calls, queued messages, schedule, charter and activity. It draws what it is
  * given; {@link AgentSheet} reads the data and holds the open sections.
  */
-export function AgentSheetPanel({ agent, tasks, schedules, wakes, isOpen, onToggle, isTaskOpen, onToggleTask, onOpenThread, now }: AgentSheetPanelProps) {
+export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, isTaskOpen, onToggleTask, onOpenThread, now }: AgentSheetPanelProps) {
   const status = agent.running.status;
   const waiting = agent.running.waiting_on;
   const lanes = [agent.running.work ? "Working" : null, agent.running.process ? "Processing" : null].filter((lane) => lane !== null);
@@ -119,6 +129,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, isOpen, onTogg
   const calls = status?.recent ?? [];
   const pending = status?.pending ?? [];
   const who = (id: string | null) => (id === null ? "Ankur" : id);
+  const scroll = useRef<HTMLDivElement>(null);
   return (
     <Card style={{ width: 400, flex: "none", background: "var(--glass-sheet)", boxShadow: "var(--shadow-deep)", minHeight: 0, animation: "slide-in 550ms var(--ease) both" }}>
       <div style={{ padding: "18px 18px 12px", display: "flex", flexDirection: "column", gap: 10, flex: "none" }}>
@@ -140,7 +151,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, isOpen, onTogg
           </Button>
         </div>
       </div>
-      <div className="scroll" style={{ flex: 1, minHeight: 0, padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
+      <div ref={scroll} className="scroll" style={{ flex: 1, minHeight: 0, padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
         <div style={{ padding: "12px 14px", borderRadius: 14, background: "var(--sage-fill)", display: "flex", flexDirection: "column", gap: 8 }}>
           <span className="ui-label" style={{ fontSize: 10.5 }}>
             Right now
@@ -200,11 +211,8 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, isOpen, onTogg
               <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Nothing scheduled.</span>
             ) : (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {schedules.items.map((schedule) => (
-                  <div key={schedule.id} style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-                    <Clamp text={schedule.content} lines={2} style={{ flex: 1, minWidth: 0, fontSize: 13 }} />
-                    <span style={{ fontSize: 12.5, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{`${formatDay(schedule.run_at)}, ${formatClock(schedule.run_at)}`}</span>
-                  </div>
+                {schedules.items.map((schedule, index) => (
+                  <ScheduleRow key={schedule.id} schedule={schedule} agentId={agent.id} position={index + 1} onSave={onSaveSchedule} onCancel={onCancelSchedule} />
                 ))}
               </div>
             )}
@@ -221,22 +229,21 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, isOpen, onTogg
             {wakes.kind !== "ready" ? (
               <FeedState feed={wakes} />
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {wakes.items.slice(0, 4).map((wake) => (
-                  <div key={wake.at} style={{ display: "flex", flexDirection: "column", gap: 3, padding: "9px 11px", borderRadius: 11, background: "var(--sage-fill)" }}>
-                    <div style={{ display: "flex", alignItems: "center", fontSize: 12.5 }}>
-                      <span style={{ fontWeight: 600 }}>{`${formatDay(wake.at)}, ${formatClock(wake.at)}`}</span>
-                      <span style={{ marginLeft: "auto", color: "var(--ink-muted)" }}>{`${wake.tools} ${wake.tools === 1 ? "tool" : "tools"}`}</span>
-                    </div>
-                    <Clamp text={wake.text || "No message"} lines={2} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />
-                  </div>
-                ))}
-              </div>
+              <ActivityFeed wakes={wakes.items} running={agent.running} scrollRef={scroll} now={now} />
             )}
           </Disclosure>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", fontSize: 12.5, color: "var(--ink-muted)", padding: "4px 4px 0" }}>
-          <span>{`Parent ${agent.parent_agent_id ?? "none"}`}</span>
+          <span>
+            Parent{" "}
+            {parent === null ? (
+              (agent.parent_agent_id ?? "none")
+            ) : (
+              <button type="button" className="ui-trans ui-hover-fill" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)} style={{ display: "inline", borderRadius: 5, padding: "0 4px", margin: "0 -4px", fontWeight: 600, color: "var(--sage-text)" }}>
+                {parent.name}
+              </button>
+            )}
+          </span>
           <span>{`Created ${formatDay(agent.created_at)}`}</span>
           <span>{`Active ${formatRelative(agent.updated_at, now)}`}</span>
         </div>

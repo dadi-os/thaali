@@ -1,15 +1,16 @@
-import { useEffect, useState, useSyncExternalStore } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { hath, isMeshOnline, nas } from "../../../shared/api";
-import type { AgentRecord } from "../../../types/hath";
+import type { AgentRecord, PatchScheduleRequest } from "../../../types/hath";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
+import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { openAgent } from "../../../store/chat";
 import { getRunning, subscribeRunning } from "../../../store/running";
 import { autoLiveTaskId, showsLiveView } from "../sessions";
 import { TaskPreviewLive } from "../TaskLive";
 import { AgentSheetPanel, type SheetFeed, type SheetSection, type SheetTask } from "./Panel";
-import { sheetWakes } from "./wakes";
+import { buildActivity, carryWakeKeys, type ActivityWake } from "./activity";
 
 /** How many of an agent's newest wakes the sheet reads, every row of each. */
 const ACTIVITY_WAKES = 10;
@@ -26,6 +27,8 @@ function feedOf<T>(query: { data: T[] | undefined; error: Error | null }): Sheet
 
 export type AgentSheetProps = {
   agentId: string;
+  /** Selects another agent, as the sheet's parent link does. */
+  onSelect: (agentId: string) => void;
 };
 
 /**
@@ -33,7 +36,8 @@ export type AgentSheetProps = {
  * schedule, its newest wakes and the helper tasks Nas holds, keeps which sections and task rows are open, and hands the
  * panel what it draws. Nothing is drawn until the agent is in the list.
  */
-export function AgentSheet({ agentId }: AgentSheetProps) {
+export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
+  const queryClient = useQueryClient();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const running = useSyncExternalStore(subscribeRunning, getRunning);
@@ -52,14 +56,35 @@ export function AgentSheet({ agentId }: AgentSheetProps) {
 
   const agents = useQuery({ queryKey: AGENTS_QUERY_KEY, queryFn: async () => (await hath.listAgents()).agents, enabled: connected });
   const schedules = useQuery({ queryKey: ["agent-schedules", agentId], queryFn: async () => (await hath.listSchedules(agentId)).schedules, enabled: connected });
-  const logs = useQuery({ queryKey: ["agent-logs", agentId, "activity"], queryFn: async () => sheetWakes((await hath.getAgentLogs(agentId, { wakes: ACTIVITY_WAKES })).logs), enabled: connected });
+  const detail = useQuery({ queryKey: ["agent", agentId], queryFn: () => hath.getAgent(agentId), enabled: connected });
+  const busy = running[agentId]?.work === true || running[agentId]?.process === true;
+  const logs = useQuery({ queryKey: ["agent-logs", agentId, "activity"], queryFn: async () => (await hath.getAgentLogs(agentId, { wakes: ACTIVITY_WAKES })).logs, enabled: connected, refetchInterval: busy ? POLL_MS : false });
+  const previousWakes = useRef<ActivityWake[]>([]);
+  const wakes = useMemo(() => {
+    if (logs.data === undefined) {
+      return undefined;
+    }
+    const built = carryWakeKeys(previousWakes.current, buildActivity(logs.data));
+    previousWakes.current = built;
+    return built;
+  }, [logs.data]);
   const tasks = useQuery({ queryKey: ["nas", "tasks"], queryFn: () => nas.listTasks(), enabled: connected });
 
   const listed = agents.data?.find((candidate) => candidate.id === agentId);
   if (listed === undefined) {
     return null;
   }
-  const agent: AgentRecord = { ...listed, running: { ...listed.running, ...running[agentId] } };
+  const agent: AgentRecord = { ...listed, ...detail.data, running: { ...listed.running, ...detail.data?.running, ...running[agentId] } };
+  const parent = agents.data?.find((candidate) => candidate.id === agent.parent_agent_id && candidate.active) ?? null;
+  const refreshSchedules = () => queryClient.invalidateQueries({ queryKey: ["agent-schedules"] });
+  const saveSchedule = async (id: string, changes: PatchScheduleRequest) => {
+    await hath.patchSchedule(id, changes);
+    await refreshSchedules();
+  };
+  const cancelSchedule = async (id: string) => {
+    await hath.cancelSchedule(id);
+    await refreshSchedules();
+  };
   const autoId = autoLiveTaskId(agent.sessions.tasks);
   const sheetTasks = agent.sessions.tasks.map((row): SheetTask => {
     const live = tasks.data?.find((candidate) => candidate.task === row.id);
@@ -85,7 +110,11 @@ export function AgentSheet({ agentId }: AgentSheetProps) {
       agent={agent}
       tasks={sheetTasks}
       schedules={feedOf(schedules)}
-      wakes={feedOf(logs)}
+      wakes={logs.error !== null ? { kind: "error", message: logs.error.message } : wakes === undefined ? { kind: "loading" } : { kind: "ready", items: wakes }}
+      onSaveSchedule={saveSchedule}
+      onCancelSchedule={cancelSchedule}
+      parent={parent}
+      onSelectParent={onSelect}
       isOpen={(section) => openSections[section] === true}
       onToggle={(section) => setOpenSections((open) => ({ ...open, [section]: open[section] !== true }))}
       isTaskOpen={(taskId) => showsLiveView(taskId, autoId, taskOverrides)}

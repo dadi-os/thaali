@@ -63,12 +63,16 @@ const clickText = (selector, text) => `[...document.querySelectorAll(${JSON.stri
 /** Types `value` into the first input matching `selector` the way a person does, so React sees it. */
 const typeInto = (selector, value) =>
   `(() => { const el = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(el.constructor.prototype, "value").set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event("input", { bubbles: true })); })(); 0`;
+/** Logs a console error naming `text` when the page does not show it (or, with `gone`, still shows it), so the report lists a flow whose action did nothing. */
+const expectText = (text, gone = false) => `(() => { if (document.body.innerText.includes(${JSON.stringify(text)}) === ${gone}) console.error(${JSON.stringify(`flow expected ${gone ? "no " : ""}${text}`)}); })(); 0`;
+/** Presses `key` in the first element matching `selector`. */
+const pressKey = (selector, key) => `document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, bubbles: true })); 0`;
 const emit = (event) => `window.__fixtures.emit("hath", "/events", ${JSON.stringify({ ...event, at: "NOW" }).replace('"NOW"', "new Date().toISOString()")}); 0`;
 const message = (seq, content) => ({ type: "message", agent_id: "finance-specialist", from_agent_id: "finance-specialist", to_agent_id: null, content, attachments: [], seq });
 
 /** Scripted flows: each opens something, then captures its frames and runs the checks. */
 function flowJobs(scenario) {
-  const job = (name, route, steps, settleMs = 2500) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}?fixtures=${scenario}`, width: 1440, height: 900, settleMs, steps });
+  const job = (name, route, steps, settleMs = 2500) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}${route.includes("?") ? "&" : "?"}fixtures=${scenario}`, width: 1440, height: 900, settleMs, steps });
   const frames = (tag, times) => times.flatMap((t, i) => [{ wait: i === 0 ? t : t - times[i - 1] }, { shot: `flow-${tag}~${scenario}~${t}ms.png` }]);
   return [
     job("agent-sheet", "/hath", [
@@ -152,6 +156,45 @@ function flowJobs(scenario) {
       { checks: "delete-open" },
       { eval: clickText("button", "Cancel") },
       ...frames("chaavi-delete-cancel", [100, 250, 600]),
+    ]),
+    job("hath-schedule", "/hath?agent=career-manager", [
+      { eval: clickText("button", "Scheduled") },
+      ...frames("hath-schedule-open", [400]),
+      { eval: `document.querySelector("button[aria-label='Edit schedule 1']").click(); 0` },
+      ...frames("hath-schedule-edit", [300]),
+      { checks: "schedule-edit" },
+      { eval: typeInto("textarea[aria-label=Message]", "Morning check, edited.") },
+      { eval: clickText("button", "Save") },
+      ...frames("hath-schedule-saved", [600]),
+      { eval: expectText("Morning check, edited.") },
+      { eval: `document.querySelector("button[aria-label='Edit schedule 2']").click(); 0` },
+      { eval: clickText("button", "Cancel schedule") },
+      ...frames("hath-schedule-confirm", [300]),
+      { eval: expectText("This schedule will not run again.") },
+      { eval: clickText("button", "Confirm cancel") },
+      ...frames("hath-schedule-cancelled", [600]),
+      { eval: expectText("Weekly spend summary for Ankur.", true) },
+    ]),
+    job("hath-activity", "/hath?agent=career-manager", [
+      { eval: clickText("button", "Activity") },
+      ...frames("hath-activity-open", [400]),
+      { checks: "activity-open" },
+      { eval: clickText("button", "earlier steps") },
+      { eval: clickText("button[aria-expanded=false]", "search_files") },
+      ...frames("hath-activity-unfolded", [400]),
+      { eval: expectText("pattern") },
+      { eval: clickText("button", "Show 3 older") },
+      ...frames("hath-activity-older", [400]),
+      { eval: expectText("The work lane stopped") },
+      { eval: clickText(".segmented button", "Working") },
+      ...frames("hath-activity-working", [400]),
+    ]),
+    job("hath-search", "/hath", [
+      { eval: typeInto("[data-page=hath] input[aria-label='Search agents']", "finance") },
+      ...frames("hath-search-typed", [400]),
+      { eval: pressKey("[data-page=hath] input[aria-label='Search agents']", "Enter") },
+      ...frames("hath-search-picked", [700]),
+      { eval: expectText("Open thread") },
     ]),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },

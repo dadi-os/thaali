@@ -2,13 +2,15 @@ import * as hath from "../fixtures/hath";
 import { nasTasks } from "../fixtures/tasks";
 import { AgentSheetPanel, type SheetSection } from "../../features/agents/sheet/Panel";
 import { autoLiveTaskId } from "../../features/agents/sessions";
-import { sheetWakes } from "../../features/agents/sheet/wakes";
+
+import { buildActivity } from "../../features/agents/sheet/activity";
 import type { Scenario } from "../scenario";
 import { CASES, previewOf } from "./cases";
 
 /** The agent sheet's cases: the docked card for an agent of the fixtures in the states of the design's Hath boards. */
 
 const noop = () => undefined;
+const resolved = () => Promise.resolve();
 
 type SheetCase = {
   scenario: Scenario;
@@ -38,7 +40,11 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
         agent={agent}
         tasks={tasks}
         schedules={{ kind: "ready", items: hath.schedules(agentId) }}
-        wakes={{ kind: "ready", items: sheetWakes(hath.agentLogs(agentId)) }}
+        wakes={{ kind: "ready", items: buildActivity(hath.agentLogs(agentId)) }}
+        onSaveSchedule={resolved}
+        onCancelSchedule={resolved}
+        parent={hath.agents(scenario).find((candidate) => candidate.id === agent.parent_agent_id && candidate.active) ?? null}
+        onSelectParent={noop}
         isOpen={(section) => open.includes(section)}
         onToggle={noop}
         isTaskOpen={(id) => id === autoId}
@@ -54,4 +60,9 @@ CASES["agent.sheet.working"] = () => sheet({ scenario: "normal", agentId: "finan
 CASES["agent.sheet.open"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: ["calls", "charter", "activity"] });
 CASES["agent.sheet.waiting"] = () => sheet({ scenario: "asking", agentId: "networking-specialist" });
 CASES["agent.sheet.toggle"] = CASES["agent.sheet.working"];
+CASES["agent.sheet.scheduled"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: ["scheduled"] });
+CASES["agent.sheet.activity"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: ["activity"] });
+for (const name of ["scheduled.edit", "scheduled.edit.custom", "scheduled.cancel"]) CASES[`agent.sheet.${name}`] = CASES["agent.sheet.scheduled"];
+for (const name of ["activity.unfold", "activity.opened", "activity.older", "activity.processing"]) CASES[`agent.sheet.${name}`] = CASES["agent.sheet.activity"];
+CASES["agent.sheet.activity.working.live"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: ["activity"] });
 CASES["agent.sheet.idle"] = () => sheet({ scenario: "normal", agentId: "career-manager" });

@@ -269,31 +269,101 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
   return rows;
 }
 
-/** Hath `GET /agents/:id/logs`: a few wakes, newest first. */
+/** The tool calls of the newest wake's work lane: the call, its input and what it answered (`error` marks a failed one). */
+const NEWEST_WORK: ReadonlyArray<{ name: string; input: Record<string, unknown>; result: string; error?: true; thought?: string; text?: string }> = [
+  { name: "list_files", input: { path: "~/finance" }, result: "statements/\nbudget.md\nreceipts/", thought: "**Find the statement**\nThe October statement should be under ~/finance/statements." },
+  { name: "read_file", input: { path: "~/finance/statements/2026-10.csv" }, result: "2026-10-03,Spotify,12.40\n2026-10-06,Gym,38.00\n2026-10-11,Groceries,64.12" },
+  { name: "read_file", input: { path: "~/finance/budget.md" }, result: "Spotify 12.40 monthly\nGym 38.00 monthly" },
+  { name: "search_files", input: { pattern: "Spotify", path: "~/finance/receipts" }, result: "index unavailable: receipts are not indexed yet", error: true },
+  { name: "run_command", input: { cmd: "grep -ril spotify ~/finance/receipts" }, result: "{\"exit\":0,\"stdout\":\"receipts/spotify-oct.pdf\\n\"}", text: "The index is down, so I searched the receipts folder directly." },
+  { name: "read_file", input: { path: "~/finance/receipts/spotify-oct.pdf" }, result: "Spotify Premium 12.40 USD, renews 2026-11-03" },
+  { name: "recall", input: { query: "gym membership monthly charge" }, result: "Gym: $38.00 monthly, charged on the 6th." },
+  { name: "read_file", input: { path: "~/finance/receipts/gym-oct.pdf" }, result: "IM West gym 38.00 USD, paid 2026-10-06" },
+  { name: "write_file", input: { path: "~/finance/notes/2026-10-reconcile.md", content: "Both pending charges match the budget." }, result: "{\"written\":true}" },
+  { name: "ingest", input: { text: "October charges for Spotify and the gym matched the budget." }, result: "{\"stored\":2}" },
+];
+
+/** Hath `GET /agents/:id/logs`: eight wakes, newest first; the newest is long, with a failed tool, a thought and a reply. */
 export function agentLogs(agentId: string): LogRecord[] {
   const wake = (n: number) => `00000000-0000-4000-9000-${n.toString().padStart(12, "0")}`;
-  const row = (n: number, lane: LogRecord["lane"], event: LogRecord["event"], payload: Record<string, unknown>, minutesAgo: number, wakeN: number): LogRecord => ({
-    id: `00000000-0000-4000-a000-${n.toString().padStart(12, "0")}`,
-    agent_id: agentId,
-    lane,
-    event,
-    payload,
-    wake_id: wake(wakeN),
-    created_at: ago(minutesAgo * MIN),
+  const rows: LogRecord[] = [];
+  const row = (wakeN: number, minutesAgo: number, lane: LogRecord["lane"], event: LogRecord["event"], payload: Record<string, unknown>) => {
+    rows.push({
+      id: `00000000-0000-4000-a000-${(rows.length + 1).toString().padStart(12, "0")}`,
+      agent_id: agentId,
+      lane,
+      event,
+      payload,
+      wake_id: wake(wakeN),
+      created_at: ago(minutesAgo * MIN),
+    });
+  };
+  let seq = 1100;
+  const usage = { input_tokens: 4, output_tokens: 120, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 0 };
+  const receive = (wakeN: number, at: number, from: string | null, content: string, scheduled = false) =>
+    row(wakeN, at, "process", "message", { seq: (seq += 1), content, direction: "receive", message_id: `m-${seq}`, attachments: [], to_agent_id: agentId, from_agent_id: from, ...(scheduled ? { schedule_id: "s0000000-0000-4000-8000-000000000001" } : {}) });
+  const send = (wakeN: number, at: number, to: string | null, content: string, extra: Record<string, unknown> = {}) =>
+    row(wakeN, at, "process", "message", { seq: (seq += 1), content, direction: "send", message_id: `m-${seq}`, attachments: [], to_agent_id: to, from_agent_id: agentId, ...extra });
+  const turn = (wakeN: number, at: number, lane: LogRecord["lane"], content: unknown[], stop: "tool_use" | "end_turn") =>
+    row(wakeN, at, lane, "response", { usage, stop_reason: stop, content });
+  const result = (wakeN: number, at: number, lane: LogRecord["lane"], id: string, name: string, content: string, isError = false) =>
+    row(wakeN, at, lane, "tool_result", { name, content, is_error: isError, tool_use_id: id });
+
+  receive(1, 600, null, "Pull the September statement and file it under ~/finance/statements.");
+  turn(1, 599, "process", [{ type: "text", text: "Filing it now." }, { type: "tool_use", id: "t1-1", name: "hand_off", input: { task: "file the September statement" } }], "tool_use");
+  result(1, 599, "process", "t1-1", "hand_off", "{\"handed_off\":true}");
+  turn(1, 596, "work", [{ type: "tool_use", id: "t1-2", name: "read_file", input: { path: "~/downloads/2026-09.csv" } }], "tool_use");
+  turn(1, 590, "work", [{ type: "text", text: "Filed." }], "end_turn");
+  send(1, 589, null, "Filed the September statement.");
+
+  receive(2, 540, agentId, "Morning money check: balances and anything pending.", true);
+  turn(2, 539, "process", [{ type: "text", text: "Nothing pending this morning." }], "end_turn");
+
+  send(3, 480, null, "[runtime] The work lane stopped: the model refused the request.", { kind: "notice" });
+
+  receive(4, 420, "efficiency-specialist", "Can you confirm the gym charge for the weekly review?");
+  turn(4, 419, "process", [{ type: "text", text: "Checking the October statement." }], "end_turn");
+  send(4, 418, "efficiency-specialist", "Confirmed: **$38.00** monthly, charged on the 6th.");
+
+  receive(5, 300, null, "Thanks.");
+  turn(5, 299, "process", [{ type: "text", text: "Any time." }], "end_turn");
+
+  receive(6, 210, agentId, "Weekly spend summary for Ankur.", true);
+  turn(6, 209, "process", [{ type: "text", text: "This week's spending is on budget." }], "end_turn");
+
+  receive(7, 120, null, "Is the gym charge right?");
+  turn(7, 119, "process", [{ type: "text", text: "Yes, it matches the budget." }], "end_turn");
+
+  receive(8, 54, null, "Reconcile the October statement against the budget.");
+  turn(8, 53, "process", [
+    { type: "thinking", thinking: "**Hand the reading to the work lane**\nThis needs file reads, so the work lane should do it and I report back." },
+    { type: "text", text: "I'll have the work lane read the statement and the budget." },
+    { type: "tool_use", id: "t8-0", name: "hand_off", input: { task: "reconcile the October statement against the budget" } },
+  ], "tool_use");
+  result(8, 53, "process", "t8-0", "hand_off", "{\"handed_off\":true}");
+  NEWEST_WORK.forEach((call, i) => {
+    const id = `t8-${i + 1}`;
+    const blocks: unknown[] = [];
+    if (call.thought) blocks.push({ type: "thinking", thinking: call.thought });
+    if (call.text) blocks.push({ type: "text", text: call.text });
+    blocks.push({ type: "tool_use", id, name: call.name, input: call.input });
+    turn(8, 50 - i * 4, "work", blocks, "tool_use");
+    result(8, 50 - i * 4, "work", id, call.name, call.result, call.error === true);
   });
-  return [
-    row(5, "work", "tool_result", { name: "yield", content: "{\"yielded\":true}", is_error: false, tool_use_id: "toolu_05" }, 1, 2),
-    row(4, "work", "response", { usage: { input_tokens: 4, output_tokens: 190, cache_read_input_tokens: 41_000, cache_creation_input_tokens: 220 }, content: [{ type: "text", text: "Both charges match the budget, so I'll report that and stop." }, { type: "tool_use", id: "toolu_05", name: "yield", input: {} }] }, 1, 2),
-    row(3, "work", "tool_result", { name: "read_file", content: "Spotify 12.40 monthly\nGym 38.00 monthly", is_error: false, tool_use_id: "toolu_04" }, 9, 2),
-    row(2, "work", "response", { usage: { input_tokens: 4, output_tokens: 120, cache_read_input_tokens: 40_000, cache_creation_input_tokens: 0 }, content: [{ type: "tool_use", id: "toolu_04", name: "read_file", input: { path: "~/finance/budget.md" } }] }, 9, 2),
-    row(1, "process", "message", { seq: 1176, content: "On it. I'll read the October statement and compare against the budget.", direction: "send", message_id: "m-1", attachments: [], to_agent_id: null, from_agent_id: agentId }, 51, 1),
-  ];
+  turn(8, 9, "work", [{ type: "text", text: "Both charges match the budget, so I'll report that and stop." }, { type: "tool_use", id: "t8-yield", name: "yield", input: {} }], "tool_use");
+  result(8, 9, "work", "t8-yield", "yield", "{\"yielded\":true}");
+  send(8, 1, null, "Both pending charges are expected:\n- **$12.40** Spotify, renews on the 3rd\n- **$38.00** gym, monthly");
+
+  return rows.reverse();
 }
 
-/** Hath `GET /agents/:id/schedules`. */
+/** Hath `GET /agents/:id/schedules`: two the agent sent itself, one another agent sent it every three hours, and a one-shot it sent. */
 export function schedules(agentId: string): ScheduledMessage[] {
+  const id = (n: number) => `s0000000-0000-4000-8000-${([...agentId].reduce((sum, c) => sum + c.charCodeAt(0), 0) * 10 + n).toString().padStart(12, "0")}`;
   return [
-    { id: "s0000000-0000-4000-8000-000000000001", from_agent_id: agentId, to_agent_id: agentId, content: "Morning money check: balances and anything pending.", run_at: ago(-14 * HOUR), interval_minutes: 1440, created_at: ago(20 * DAY) },
-    { id: "s0000000-0000-4000-8000-000000000002", from_agent_id: agentId, to_agent_id: agentId, content: "Weekly spend summary for Ankur.", run_at: ago(-3 * DAY), interval_minutes: 10_080, created_at: ago(20 * DAY) },
+    { id: id(1), from_agent_id: agentId, to_agent_id: agentId, content: "Morning money check: balances and anything pending.", run_at: ago(-14 * HOUR), interval_minutes: 1440, created_at: ago(20 * DAY) },
+    { id: id(2), from_agent_id: agentId, to_agent_id: agentId, content: "Weekly spend summary for Ankur.", run_at: ago(-3 * DAY), interval_minutes: 10_080, created_at: ago(20 * DAY) },
+    { id: id(3), from_agent_id: "efficiency-specialist", to_agent_id: agentId, content: "Check the day's spending against the budget and tell me anything over.", run_at: ago(-2 * HOUR), interval_minutes: 180, created_at: ago(9 * DAY) },
+    { id: id(4), from_agent_id: agentId, to_agent_id: "schedule-specialist", content: "Ask whether the gym day moved to Thursday.", run_at: ago(-26 * HOUR), interval_minutes: null, created_at: ago(1 * DAY) },
   ];
 }
