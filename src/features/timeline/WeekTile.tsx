@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, timeline } from "../../shared/api";
 import { Skeleton } from "../../shared/components/Skeleton";
@@ -10,6 +10,8 @@ import type { TimelineItem } from "../../types/timeline";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { addDays, endOfDay, startOfWeek, toIsoBounds } from "./dates";
+import { itemKey } from "./plans";
+import { SessionMenu } from "./SessionMenu";
 
 /** How often the tile moves its now line. */
 const TICK_MS = 60_000;
@@ -55,14 +57,28 @@ function useNow(ms: number): number {
   return now;
 }
 
+/** A session and where it was drawn when it was clicked. */
+type Opened = { item: TimelineItem; anchor: DOMRect };
+
+/** Hands a clicked session and where it is drawn to `onOpen`, and keeps the click from following the tile's link. */
+function open(event: MouseEvent<HTMLButtonElement>, item: TimelineItem, onOpen: (opened: Opened) => void): void {
+  event.preventDefault();
+  event.stopPropagation();
+  onOpen({ item, anchor: event.currentTarget.getBoundingClientRect() });
+}
+
 type BodyProps = {
   items: TimelineItem[];
   now: number;
   geometry: TileGeometry;
+  /** Key of the session the menu is open on, so its block says so. */
+  opened: string | null;
+  /** A session was clicked. */
+  onOpen: (opened: Opened) => void;
 };
 
 /** The week as seven columns of sessions against an hour axis, today shaded with a line at the time, and what is on now or next under it. */
-function Body({ items, now, geometry }: BodyProps) {
+function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
   const week = items.filter((item) => !item.hide_from_planner && item.state !== "cancelled");
   const monday = startOfWeek(new Date(now));
   const days = WEEKDAYS.map((dow, i) => {
@@ -123,8 +139,13 @@ function Body({ items, now, geometry }: BodyProps) {
                 .map((item) => {
                   const [ink, wash] = tone(item);
                   return (
-                    <span
+                    <button
                       key={`${item.id}:${item.occurrence_date}`}
+                      type="button"
+                      data-session={itemKey(item)}
+                      aria-haspopup="menu"
+                      aria-expanded={opened === itemKey(item)}
+                      onClick={(event) => open(event, item, onOpen)}
                       title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}`}
                       style={{ position: "absolute", left: 3, right: 3, top: (hourOf(item.start_at!) - lo) * px, height: Math.max(7, (hourOf(item.end_at!) - hourOf(item.start_at!)) * px - 2), borderRadius: 5, background: wash, borderLeft: `3px solid ${ink}`, opacity: item.outcome === "done" ? 0.55 : 1, boxSizing: "border-box" }}
                     />
@@ -133,8 +154,12 @@ function Body({ items, now, geometry }: BodyProps) {
               {own
                 .filter((item) => item.start_at === null && item.due_at !== null)
                 .map((item) => (
-                  <span
+                  <button
                     key={`${item.id}:${item.occurrence_date}`}
+                    type="button"
+                    aria-haspopup="menu"
+                    aria-expanded={opened === itemKey(item)}
+                    onClick={(event) => open(event, item, onOpen)}
                     title={`${item.title} · due ${formatClock(item.due_at!)}`}
                     style={{ position: "absolute", left: 3, right: 3, top: Math.min(areaHeight - 8, Math.max(0, (hourOf(item.due_at!) - lo) * px)), height: 6, borderRadius: 3, background: "var(--clay)" }}
                   />
@@ -164,8 +189,9 @@ function Body({ items, now, geometry }: BodyProps) {
   );
 }
 
-/** Home's Timeline tile: this week's sessions, how many are today, and what is on now or next. */
+/** Home's Timeline tile: this week's sessions, how many are today, and what is on now or next; a session opens a menu to mark it done, message its keeper or show it in Yaad. */
 export function WeekTile({ order }: { order: number }) {
+  const [opened, setOpened] = useState<Opened | null>(null);
   const { state: connection } = useConnection();
   const now = useNow(TICK_MS);
   const start = startOfWeek(new Date(now));
@@ -178,37 +204,40 @@ export function WeekTile({ order }: { order: number }) {
   const state = useModuleState(query, (items) => items.length === 0);
   const today = state.kind === "ready" ? state.data.filter((item) => !item.hide_from_planner && item.occurrence_date === dateKey(new Date(now))).length : 0;
   return (
-    <Tile
-      area="timeline"
-      title="Timeline"
-      to="/timeline?view=week"
-      order={order}
-      summary={state.kind === "ready" ? `${today} ${today === 1 ? "session" : "sessions"} today` : undefined}
-      loading={state.kind === "loading"}
-      notice={tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["Nothing planned today", "Sessions appear here once Yaad has some."] }, () => void query.refetch())}
-      skeleton={() => (
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 4, height: 36, flex: "none" }}>
-            {Array.from({ length: 7 }, (_, i) => (
-              <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                <Skeleton width={22} height={10} />
-                <Skeleton width={18} height={14} />
-              </div>
-            ))}
+    <>
+      <Tile
+        area="timeline"
+        title="Timeline"
+        to="/timeline?view=week"
+        order={order}
+        summary={state.kind === "ready" ? `${today} ${today === 1 ? "session" : "sessions"} today` : undefined}
+        loading={state.kind === "loading"}
+        notice={tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["Nothing planned today", "Sessions appear here once Yaad has some."] }, () => void query.refetch())}
+        skeleton={() => (
+          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
+            <div style={{ display: "flex", alignItems: "center", gap: 4, height: 36, flex: "none" }}>
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
+                  <Skeleton width={22} height={10} />
+                  <Skeleton width={18} height={14} />
+                </div>
+              ))}
+            </div>
+            <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 4, minHeight: 0 }}>
+              {Array.from({ length: 7 }, (_, i) => (
+                <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
+                  {[1 + (i % 2), 2 + (i % 3), 1 + ((i + 1) % 2)].map((grow, j) => (
+                    <span key={j} className="sk" style={{ display: "block", flex: grow, minHeight: 0, borderRadius: 5 }} />
+                  ))}
+                </div>
+              ))}
+            </div>
           </div>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 4, minHeight: 0 }}>
-            {Array.from({ length: 7 }, (_, i) => (
-              <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
-                {[1 + (i % 2), 2 + (i % 3), 1 + ((i + 1) % 2)].map((grow, j) => (
-                  <span key={j} className="sk" style={{ display: "block", flex: grow, minHeight: 0, borderRadius: 5 }} />
-                ))}
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-    >
-      {(g) => <Body items={state.kind === "ready" ? state.data : []} now={now} geometry={g} />}
-    </Tile>
+        )}
+      >
+        {(g) => <Body items={state.kind === "ready" ? state.data : []} now={now} geometry={g} opened={opened === null ? null : itemKey(opened.item)} onOpen={setOpened} />}
+      </Tile>
+    {opened === null ? null : <SessionMenu item={opened.item} anchor={opened.anchor} onClose={() => setOpened(null)} />}
+    </>
   );
 }

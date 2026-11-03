@@ -1,17 +1,37 @@
-import type { MouseEvent } from "react";
+import { useEffect, useState, type MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { Icon } from "../../shared/components/Icon";
 import { Skeleton } from "../../shared/components/Skeleton";
 import { NameTruncate, Truncate } from "../../shared/components/Truncate";
+import { ghar } from "../../shared/api";
 import { useModuleState } from "../../shared/hooks/useModuleState";
+import { pushToast } from "../../store/toasts";
 import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
-import { isLight, isOn, lightColor, sectionSwitch } from "./model";
-import { useHouse } from "./useHouse";
+import { isLight, isOn, lightColor, sectionSwitch, switchCommand } from "./model";
+import { useHouse, type House } from "./useHouse";
 
 const ROOM_HEIGHT = 72;
 
 type Room = { name: string; lights: GharDevice[]; on: number };
+
+/** Keeps a click inside a tile's control from following the tile's link. */
+function swallow(event: MouseEvent): void {
+  event.preventDefault();
+  event.stopPropagation();
+}
+
+/** Creates a room named `name` (when it holds a name) and says so; a refusal reaches Ankur through the house's failure. */
+async function createRoom(house: House, name: string): Promise<void> {
+  const trimmed = name.trim();
+  if (trimmed.length === 0) {
+    return;
+  }
+  if (await house.write(`Creating ${trimmed}`, () => ghar.createRoom(trimmed))) {
+    pushToast({ key: "ghar:room", tone: "ok", title: `Created ${trimmed}`, body: "It shows here once it has a light." });
+  }
+}
 
 /** The lights grouped by the room they are in, rooms in the order their first light appears. */
 function roomsOf(lights: GharDevice[]): Room[] {
@@ -22,24 +42,44 @@ function roomsOf(lights: GharDevice[]): Room[] {
   });
 }
 
-/** One light in a room tile: its colour dot and name. */
-function Light({ light }: { light: GharDevice }) {
+type LightProps = {
+  light: GharDevice;
+  house: House;
+};
+
+/** One light in a room tile: its colour dot and name, and a switch that flips just this light; the tile's link does not follow the click. */
+function Light({ light, house }: LightProps) {
   const on = light.state.on?.value === true;
+  const flip = (event: MouseEvent) => {
+    swallow(event);
+    void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
+  };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, height: 20, fontSize: 12.5, color: on ? "var(--ink)" : "var(--ink-muted)" }}>
+    <button
+      type="button"
+      className="ui-trans ui-hover-fill"
+      aria-pressed={on}
+      title={`Switch ${on ? "off" : "on"} ${light.name}`}
+      disabled={!house.connected || !light.online || house.pending.has(light.id)}
+      onClick={flip}
+      style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% + 8px)", margin: "0 -4px", padding: "0 4px", height: 20, borderRadius: 6, textAlign: "left", fontSize: 12.5, color: on ? "var(--ink)" : "var(--ink-muted)", ...(light.online ? {} : { opacity: 0.45 }) }}
+    >
       <span style={{ width: 9, height: 9, borderRadius: "50%", background: lightColor(light), border: on ? "none" : "1px solid var(--sage-line)", flex: "none" }} />
       <Truncate text={light.name} style={{ flex: 1, minWidth: 0 }} />
-    </div>
+    </button>
   );
 }
 
 type RoomsProps = {
   lights: GharDevice[];
   geometry: TileGeometry;
+  house: House;
 };
 
 /** A tile per room with how many of its lights are on and, when the tile is tall enough, the lights themselves, then a tile to add a room. */
-function Rooms({ lights, geometry }: RoomsProps) {
+function Rooms({ lights, geometry, house }: RoomsProps) {
+  const navigate = useNavigate();
+  const [naming, setNaming] = useState(false);
   const rooms = roomsOf(lights);
   const columns = geometry.iw >= 640 ? 4 : geometry.iw >= 440 ? 3 : 2;
   const rowsFit = Math.max(1, Math.floor((geometry.bh + 8) / ROOM_HEIGHT));
@@ -51,9 +91,8 @@ function Rooms({ lights, geometry }: RoomsProps) {
   return (
     <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "grid", gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`, gridAutoRows: "minmax(0,1fr)", gap: 8 }}>
       {shown.map((room) => (
-        <button
+        <div
           key={room.name}
-          type="button"
           className="ui-hover-card ui-trans"
           title={`Open ${room.name} in Ghar`}
           style={{ display: "flex", flexDirection: "column", gap: 3, padding: "12px 12px 10px", borderRadius: 14, textAlign: "left", minWidth: 0, minHeight: 0, background: room.on > 0 ? "rgba(240,168,104,.12)" : "var(--sage-fill)", border: `1px solid ${room.on > 0 ? "rgba(240,168,104,.45)" : "var(--glass-border)"}` }}
@@ -64,21 +103,63 @@ function Rooms({ lights, geometry }: RoomsProps) {
           {listed === 0 ? null : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {room.lights.length <= listed
-                ? room.lights.map((light) => <Light key={light.id} light={light} />)
+                ? room.lights.map((light) => <Light key={light.id} light={light} house={house} />)
                 : listed === 1
                   ? [<span key="count" style={{ fontSize: 12.5, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`${room.lights.length} lights`}</span>]
                   : [
-                      ...room.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} />),
+                      ...room.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
                       <span key="more" style={{ fontSize: 12, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`+${room.lights.length - (listed - 1)} more`}</span>,
                     ]}
             </div>
           )}
-        </button>
+        </div>
       ))}
-      <button type="button" className="ui-hover-fill ui-trans" style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", fontSize: 13.5, fontWeight: 500, minHeight: 0 }}>
-        <Icon name="plus" size={14} />
-        {extra > 0 ? `${extra} more` : "New room"}
-      </button>
+      {naming ? (
+        <div onClick={swallow} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", minHeight: 0, padding: "0 12px" }}>
+          <Icon name="plus" size={14} />
+          <input
+            type="text"
+            className="cinp"
+            placeholder="Room name"
+            aria-label="New room name"
+            autoComplete="off"
+            spellCheck={false}
+            autoFocus
+            style={{ fontSize: 13.5, color: "var(--ink)" }}
+            onBlur={(event) => {
+              setNaming(false);
+              void createRoom(house, event.currentTarget.value);
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") {
+                event.currentTarget.blur();
+              } else if (event.key === "Escape") {
+                event.currentTarget.value = "";
+                event.currentTarget.blur();
+              }
+            }}
+          />
+        </div>
+      ) : (
+        <button
+          type="button"
+          disabled={!house.connected}
+          aria-label={extra > 0 ? "Show all rooms" : "New room"}
+          className="ui-hover-fill ui-trans"
+          onClick={(event) => {
+            swallow(event);
+            if (extra > 0) {
+              navigate("/ghar");
+            } else {
+              setNaming(true);
+            }
+          }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", fontSize: 13.5, fontWeight: 500, minHeight: 0 }}
+        >
+          <Icon name="plus" size={14} />
+          {extra > 0 ? `${extra} more` : "New room"}
+        </button>
+      )}
     </div>
   );
 }
@@ -91,10 +172,14 @@ export function GharTile({ order }: { order: number }) {
   const lights = state.kind === "ready" ? state.data.devices.filter(isLight) : [];
   const on = lights.filter(isOn).length;
   const toggle = (event: MouseEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
+    swallow(event);
     void house.run(sectionSwitch(lights));
   };
+  useEffect(() => {
+    if (house.failure !== null) {
+      pushToast({ key: "ghar:tile", tone: "error", title: "Ghar", body: house.failure });
+    }
+  }, [house.failure]);
   return (
     <Tile
       area="ghar"
@@ -139,7 +224,7 @@ export function GharTile({ order }: { order: number }) {
         );
       }}
     >
-      {(g) => <Rooms lights={lights} geometry={g} />}
+      {(g) => <Rooms lights={lights} geometry={g} house={house} />}
     </Tile>
   );
 }

@@ -1,5 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { hath, isMeshOnline } from "../../shared/api";
 import { NameTruncate } from "../../shared/components/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -54,10 +55,12 @@ type BodyProps = {
   agents: AgentRecord[];
   stateOf: (agent: AgentRecord) => LaneState;
   geometry: TileGeometry;
+  /** A node was clicked: take Ankur to that agent on the Hath page. */
+  onPick: (agent: AgentRecord) => void;
 };
 
 /** The agent graph over a row of chips, one per running agent as many as fit and a count of the rest. */
-function Body({ agents, stateOf, geometry }: BodyProps) {
+function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   const running = agents.map((agent) => ({ agent, state: stateOf(agent) })).filter((entry) => isLive(entry.state));
   const shown: typeof running = [];
   let used = 0;
@@ -73,15 +76,19 @@ function Body({ agents, stateOf, geometry }: BodyProps) {
   return (
     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 12 }}>
       <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
-        <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh - 42)} labels={many ? "roots" : "active"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} />
+        <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh - 42)} labels={many ? "roots" : "active"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
       </div>
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap", height: 30, overflow: "hidden", flex: "none" }}>
         {shown.map(({ agent, state }) => (
-          <span key={agent.id} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 28, padding: "0 12px", borderRadius: 999, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", minWidth: 0, flex: "0 1 auto", background: "var(--sage-fill)", color: "var(--sage-text)", border: "1px solid transparent" }}>
+          <button type="button" key={agent.id} onClick={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onPick(agent);
+          }} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 28, padding: "0 12px", borderRadius: 999, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", minWidth: 0, flex: "0 1 auto", background: "var(--sage-fill)", color: "var(--sage-text)", border: "1px solid transparent" }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--sage)", flex: "none" }} />
             <NameTruncate name={agent.name} style={{ minWidth: 0 }} />
             <span style={{ flex: "none" }}>{`· ${LANE_STATE_LABEL[state]}`}</span>
-          </span>
+          </button>
         ))}
         {running.length > shown.length ? <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none" }}>{`+${running.length - shown.length}`}</span> : null}
         {running.length === 0 ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Nothing running</span> : null}
@@ -90,8 +97,9 @@ function Body({ agents, stateOf, geometry }: BodyProps) {
   );
 }
 
-/** Home's Hath tile: the agents as a graph, who is running, and how many agents there are. */
+/** Home's Hath tile: the agents as a graph, who is running, and how many agents there are; a node opens its agent on the Hath page. */
 export function HathTile({ order }: { order: number }) {
+  const navigate = useNavigate();
   const { state: connection } = useConnection();
   const query = useQuery({
     queryKey: AGENTS_QUERY_KEY,
@@ -125,7 +133,7 @@ export function HathTile({ order }: { order: number }) {
         </div>
       )}
     >
-      {(g) => <Body agents={agents} stateOf={stateOf} geometry={g} />}
+      {(g) => <Body agents={agents} stateOf={stateOf} geometry={g} onPick={(agent) => navigate(`/hath?agent=${encodeURIComponent(agent.id)}`)} />}
     </Tile>
   );
 }

@@ -79,6 +79,9 @@ function sideJob(side, c, url) {
       }
       steps.push({ wait: step.wait ?? 450 });
     }
+    if (c.appRootAfterSteps !== undefined) {
+      addEval(`window.__ds.prepare(${JSON.stringify({ root: c.appRootAfterSteps, page: true })})`);
+    }
   }
   const force = c.force.length > 0 ? addEval(`window.__ds.force(${JSON.stringify(c.force)})`) : null;
   if (c.toggle.length > 0) {

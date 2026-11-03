@@ -81,9 +81,27 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
             <Fragment key={n.agent.id}>
               {isLive(n.state) ? <circle cx={x} cy={y} r={r} fill="#8fa382" style={{ transformOrigin: `${x}px ${y}px`, animation: "ring 2.2s ease-out infinite" }} /> : null}
               <circle
+                role={onPick === undefined ? undefined : "button"}
+                tabIndex={onPick === undefined ? undefined : 0}
+                aria-label={onPick === undefined ? undefined : `Open ${n.agent.name}`}
+                onKeyDown={onPick === undefined ? undefined : (event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    onPick(n.agent);
+                  }
+                }}
                 className={onPick === undefined ? undefined : "gnode"}
                 opacity={dimmed?.has(n.agent.id) ? 0.2 : undefined}
-                onClick={onPick === undefined ? undefined : () => onPick(n.agent)}
+                onClick={
+                  onPick === undefined
+                    ? undefined
+                    : (event) => {
+                        event.preventDefault();
+                        event.stopPropagation();
+                        onPick(n.agent);
+                      }
+                }
                 cx={x}
                 cy={y}
                 r={r}
