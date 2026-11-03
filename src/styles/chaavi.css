@@ -12,3 +12,19 @@
     background: transparent;
   }
 }
+
+@layer components {
+  .frow .fact {
+    display: none;
+  }
+
+  .frow:hover .fact,
+  .frow:focus-within .fact {
+    display: flex;
+  }
+
+  .frow:hover .fcount,
+  .frow:focus-within .fcount {
+    display: none;
+  }
+}

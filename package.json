@@ -10,7 +10,8 @@
     "test": "vitest run",
     "fidelity": "node visual/fidelity/run.mjs",
     "visual": "node visual/run.mjs",
-    "tauri": "tauri"
+    "tauri": "tauri",
+    "parity": "node scripts/parity.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.8",

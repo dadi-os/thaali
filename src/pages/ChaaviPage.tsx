@@ -4,9 +4,11 @@ import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
 import { DeleteDialog } from "../features/chaavi/DeleteDialog";
 import { draftFromItem, emptyDraft, createBody, inScope, searchItems, updateBody, type ItemDraft, type VaultScope } from "../features/chaavi/draft";
+import { dropChange, useItemDrag, type DropTarget } from "../features/chaavi/drag";
 import { FolderPane } from "../features/chaavi/FolderPane";
+import { isWithin, subtreeRenames } from "../features/chaavi/folders";
 import { ItemDetail } from "../features/chaavi/ItemDetail";
-import { ItemList } from "../features/chaavi/ItemList";
+import { DragGhost, ItemList } from "../features/chaavi/ItemList";
 import { ItemSheet } from "../features/chaavi/ItemSheet";
 import { chaavi, isMeshOnline } from "../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../shared/api/chaavi";
@@ -125,11 +127,10 @@ export function ChaaviPage() {
 
   const items = itemsState.kind === "ready" ? itemsState.data.items : [];
   const folders = foldersState.kind === "ready" ? foldersState.data.folders : [];
-  const folderScope = scope.kind === "folder" ? scope.id : null;
-  const activeScope: VaultScope = folderScope !== null && !folders.some((folder) => folder.id === folderScope) ? { kind: "all" } : scope;
+  const activeScope: VaultScope = scope.kind === "folder" && !folders.some((folder) => isWithin(folder.name, scope.path)) ? { kind: "all" } : scope;
   const listed = useMemo(
-    () => searchItems(items, query).filter((item) => inScope(item, activeScope)).sort((a, b) => a.name.localeCompare(b.name)),
-    [items, query, activeScope],
+    () => searchItems(items, query).filter((item) => inScope(item, activeScope, folders)).sort((a, b) => a.name.localeCompare(b.name)),
+    [items, query, activeScope, folders],
   );
   const selected = listed.find((item) => item.id === pickedId) ?? listed[0] ?? null;
 
@@ -143,13 +144,15 @@ export function ChaaviPage() {
     }, LEAVE_MS);
   };
 
-  const favorite = useMutation({
+  const patch = useMutation({
     mutationFn: (input: { id: string; body: ChaaviUpdateItem }) => chaavi.updateItem(input.id, input.body),
     onMutate: async (input) => {
       await queryClient.cancelQueries({ queryKey: CHAAVI_ITEMS_KEY });
       const previous = queryClient.getQueryData<{ items: ChaaviItem[] }>(CHAAVI_ITEMS_KEY);
       queryClient.setQueryData<{ items: ChaaviItem[] }>(CHAAVI_ITEMS_KEY, (current) =>
-        current === undefined ? current : { items: current.items.map((item) => (item.id === input.id ? { ...item, favorite: input.body.favorite ?? item.favorite } : item)) },
+        current === undefined
+          ? current
+          : { items: current.items.map((item) => (item.id === input.id ? { ...item, favorite: input.body.favorite ?? item.favorite, folderId: input.body.folderId === undefined ? item.folderId : input.body.folderId } : item)) },
       );
       return { previous };
     },
@@ -173,6 +176,30 @@ export function ChaaviPage() {
       await invalidate();
       setPickedId(item.id);
       close();
+    },
+  });
+
+  const folderOp = useMutation({
+    mutationFn: (input: { op: "create"; path: string } | { op: "rename"; from: string; to: string } | { op: "delete"; id: string }): Promise<unknown> => {
+      if (input.op === "create") {
+        return chaavi.createFolder(input.path);
+      }
+      if (input.op === "rename") {
+        return Promise.all(subtreeRenames(folders, input.from, input.to).map((entry) => chaavi.renameFolder(entry.id, entry.name)));
+      }
+      return chaavi.deleteFolder(input.id);
+    },
+    onSettled: () => void invalidate(),
+  });
+
+  const drag = useItemDrag({
+    container: page,
+    onSelect: setPickedId,
+    onDrop: (item: ChaaviItem, target: DropTarget) => {
+      const change = dropChange(item, target);
+      if (change !== null) {
+        patch.mutate({ id: item.id, body: change });
+      }
     },
   });
 
@@ -238,7 +265,7 @@ export function ChaaviPage() {
       </Card>
     );
   } else {
-    const list = <ItemList items={listed} selectedId={selected?.id ?? null} query={query} onQuery={setQuery} onSelect={setPickedId} width={narrow ? 300 : wideList ? 400 : 340} />;
+    const list = <ItemList items={listed} selectedId={selected?.id ?? null} query={query} onQuery={setQuery} onSelect={setPickedId} draggingId={drag.draggingId} drag={drag.handlers} width={narrow ? 300 : wideList ? 400 : 340} />;
     const detail =
       selected === null ? (
         <Card style={{ flex: 1, minWidth: 0 }}>
@@ -249,9 +276,9 @@ export function ChaaviPage() {
           key={selected.id}
           item={selected}
           folders={folders}
-          busy={favorite.isPending || remove.isPending}
+          busy={patch.isPending || remove.isPending}
           onEdit={() => setOverlay({ kind: "edit", item: selected })}
-          onToggleFavorite={() => favorite.mutate({ id: selected.id, body: { favorite: !selected.favorite } })}
+          onToggleFavorite={() => patch.mutate({ id: selected.id, body: { favorite: !selected.favorite } })}
           onDelete={() => setOverlay({ kind: "delete", item: selected })}
         />
       );
@@ -262,7 +289,22 @@ export function ChaaviPage() {
       </div>
     ) : (
       <div style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 14, minHeight: 0 }}>
-        <FolderPane items={items} folders={folders} scope={activeScope} onScope={setScope} />
+        <FolderPane
+          items={items}
+          folders={folders}
+          scope={activeScope}
+          busy={folderOp.isPending}
+          hot={drag.hot}
+          onScope={setScope}
+          onCreate={(path) => folderOp.mutate({ op: "create", path })}
+          onRename={(from, to) => {
+            if (activeScope.kind === "folder" && isWithin(activeScope.path, from)) {
+              setScope({ kind: "folder", path: to + activeScope.path.slice(from.length) });
+            }
+            folderOp.mutate({ op: "rename", from, to });
+          }}
+          onDelete={(id) => folderOp.mutate({ op: "delete", id })}
+        />
         {list}
         {detail}
       </div>
@@ -277,7 +319,7 @@ export function ChaaviPage() {
           meta={ready ? `${items.length} items` : undefined}
           trailing={
             canAdd ? (
-              <Button tone="fill" size="lg" icon="plus" onClick={() => setOverlay({ kind: "create", draft: emptyDraft("login", activeScope.kind === "folder" ? activeScope.id : null) })}>
+              <Button tone="fill" size="lg" icon="plus" onClick={() => setOverlay({ kind: "create", draft: emptyDraft("login", activeScope.kind === "folder" ? (folders.find((folder) => folder.name === activeScope.path)?.id ?? null) : null) })}>
                 New item
               </Button>
             ) : undefined
@@ -290,6 +332,7 @@ export function ChaaviPage() {
         <ItemSheet
           mode={overlay.kind}
           initial={overlay.kind === "create" ? overlay.draft : draftFromItem(overlay.item)}
+          itemId={overlay.kind === "edit" ? overlay.item.id : null}
           folders={folders}
           pending={save.isPending}
           leaving={leaving}
@@ -297,6 +340,7 @@ export function ChaaviPage() {
           onSubmit={(draft) => save.mutate(overlay.kind === "create" ? { mode: "create", draft } : { mode: "edit", item: overlay.item, draft })}
         />
       ) : null}
+      {drag.ghost === null ? null : <DragGhost name={drag.ghost.item.name} x={drag.ghost.x} y={drag.ghost.y} />}
       {overlay?.kind === "delete" ? <DeleteDialog name={overlay.item.name} pending={remove.isPending} leaving={leaving} onCancel={close} onConfirm={() => remove.mutate(overlay.item.id)} /> : null}
     </div>
   );

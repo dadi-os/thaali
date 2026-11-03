@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import type { ChaaviItem } from "../../types/chaavi";
+import type { ChaaviFolder, ChaaviItem } from "../../types/chaavi";
 import { createBody, draftFromItem, draftProblem, emptyDraft, inScope, itemSubtitle, retype, searchItems, updateBody, websiteUrl } from "./draft";
+
+const folders: ChaaviFolder[] = [{ id: "dev", name: "development/fliks-gg" }];
 
 const login: ChaaviItem = {
   id: "l1",
@@ -66,15 +68,16 @@ describe("vault search and scopes", () => {
     expect(searchItems([login, card], "  ")).toEqual([login, card]);
   });
 
-  it("scopes by folder, kind and favorites", () => {
-    expect(inScope(login, { kind: "folder", id: "dev" })).toBe(true);
-    expect(inScope(login, { kind: "folder", id: "other" })).toBe(false);
-    expect(inScope(card, { kind: "folder", id: "dev" })).toBe(false);
-    expect(inScope(card, { kind: "type", type: "card" })).toBe(true);
-    expect(inScope(login, { kind: "type", type: "card" })).toBe(false);
-    expect(inScope(login, { kind: "favorites" })).toBe(true);
-    expect(inScope(card, { kind: "favorites" })).toBe(false);
-    expect(inScope(card, { kind: "all" })).toBe(true);
+  it("scopes by folder with its subfolders, no folder, kind and favorites", () => {
+    expect(inScope(login, { kind: "folder", path: "development" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "folder", path: "development/fliks-gg" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "folder", path: "dev" }, folders)).toBe(false);
+    expect(inScope(card, { kind: "none" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "none" }, folders)).toBe(false);
+    expect(inScope(card, { kind: "type", type: "card" }, folders)).toBe(true);
+    expect(inScope(login, { kind: "type", type: "card" }, folders)).toBe(false);
+    expect(inScope(login, { kind: "favorites" }, folders)).toBe(true);
+    expect(inScope(card, { kind: "favorites" }, folders)).toBe(false);
   });
 
   it("subtitles show public fields only", () => {

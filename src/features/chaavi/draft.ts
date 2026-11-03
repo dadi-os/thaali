@@ -8,6 +8,7 @@ import type {
   ChaaviCreateItem,
   ChaaviSecretField,
   ChaaviFieldInput,
+  ChaaviFolder,
   ChaaviItem,
   ChaaviItemType,
   ChaaviLinkedTarget,
@@ -15,6 +16,7 @@ import type {
   ChaaviUriMatch,
 } from "../../types/chaavi";
 import type { IconName } from "../../shared/components/Icon";
+import { isWithin } from "./folders";
 
 /** Display names and the icon of each item type. */
 export const TYPE_META: Record<ChaaviItemType, { one: string; many: string; icon: IconName }> = {
@@ -30,6 +32,17 @@ export const TYPE_META: Record<ChaaviItemType, { one: string; many: string; icon
 
 /** Item types in the order the folder pane lists them. */
 export const ITEM_TYPES: ChaaviItemType[] = ["login", "card", "bankAccount", "identity", "note", "sshKey", "driversLicense", "passport"];
+
+/** How a login website is matched, with labels. */
+export const URI_MATCHES: Array<{ id: ChaaviUriMatch; label: string }> = [
+  { id: "default", label: "Default match" },
+  { id: "domain", label: "Base domain" },
+  { id: "host", label: "Host" },
+  { id: "startsWith", label: "Starts with" },
+  { id: "exact", label: "Exact" },
+  { id: "regex", label: "Regular expression" },
+  { id: "never", label: "Never" },
+];
 
 /** The item types whose data is a flat set of named strings, each public or secret. */
 export type FlatType = "bankAccount" | "driversLicense" | "passport";
@@ -150,24 +163,29 @@ export const LINK_TARGETS: Record<ChaaviItemType, Array<{ id: ChaaviLinkedTarget
   passport: [],
 };
 
-/** Which part of the vault the list shows: everything, the favorites, one kind of item or one folder (its own items). */
+/** Which part of the vault the list shows: everything, the favorites, the items in no folder, one kind of item or one folder with the folders under it. */
 export type VaultScope =
   | { kind: "all" }
   | { kind: "favorites" }
+  | { kind: "none" }
   | { kind: "type"; type: ChaaviItemType }
-  | { kind: "folder"; id: string };
+  | { kind: "folder"; path: string };
 
-/** True when `item` belongs to `scope`. */
-export function inScope(item: ChaaviItem, scope: VaultScope): boolean {
+/** True when `item` belongs to `scope`; a folder scope takes its subfolders too. */
+export function inScope(item: ChaaviItem, scope: VaultScope, folders: ChaaviFolder[]): boolean {
   switch (scope.kind) {
     case "all":
       return true;
     case "favorites":
       return item.favorite;
+    case "none":
+      return item.folderId === null;
     case "type":
       return item.type === scope.type;
-    case "folder":
-      return item.folderId === scope.id;
+    case "folder": {
+      const own = folders.find((folder) => folder.id === item.folderId);
+      return own !== undefined && isWithin(own.name, scope.path);
+    }
   }
 }
 
@@ -346,7 +364,7 @@ export function emptyDraft(type: ChaaviItemType, folderId: string | null): ItemD
     notes: clean(),
     notesStored: false,
     fields: [],
-    login: { username: "", password: clean(), totp: clean(), uris: [] },
+    login: { username: "", password: clean(), totp: clean(), uris: [{ key: draftKey(), uri: "", match: "default" }] },
     card: { cardholderName: "", brand: "", number: clean(), expMonth: "", expYear: "", code: clean() },
     identity: {
       title: "",
@@ -397,7 +415,9 @@ export function draftFromItem(item: ChaaviItem): ItemDraft {
   }));
   if (item.type === "login") {
     draft.login.username = item.login.username ?? "";
-    draft.login.uris = item.login.uris.map((entry) => ({ key: draftKey(), uri: entry.uri, match: entry.match }));
+    if (item.login.uris.length > 0) {
+      draft.login.uris = item.login.uris.map((entry) => ({ key: draftKey(), uri: entry.uri, match: entry.match }));
+    }
   }
   if (item.type === "card") {
     draft.card.cardholderName = item.card.cardholderName ?? "";

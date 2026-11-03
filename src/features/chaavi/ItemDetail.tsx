@@ -4,7 +4,7 @@ import { Button, IconButton } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
 import { Truncate } from "../../shared/components/Truncate";
 import { copyText } from "../../shared/lib/platform/clipboard";
-import { confirmOwner, ownerConfirmedRecently } from "../../shared/lib/platform/owner";
+import { confirmOwner } from "../../shared/lib/platform/owner";
 import { openExternal } from "../../shared/lib/platform/open";
 import { formatClock, formatDay } from "../../shared/lib/ux/time";
 import { pushToast } from "../../store/toasts";
@@ -179,8 +179,8 @@ function TotpRow({ itemId }: TotpRowProps) {
 
   const load = () => {
     setLoading(true);
-    confirmOwner("show a one-time code")
-      .then(() => chaavi.getTotp(itemId))
+    chaavi
+      .getTotp(itemId)
       .then((next) => {
         setTotp({ ...next, at: Date.now() });
         setNow(Date.now());
@@ -204,11 +204,7 @@ function TotpRow({ itemId }: TotpRowProps) {
 
   useEffect(() => {
     if (totp && left === 0 && !loading) {
-      if (ownerConfirmedRecently()) {
-        load();
-      } else {
-        setTotp(null);
-      }
+      load();
     }
   });
 
@@ -231,7 +227,7 @@ function TotpRow({ itemId }: TotpRowProps) {
       }
       reveal={{ shown: totp !== null, pending: loading, onToggle: totp ? () => setTotp(null) : load }}
       onCopy={() => {
-        (totp ? Promise.resolve(totp.code) : confirmOwner("copy a one-time code").then(() => chaavi.getTotp(itemId).then((next) => next.code)))
+        (totp ? Promise.resolve(totp.code) : chaavi.getTotp(itemId).then((next) => next.code))
           .then((code) => copySecret(code.replace(/\s+/g, "")))
           .then(() => pushToast({ key: "chaavi-copied-totp", tone: "ok", title: "One-time code copied", body: CLEARS_NOTE }))
           .catch((err: unknown) => reportFailure("Couldn't copy the one-time code", err));
