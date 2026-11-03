@@ -2,7 +2,7 @@ import { motion } from "motion/react";
 import { useEffect, useRef, type ReactNode } from "react";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import type { TimelineItem } from "../../../types/timeline";
-import { addDays, formatTime, isSameDay, startOfDay } from "../dates";
+import { addDays, formatTime, isSameDay, wallMinutes } from "../dates";
 import {
   axisRange,
   formatClockCompact,
@@ -61,9 +61,9 @@ export function PlannerDay({ day, today, now, blocks, dues, loading, onOpen }: P
   const { from, to } = axisRange([segments]);
   const dueMarks = dues
     .filter((due) => due.due_at !== null && due.start_at === null && isSameDay(new Date(due.due_at), day))
-    .map((due) => ({ due, min: (new Date(due.due_at!).getTime() - startOfDay(day).getTime()) / 60_000 }))
+    .map((due) => ({ due, min: wallMinutes(new Date(due.due_at!)) }))
     .filter(({ min }) => min >= from * 60 && min <= to * 60);
-  const nowMin = (now.getTime() - startOfDay(now).getTime()) / 60_000;
+  const nowMin = wallMinutes(now);
   const { current, next } = isToday ? nowAndNext(segments, nowMin) : { current: null, next: null };
   const top = (min: number) => (min - from * 60) * PPM;
   const scroller = useRef<HTMLDivElement>(null);

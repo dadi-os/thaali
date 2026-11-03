@@ -30,6 +30,9 @@ jobs:
 
       - run: npm test
 
+      - name: Test Timeline across daylight saving changes
+        run: TZ=America/New_York npx vitest run src/features/timeline
+
       - run: npm run build
 
   container:

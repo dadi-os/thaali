@@ -2,7 +2,7 @@ import type { CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { BREATH_S, EASE, SLOW_S } from "../../shared/lib/ux/motion";
 import type { TimelineItem } from "../../types/timeline";
-import { isSameDay, shortTime } from "./dates";
+import { isSameDay, shortTime, wallMinutes } from "./dates";
 import { LiveDot, SessionMark } from "./markers";
 import { itemKey, lanesThrough, plansOn, planStartsOn, planTone, runsAsBar, spanLanes, spanOf, startLabel, statusClass } from "./plans";
 import { SpanLaneCell } from "./SpanLaneCell";
@@ -142,12 +142,11 @@ type TimeColumnProps = {
  */
 function TimeColumn({ day, plans, now, isToday, first, delay, onOpen }: TimeColumnProps) {
   const y = (min: number) => (min / 60 - AXIS_FROM) * HOUR_PX;
-  const dayStart = new Date(day).setHours(0, 0, 0, 0);
-  const minuteOf = (iso: string) => (new Date(iso).getTime() - dayStart) / 60_000;
+  const minuteOf = (iso: string) => wallMinutes(new Date(iso));
   const inAxis = (min: number) => min >= AXIS_FROM * 60 && min < AXIS_TO * 60;
   const timed = segmentsOn(plans.filter((p) => !p.all_day), day).filter((s) => s.endMin > AXIS_FROM * 60 && s.startMin < AXIS_TO * 60);
   const dues = plansOn(plans, day).filter((p) => p.start_at === null && p.due_at !== null && inAxis(minuteOf(p.due_at)));
-  const nowMin = (now.getTime() - dayStart) / 60_000;
+  const nowMin = wallMinutes(now);
   return (
     <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden">
       <div

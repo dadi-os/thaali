@@ -1,7 +1,8 @@
 /** Pure planner logic: a day's sessions as segments on a minute axis, their lanes, gaps, and what is now and next. */
 
-import { addDays, endOfDay, startOfDay } from "../dates";
+import { addDays, endOfDay, startOfDay, wallMinutes } from "../dates";
 import type { TimelineItem } from "../../../types/timeline";
+import { clockChange } from "../zones";
 
 /** The least unclaimed time between two blocks that the planner draws as a gap (travel). */
 export const GAP_MIN = 10;
@@ -23,8 +24,6 @@ export type Segment = {
 /** Unclaimed time between two blocks, in minutes after local midnight. */
 export type Gap = { startMin: number; endMin: number };
 
-const minutesOf = (at: Date, dayStart: number) => Math.round((at.getTime() - dayStart) / 60_000);
-
 /**
  * `day`'s part of every timed session that touches it, earliest first, with overlapping
  * sessions in side-by-side lanes. The planner view only holds sessions with both times.
@@ -32,16 +31,42 @@ const minutesOf = (at: Date, dayStart: number) => Math.round((at.getTime() - day
 export function segmentsOn(blocks: TimelineItem[], day: Date): Segment[] {
   const dayStart = startOfDay(day).getTime();
   const dayEnd = addDays(startOfDay(day), 1).getTime();
+  const repeated =
+    new Date(dayStart).getTimezoneOffset() <
+    new Date(dayEnd).getTimezoneOffset()
+      ? clockChange(
+          new Date(dayStart),
+          new Date(dayEnd),
+          Intl.DateTimeFormat().resolvedOptions().timeZone,
+        )
+      : null;
   const segments = blocks
-    .flatMap((block) => (block.start_at !== null && block.end_at !== null ? [{ block, start: new Date(block.start_at), end: new Date(block.end_at) }] : []))
-    .filter(({ start, end }) => start.getTime() < dayEnd && end.getTime() > dayStart)
-    .map(({ block, start, end }) => ({
-      block,
-      startMin: Math.max(0, minutesOf(start, dayStart)),
-      endMin: Math.min(1440, minutesOf(end, dayStart)),
-      lane: 0,
-      lanes: 1,
-    }))
+    .flatMap((block) =>
+      block.start_at !== null && block.end_at !== null
+        ? [
+            {
+              block,
+              start: new Date(block.start_at),
+              end: new Date(block.end_at),
+            },
+          ]
+        : [],
+    )
+    .filter(
+      ({ start, end }) => start.getTime() < dayEnd && end.getTime() > dayStart,
+    )
+    .map(({ block, start, end }) => {
+      let startMin = start.getTime() <= dayStart ? 0 : wallMinutes(start);
+      let endMin = end.getTime() >= dayEnd ? 1440 : wallMinutes(end);
+      if (
+        repeated !== null &&
+        start.getTimezoneOffset() < end.getTimezoneOffset()
+      ) {
+        startMin = Math.min(startMin, repeated.minute);
+        endMin = Math.max(endMin, repeated.minute + repeated.duration);
+      }
+      return { block, startMin, endMin, lane: 0, lanes: 1 };
+    })
     .sort((a, b) => a.startMin - b.startMin || a.endMin - b.endMin);
 
   let group: Segment[] = [];
@@ -64,7 +89,8 @@ export function segmentsOn(blocks: TimelineItem[], day: Date): Segment[] {
     }
     laneEnds[lane] = segment.endMin;
     segment.lane = lane;
-    groupEnd = group.length === 0 ? segment.endMin : Math.max(groupEnd, segment.endMin);
+    groupEnd =
+      group.length === 0 ? segment.endMin : Math.max(groupEnd, segment.endMin);
     group.push(segment);
   }
   closeGroup();
@@ -97,9 +123,13 @@ export function axisRange(columns: Segment[][]): { from: number; to: number } {
 }
 
 /** The block happening at `nowMin` and the first one starting after it. */
-export function nowAndNext(segments: Segment[], nowMin: number): { current: Segment | null; next: Segment | null } {
+export function nowAndNext(
+  segments: Segment[],
+  nowMin: number,
+): { current: Segment | null; next: Segment | null } {
   return {
-    current: segments.find((s) => s.startMin <= nowMin && nowMin < s.endMin) ?? null,
+    current:
+      segments.find((s) => s.startMin <= nowMin && nowMin < s.endMin) ?? null,
     next: segments.find((s) => s.startMin > nowMin) ?? null,
   };
 }
@@ -117,12 +147,19 @@ export function isSettled(block: TimelineItem, now: Date): boolean {
 export function formatSpan(minutes: number): string {
   const h = Math.floor(minutes / 60);
   const m = Math.round(minutes % 60);
-  return [h > 0 ? `${h} h` : "", m > 0 ? `${m} min` : ""].filter(Boolean).join(" ") || "0 min";
+  return (
+    [h > 0 ? `${h} h` : "", m > 0 ? `${m} min` : ""]
+      .filter(Boolean)
+      .join(" ") || "0 min"
+  );
 }
 
 /** Local clock time for minutes after midnight, e.g. "2:30 PM". */
 export function formatMinuteOfDay(minutes: number): string {
-  return new Intl.DateTimeFormat(undefined, { hour: "numeric", minute: "2-digit" }).format(new Date(2000, 0, 1, 0, minutes));
+  return new Intl.DateTimeFormat(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  }).format(new Date(2000, 0, 1, 0, minutes));
 }
 
 const PERIOD = /[\s\u202f\u00a0]*(AM|PM)$/i;
@@ -145,5 +182,8 @@ export function formatClockCompact(minutes: number): string {
 
 /** ISO bounds of a local day, for a planner query. */
 export function dayBounds(day: Date): { from: string; to: string } {
-  return { from: startOfDay(day).toISOString(), to: endOfDay(day).toISOString() };
+  return {
+    from: startOfDay(day).toISOString(),
+    to: endOfDay(day).toISOString(),
+  };
 }

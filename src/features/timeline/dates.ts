@@ -1,5 +1,10 @@
 /** Local calendar helpers. Weeks start Monday. */
 
+/** Minutes on the local clock, independent of elapsed time across a daylight saving change. */
+export function wallMinutes(at: Date): number {
+  return at.getHours() * 60 + at.getMinutes() + at.getSeconds() / 60;
+}
+
 /** Local midnight for `d`. */
 export function startOfDay(d: Date): Date {
   const out = new Date(d);
