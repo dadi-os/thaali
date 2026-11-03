@@ -16,8 +16,10 @@ import { failureProps } from "../shared/lib/ux/moduleState";
 import { POLL_MS } from "../shared/lib/ux/poll";
 import { formatAge, formatRelative } from "../shared/lib/ux/time";
 import { LogsCard } from "../features/logs/LogsCard";
+import { errorFocus } from "../features/logs/errorCards";
 import type { LogFocus } from "../features/logs/logLines";
 import { capitalize, formatGb, formatUptime, loadTone } from "../features/system/format";
+import { ErrorsBlock } from "../features/system/ErrorsBlock";
 import { diskName, HealthCard } from "../features/system/HealthCard";
 import { SectionLabel } from "../features/system/SectionLabel";
 import { TasksBlock } from "../features/system/TasksBlock";
@@ -192,6 +194,7 @@ export function SystemPage() {
                   <Drives status={status} />
                   <Devices />
                   <TasksBlock />
+                  <ErrorsBlock onOpen={(card) => setChip(errorFocus(card, crypto.randomUUID()))} />
                 </div>
               ) : (
                 <Card style={{ flex: 1 }}>

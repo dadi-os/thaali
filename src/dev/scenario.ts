@@ -15,6 +15,7 @@ export const SCENARIOS = [
   "many",
   "asking",
   "tasks-error",
+  "errors-error",
   "refused",
 ] as const;
 

@@ -137,6 +137,9 @@ export class FixtureTransport implements Transport {
     if (this.scenario === "tasks-error" && host === "nas" && opts.path === "/tasks") {
       throw apiError(opts.baseUrl, 500, `nas failed while handling ${opts.method} ${opts.path}`);
     }
+    if (this.scenario === "errors-error" && host === "nas" && opts.path.startsWith("/logs?") && opts.path.includes("level=error")) {
+      throw apiError(opts.baseUrl, 500, `nas failed while handling ${opts.method} ${opts.path}`);
+    }
     if (this.scenario === "refused" && host === "ghar" && opts.method === "POST" && opts.path.endsWith("/command")) {
       throw apiError(opts.baseUrl, 409, `{"error":{"type":"command_rejected","message":"The device refused the command."}}`);
     }

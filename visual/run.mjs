@@ -121,6 +121,14 @@ function flowJobs(scenario) {
       ...frames("system-log-service-chosen", [900]),
       { checks: "log-service" },
     ]),
+    job("system-errors", "/system", [
+      { eval: expectText("Open in logs") },
+      { eval: expectText("request_id", true) },
+      { eval: 'document.querySelector("button[title^=\'Show this line\']")?.click(); 0' },
+      ...frames("system-error-opened", [200, 900]),
+      { eval: expectText("request_id") },
+      { eval: expectText("1 lines") },
+    ]),
     job("chaavi-browse", "/chaavi", [
       { eval: clickText("button", "Checking account") },
       ...frames("chaavi-open-item", [120, 500]),

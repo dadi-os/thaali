@@ -40,6 +40,13 @@ const MESSAGES: Array<[NasLogEntry["level"], string]> = [
   ["error", "helper task task/browser/3f2a91 closed with an unfinished job"],
 ];
 
+/** What the overloaded-lane error carries beyond the bare line: the provider's dump as the services log it, and the request it came from. */
+function errorFields(msg: string): object {
+  return msg.startsWith("lane_failed")
+    ? { err: { message: "Error code: 529 - {'type': 'error', 'error': {'type': 'overloaded_error', 'message': 'Overloaded'}}" }, method: "POST", path: "/wake", status: 529, duration_ms: 4210 }
+    : {};
+}
+
 /** Nas `GET /logs`: a spread of services and levels, newest first. */
 export function logEntries(scenario: Scenario): NasLogEntry[] {
   if (scenario === "empty") {
@@ -56,7 +63,7 @@ export function logEntries(scenario: Scenario): NasLogEntry[] {
       service,
       level,
       msg: text,
-      raw: JSON.stringify({ level, msg: text, service, time, request_id: `req-${i.toString(16).padStart(8, "0")}` }),
+      raw: JSON.stringify({ level, msg: text, service, time, request_id: `req-${i.toString(16).padStart(8, "0")}`, ...errorFields(msg) }),
     };
   });
 }
