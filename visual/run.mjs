@@ -63,8 +63,8 @@ const clickText = (selector, text) => `[...document.querySelectorAll(${JSON.stri
 /** Types `value` into the first input matching `selector` the way a person does, so React sees it. */
 const typeInto = (selector, value) =>
   `(() => { const el = document.querySelector(${JSON.stringify(selector)}); Object.getOwnPropertyDescriptor(el.constructor.prototype, "value").set.call(el, ${JSON.stringify(value)}); el.dispatchEvent(new Event("input", { bubbles: true })); })(); 0`;
-/** Logs a console error naming `text` when the page does not show it (or, with `gone`, still shows it), so the report lists a flow whose action did nothing. */
-const expectText = (text, gone = false) => `(() => { if (document.body.innerText.includes(${JSON.stringify(text)}) === ${gone}) console.error(${JSON.stringify(`flow expected ${gone ? "no " : ""}${text}`)}); })(); 0`;
+/** Logs a console error naming `text` when the page does not show it (ignoring case, as caps labels read) (or, with `gone`, still shows it), so the report lists a flow whose action did nothing. */
+const expectText = (text, gone = false) => `(() => { if (document.body.innerText.toLowerCase().includes(${JSON.stringify(text.toLowerCase())}) === ${gone}) console.error(${JSON.stringify(`flow expected ${gone ? "no " : ""}${text}`)}); })(); 0`;
 /** Presses `key` in the first element matching `selector`. */
 const pressKey = (selector, key) => `document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, bubbles: true })); 0`;
 const emit = (event) => `window.__fixtures.emit("hath", "/events", ${JSON.stringify({ ...event, at: "NOW" }).replace('"NOW"', "new Date().toISOString()")}); 0`;
@@ -195,6 +195,17 @@ function flowJobs(scenario) {
       { eval: pressKey("[data-page=hath] input[aria-label='Search agents']", "Enter") },
       ...frames("hath-search-picked", [700]),
       { eval: expectText("Open thread") },
+    ]),
+    job("yaad-sheet", "/yaad?focus=y0000000-0000-4000-8000-000000000198", [
+      ...frames("yaad-sheet-open", [900]),
+      { checks: "yaad-sheet" },
+      { eval: expectText("Coming up") },
+      { eval: expectText("Remembered") },
+      { eval: expectText("Connections") },
+      { eval: expectText("from schedule-specialist") },
+      { eval: 'document.querySelector("[data-page=yaad] button[aria-label=Close]").click(); 0' },
+      ...frames("yaad-sheet-closed", [700]),
+      { eval: expectText("Coming up", true) },
     ]),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },

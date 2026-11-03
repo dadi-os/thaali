@@ -84,6 +84,25 @@ export function connectionsOf(nodeId: string, links: MemoryLink[]): Connection[]
     );
 }
 
+/** Memories the sheet lists before the rest fold behind "All N memories". */
+export const MEMORIES_SHOWN = 4;
+
+/** What a node's connections split into: plans still ahead, memories attached to it, and everything else. */
+export type ConnectionSections = { comingUp: Connection[]; memories: Connection[]; others: Connection[] };
+
+/**
+ * Splits `connections` for the sheet: the plans dated at or after `now` soonest first, the memories newest first, and the rest in
+ * the order given.
+ */
+export function sectionsOf(connections: Connection[], now: number): ConnectionSections {
+  const ahead = (c: Connection) => c.node.kind === "plan" && c.node.occurred_at !== null && Date.parse(c.node.occurred_at) >= now;
+  return {
+    comingUp: connections.filter(ahead).sort((a, b) => a.node.occurred_at!.localeCompare(b.node.occurred_at!)),
+    memories: connections.filter((c) => c.node.kind === "memory").sort((a, b) => b.node.created_at.localeCompare(a.node.created_at)),
+    others: connections.filter((c) => c.node.kind !== "memory" && !ahead(c)),
+  };
+}
+
 /** Sphere radius by kind, grown by connectedness so hubs read at a glance. */
 export function nodeRadius(kind: NodeKind, degree: number): number {
   const base = kind === "person" ? 3.4 : kind === "place" ? 3 : 2.4;

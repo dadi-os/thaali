@@ -5,13 +5,14 @@ import { PageHeader } from "../chrome/PageHeader";
 import { createMemorySimulation, KIND_TOKEN, mergeGraph, type GraphData } from "../features/memory/graph";
 import { MemoryGraph3D } from "../features/memory/MemoryGraph3D";
 import { NodeSheet } from "../features/memory/NodeSheet";
-import { isMeshOnline, yaad } from "../shared/api";
+import { hath, isMeshOnline, yaad } from "../shared/api";
 import { Pill } from "../shared/components/Button";
 import { Card } from "../shared/components/Card";
 import { syncForceSimulation } from "../shared/components/ForceGraph";
 import { Icon } from "../shared/components/Icon";
 import { StateView, StaleBanner } from "../shared/components/ModuleState";
 import { useConnection } from "../shared/hooks/useConnection";
+import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
 import { useModuleState } from "../shared/hooks/useModuleState";
 import { useSize } from "../shared/hooks/useSize";
 import { failureProps } from "../shared/lib/ux/moduleState";
@@ -47,6 +48,7 @@ export function YaadPage() {
     queryFn: () => yaad.graph({}),
     enabled: isMeshOnline(connection),
   });
+  const agents = useQuery({ queryKey: AGENTS_QUERY_KEY, queryFn: async () => (await hath.listAgents()).agents, enabled: isMeshOnline(connection) });
   const state = useModuleState(graphQuery, (data) => data.nodes.length === 0);
   const sim = useMemo(() => createMemorySimulation(), [location.key]);
   const graph = useMemo(() => {
@@ -141,7 +143,7 @@ export function YaadPage() {
   }
 
   const ready = state.kind === "ready";
-  const sheet = focused === null ? null : <NodeSheet node={focused} links={graph.links} onSelect={setFocusId} onClose={() => setFocusId(null)} />;
+  const sheet = focused === null ? null : <NodeSheet node={focused} links={graph.links} agentName={(agentId) => agents.data?.find((agent) => agent.id === agentId)?.name} onSelect={setFocusId} onClose={() => setFocusId(null)} />;
   return (
     <div ref={page} data-page="yaad" style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 16, padding: "18px 20px 20px", minHeight: 0 }}>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 12, minHeight: 0 }}>

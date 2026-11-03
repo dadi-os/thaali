@@ -1,9 +1,10 @@
+import { useEffect, useState, type ReactNode } from "react";
+import { Button, IconButton } from "../../shared/components/Button";
 import { Card } from "../../shared/components/Card";
-import { IconButton } from "../../shared/components/Button";
-import { Truncate } from "../../shared/components/Truncate";
+import { Clamp, Truncate } from "../../shared/components/Truncate";
 import { formatAge, formatClock, formatDay } from "../../shared/lib/ux/time";
 import type { NodeKind } from "../../types/yaad";
-import { KIND_TOKEN, connectionsOf, type MemoryLink, type MemoryNode } from "./graph";
+import { KIND_TOKEN, MEMORIES_SHOWN, SOURCE_LABEL, connectionsOf, sectionsOf, type Connection, type MemoryLink, type MemoryNode } from "./graph";
 
 /** The name each kind goes by in the sheet's header. */
 const KIND_NAME = { person: "Person", place: "Place", memory: "Memory", plan: "Plan" } as const satisfies Record<NodeKind, string>;
@@ -13,6 +14,8 @@ export type NodeSheetProps = {
   node: MemoryNode;
   /** Every link in the graph; the node's own are its connections. */
   links: MemoryLink[];
+  /** The name of the agent with this id, or undefined when the agents list does not hold it. */
+  agentName: (agentId: string) => string | undefined;
   /** A connection was clicked: focus that node. */
   onSelect: (nodeId: string) => void;
   /** The close control was pressed. */
@@ -39,13 +42,56 @@ function Cell({ name, value, note }: CellProps) {
   );
 }
 
+type SectionProps = {
+  title: string;
+  /** How many rows the section holds. */
+  count: number;
+  children: ReactNode;
+};
+
+/** A caps title with the row count at its right, and the rows under it. */
+function Section({ title, count, children }: SectionProps) {
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="ui-label">{title}</span>
+        <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-muted)" }}>{count}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+type ConnectionRowProps = {
+  connection: Connection;
+  onSelect: (nodeId: string) => void;
+  children: ReactNode;
+};
+
+/** A row that focuses the node it names. */
+function ConnectionRow({ connection, onSelect, children }: ConnectionRowProps) {
+  return (
+    <button type="button" className="ui-trans ui-hover-fill" onClick={() => onSelect(connection.node.id)} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40, padding: "0 10px", borderRadius: 10 }}>
+      {children}
+    </button>
+  );
+}
+
 /**
- * The focused node's sheet, docked beside the graph: its kind and name, what it says, every node it connects to (people
- * first, each with the edge's type, an arrow when the edge points at this node) and how it has been used, every figure
- * from the node itself.
+ * The focused node's sheet, docked beside the graph: its kind and name, what it says, the plans still ahead and the memories
+ * attached to it (newest first, each from the agent that wrote it), the other nodes it connects to (people first, each with the
+ * edge's type, an arrow when the edge points at this node) and how it has been used, every figure from the node itself.
  */
-export function NodeSheet({ node, links, onSelect, onClose }: NodeSheetProps) {
+export function NodeSheet({ node, links, agentName, onSelect, onClose }: NodeSheetProps) {
+  const [allMemories, setAllMemories] = useState(false);
+  useEffect(() => setAllMemories(false), [node.id]);
   const connections = connectionsOf(node.id, links);
+  const { comingUp, memories, others } = sectionsOf(connections, Date.now());
+  const shownMemories = allMemories ? memories : memories.slice(0, MEMORIES_SHOWN);
+  const origin = (of: MemoryNode) => {
+    const name = of.agent_id === null ? undefined : agentName(of.agent_id);
+    return name === undefined ? SOURCE_LABEL[of.source] : `from ${name}`;
+  };
   return (
     <Card style={{ width: 344, flex: "none", background: "var(--glass-sheet)", minHeight: 0, animation: "slide-in 550ms var(--ease) both" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "18px 18px 10px" }}>
@@ -60,29 +106,52 @@ export function NodeSheet({ node, links, onSelect, onClose }: NodeSheetProps) {
       </div>
       <div className="scroll" style={{ flex: 1, minHeight: 0, padding: "0 18px 18px", display: "flex", flexDirection: "column", gap: 14 }}>
         {node.body ? <span style={{ fontSize: 14, lineHeight: "21px", color: "var(--ink)" }}>{node.body}</span> : null}
-        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span className="ui-label">Connections</span>
-            <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-muted)" }}>{connections.length}</span>
-          </div>
-          {connections.length > 0 ? (
-            connections.map((connection) => (
+        {comingUp.length > 0 ? (
+          <Section title="Coming up" count={comingUp.length}>
+            {comingUp.map((connection) => (
+              <ConnectionRow key={connection.id} onSelect={onSelect} connection={connection}>
+                <span style={{ flex: "none", fontSize: 12.5, fontWeight: 600, color: "var(--due-ink)", whiteSpace: "nowrap" }}>{`${formatDay(connection.node.occurred_at!)}, ${formatClock(connection.node.occurred_at!)}`}</span>
+                <Truncate text={connection.node.title} style={{ flex: 1, fontSize: 14 }} />
+              </ConnectionRow>
+            ))}
+          </Section>
+        ) : null}
+        {memories.length > 0 ? (
+          <Section title="Remembered" count={memories.length}>
+            {shownMemories.map((connection) => (
               <button
                 key={connection.id}
                 type="button"
-                className="ui-trans ui-hover-fill"
+                className="ui-trans ui-hover-card"
                 onClick={() => onSelect(connection.node.id)}
-                style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 40, padding: "0 10px", borderRadius: 10 }}
+                style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, padding: "10px 12px", borderRadius: 12, background: "rgba(250, 250, 247, 0.8)", border: "1px solid var(--glass-border)", textAlign: "left" }}
               >
-                <span className="dot" style={{ width: 8, height: 8, background: `var(${KIND_TOKEN[connection.node.kind]})` }} />
-                <Truncate text={connection.node.title} style={{ flex: 1, fontSize: 14 }} />
-                <span className="ui-mono" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{`${connection.outgoing ? "" : "← "}${connection.type}`}</span>
+                <Clamp text={connection.node.title} lines={3} style={{ fontSize: 14, lineHeight: "20px" }} />
+                <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${formatDay(connection.node.created_at)} · ${origin(connection.node)}`}</span>
               </button>
-            ))
-          ) : (
-            <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Not connected to anything yet.</span>
-          )}
-        </div>
+            ))}
+            {memories.length > MEMORIES_SHOWN && !allMemories ? (
+              <Button tone="sage" size="sm" style={{ alignSelf: "flex-start" }} onClick={() => setAllMemories(true)}>
+                {`All ${memories.length} memories`}
+              </Button>
+            ) : null}
+          </Section>
+        ) : null}
+        {others.length > 0 || connections.length === 0 ? (
+          <Section title="Connections" count={others.length}>
+            {others.length > 0 ? (
+              others.map((connection) => (
+                <ConnectionRow key={connection.id} onSelect={onSelect} connection={connection}>
+                  <span className="dot" style={{ width: 8, height: 8, background: `var(${KIND_TOKEN[connection.node.kind]})` }} />
+                  <Truncate text={connection.node.title} style={{ flex: 1, fontSize: 14 }} />
+                  <span className="ui-mono" style={{ fontSize: 11, whiteSpace: "nowrap" }}>{`${connection.outgoing ? "" : "← "}${connection.type}`}</span>
+                </ConnectionRow>
+              ))
+            ) : (
+              <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Not connected to anything yet.</span>
+            )}
+          </Section>
+        ) : null}
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <span className="ui-label">Usage</span>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
