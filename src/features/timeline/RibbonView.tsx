@@ -28,7 +28,7 @@ export type RibbonViewProps = {
 
 /**
  * Home Timeline tile, as on the canvas: seven day columns, today tinted with its date in a
- * sage disc, the day's all-day or multi-day plan (a confirmed one first) as a tide pill, then its sessions and dues as
+ * sage disc, the day's all-day or multi-day plan (a confirmed one first) as an opaque pill, then its sessions and dues as
  * a time line with a dot (clay for a due, tide for a class, sage otherwise) over the title,
  * as many as the tile's height holds and "+N more" for the rest. Past rows fade; a row opens
  * in place, and the rest of the tile opens the full timeline.
@@ -80,7 +80,7 @@ export function RibbonView({ days, labels, today, now, plans, loading, onOpen, c
                   e.stopPropagation();
                   onOpen(allDay, e.currentTarget);
                 }}
-                className="mx-1 mb-1.5 shrink-0 truncate rounded-[6px] bg-[color-mix(in_srgb,var(--tide)_14%,transparent)] px-1.5 py-[3px] text-left text-[10.5px] font-semibold text-[color-mix(in_srgb,var(--tide)_70%,var(--ink))]"
+                className="mx-1 mb-1.5 shrink-0 truncate rounded-[6px] border border-rule bg-bone-raised px-1.5 py-[3px] text-left text-[10.5px] font-semibold text-ink"
               >
                 {allDay.title}
               </button>

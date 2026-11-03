@@ -219,8 +219,8 @@ type PlanChipProps = {
 };
 
 /**
- * One session as a card tinted by its kind (clay deadline, tide class, sage otherwise): its time
- * over its title, lifting on hover, softened once it has passed, pulsing while it is happening,
+ * One session as an opaque sheet with its kind's dot (clay deadline, tide class, sage otherwise)
+ * by its time over its title, lifting on hover, softened once it has passed, pulsing while it is happening,
  * with Khisso's Completed circle when it has a time, and struck through when cancelled or completed.
  */
 function PlanChip({ plan, day, now, delay, onOpen, slot }: PlanChipProps) {
@@ -252,8 +252,8 @@ function PlanChip({ plan, day, now, delay, onOpen, slot }: PlanChipProps) {
     >
       {planStartsOn(plan, day) && slot !== "short" ? (
         <span className="mb-0.5 flex items-center gap-1 text-[12px] font-medium opacity-75">
-          {ongoing ? <LiveDot /> : null}
-          {startLabel(plan)}
+          {ongoing ? <LiveDot /> : <span aria-hidden className="size-1.5 shrink-0 rounded-full bg-[var(--tone)]" />}
+          <span className={plan.start_at === null ? "text-[color-mix(in_srgb,var(--clay)_75%,var(--ink))]" : ""}>{startLabel(plan)}</span>
           {plan.start_at !== null && !plan.all_day ? (
             <span className="ml-auto flex">
               <SessionMark item={plan} now={now} className="size-3.5" />

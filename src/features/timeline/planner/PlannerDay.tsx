@@ -15,9 +15,8 @@ import {
   segmentsOn,
   type Segment,
 } from "./blocks";
-import { KIND_TONE, TONE_CLASS } from "./kinds";
 import { SessionMark } from "../markers";
-import { itemKey } from "../plans";
+import { itemKey, planTone, SHEET } from "../plans";
 
 /** Pixels per minute on the axis. */
 const PPM = 0.9;
@@ -382,14 +381,17 @@ function BlockRow({ segment, top, settled, now, current, delay, onOpen }: BlockR
       }}
       aria-label={`${block.title}, ${formatRange(startMin, endMin)}`}
       className={`absolute flex overflow-hidden rounded-[14px] px-4 text-left transition-shadow duration-slow ease-dadi hover:z-10 hover:shadow-[var(--shadow)] ${
-        TONE_CLASS[block.kind === null ? "solid" : KIND_TONE[block.kind]]
+        `border border-rule ${SHEET}`
       } ${current ? "ring-1 ring-sage-deep/60" : ""} ${block.state === "cancelled" ? "line-through" : ""} ${oneRow ? "items-center" : "items-start pt-3.5"}`}
       style={{ top: top + 2, height, left: `calc(${(lane / lanes) * 100}% + 0px)`, width: `calc(${100 / lanes}% - 6px)` }}
     >
       <span className="flex w-full min-w-0 gap-3">
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline gap-4">
-            <span className="truncate text-[14px] leading-5 font-medium tracking-[-0.005em] text-ink">{block.title}</span>
+            <span className="flex min-w-0 items-center gap-2">
+              <span aria-hidden className="size-2 shrink-0 rounded-full" style={{ background: planTone(block) }} />
+              <span className="truncate text-[14px] leading-5 font-medium tracking-[-0.005em] text-ink">{block.title}</span>
+            </span>
             <span className="ml-auto shrink-0 text-[12px] leading-5 tabular-nums text-ink-muted">{formatRange(startMin, endMin)}</span>
             <span className="flex h-5 shrink-0 items-center">
               <SessionMark item={block} now={now} />

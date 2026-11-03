@@ -191,18 +191,22 @@ export function planTone(item: TimelineItem): string {
   return item.kind !== null && COURSE_KINDS.has(item.kind) ? "var(--tide)" : "var(--sage)";
 }
 
+/** The opaque fill and lift every timeline session sheet shares. */
+export const SHEET = "bg-bone-raised shadow-[0_1px_2px_rgba(44,48,42,0.06)]";
+
 /**
- * Chip classes per status, tinted by the `--tone` the chip sets from `planTone`: confirmed
- * fills with its tone, tentative is a fainter fill with a dashed edge, an idea stays bare.
+ * Chip classes per status, every one an opaque sheet so sessions read cleanly over any
+ * column: confirmed has a hairline, tentative a dashed edge, an idea stays ghosted. The
+ * kind shows as a dot in its `planTone`, not as a tint.
  */
 export function statusClass(status: TimelineItem["status"]): string {
   if (status === "tentative") {
-    return "border border-dashed border-[color-mix(in_srgb,var(--tone)_45%,transparent)] bg-[color-mix(in_srgb,var(--tone)_7%,transparent)] text-[color-mix(in_srgb,var(--tone)_35%,var(--ink))]";
+    return `border border-dashed border-sage-line ${SHEET} text-ink`;
   }
   if (status === "idea") {
-    return "border border-rule bg-bone text-ink-ghost";
+    return `border border-rule ${SHEET} text-ink-ghost`;
   }
-  return "border border-transparent bg-[color-mix(in_srgb,var(--tone)_15%,transparent)] text-[color-mix(in_srgb,var(--tone)_35%,var(--ink))]";
+  return `border border-rule ${SHEET} text-ink`;
 }
 
 /** Popover anchor hugging `el`: the panel opens beside it, clear of its width. */

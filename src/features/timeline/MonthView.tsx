@@ -228,7 +228,7 @@ function MonthBar({ plan, lane, from, to, week, now, delay, onOpen }: MonthBarPr
         e.preventDefault();
         onOpen(plan, e.currentTarget);
       }}
-      style={{ gridColumn: `${from + 1} / ${to + 2}`, gridRow: lane + 2, "--tone": planTone(plan) } as CSSProperties}
+      style={{ gridColumn: `${from + 1} / ${to + 2}`, gridRow: lane + 2 }}
       className={`relative flex h-[22px] min-w-0 items-center px-2 text-left text-[12px] leading-none font-semibold ${statusClass(plan.status)} ${
         starts ? "ml-1 rounded-l-[8px]" : "rounded-l-none border-l-0 pl-2.5"
       } ${ends ? "mr-1 rounded-r-[8px]" : "rounded-r-none border-r-0"}`}
