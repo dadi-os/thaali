@@ -53,7 +53,7 @@ function nowOf(agent: AgentRecord): string {
   return agent.running.waiting_on === null ? "" : `Waiting on ${agent.running.waiting_on.targets.join(", ")}`;
 }
 
-const HEAD = "min-w-0 text-[11px] font-semibold tracking-[2px] text-ink-muted uppercase";
+const HEAD = "min-w-0 text-[12.5px] font-semibold text-ink-muted";
 
 export type AgentListProps = {
   agents: AgentRecord[];

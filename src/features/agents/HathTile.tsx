@@ -62,7 +62,7 @@ function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   const many = agents.length > MANY_AGENTS;
   return (
     <div className="relative min-h-0 min-w-0 flex-1">
-      <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh)} labels={many ? "roots" : "active"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
+      <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh)} labels="live" nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
     </div>
   );
 }
@@ -88,7 +88,7 @@ export function HathTile({ order }: { order: number }) {
       title="Hath"
       to="/hath"
       order={order}
-      summary={agents.length > 0 ? `${working} working · ${agents.length} agents` : undefined}
+      summary={agents.length === 0 ? undefined : working > 0 ? `${working} working · ${agents.length} agents` : `${agents.length} agents`}
       loading={state.kind === "loading"}
       notice={tileNotice(state, { name: "Hath", request: "GET /agents", empty: ["No agents yet", "Agents appear here once Hath creates one."] }, () => void query.refetch())}
       skeleton={(g) => (

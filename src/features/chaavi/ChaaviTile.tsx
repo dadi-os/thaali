@@ -16,7 +16,9 @@ import { buildFolderTree, type FolderNode } from "./folders";
 const STRIP_HEIGHT = 28;
 const FOLDER_ROW = 28;
 /** How far each folder level steps in. */
-const INDENT = 14;
+const INDENT = 18;
+/** The folder glyph's width, which the connector lines are measured from. */
+const GLYPH = 14;
 
 type BodyProps = {
   items: ChaaviItem[];
@@ -24,11 +26,37 @@ type BodyProps = {
   geometry: TileGeometry;
 };
 
-type FlatFolder = { node: FolderNode; depth: number };
+/** `ends[k]` is whether the folder's ancestor at depth `k + 1` (itself, for the last entry) is the last of its siblings. */
+type FlatFolder = { node: FolderNode; depth: number; ends: boolean[] };
 
 /** The tree in reading order, every level open, leaving out folders that hold nothing. */
-function flatten(nodes: FolderNode[], depth = 0): FlatFolder[] {
-  return nodes.filter((node) => node.count > 0).flatMap((node) => [{ node, depth }, ...flatten(node.children, depth + 1)]);
+function flatten(nodes: FolderNode[], above: boolean[] = []): FlatFolder[] {
+  const kept = nodes.filter((node) => node.count > 0);
+  return kept.flatMap((node, index) => {
+    const ends = [...above, index === kept.length - 1];
+    return [{ node, depth: above.length, ends }, ...flatten(node.children, ends)];
+  });
+}
+
+/** The glyph's cell with the lines that tie a subfolder to its parent: an elbow from the parent's column into this row, and a line carried down past the row for each ancestor that has more folders to come. */
+function Lead({ depth, ends }: Pick<FlatFolder, "depth" | "ends">) {
+  const column = (level: number) => level * INDENT + GLYPH / 2;
+  return (
+    <span className="relative flex h-7 flex-none items-center text-ink-muted" style={{ width: depth * INDENT + GLYPH, paddingLeft: depth * INDENT }}>
+      {ends.slice(1, depth).map((last, level) => (last ? null : <span key={level} aria-hidden="true" className="absolute -top-px -bottom-px w-px bg-sage-line" style={{ left: column(level) }} />))}
+      {depth > 0 ? (
+        <>
+          <span
+            aria-hidden="true"
+            className="absolute -top-px border-b border-l border-sage-line"
+            style={{ left: column(depth - 1), width: INDENT - GLYPH / 2 - 3, height: 15, borderBottomLeftRadius: 7 }}
+          />
+          {ends[depth] ? null : <span aria-hidden="true" className="absolute -top-px -bottom-px w-px bg-sage-line" style={{ left: column(depth - 1) }} />}
+        </>
+      ) : null}
+      <Icon name="folder" size={GLYPH} />
+    </span>
+  );
 }
 
 /** The folder tree with subfolders indented under their parent, over a footer of what the vault holds by kind (a distinct glyph and a count each) that scrolls sideways. */
@@ -43,12 +71,12 @@ function Body({ items, folders, geometry }: BodyProps) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <TileList>
-        {rows.slice(0, room).map(({ node, depth }) => (
+        {rows.slice(0, room).map(({ node, depth, ends }) => (
           <TileRow
             key={node.path}
             size="sm"
             ruled={false}
-            lead={<span className="flex flex-none text-ink-muted" style={{ marginLeft: depth * INDENT }}><Icon name="folder" size={14} /></span>}
+            lead={<Lead depth={depth} ends={ends} />}
             trail={<>{depth === 0 ? <Meter percent={(node.count / widest) * 100} width={56} /> : null}<span className="min-w-[3ch] flex-none text-right text-[13px] text-ink-muted tabular-nums">{node.count}</span></>}
           >
             <Truncate text={node.name} className={depth === 0 ? "" : "text-ink-muted"} />

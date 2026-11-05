@@ -24,6 +24,8 @@ export type StatusChipProps = {
   dot?: boolean;
   /** The chip fills the width it is given, its words centred; for a grid of chips. */
   fill?: boolean;
+  /** The chip keeps its full width instead of giving it up, for a row that scrolls. */
+  rigid?: boolean;
   /** The chip is a button that does this. */
   onClick?: (event: MouseEvent<HTMLElement>) => void;
   /** Attributes that attach a right-click menu, from `useContextActions`. */
@@ -35,9 +37,9 @@ export type StatusChipProps = {
 };
 
 /** A state chip: a dot and words in a pill that does not wrap and gives up width before it breaks; a button when it has a click. */
-export function StatusChip({ tone = "sage", pulse = false, dot: withDot = true, fill = false, onClick, context, title, children }: StatusChipProps) {
+export function StatusChip({ tone = "sage", pulse = false, dot: withDot = true, fill = false, rigid = false, onClick, context, title, children }: StatusChipProps) {
   const look = TONES[tone];
-  const className = `inline-flex h-8 min-w-0 ${fill ? "w-full justify-center" : "flex-[0_1_auto]"} items-center gap-2 rounded-full px-3 text-[13px] font-medium whitespace-nowrap ${look.chip}`;
+  const className = `inline-flex h-8 min-w-0 ${fill ? "w-full justify-center" : rigid ? "flex-none" : "flex-[0_1_auto]"} items-center gap-2 rounded-full px-3 text-[13px] font-medium whitespace-nowrap ${look.chip}`;
   const dot = withDot ? <span className={`dot size-2 ${look.dot} ${pulse ? "dot-pulse" : ""}`} /> : null;
   if (onClick === undefined) {
     return (

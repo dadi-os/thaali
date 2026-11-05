@@ -106,12 +106,11 @@ export function CalendarDay({
     `${Math.floor(min / 60) ? `${Math.floor(min / 60)} h ` : ""}${Math.round(min % 60) ? `${Math.round(min % 60)} min` : ""}`.trim() ||
     "0 min";
   const label: CSSProperties = {
-    fontSize: 11,
+    fontSize: 12.5,
     fontWeight: 600,
-    letterSpacing: 2.5,
+    letterSpacing: "0.005em",
     color: "var(--ink-muted)",
-    lineHeight: "14px",
-    textTransform: "uppercase",
+    lineHeight: "16px",
   };
   return (
     <div

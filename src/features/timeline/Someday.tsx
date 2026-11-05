@@ -182,7 +182,7 @@ function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
           soon ? "bg-[color-mix(in_srgb,var(--clay)_16%,transparent)] text-[color-mix(in_srgb,var(--clay)_70%,var(--ink))]" : "bg-sage-fill text-sage-text"
         }`}
       >
-        <span className="text-[11px] font-semibold uppercase tracking-[1px]">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "open"}</span>
+        <span className="text-[12px] font-semibold">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "open"}</span>
         <span className="text-[18px] font-semibold leading-tight tabular-nums">{due ? due.getDate() : "—"}</span>
       </span>
       <PlanButton

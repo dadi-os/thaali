@@ -18,7 +18,7 @@ export function SessionCard({ block, settled }: SessionCardProps) {
     block.state === "cancelled" ? "Cancelled" : block.outcome === "done" ? "Completed" : block.outcome === "missed" ? "Missed" : settled ? "Not marked" : "Upcoming";
   return (
     <div data-selectable className="px-4 py-4">
-      <p className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">
+      <p className="text-[12px] font-semibold text-sage-deep">
         {block.kind ? KIND_LABEL[block.kind] : "Plan"}
         {block.recurrence ? ` · ${block.recurrence}` : ""}
       </p>

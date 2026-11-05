@@ -60,7 +60,7 @@ export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord
 }
 
 /** Which names are written beside their nodes. */
-export type GraphLabels = "all" | "active" | "roots";
+export type GraphLabels = "all" | "live" | "roots";
 
 export type GraphView = {
   nodes: ForestNode[];
@@ -146,7 +146,7 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
     const letter = unit(12.5 * fontScale);
     const widest = (right: boolean) =>
       nodes
-        .filter((n) => (Math.cos(n.ang) >= -0.05) === right && (labels === "all" || n.depth === 1 || isLive(n.state) || n.state === "waiting"))
+        .filter((n) => (Math.cos(n.ang) >= -0.05) === right && (labels === "all" || (labels === "live" ? isLive(n.state) : n.depth === 1)))
         .reduce((most, n) => Math.max(most, n.x * (right ? 1 : -1) + unit(18) + graphName(n.agent.name).length * letter * 0.6), -Infinity);
     const room = (maxX - minX + pad * 2) * MAX_LABEL_MARGIN;
     ext = { l: Math.min(room, Math.max(0, widest(false) - -minX)), r: Math.min(room, Math.max(0, widest(true) - maxX)) };
@@ -162,7 +162,7 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
   const written = new Map<ForestNode, { right: boolean; name: string; size: number }>();
   for (const n of [...nodes].sort((a, b) => priority(a) - priority(b))) {
     const live = isLive(n.state);
-    const wanted = labels === "all" || (labels === "active" && (live || n.state === "waiting" || n.depth === 1)) || (labels === "roots" && n.depth === 1);
+    const wanted = labels === "all" || (labels === "live" && live) || (labels === "roots" && n.depth === 1);
     if (!wanted) {
       continue;
     }

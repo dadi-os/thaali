@@ -6,6 +6,7 @@ import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { AgentName } from "../../shared/ui/AgentName";
 import { MeterRow, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
+import { Measured } from "../../shared/layout/Measured";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -17,6 +18,11 @@ import { diskName } from "./HealthCard";
 const TASK_ORDER: Record<NasTask["status"], number> = { working: 0, paused: 0, asking: 1, idle: 2, asleep: 3 };
 
 type Meter = { name: string; percent: number };
+
+/** A task row's height. */
+const TASK_ROW = 28;
+/** The gap between the tile's blocks. */
+const BLOCK_GAP = 16;
 
 /** The meters Nas reported, CPU then memory then GPU then each disk; one it did not report is left out. */
 function metersOf(status: NasStatus): Meter[] {
@@ -52,39 +58,38 @@ export function healthSummary(status: NasStatus): string {
 
 /** As many meters as fit, the helper tasks that fit after them, and the devices on dadi in a footer that scrolls sideways. */
 function Body({ status, tasks, clients, geometry }: BodyProps) {
-  const meters = metersOf(status);
-  const footer = 32 + 13;
-  const available = geometry.bh - footer - 16;
-  const count = Math.max(1, Math.min(meters.length, Math.floor((available + 12) / 42)));
-  const left = available - (count * 30 + (count - 1) * 12) - 24;
-  const taskRows = tasks.length > 0 ? Math.max(0, Math.min(6, Math.floor(left / 28))) : 0;
+  const meters = metersOf(status).slice(0, Math.max(1, Math.min(4, Math.floor((geometry.bh + 12) / 42))));
+  const sorted = [...tasks].sort((a, b) => TASK_ORDER[a.status] - TASK_ORDER[b.status]);
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ gap: BLOCK_GAP }}>
       <div className="flex flex-none flex-col gap-3">
-        {meters.slice(0, count).map((meter) => (
+        {meters.map((meter) => (
           <MeterRow key={meter.name} label={meter.name} value={`${Math.round(meter.percent)}%`} percent={meter.percent} />
         ))}
       </div>
-      {taskRows > 0 ? (
-        <div className="flex min-h-0 flex-none flex-col">
-          <SectionHeader title="Tasks" />
-          <TileList>
-            {[...tasks]
-              .sort((a, b) => TASK_ORDER[a.status] - TASK_ORDER[b.status])
-              .slice(0, taskRows)
-              .map((task) => (
-                <TileRow key={task.task} size="sm" ruled={false} lead={<Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />} trail={<Badge status={task.status} />}>
-                  <AgentName name={task.owner} selectable={false} className="truncate" />
-                </TileRow>
-              ))}
-          </TileList>
-        </div>
-      ) : null}
-      <div className="flex-1" />
-      <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: footer }} onClick={(event) => event.preventDefault()}>
+      {sorted.length > 0 ? (
+        <Measured style={{ overflow: "hidden" }}>
+          {(size) => (
+            <div className="flex flex-col">
+              <SectionHeader title="Tasks" count={sorted.length} />
+              <TileList>
+                {sorted.slice(0, Math.max(0, Math.floor((size.height - 24) / TASK_ROW))).map((task) => (
+                  <TileRow key={task.task} size="sm" ruled={false} lead={<Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />} trail={<Badge status={task.status} />}>
+                    <AgentName name={task.owner} selectable={false} className="truncate" />
+                  </TileRow>
+                ))}
+              </TileList>
+            </div>
+          )}
+        </Measured>
+      ) : (
+        <div className="flex-1" />
+      )}
+      <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: 32 + 13 }} onClick={(event) => event.preventDefault()}>
+        {clients.length === 0 ? <span className="text-[13px] text-ink-muted">No devices on dadi</span> : null}
         {clients.map((client) => (
-          <StatusChip key={client.node_name} tone={client.online ? "sage" : client.pending ? "clay" : "quiet"} title={`${client.node_name}: ${client.online ? "online" : client.pending ? "waiting to join" : "offline"}`}>
-            <span className="whitespace-nowrap">{client.node_name}</span>
+          <StatusChip rigid key={client.node_name} tone={client.online ? "sage" : client.pending ? "clay" : "quiet"} title={`${client.node_name}: ${client.online ? "online" : client.pending ? "waiting to join" : "offline"}`}>
+            {client.node_name}
           </StatusChip>
         ))}
       </div>

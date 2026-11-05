@@ -47,7 +47,7 @@ export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
       </div>
       <AgentName name={name} className="mt-5 max-w-full text-center text-[16px] font-medium text-ink" />
       {spawned ? (
-        <p className="mt-1 text-[11px] tracking-[0.12em] text-ink-ghost uppercase">
+        <p className="mt-1 text-[12px] text-ink-ghost">
           {spawned}
         </p>
       ) : null}
