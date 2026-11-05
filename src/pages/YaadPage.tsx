@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
@@ -14,13 +14,19 @@ import { StateView, StaleBanner } from "../shared/states/ModuleState";
 import { useConnection } from "../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
 import { useModuleState } from "../shared/hooks/useModuleState";
-import { useSize } from "../shared/hooks/useSize";
+import { useRetained } from "../shared/hooks/useRetained";
+import { useDismiss } from "../shared/interaction/dismiss";
+import { Measured } from "../shared/layout/Measured";
+import { Page } from "../shared/layout/Page";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
 import type { NodeKind } from "../types/yaad";
 
 /** The page is wider than this before the sheet sits beside the graph; narrower, it is a drawer over it. */
 const DOCK_ABOVE = 900;
+
+/** The node sheet's width in px. */
+const SHEET_WIDTH = 344;
 
 /** The kind chips after Everything, in the order the page draws them. */
 const KINDS = Object.keys(KIND_TOKEN) as NodeKind[];
@@ -38,7 +44,6 @@ export function YaadPage() {
   const { state: connection } = useConnection();
   const location = useLocation();
   const [params] = useSearchParams();
-  const [page, { width }] = useSize<HTMLDivElement>();
   const [focusId, setFocusId] = useState<string | null>(params.get("focus"));
   const [kind, setKind] = useState<NodeKind | null>(KINDS.find((k) => k === params.get("kind")) ?? null);
   const [query, setQuery] = useState("");
@@ -57,21 +62,7 @@ export function YaadPage() {
   }, [sim, graphQuery.data]);
 
   const focused = focusId === null ? null : (graph.nodes.find((n) => n.id === focusId) ?? null);
-  const docked = width > DOCK_ABOVE;
-
-  const sheeted = focused !== null;
-  useEffect(() => {
-    if (!sheeted) {
-      return undefined;
-    }
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setFocusId(null);
-      }
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [sheeted]);
+  useDismiss({ open: focused !== null, onDismiss: () => setFocusId(null) });
 
   const matches = useMemo(() => {
     const needle = query.trim().toLowerCase();
@@ -135,68 +126,61 @@ export function YaadPage() {
   } else {
     content = (
       <Card style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
-        <div style={{ position: "absolute", inset: 0 }}>
-          <MemoryGraph3D sim={sim} graph={graph} focusId={focusId} matches={matches} onFocus={setFocusId} />
-        </div>
+        <Measured style={{ position: "absolute", inset: 0 }}>{() => <MemoryGraph3D sim={sim} graph={graph} focusId={focusId} matches={matches} onFocus={setFocusId} />}</Measured>
       </Card>
     );
   }
 
   const ready = state.kind === "ready";
-  const sheet = focused === null ? null : <NodeSheet node={focused} links={graph.links} agentName={(agentId) => agents.data?.find((agent) => agent.id === agentId)?.name} onSelect={setFocusId} onClose={() => setFocusId(null)} />;
+  const shownNode = useRetained(focused);
+  const sheet =
+    shownNode === null ? undefined : (
+      <NodeSheet node={shownNode} links={graph.links} agentName={(agentId) => agents.data?.find((agent) => agent.id === agentId)?.name} onSelect={setFocusId} onClose={() => setFocusId(null)} />
+    );
   return (
-    <div ref={page} data-page="yaad" style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 16, padding: "18px 20px 20px", minHeight: 0 }}>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 12, minHeight: 0 }}>
-        <PageHeader
-          title="Yaad"
-          meta={ready ? `${graph.nodes.length} things remembered · ${graph.links.length} connections` : undefined}
-          trailing={
-            ready ? (
-              <div style={{ width: 260 }}>
-                <label className="search-field">
-                  <Icon name="search" size={15} />
-                  <input
-                    type="search"
-                    className="sfi"
-                    placeholder="Search memory"
-                    aria-label="Search memory"
-                    value={query}
-                    onChange={(event) => setQuery(event.target.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Escape") {
-                        setQuery("");
-                      } else if (event.key === "Enter" && picked !== null) {
-                        setFocusId(picked);
-                      }
-                    }}
-                  />
-                </label>
-              </div>
-            ) : undefined
-          }
-        />
-        {ready && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Yaad reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={() => void graphQuery.refetch()} /> : null}
-        {ready ? (
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-            <Pill active={kind === null} count={graph.nodes.length} onClick={() => setKind(null)}>
-              Everything
+    <Page name="yaad" aside={sheet} asideOpen={focused !== null} onAsideClose={() => setFocusId(null)} asideWidth={SHEET_WIDTH} dockAbove={DOCK_ABOVE}>
+      <PageHeader
+        title="Yaad"
+        meta={ready ? `${graph.nodes.length} things remembered · ${graph.links.length} connections` : undefined}
+        trailing={
+          ready ? (
+            <div style={{ width: 260 }}>
+              <label className="search-field">
+                <Icon name="search" size={15} />
+                <input
+                  type="search"
+                  className="sfi"
+                  placeholder="Search memory"
+                  aria-label="Search memory"
+                  value={query}
+                  onChange={(event) => setQuery(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Escape") {
+                      setQuery("");
+                    } else if (event.key === "Enter" && picked !== null) {
+                      setFocusId(picked);
+                    }
+                  }}
+                />
+              </label>
+            </div>
+          ) : undefined
+        }
+      />
+      {ready && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Yaad reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={() => void graphQuery.refetch()} /> : null}
+      {ready ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <Pill active={kind === null} count={graph.nodes.length} onClick={() => setKind(null)}>
+            Everything
+          </Pill>
+          {KINDS.map((k) => (
+            <Pill key={k} active={kind === k} count={counts.get(k) ?? 0} onClick={() => setKind(kind === k ? null : k)}>
+              {KIND_CHIP[k]}
             </Pill>
-            {KINDS.map((k) => (
-              <Pill key={k} active={kind === k} count={counts.get(k) ?? 0} onClick={() => setKind(kind === k ? null : k)}>
-                {KIND_CHIP[k]}
-              </Pill>
-            ))}
-          </div>
-        ) : null}
-        {content}
-      </div>
-      {docked ? sheet : null}
-      {docked || sheet === null ? null : (
-        <>
-          <div onClick={() => setFocusId(null)} style={{ position: "absolute", inset: 0, zIndex: 4 }} />
-          <div style={{ position: "absolute", top: 18, right: 20, bottom: 20, display: "flex", zIndex: 5 }}>{sheet}</div>
-        </>
-      )}
-    </div>
+          ))}
+        </div>
+      ) : null}
+      {content}
+    </Page>
   );
 }

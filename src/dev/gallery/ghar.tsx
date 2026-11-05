@@ -35,6 +35,7 @@ CASES["ghar.section.disabled"] = () => (
     onToggle={noop}
     onLevel={noop}
     onSelect={noop}
+    deviceActions={() => []}
     onSwitch={noop}
     onSectionLevel={noop}
     onRename={noop}

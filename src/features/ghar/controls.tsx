@@ -11,37 +11,6 @@ export function useDraft(value: number): [number, (next: number) => void] {
   return [draft ?? value, setDraft];
 }
 
-export type SwitchProps = {
-  on: boolean;
-  /** The accessible name. */
-  label: string;
-  disabled?: boolean;
-  /** A command for it is in flight. */
-  busy?: boolean;
-  onChange: (on: boolean) => void;
-};
-
-/** A 44 x 32 switch whose knob slides. */
-export function Switch({ on, label, disabled = false, busy = false, onChange }: SwitchProps) {
-  return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={on}
-      aria-label={label}
-      aria-busy={busy ? true : undefined}
-      disabled={disabled}
-      className="ui-trans"
-      onClick={() => onChange(!on)}
-      style={{ width: 44, height: 32, borderRadius: 999, background: on ? "var(--sage-deep)" : "var(--rule)", position: "relative", flex: "none", ...(disabled ? { opacity: 0.45 } : {}) }}
-    >
-      <span
-        style={{ position: "absolute", top: 4, left: on ? 16 : 4, width: 24, height: 24, borderRadius: "50%", background: "var(--bone)", boxShadow: "0 1px 3px rgba(44,48,42,.3)", transition: "left 180ms cubic-bezier(.22,.61,.36,1)" }}
-      />
-    </button>
-  );
-}
-
 export type SliderProps = {
   /** Where the knob sits, 0 to 100. */
   value: number;

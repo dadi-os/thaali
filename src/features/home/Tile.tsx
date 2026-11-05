@@ -1,7 +1,14 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { Link } from "react-router-dom";
+import { FADE, RISE } from "../../shared/motion";
 import { StateView } from "../../shared/states/ModuleState";
 import { Truncate } from "../../shared/ui/Truncate";
+
+/** The tile's frame as a link that animates: it rises into the grid like any arriving card. */
+const MotionLink = motion.create(Link);
+/** How long after the tile before it each tile's entrance starts, in seconds. */
+const ENTRANCE_STEP_S = 0.06;
 
 /** The pixels a tile's frame takes around its body: 16 px of padding and a 1 px border on each side. */
 const FRAME = 34;
@@ -102,15 +109,16 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
     minWidth: 0,
     minHeight: 0,
     overflow: "hidden",
-    animation: "rise 550ms var(--ease) both",
-    animationDelay: `${order * 60}ms`,
     gridArea: area,
   };
   let body: ReactNode = null;
+  let phase = "content";
   if (geometry !== null) {
     if (notice !== null) {
+      phase = "notice";
       body = <StateView kind={notice.kind} title={notice.title} detail={notice.detail} onRetry={notice.retry} dense={geometry.bh < DENSE_BELOW} />;
     } else if (loading) {
+      phase = "skeleton";
       body = skeleton(geometry);
     } else {
       body = children(geometry);
@@ -118,14 +126,20 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
   }
   const showSummary = summary !== undefined && summary !== "" && notice === null && !loading;
   return (
-    <Link ref={frame} to={to} aria-label={title} className="ui-hover-card ui-trans" style={style}>
+    <MotionLink ref={frame} to={to} aria-label={title} className="ui-hover-card ui-trans" style={style} {...RISE} transition={{ ...RISE.transition, delay: order * ENTRANCE_STEP_S }}>
       <div style={{ display: "flex", alignItems: "center", gap: 12, height: 24, flex: "none", padding: "0 2px" }}>
         <span style={{ fontSize: 16, fontWeight: 600, color: "var(--sage-text)", letterSpacing: "-0.005em", flex: "none" }}>{title}</span>
         <div style={{ flex: 1 }} />
         {showSummary ? <Truncate text={summary} style={{ fontSize: 13.5, color: "var(--ink-muted)", maxWidth: "68%" }} /> : null}
         {right}
       </div>
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>{body}</div>
-    </Link>
+      <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={phase} style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column" }} {...FADE}>
+            {body}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </MotionLink>
   );
 }

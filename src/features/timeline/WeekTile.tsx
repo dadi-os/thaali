@@ -1,6 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, timeline } from "../../shared/api";
+import { Chip } from "../../shared/ui/Chip";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -10,6 +11,7 @@ import type { TimelineItem } from "../../types/timeline";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { addDays, endOfDay, startOfWeek, toIsoBounds } from "./dates";
+import { PlanButton } from "./PlanButton";
 import { itemKey } from "./plans";
 import { SessionMenu } from "./SessionMenu";
 
@@ -139,9 +141,9 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
                 .map((item) => {
                   const [ink, wash] = tone(item);
                   return (
-                    <button
+                    <PlanButton
                       key={`${item.id}:${item.occurrence_date}`}
-                      type="button"
+                      item={item}
                       data-session={itemKey(item)}
                       aria-haspopup="menu"
                       aria-expanded={opened === itemKey(item)}
@@ -154,9 +156,9 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
               {own
                 .filter((item) => item.start_at === null && item.due_at !== null)
                 .map((item) => (
-                  <button
+                  <PlanButton
                     key={`${item.id}:${item.occurrence_date}`}
-                    type="button"
+                    item={item}
                     aria-haspopup="menu"
                     aria-expanded={opened === itemKey(item)}
                     onClick={(event) => open(event, item, onOpen)}
@@ -172,12 +174,12 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
       <div style={{ display: "flex", alignItems: "center", gap: 8, height: FOOTER, flex: "none", fontSize: 13, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
         {live !== undefined ? (
           <>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--bone)", padding: "2px 8px", borderRadius: 999, background: "var(--sage-deep)", flex: "none" }}>Now</span>
+            <Chip tone="solid">Now</Chip>
             <Truncate text={live.title} style={{ flex: 1, minWidth: 0, fontWeight: 500 }} />
           </>
         ) : next !== undefined ? (
           <>
-            <span style={{ fontSize: 11.5, fontWeight: 600, color: "var(--sage-text)", padding: "2px 8px", borderRadius: 999, background: "var(--sage-fill)", flex: "none" }}>Next</span>
+            <Chip>Next</Chip>
             <Truncate text={next.title} style={{ flex: 1, minWidth: 0, fontWeight: 500 }} />
             <span style={{ color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", flex: "none" }}>{formatClock(next.start_at!)}</span>
           </>
@@ -237,7 +239,7 @@ export function WeekTile({ order }: { order: number }) {
       >
         {(g) => <Body items={state.kind === "ready" ? state.data : []} now={now} geometry={g} opened={opened === null ? null : itemKey(opened.item)} onOpen={setOpened} />}
       </Tile>
-    {opened === null ? null : <SessionMenu item={opened.item} anchor={opened.anchor} onClose={() => setOpened(null)} />}
+    <SessionMenu item={opened === null ? null : opened.item} anchor={opened === null ? null : opened.anchor} onClose={() => setOpened(null)} />
     </>
   );
 }

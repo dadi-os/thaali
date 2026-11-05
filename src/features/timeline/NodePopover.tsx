@@ -5,6 +5,8 @@ import { useNavigate } from "react-router-dom";
 import { yaad } from "../../shared/api";
 import type { TimelineItem } from "../../types/timeline";
 import type { EdgeRecord, NodeRecord } from "../../types/yaad";
+import { RISE, stagger } from "../../shared/motion";
+import { Button, IconButton } from "../../shared/ui/Button";
 import { Popover, type PopoverAnchor } from "../../shared/overlay/Popover";
 import { Tooltip } from "../../shared/overlay/Tooltip";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
@@ -74,18 +76,12 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
         <p className="px-4 py-4 text-[13px] text-ink-ghost">Loading…</p>
       ) : (
         <>
-          <header className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
+          <header data-selectable className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
             <div className="flex items-baseline justify-between gap-3">
               <h3 className={`min-w-0 text-[15px] leading-snug font-medium text-ink ${session?.state === "cancelled" ? "line-through" : ""}`}>
                 {node.title}
               </h3>
-              <button
-                type="button"
-                onClick={onClose}
-                className="shrink-0 text-[11px] tracking-wide text-ink-faint transition-colors duration-slow ease-dadi hover:text-ink-muted"
-              >
-                ESC
-              </button>
+              <IconButton icon="close" label="Close" size={32} iconSize={14} onClick={onClose} />
             </div>
             <p className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-muted">
               <span
@@ -99,7 +95,7 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
             </p>
           </header>
 
-          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div data-selectable className="scroll min-h-0 flex-1 overflow-y-auto px-4 py-3">
             {shownAt ? (
               <div className="mb-3 flex items-baseline justify-between gap-3">
                 <span className="text-[13px] text-ink">
@@ -149,9 +145,8 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
                   {listed.map((c, i) => (
                     <motion.li
                       key={c.edge.id}
-                      initial={{ opacity: 0, x: -4 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: Math.min(i * 0.03, 0.18) }}
+                      {...RISE}
+                      transition={{ ...RISE.transition, delay: stagger(i) }}
                     >
                       <button
                         type="button"
@@ -174,9 +169,9 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
                 </ul>
               )}
               {folded > 0 ? (
-                <button type="button" className="mt-1 text-[11px] text-sage-deep" onClick={() => setShowAll(true)}>
+                <Button tone="quiet" size="sm" onClick={() => setShowAll(true)}>
                   {folded} more
-                </button>
+                </Button>
               ) : null}
             </section>
 
@@ -184,13 +179,9 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
 
           <footer className="flex shrink-0 flex-col gap-2.5 border-t border-rule/60 px-4 py-3">
             {session ? <SessionActions item={session} /> : null}
-            <button
-              type="button"
-              onClick={() => navigate(`/yaad?focus=${node.id}`)}
-              className="self-start whitespace-nowrap text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
-            >
+            <Button tone="quiet" size="sm" onClick={() => navigate(`/yaad?focus=${node.id}`)} style={{ alignSelf: "flex-start" }}>
               Open in Yaad →
-            </button>
+            </Button>
           </footer>
         </>
       )}

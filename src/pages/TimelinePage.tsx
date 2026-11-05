@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
@@ -16,6 +16,7 @@ import {
   weekDays,
 } from "../features/timeline/dates";
 import { NodePopover } from "../features/timeline/NodePopover";
+import { PlanDetailsContext } from "../features/timeline/PlanButton";
 import { itemKey, plansOn } from "../features/timeline/plans";
 import { SessionMenu } from "../features/timeline/SessionMenu";
 import { NeedsATime } from "../features/timeline/Someday";
@@ -25,34 +26,26 @@ import { clockChange, zoneOffset } from "../features/timeline/zones";
 import { isMeshOnline, timeline } from "../shared/api";
 import { Button, IconButton } from "../shared/ui/Button";
 import { Card } from "../shared/ui/Card";
+import { Chip } from "../shared/ui/Chip";
+import { Page } from "../shared/layout/Page";
 import { StaleBanner, StateView } from "../shared/states/ModuleState";
 import { Popover } from "../shared/overlay/Popover";
+import { Truncate } from "../shared/ui/Truncate";
 import { Segmented } from "../shared/ui/Segmented";
 import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
-import { useSize } from "../shared/hooks/useSize";
+import { useRetained } from "../shared/hooks/useRetained";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative, formatZone } from "../shared/lib/ux/time";
 import type { TimelineItem, TimelineViewName } from "../types/timeline";
 
+/** The main column is wider than this before the day view shows its side panel, in px. */
+const WIDE_FROM = 860;
+
 type View = "Day" | "Week" | "Month";
 type Opened = { item: TimelineItem; anchor: DOMRect };
 const OPTIONS = ["Day", "Week", "Month"] as const;
-const CHIP: CSSProperties = {
-  display: "inline-flex",
-  alignItems: "center",
-  height: 24,
-  padding: "0 10px",
-  borderRadius: 999,
-  fontSize: 12,
-  fontWeight: 600,
-  whiteSpace: "nowrap",
-  flex: "none",
-  background: "var(--sage-fill)",
-  color: "var(--sage-text)",
-  border: "1px solid var(--glass-border)",
-};
 
 /** The visible month's Sunday-first grid, including adjacent dates that fill its weeks. */
 function monthDays(anchor: Date): Date[] {
@@ -78,7 +71,6 @@ function dateKey(day: Date): string {
  */
 export function TimelinePage() {
   const [params, setParams] = useSearchParams();
-  const [page, { width }] = useSize<HTMLDivElement>();
   const [clock, setClock] = useState(() => ({
     now: new Date(),
     zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
@@ -221,280 +213,197 @@ export function TimelinePage() {
       : view === "Week"
         ? "this week"
         : "this month";
-  let body: ReactNode;
-  if (someday)
-    body = (
-      <NeedsATime
-        onOpen={(item, element) =>
-          setNode({
-            id: item.id,
-            session: item,
-            anchor: element.getBoundingClientRect(),
-          })
-        }
-      />
-    );
-  else if (state.kind === "loading")
-    body = (
-      <div
-        style={{
-          display: "flex",
-          flex: 1,
-          gap: 16,
-          minWidth: 0,
-          minHeight: 0,
-          alignItems: "stretch",
-        }}
-      >
-        <Card style={{ flex: 1, padding: 18, gap: 0 }}>
-          {Array.from({ length: 9 }, (_, i) => (
+  const renderBody = (wide: boolean): ReactNode => {
+    let body: ReactNode;
+    if (someday)
+      body = (
+        <NeedsATime
+          onOpen={(item, element) =>
+            setNode({
+              id: item.id,
+              session: item,
+              anchor: element.getBoundingClientRect(),
+            })
+          }
+        />
+      );
+    else if (state.kind === "loading")
+      body = (
+        <div
+          style={{
+            display: "flex",
+            flex: 1,
+            gap: 16,
+            minWidth: 0,
+            minHeight: 0,
+            alignItems: "stretch",
+          }}
+        >
+          <Card style={{ flex: 1, padding: 18, gap: 0 }}>
+            {Array.from({ length: 9 }, (_, i) => (
+              <div
+                key={i}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  height: 56,
+                  borderTop: "1px solid var(--rule)",
+                  gap: 12,
+                }}
+              >
+                <Skeleton width={40} height={10} />
+                {i % 3 === 1 ? (
+                  <Skeleton width="60%" height={38} radius={11} />
+                ) : null}
+              </div>
+            ))}
+          </Card>
+          {wide ? (
             <div
-              key={i}
               style={{
                 display: "flex",
-                alignItems: "center",
-                height: 56,
-                borderTop: "1px solid var(--rule)",
+                flexDirection: "column",
+                width: 300,
                 gap: 12,
               }}
             >
-              <Skeleton width={40} height={10} />
-              {i % 3 === 1 ? (
-                <Skeleton width="60%" height={38} radius={11} />
-              ) : null}
+              <Skeleton width="100%" height={120} radius={18} />
+              <Skeleton width="100%" height={100} radius={18} />
+              <Skeleton width="100%" height={110} radius={18} />
             </div>
-          ))}
-        </Card>
-        {width > 900 ? (
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              width: 300,
-              gap: 12,
-            }}
-          >
-            <Skeleton width="100%" height={120} radius={18} />
-            <Skeleton width="100%" height={100} radius={18} />
-            <Skeleton width="100%" height={110} radius={18} />
-          </div>
-        ) : null}
-      </div>
-    );
-  else if (state.kind === "ready")
-    body =
-      view === "Day" ? (
-        <CalendarDay
-          day={anchor}
-          now={now}
-          zone={zone}
-          items={items}
-          selected={opened === null ? null : itemKey(opened.item)}
-          wide={width > 900}
-          onOpen={open}
-        />
-      ) : view === "Week" ? (
-        <CalendarWeek days={days} now={now} items={items} onOpen={open} />
-      ) : (
-        <CalendarMonth
-          days={days}
-          now={now}
-          items={items}
-          anchor={anchor}
-          onOpen={open}
-          onDay={(day) => navigate("Day", day)}
-        />
+          ) : null}
+        </div>
       );
-  else
-    body = (
-      <Card style={{ flex: 1 }}>
-        <StateView
-          kind={state.kind}
-          title={
-            state.kind === "empty"
-              ? "Nothing planned"
-              : state.kind === "module-offline"
-                ? "Yaad isn’t answering"
-                : state.kind === "offline"
-                  ? "dadi is unreachable"
-                  : "Couldn’t load the timeline"
-          }
-          detail={
-            state.kind === "empty"
-              ? "Sessions appear here as agents schedule them."
-              : state.kind === "offline"
-                ? "Waiting for the mesh to reconnect"
+    else if (state.kind === "ready")
+      body =
+        view === "Day" ? (
+          <CalendarDay
+            day={anchor}
+            now={now}
+            zone={zone}
+            items={items}
+            selected={opened === null ? null : itemKey(opened.item)}
+            wide={wide}
+            onOpen={open}
+          />
+        ) : view === "Week" ? (
+          <CalendarWeek days={days} now={now} items={items} onOpen={open} />
+        ) : (
+          <CalendarMonth
+            days={days}
+            now={now}
+            items={items}
+            anchor={anchor}
+            onOpen={open}
+            onDay={(day) => navigate("Day", day)}
+          />
+        );
+    else
+      body = (
+        <Card style={{ flex: 1 }}>
+          <StateView
+            kind={state.kind}
+            title={
+              state.kind === "empty"
+                ? "Nothing planned"
                 : state.kind === "module-offline"
-                  ? "The timeline comes from Yaad. Your other modules still work."
-                  : failureProps(state.error).detail
-          }
-          {...(state.kind === "module-offline" || state.kind === "error"
-            ? failureProps(state.error)
-            : {})}
-          onRetry={
-            state.kind === "empty" || state.kind === "offline"
-              ? undefined
-              : () => void query.refetch()
-          }
-        />
-      </Card>
-    );
+                  ? "Yaad isn’t answering"
+                  : state.kind === "offline"
+                    ? "dadi is unreachable"
+                    : "Couldn’t load the timeline"
+            }
+            detail={
+              state.kind === "empty"
+                ? "Sessions appear here as agents schedule them."
+                : state.kind === "offline"
+                  ? "Waiting for the mesh to reconnect"
+                  : state.kind === "module-offline"
+                    ? "The timeline comes from Yaad. Your other modules still work."
+                    : failureProps(state.error).detail
+            }
+            {...(state.kind === "module-offline" || state.kind === "error"
+              ? failureProps(state.error)
+              : {})}
+            onRetry={
+              state.kind === "empty" || state.kind === "offline"
+                ? undefined
+                : () => void query.refetch()
+            }
+          />
+        </Card>
+      );
+    return body;
+  };
+  const shownDetails = useRetained(details);
+  const shownNode = useRetained(node);
   return (
-    <div
-      ref={page}
-      data-page="timeline"
-      style={{
-        fontFamily: "Inter, system-ui, sans-serif",
-        display: "flex",
-        flexDirection: "column",
-        flex: 1,
-        padding: "18px 20px 20px",
-        gap: 14,
-        minHeight: 0,
-        minWidth: 0,
-      }}
-    >
-      <PageHeader
-        title="Timeline"
-        meta={
-          !someday && state.kind === "ready"
-            ? `${own.length} ${own.length === 1 ? "session" : "sessions"} ${when}`
-            : undefined
-        }
-        trailing={
-          <Button
-            tone="quiet"
-            size="sm"
-            onClick={() => navigate(view, anchor, !someday)}
-          >
-            {someday ? "Back to calendar" : "Needs a time"}
-          </Button>
-        }
-      />
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          flex: "none",
-          flexWrap: "nowrap",
-        }}
-      >
-        <span
-          style={{
-            fontSize: 28,
-            fontWeight: 600,
-            letterSpacing: "-0.02em",
-            minWidth: 0,
-          }}
-        >
-          {title}
-        </span>
-        {someday ? null : (
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              flex: "none",
-            }}
-          >
-            <span
-              style={{
-                ...CHIP,
-                ...(change === null
-                  ? {}
-                  : {
-                      background: "var(--due-fill)",
-                      color: "var(--due-ink)",
-                      border: "1px solid var(--due-line)",
-                    }),
-              }}
-            >
-              {change === null
-                ? formatZone(noon.toISOString(), zone)
-                : `${change.from} → ${change.to}`}
-            </span>
-            {other?.time_zone ? (
-              <span
-                style={{
-                  ...CHIP,
-                  background: "rgba(125,154,166,.18)",
-                  color: "#2b4450",
-                }}
-              >
-                {Math.abs(difference)} h{" "}
-                {difference < 0 ? "behind" : "ahead of"}{" "}
-                {other.time_zone.split("/").pop()!.replace(/_/g, " ")}
-              </span>
-            ) : null}
-          </div>
-        )}
-        <div style={{ flex: 1 }} />
-        {someday ? null : (
+    <PlanDetailsContext.Provider value={(item, rect) => setDetails({ item, anchor: rect })}>
+      <Page name="timeline">
+        {(room) => (
           <>
-            <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
-              <IconButton
-                icon="back"
-                label="Previous"
-                onClick={() => move(-1)}
-              />
-              <Button
-                pill
-                onClick={() => navigate(view, startOfDay(now))}
-                style={{ fontWeight: 600 }}
-              >
-                Today
-              </Button>
-              <IconButton icon="chevron" label="Next" onClick={() => move(1)} />
-            </div>
-            <Segmented
-              options={OPTIONS}
-              value={view}
-              onChange={(next) => navigate(next, anchor)}
+            <PageHeader
+              title="Timeline"
+              meta={!someday && state.kind === "ready" ? `${own.length} ${own.length === 1 ? "session" : "sessions"} ${when}` : undefined}
+              trailing={
+                <Button tone="quiet" size="sm" onClick={() => navigate(view, anchor, !someday)}>
+                  {someday ? "Back to calendar" : "Needs a time"}
+                </Button>
+              }
             />
+            <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", flexWrap: "nowrap" }}>
+              <Truncate text={title} style={{ flex: "0 1 auto", minWidth: 0, fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em" }} />
+              {someday ? null : (
+                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
+                  <Chip size="md" tone={change === null ? "sage" : "due"}>
+                    {change === null ? formatZone(noon.toISOString(), zone) : `${change.from} → ${change.to}`}
+                  </Chip>
+                  {other?.time_zone ? (
+                    <Chip size="md" tone="tide">
+                      {Math.abs(difference)} h {difference < 0 ? "behind" : "ahead of"} {other.time_zone.split("/").pop()!.replace(/_/g, " ")}
+                    </Chip>
+                  ) : null}
+                </div>
+              )}
+              <div style={{ flex: 1 }} />
+              {someday ? null : (
+                <>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+                    <IconButton icon="back" label="Previous" onClick={() => move(-1)} />
+                    <Button pill onClick={() => navigate(view, startOfDay(now))} style={{ fontWeight: 600 }}>
+                      Today
+                    </Button>
+                    <IconButton icon="chevron" label="Next" onClick={() => move(1)} />
+                  </div>
+                  <Segmented options={OPTIONS} value={view} onChange={(next) => navigate(next, anchor)} />
+                </>
+              )}
+            </div>
+            {!someday && state.kind === "ready" && state.stale !== null ? (
+              <StaleBanner text={`Showing what Yaad reported ${formatRelative(new Date(state.stale.since).toISOString(), now.getTime())}`} onRetry={() => void query.refetch()} />
+            ) : null}
+            {renderBody(room.width > WIDE_FROM)}
           </>
         )}
-      </div>
-      {!someday && state.kind === "ready" && state.stale !== null ? (
-        <StaleBanner
-          text={`Showing what Yaad reported ${formatRelative(new Date(state.stale.since).toISOString(), now.getTime())}`}
-          onRetry={() => void query.refetch()}
-        />
-      ) : null}
-      {body}
-      {opened === null ? null : (
-        <SessionMenu
-          item={opened.item}
-          anchor={opened.anchor}
-          onClose={() => setOpened(null)}
-          onDetails={() => setDetails(opened)}
-        />
-      )}
-      {details === null ? null : (
+      </Page>
+      <SessionMenu
+        item={opened === null ? null : opened.item}
+        anchor={opened === null ? null : opened.anchor}
+        onClose={() => setOpened(null)}
+        onDetails={opened === null ? undefined : () => setDetails(opened)}
+      />
+      {shownDetails === null ? null : (
         <Popover
-          open
-          anchor={{
-            x: details.anchor.left,
-            y: details.anchor.bottom,
-            radius: 0,
-          }}
-          aria-label={`${details.item.title} details`}
+          open={details !== null}
+          anchor={{ x: shownDetails.anchor.left, y: shownDetails.anchor.bottom, radius: 0 }}
+          aria-label={`${shownDetails.item.title} details`}
           widthPx={300}
           onClose={() => setDetails(null)}
         >
-          <SessionCard
-            block={details.item}
-            settled={isSettled(details.item, now)}
-          />
+          <SessionCard block={shownDetails.item} settled={isSettled(shownDetails.item, now)} />
           <Button
             tone="quiet"
             onClick={() => {
-              setNode({
-                id: details.item.id,
-                session: details.item,
-                anchor: details.anchor,
-              });
+              setNode({ id: shownDetails.item.id, session: shownDetails.item, anchor: shownDetails.anchor });
               setDetails(null);
             }}
           >
@@ -502,16 +411,16 @@ export function TimelinePage() {
           </Button>
         </Popover>
       )}
-      {node === null ? null : (
+      {shownNode === null ? null : (
         <NodePopover
-          open
-          nodeId={node.id}
-          session={node.session}
-          anchor={{ x: node.anchor.left, y: node.anchor.bottom, radius: 0 }}
+          open={node !== null}
+          nodeId={shownNode.id}
+          session={shownNode.session}
+          anchor={{ x: shownNode.anchor.left, y: shownNode.anchor.bottom, radius: 0 }}
           onClose={() => setNode(null)}
-          onSelect={(id) => setNode({ id, anchor: node.anchor })}
+          onSelect={(id) => setNode({ id, anchor: shownNode.anchor })}
         />
       )}
-    </div>
+    </PlanDetailsContext.Provider>
   );
 }

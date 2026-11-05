@@ -2,6 +2,7 @@ import { useEffect, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
+import { Switch } from "../../shared/ui/Switch";
 import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
 import { ghar } from "../../shared/api";
 import { useModuleState } from "../../shared/hooks/useModuleState";
@@ -171,10 +172,6 @@ export function GharTile({ order }: { order: number }) {
   const state = useModuleState(query, (answer) => answer.devices.filter(isLight).length === 0);
   const lights = state.kind === "ready" ? state.data.devices.filter(isLight) : [];
   const on = lights.filter(isOn).length;
-  const toggle = (event: MouseEvent) => {
-    swallow(event);
-    void house.run(sectionSwitch(lights));
-  };
   useEffect(() => {
     if (house.failure !== null) {
       pushToast({ key: "ghar:tile", tone: "error", title: "Ghar", body: house.failure });
@@ -189,17 +186,9 @@ export function GharTile({ order }: { order: number }) {
       summary={lights.length > 0 ? `${on} of ${lights.length} on` : undefined}
       right={
         state.kind === "ready" ? (
-          <button
-            role="switch"
-            type="button"
-            aria-checked={on > 0 ? "true" : "false"}
-            aria-label="All lights"
-            className="ui-trans"
-            onClick={toggle}
-            style={{ width: 52, height: 32, borderRadius: 999, background: on > 0 ? "var(--sage-deep)" : "var(--rule)", position: "relative", flex: "none", marginTop: -4 }}
-          >
-            <span style={{ position: "absolute", top: 3, left: on > 0 ? 23 : 3, width: 26, height: 26, borderRadius: "50%", background: "var(--bone)", boxShadow: "0 1px 3px rgba(44,48,42,.3)" }} />
-          </button>
+          <span onClick={swallow} style={{ display: "flex", marginTop: -4 }}>
+            <Switch on={on > 0} label="All lights" onChange={() => void house.run(sectionSwitch(lights))} />
+          </span>
         ) : undefined
       }
       loading={state.kind === "loading"}

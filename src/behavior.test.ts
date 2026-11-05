@@ -8,7 +8,7 @@ import {
   formatRelative,
   groupByDay,
   plainPreview,
-} from "./chrome/chatSidebar/format";
+} from "./shared/components/Thread/format";
 import {
   partitionByQueued,
   trackIncoming,
@@ -56,7 +56,7 @@ import {
 } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/Graph/ForceGraph";
 import { revealSchedule } from "./shared/components/Graph/ForceGraph/reveal";
-import { autoLiveTaskId, pickLiveViews, showsLiveView, taskLiveView } from "./features/agents/sessions";
+import { autoLiveTaskId, pickLiveTasks, showsLiveView, taskLiveView } from "./features/agents/sessions";
 import type { AgentTask } from "./types/hath";
 import type { NasTask } from "./shared/api/nas";
 import {
@@ -860,9 +860,12 @@ describe("agent tasks", () => {
       nasTask("task/terminal/4", "idle", "tm"),
     ];
     const sessions = { tasks: [row("task/browser/3"), row("task/browser/2"), row("task/browser/1"), row("task/terminal/4")] };
-    expect(pickLiveViews(sessions, nas)).toEqual({ browserId: 2, terminalId: "tm" });
-    expect(pickLiveViews({ tasks: [row("task/browser/3")] }, nas)).toEqual({ browserId: null, terminalId: null });
-    expect(pickLiveViews({ tasks: [] }, nas)).toEqual({ browserId: null, terminalId: null });
+    expect(pickLiveTasks(sessions, nas)).toEqual({
+      browser: { task: "task/browser/2", resource: "2", caption: "c" },
+      terminal: { task: "task/terminal/4", resource: "tm", caption: "terminal/4 · tm" },
+    });
+    expect(pickLiveTasks({ tasks: [row("task/browser/3")] }, nas)).toEqual({ browser: null, terminal: null });
+    expect(pickLiveTasks({ tasks: [] }, nas)).toEqual({ browser: null, terminal: null });
   });
 });
 

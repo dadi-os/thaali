@@ -1,10 +1,12 @@
 import type { CSSProperties } from "react";
 import { Icon } from "../../shared/ui/Icon";
 import { Card } from "../../shared/ui/Card";
+import { Chip } from "../../shared/ui/Chip";
 import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";
+import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
 import { segmentsOn } from "./planner/blocks";
 import { clockChange, plannedClock } from "./zones";
@@ -215,17 +217,13 @@ export function CalendarDay({
                   const ended =
                     item.state === "cancelled" || item.outcome === "done";
                   return (
-                    <button
+                    <PlanButton
                       key={itemKey(item)}
-                      type="button"
+                      item={item}
                       className="ui-hover-card ui-trans"
                       aria-haspopup="menu"
                       aria-expanded={selected === itemKey(item)}
                       onClick={(e) => onOpen(item, e.currentTarget)}
-                      onContextMenu={(e) => {
-                        e.preventDefault();
-                        onOpen(item, e.currentTarget);
-                      }}
                       title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}${there === null ? "" : ` (${there})`}`}
                       style={{
                         position: "absolute",
@@ -330,7 +328,7 @@ export function CalendarDay({
                           }}
                         />
                       ) : null}
-                    </button>
+                    </PlanButton>
                   );
                 },
               )}
@@ -382,20 +380,8 @@ export function CalendarDay({
                     background: "var(--sage-deep)",
                   }}
                 />
-                <span
-                  style={{
-                    position: "absolute",
-                    right: 8,
-                    top: -11,
-                    fontSize: 11.5,
-                    fontWeight: 600,
-                    color: "var(--bone)",
-                    background: "var(--sage-deep)",
-                    padding: "2px 8px",
-                    borderRadius: 999,
-                  }}
-                >
-                  {formatClock(now.toISOString())}
+                <span style={{ position: "absolute", right: 8, top: -11 }}>
+                  <Chip tone="solid">{formatClock(now.toISOString())}</Chip>
                 </span>
               </div>
             ) : null}

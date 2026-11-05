@@ -1,14 +1,19 @@
 import { useState } from "react";
-import { Button, ButtonGroup } from "../../shared/ui/Button";
+import type { ActionList } from "../../shared/interaction/actions";
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import { AnchoredMenu } from "../../shared/overlay/AnchoredMenu";
+import { Button, Pill } from "../../shared/ui/Button";
 import { Reveal } from "../../shared/ui/Disclosure";
 import { Icon } from "../../shared/ui/Icon";
+import { Switch } from "../../shared/ui/Switch";
 import type { GharDevice } from "../../types/ghar";
-import { Slider, Switch, useDraft } from "./controls";
+import { Slider, useDraft } from "./controls";
 import { DeviceTile } from "./DeviceTile";
 import { countLights, isOn, lightColor, sectionLevel, sectionMeta, type Section } from "./model";
+import { roomActions } from "./roomActions";
 
-/** What a room's options are showing: the menu, the list of lights to move in, or the question before it goes. */
-export type SectionUi = { open: boolean; mode: "menu" | "move" | "delete"; rename: boolean };
+/** What a room's options panel is showing: whether it is open, the room's brightness alone or with the list of lights to move in, and whether the name is a field. */
+export type SectionUi = { open: boolean; mode: "menu" | "move"; rename: boolean };
 
 /** Everything shut. */
 export const SECTION_SHUT: SectionUi = { open: false, mode: "menu", rename: false };
@@ -32,12 +37,15 @@ export type RoomSectionProps = {
   onToggle: (device: GharDevice, on: boolean) => void;
   onLevel: (device: GharDevice, level: number) => void;
   onSelect: (device: GharDevice) => void;
+  /** What a right-click on a device's tile offers ({@link deviceActions}). */
+  deviceActions: (device: GharDevice) => ActionList;
   onSwitch: () => void;
   /** Every light in the section to one brightness, 1 to 100. */
   onSectionLevel: (level: number) => void;
   onRename: (name: string) => void;
   onMoveHere: (device: GharDevice) => void;
   onAddHere: () => void;
+  /** Ask whether to delete the room; the page confirms before it goes. */
   onDelete: () => void;
 };
 
@@ -55,10 +63,11 @@ const dashed = {
 } as const;
 
 /**
- * One room or group: its header (the name, how many lights are on, a switch), the options a room opens from its name
- * (brightness for every light in it, then rename, move lights here, add a device here and delete), and its tiles.
+ * One room or group: its header (the name, how many lights are on, a switch), the actions a room offers from its name or a
+ * right-click ({@link roomActions}: brightness for every light in it, rename, move lights here, add a device here and delete),
+ * the panel brightness and moving lights open, and its tiles.
  */
-export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, disabled, minTile, onToggle, onLevel, onSelect, onSwitch, onSectionLevel, onRename, onMoveHere, onAddHere, onDelete }: RoomSectionProps) {
+export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, disabled, minTile, onToggle, onLevel, onSelect, deviceActions, onSwitch, onSectionLevel, onRename, onMoveHere, onAddHere, onDelete }: RoomSectionProps) {
   const [expanded, setExpanded] = useState(false);
   const { title, kind, devices } = section;
   const { lights, on } = countLights(devices);
@@ -66,6 +75,19 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
   const shown = expanded ? devices : devices.slice(0, CAP);
   const more = devices.length - shown.length;
   const set = (patch: Partial<SectionUi>) => onUi({ ...ui, ...patch });
+  const [menuAnchor, setMenuAnchor] = useState<DOMRect | null>(null);
+  const actions = roomActions({
+    disabled,
+    hasLights: lights > 0,
+    opened: ui.open,
+    onToggleOptions: () => onUi(ui.open ? SECTION_SHUT : { ...ui, open: true, mode: "menu" }),
+    onRename: () => set({ rename: true }),
+    onMoveHere: () => set({ open: true, mode: "move" }),
+    onAddHere,
+    onDelete,
+  });
+  const context = useContextActions(() => (kind === "room" ? actions : null));
+  const panel = ui.open && (lights > 0 || ui.mode === "move");
   const head =
     kind === "room" ? (
       ui.rename ? (
@@ -95,14 +117,15 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
         <button
           type="button"
           className="ui-trans ui-hover-fill"
-          aria-expanded={ui.open}
+          aria-haspopup="menu"
+          aria-expanded={menuAnchor !== null}
           aria-label={`${title} options`}
           disabled={disabled}
-          onClick={() => onUi(ui.open ? SECTION_SHUT : { ...ui, open: true, mode: "menu" })}
+          onClick={(event) => setMenuAnchor(event.currentTarget.getBoundingClientRect())}
           style={{ display: "flex", alignItems: "center", gap: 8, height: 32, padding: "0 8px", borderRadius: 9, fontSize: 17, fontWeight: 600, ...(disabled ? { opacity: 0.45 } : {}) }}
         >
           {title}
-          <span style={{ display: "flex", color: "var(--ink-muted)", transform: ui.open ? "rotate(180deg)" : undefined, transition: "transform 320ms cubic-bezier(.22,.61,.36,1)" }}>
+          <span style={{ display: "flex", color: "var(--ink-muted)", transform: menuAnchor !== null ? "rotate(180deg)" : undefined, transition: "transform var(--slow) var(--ease)" }}>
             <Icon name="chevDown" size={14} />
           </span>
         </button>
@@ -117,57 +140,25 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
         {title}
       </h3>
     );
-  const actions =
-    ui.mode === "delete" ? (
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-        <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`Delete ${title}?${devices.length > 0 ? ` Its ${devices.length === 1 ? "device goes" : `${devices.length} devices go`} to Unassigned.` : ""}`}</span>
-        <Button tone="danger" size="sm" disabled={disabled} onClick={onDelete}>
-          Delete room
-        </Button>
-        <Button tone="quiet" size="sm" onClick={() => set({ mode: "menu" })}>
-          Cancel
-        </Button>
-      </div>
-    ) : ui.mode === "move" ? (
+  const moving =
+    ui.mode === "move" ? (
       <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
         <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{elsewhere.length > 0 ? "Click a device to move it here:" : "Every device is already here."}</span>
         {elsewhere.map((device) => (
-          <button
-            key={device.id}
-            type="button"
-            className="ui-trans ui-hover-fill"
-            disabled={disabled}
-            onClick={() => onMoveHere(device)}
-            style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 28, padding: "0 12px", borderRadius: 999, fontSize: 12.5, fontWeight: 500, whiteSpace: "nowrap", border: `1px solid ${isOn(device) ? "var(--sage)" : "var(--sage-line)"}`, color: "var(--ink)" }}
-          >
+          <Pill key={device.id} disabled={disabled} onClick={() => onMoveHere(device)}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: isOn(device) ? lightColor(device) : "var(--ink-ghost)", flex: "none" }} />
             {device.name}
-          </button>
+          </Pill>
         ))}
-        <Button tone="quiet" size="sm" onClick={() => set({ mode: "menu" })}>
+        <Button tone="quiet" size="sm" onClick={() => onUi(SECTION_SHUT)}>
           Done
         </Button>
       </div>
-    ) : (
-      <ButtonGroup wrap>
-        <Button tone="outline" size="sm" disabled={disabled} onClick={() => set({ rename: true })}>
-          Rename room
-        </Button>
-        <Button tone="outline" size="sm" disabled={disabled} onClick={() => set({ mode: "move" })}>
-          Move lights here
-        </Button>
-        <Button tone="outline" size="sm" disabled={disabled} onClick={onAddHere}>
-          Add device here
-        </Button>
-        <Button tone="danger" size="sm" disabled={disabled} onClick={() => set({ mode: "delete" })}>
-          Delete room
-        </Button>
-      </ButtonGroup>
-    );
+    ) : null;
   return (
-    <section aria-label={title} className={ui.open ? "open" : undefined} style={{ display: "flex", flexDirection: "column", gap: 10, flex: "none" }}>
+    <section aria-label={title} className={panel ? "open" : undefined} style={{ display: "flex", flexDirection: "column", gap: 10, flex: "none" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
+        <div {...context} style={{ display: "flex", alignItems: "center", gap: 10, height: 36 }}>
           {head}
           <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{sectionMeta(devices)}</span>
           <div style={{ flex: 1 }} />
@@ -194,11 +185,12 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
                   <span style={{ fontSize: 12, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", width: 38, flex: "none", textAlign: "right" }}>{`${Math.round(level)}%`}</span>
                 </div>
               ) : null}
-              {actions}
+              {moving}
             </div>
           </Reveal>
         ) : null}
       </div>
+      <AnchoredMenu actions={actions} anchor={menuAnchor} onClose={() => setMenuAnchor(null)} />
       <div style={{ display: "grid", gridTemplateColumns: `repeat(auto-fill,minmax(${minTile}px,1fr))`, gap: 12 }}>
         {shown.map((device) => (
           <DeviceTile
@@ -210,6 +202,7 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
             onToggle={(next) => onToggle(device, next)}
             onLevel={(next) => onLevel(device, next)}
             onSelect={() => onSelect(device)}
+            actions={() => deviceActions(device)}
           />
         ))}
         {more > 0 ? (

@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
 import { isTauriRuntime } from "../../shared/desktop/runtime";
+import { Dialog } from "../../shared/overlay/Dialog";
 import { Button, ButtonGroup } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
 import { Segmented } from "../../shared/ui/Segmented";
@@ -13,10 +14,6 @@ import { DeviceTile } from "./DeviceTile";
 import { UNASSIGNED_ROOM } from "./model";
 import { startDeviceRadio } from "./radio";
 import { shownError } from "./useHouse";
-
-/** How the sheet and its scrim ease in, and out when it leaves. */
-const EASE_IN = "320ms cubic-bezier(.22,.61,.36,1)";
-const EASE_OUT = "200ms cubic-bezier(.22,.61,.36,1)";
 
 /** How the device reaches Ghar: over the network, or through this computer's Bluetooth radio. */
 type RadioMode = "network" | "nearby";
@@ -54,8 +51,8 @@ export type PairingViewProps = {
   failure: string;
   /** The code form can be sent. */
   canSubmit: boolean;
-  /** Leaves with its exit animation. */
-  leaving: boolean;
+  /** The dialog is showing; closing plays its exit. */
+  open: boolean;
   onSubmit: () => void;
   onRetry: () => void;
   onClose: () => void;
@@ -84,29 +81,42 @@ function Box({ children }: { children: ReactNode }) {
  * The pairing sheet over the Ghar page, one view per step: the setup code with how the device reaches Ghar and the room it lands in,
  * then a ring while Ghar looks for it and joins it, then the device itself, or what went wrong.
  */
-export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, password, onPassword, radioNote, room, onRoom, rooms, landed, landedIn, failure, canSubmit, leaving, onSubmit, onRetry, onClose, onToggle, onLevel }: PairingViewProps) {
+export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, password, onPassword, radioNote, room, onRoom, rooms, landed, landedIn, failure, canSubmit, open, onSubmit, onRetry, onClose, onToggle, onLevel }: PairingViewProps) {
   const reached = step === "code" ? 0 : step === "seek" ? 1 : 2;
   const busy = step === "seek" || step === "pair";
+  const footer =
+    step === "code" ? (
+      <ButtonGroup justify="flex-end">
+        <Button tone="quiet" size="xl" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button tone="fill" size="xl" disabled={!canSubmit} onClick={onSubmit}>
+          Pair
+        </Button>
+      </ButtonGroup>
+    ) : step === "failed" ? (
+      <ButtonGroup justify="flex-end">
+        <Button tone="quiet" size="xl" onClick={onRetry}>
+          Try again
+        </Button>
+        <Button tone="fill" size="xl" onClick={onClose}>
+          Close
+        </Button>
+      </ButtonGroup>
+    ) : step === "done" ? (
+      <ButtonGroup justify="flex-end">
+        <Button tone="fill" size="xl" onClick={onClose}>
+          Done
+        </Button>
+      </ButtonGroup>
+    ) : undefined;
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label="Add a device"
-      onClick={busy ? undefined : onClose}
-      style={{ position: "absolute", inset: 0, background: "rgba(44,48,42,.22)", display: "flex", alignItems: "center", justifyContent: "center", animation: leaving ? `fade-out ${EASE_OUT} both` : `fade ${EASE_IN} both`, zIndex: 30 }}
-    >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={{ display: "flex", flexDirection: "column", width: 440, maxWidth: "100%", padding: 22, gap: 16, borderRadius: 20, background: "var(--bone)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow-deep)", animation: leaving ? `slide-down ${EASE_OUT} both` : `slide-up ${EASE_IN} both` }}
-      >
-        <div aria-hidden="true" style={{ display: "flex", gap: 6 }}>
-          {[0, 1, 2].map((index) => (
-            <span key={index} style={{ flex: 1, height: 2, borderRadius: 2, background: index <= reached ? "var(--sage)" : "var(--rule)" }} />
-          ))}
-        </div>
-        <span className="ui-label" style={{ fontSize: 11, color: "var(--sage-deep)" }}>
-          {TITLE[step]}
-        </span>
+    <Dialog open={open} onClose={onClose} title={TITLE[step]} width={440} locked={busy} footer={footer === undefined ? undefined : <div style={{ flex: 1 }}>{footer}</div>}>
+      <div aria-hidden="true" style={{ display: "flex", gap: 6 }}>
+        {[0, 1, 2].map((index) => (
+          <span key={index} style={{ flex: 1, height: 2, borderRadius: 2, background: index <= reached ? "var(--sage)" : "var(--rule)" }} />
+        ))}
+      </div>
         {step === "code" ? (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
             <span style={{ fontSize: 13, color: "var(--ink-muted)", lineHeight: "19px" }}>Use the 11-digit code or the QR text on the device or its box. Put the device in pairing mode first.</span>
@@ -184,38 +194,12 @@ export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, 
                 <span style={{ width: 14, height: 14, borderRadius: "50%", background: step === "failed" ? "var(--error)" : "var(--sage)", ...(busy ? { animation: "ui-pulse 1.6s ease-in-out infinite" } : {}) }} />
               </span>
             </div>
-            <span style={{ fontSize: 13, color: step === "failed" ? "var(--error)" : "var(--ink-muted)", lineHeight: "19px" }}>
+            <span data-selectable style={{ fontSize: 13, color: step === "failed" ? "var(--error)" : "var(--ink-muted)", lineHeight: "19px" }}>
               {step === "seek" ? "Ghar is listening for a device with that code." : step === "pair" ? "Found it. Exchanging certificates and joining the house." : `${failure} Check the device is in pairing mode (power-cycle it if it was paired before) and try again.`}
             </span>
           </div>
         )}
-        {step === "code" ? (
-          <ButtonGroup justify="flex-end">
-            <Button tone="quiet" size="xl" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button tone="fill" size="xl" disabled={!canSubmit} onClick={onSubmit}>
-              Pair
-            </Button>
-          </ButtonGroup>
-        ) : step === "failed" ? (
-          <ButtonGroup justify="flex-end">
-            <Button tone="quiet" size="xl" onClick={onRetry}>
-              Try again
-            </Button>
-            <Button tone="fill" size="xl" onClick={onClose}>
-              Close
-            </Button>
-          </ButtonGroup>
-        ) : step === "done" ? (
-          <ButtonGroup justify="flex-end">
-            <Button tone="fill" size="xl" onClick={onClose}>
-              Done
-            </Button>
-          </ButtonGroup>
-        ) : null}
-      </div>
-    </div>
+    </Dialog>
   );
 }
 
@@ -226,7 +210,8 @@ export type PairingSheetProps = {
   devices: GharDevice[];
   /** The room the sheet opens on; empty for Unassigned. */
   startRoom: string;
-  leaving: boolean;
+  /** The dialog is showing; closing plays its exit and stops the pairing radio. */
+  open: boolean;
   onClose: () => void;
   onToggle: (device: GharDevice, on: boolean) => void;
   onLevel: (device: GharDevice, level: number) => void;
@@ -236,7 +221,7 @@ export type PairingSheetProps = {
  * Pair a Matter device: its setup code, how it reaches Ghar and the room it lands in, then Ghar looks for it and joins it,
  * then the device itself. Pairing through this computer makes it the Bluetooth radio, so the Wi-Fi it joins is asked for too.
  */
-export function PairingSheet({ rooms, devices, startRoom, leaving, onClose, onToggle, onLevel }: PairingSheetProps) {
+export function PairingSheet({ rooms, devices, startRoom, open, onClose, onToggle, onLevel }: PairingSheetProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const queryClient = useQueryClient();
@@ -255,7 +240,7 @@ export function PairingSheet({ rooms, devices, startRoom, leaving, onClose, onTo
   useEffect(() => {
     setRadioReady(false);
     setRadioError(null);
-    if (radio !== "nearby") {
+    if (!open || radio !== "nearby") {
       return undefined;
     }
     if (!isTauriRuntime()) {
@@ -277,12 +262,12 @@ export function PairingSheet({ rooms, devices, startRoom, leaving, onClose, onTo
       },
     });
     return () => handle.stop();
-  }, [radio, connected]);
+  }, [open, radio, connected]);
 
   const jobQuery = useQuery({
     queryKey: ["ghar", "commission", jobId],
     queryFn: () => ghar.getCommission(jobId as string),
-    enabled: connected && jobId !== null,
+    enabled: open && connected && jobId !== null,
     refetchInterval: (query) => {
       const status = query.state.data?.status;
       return status === "succeeded" || status === "failed" ? false : 400;
@@ -342,7 +327,7 @@ export function PairingSheet({ rooms, devices, startRoom, leaving, onClose, onTo
       landedIn={named.find((room) => room.id === roomId)?.name ?? "Unassigned"}
       failure={failure ?? ""}
       canSubmit={canSubmit}
-      leaving={leaving}
+      open={open}
       onSubmit={() => void submit()}
       onRetry={() => {
         setJobId(null);

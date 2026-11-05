@@ -1,7 +1,10 @@
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import type { ActionList } from "../../shared/interaction/actions";
 import { Icon, type IconName } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { GharDevice } from "../../types/ghar";
-import { Slider, Switch, useDraft } from "./controls";
+import { Switch } from "../../shared/ui/Switch";
+import { Slider, useDraft } from "./controls";
 import { has, isOn, isSwitchable, lightColor, num, stateLine } from "./model";
 
 /** The icon each kind of device wears; any other kind is a power mark. */
@@ -18,24 +21,24 @@ export type DeviceTileProps = {
   onToggle: (on: boolean) => void;
   /** The brightness the user settled on, 1 to 100. */
   onLevel: (level: number) => void;
-  /** Choose the device for the inspector; a right click does the same. */
+  /** Choose the device for the inspector. */
   onSelect: () => void;
+  /** What a right-click on the tile offers ({@link deviceActions}); absent where the tile has no menu. */
+  actions?: () => ActionList;
 };
 
 /**
  * One device as a tile: its kind's icon, a switch where it has one, its name and what it is doing, and a brightness slider while
- * a dimmable light is on. The name and state are the button that selects it into the inspector; a right click selects it too.
+ * a dimmable light is on. The name and state are the button that selects it into the inspector; a right click opens its actions.
  */
-export function DeviceTile({ device, selected, busy, disabled, onToggle, onLevel, onSelect }: DeviceTileProps) {
+export function DeviceTile({ device, selected, busy, disabled, onToggle, onLevel, onSelect, actions }: DeviceTileProps) {
   const on = isOn(device);
   const [level, setLevel] = useDraft(num(device, "brightness") ?? 100);
   const lit = device.kind === "light" && on;
+  const context = useContextActions(() => (actions === undefined ? null : actions()));
   return (
     <div
-      onContextMenu={(event) => {
-        event.preventDefault();
-        onSelect();
-      }}
+      {...context}
       style={{
         position: "relative",
         display: "flex",

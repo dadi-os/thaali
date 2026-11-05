@@ -1,4 +1,5 @@
 import type { TimelineItem } from "../../../types/timeline";
+import { Chip } from "../../../shared/ui/Chip";
 import { formatTime } from "../dates";
 import { SessionActions } from "../SessionActions";
 import { formatSpan } from "./blocks";
@@ -16,7 +17,7 @@ export function SessionCard({ block, settled }: SessionCardProps) {
   const status =
     block.state === "cancelled" ? "Cancelled" : block.outcome === "done" ? "Completed" : block.outcome === "missed" ? "Missed" : settled ? "Not marked" : "Upcoming";
   return (
-    <div className="px-4 py-4">
+    <div data-selectable className="px-4 py-4">
       <p className="text-[10px] font-medium tracking-[0.16em] text-sage-deep uppercase">
         {block.kind ? KIND_LABEL[block.kind] : "Plan"}
         {block.recurrence ? ` · ${block.recurrence}` : ""}
@@ -42,7 +43,7 @@ export function SessionCard({ block, settled }: SessionCardProps) {
         </p>
       ))}
       <div className="mt-3 flex items-center gap-2">
-        <span className="rounded-full bg-sage-fill px-2.5 py-0.5 text-[11px] text-sage-deep">{status}</span>
+        <Chip>{status}</Chip>
         {block.series ? (
           <span className="text-[11px] text-ink-ghost">
             Completed {block.series.completed} of {block.series.total}

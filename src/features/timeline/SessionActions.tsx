@@ -1,54 +1,28 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { timeline } from "../../shared/api";
-import { openAgent } from "../../store/chat";
-import { requestDock } from "../../store/dock";
-import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
-import type { AgentRecord } from "../../types/hath";
+import { Button } from "../../shared/ui/Button";
 import type { TimelineItem } from "../../types/timeline";
-import { keeperOf } from "./plans";
+import { usePlanActions } from "./planActions";
 
 export type SessionActionsProps = {
   item: TimelineItem;
 };
 
+/** The actions of {@link planActions} a session's card shows as buttons: marking it Completed, and the message to its keeper. */
+const SHOWN = new Set(["mark-done", "message"]);
+
 /**
- * What Ankur can do with one session: mark it Completed or take the mark back (the only
- * write the app makes), and message the agent that keeps it, or Dadi when none still runs.
- * Changes go through that conversation, never through edits here.
+ * What Ankur can do with one session from its card: mark it Completed or take the mark back (the only write the app
+ * makes), and message the agent that keeps it, or Dadi when none still runs. The same actions the menus offer.
  */
 export function SessionActions({ item }: SessionActionsProps) {
-  const queryClient = useQueryClient();
-  const date = item.occurrence_date;
-  const completed = item.outcome === "done";
-  const toggle = useMutation({
-    mutationFn: (occurrenceDate: string) =>
-      timeline.setOutcome({ plan_id: item.id, occurrence_date: occurrenceDate, outcome: completed ? null : "done" }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ["yaad", "timeline"] }),
-  });
-  const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
-  const keeper = keeperOf(item, agents.data);
+  const actionsFor = usePlanActions();
+  const shown = actionsFor(item).flatMap((entry) => (entry !== "separator" && SHOWN.has(entry.id) ? [entry] : []));
   return (
-    <div className="flex flex-col gap-1.5">
-      <div className="flex items-center justify-between gap-2">
-        <button
-          type="button"
-          onClick={() => (keeper === null ? requestDock() : openAgent(keeper.id))}
-          className="min-w-0 truncate text-[12px] text-sage-deep transition-colors duration-slow ease-dadi hover:text-ink"
-        >
-          {keeper === null ? "Tell Dadi" : `Message ${keeper.name}`}
-        </button>
-        {date !== null && item.state !== "cancelled" ? (
-          <button
-            type="button"
-            disabled={toggle.isPending}
-            onClick={() => toggle.mutate(date)}
-            className="shrink-0 rounded-[7px] border border-sage-line bg-bone-raised px-3 py-1.5 text-[11px] font-medium tracking-[0.12em] text-sage-deep uppercase shadow-[var(--shadow)] transition-[background-color,border-color] duration-fast ease-dadi hover:border-sage hover:bg-sage-active/50 disabled:cursor-progress"
-          >
-            {completed ? "Undo completed" : "Completed"}
-          </button>
-        ) : null}
-      </div>
-      {toggle.isError ? <p className="text-[12px] text-error">{toggle.error.message}</p> : null}
+    <div className="flex flex-wrap items-center justify-between gap-2">
+      {shown.map((action) => (
+        <Button key={action.id} tone={action.id === "mark-done" ? "sage" : "quiet"} size="sm" icon={action.icon} onClick={() => void action.run()}>
+          {action.label}
+        </Button>
+      ))}
     </div>
   );
 }

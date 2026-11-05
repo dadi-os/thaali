@@ -4,11 +4,13 @@ import { timeline } from "../../shared/api";
 import { openAgent } from "../../store/chat";
 import { requestDock } from "../../store/dock";
 import { DADI_DRAFT_KEY, saveDraft } from "../../store/drafts";
-import { EASE, SLOW_S } from "../../shared/motion";
+import { RISE, stagger } from "../../shared/motion";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
 import { formatDayShort, startOfDay } from "./dates";
+import { Button } from "../../shared/ui/Button";
+import { PlanButton } from "./PlanButton";
 import { itemKey, keeperOf } from "./plans";
 
 /** Span of the someday query; the view reads its start as now and lists ideas and unscheduled tasks from there. */
@@ -55,18 +57,12 @@ function Entry({ item, index, onOpen }: EntryProps) {
   return (
     <motion.li
       layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -6 }}
-      transition={{ duration: SLOW_S, ease: EASE, delay: Math.min(index * 0.03, 0.24) }}
+      {...RISE}
+      transition={{ ...RISE.transition, delay: stagger(index) }}
     >
-      <button
-        type="button"
+      <PlanButton
+        item={item}
         onClick={(e) => onOpen(item, e.currentTarget)}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onOpen(item, e.currentTarget);
-        }}
         className={`flex w-full items-center gap-3 rounded-[12px] border px-3.5 py-2.5 text-left transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage hover:shadow-[var(--shadow)] ${
           line ? "border-rule bg-[var(--glass-sheet)]" : "border-dashed border-sage-line"
         }`}
@@ -75,7 +71,7 @@ function Entry({ item, index, onOpen }: EntryProps) {
           <span className="truncate text-[14px] font-semibold text-ink">{item.title}</span>
           <span className={`truncate text-[12.5px] ${line ? "text-[var(--clay)]" : "text-ink-ghost"}`}>{line ?? "Anytime"}</span>
         </span>
-      </button>
+      </PlanButton>
     </motion.li>
   );
 }
@@ -177,10 +173,8 @@ function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
   return (
     <motion.li
       layout
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, x: -6 }}
-      transition={{ duration: SLOW_S, ease: EASE, delay: Math.min(index * 0.04, 0.3) }}
+      {...RISE}
+      transition={{ ...RISE.transition, delay: stagger(index) }}
       className="flex items-center gap-4 rounded-[14px] border border-rule bg-[var(--glass-sheet)] px-4 py-3 transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage-line hover:shadow-[var(--shadow)]"
     >
       <span
@@ -191,13 +185,9 @@ function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
         <span className="text-[10.5px] font-semibold uppercase tracking-[1px]">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "open"}</span>
         <span className="text-[18px] font-semibold leading-tight tabular-nums">{due ? due.getDate() : "—"}</span>
       </span>
-      <button
-        type="button"
+      <PlanButton
+        item={item}
         onClick={(e) => onOpen(item, e.currentTarget)}
-        onContextMenu={(e) => {
-          e.preventDefault();
-          onOpen(item, e.currentTarget);
-        }}
         className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
       >
         <span className="truncate text-[14px] font-medium text-ink">{item.title}</span>
@@ -206,14 +196,10 @@ function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
           {item.opens_at ? `${days !== null ? " · " : ""}opens ${formatDayShort(new Date(item.opens_at))}` : ""}
           {keeper ? ` · ${keeper.name}` : ""}
         </span>
-      </button>
-      <button
-        type="button"
-        onClick={() => askAbout(item, keeper)}
-        className="shrink-0 rounded-full border border-sage-line px-3 py-1 text-[12px] font-semibold text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-fill"
-      >
+      </PlanButton>
+      <Button tone="outline" size="sm" pill onClick={() => askAbout(item, keeper)} style={{ flex: "none" }}>
         {keeper ? "Ask to place it" : "Tell Dadi"}
-      </button>
+      </Button>
     </motion.li>
   );
 }
@@ -278,9 +264,8 @@ export function NeedsATime({ onOpen }: SomedayProps) {
             {ideaGroups.map((group, g) => (
               <motion.section
                 key={group.keeper?.id ?? "none"}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: SLOW_S, ease: EASE, delay: Math.min(0.1 + g * 0.05, 0.4) }}
+                {...RISE}
+                transition={{ ...RISE.transition, delay: stagger(g + 2) }}
                 className="rounded-[14px] border border-dashed border-sage-line px-4 py-3"
               >
                 <div className="mb-1.5 flex items-baseline justify-between gap-2">
@@ -290,17 +275,13 @@ export function NeedsATime({ onOpen }: SomedayProps) {
                 <ul className="flex flex-col">
                   {group.items.map((idea) => (
                     <li key={itemKey(idea)} className="group flex items-center gap-2">
-                      <button
-                        type="button"
+                      <PlanButton
+                        item={idea}
                         onClick={(e) => onOpen(idea, e.currentTarget)}
-                        onContextMenu={(e) => {
-                          e.preventDefault();
-                          onOpen(idea, e.currentTarget);
-                        }}
                         className="-mx-2 min-w-0 flex-1 truncate rounded-[8px] px-2 py-1.5 text-left text-[13px] text-ink transition-colors duration-slow ease-dadi hover:bg-sage-fill"
                       >
                         {idea.title}
-                      </button>
+                      </PlanButton>
                       <button
                         type="button"
                         onClick={() => askAbout(idea, group.keeper)}

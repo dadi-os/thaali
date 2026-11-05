@@ -6,7 +6,8 @@ import { Icon } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock, formatRelative } from "../../shared/lib/ux/time";
 import type { GharCommand, GharDevice, GharRoom } from "../../types/ghar";
-import { Slider, Switch, useDraft } from "./controls";
+import { Switch } from "../../shared/ui/Switch";
+import { Slider, useDraft } from "./controls";
 import {
   activePreset,
   colorModes,
@@ -145,7 +146,7 @@ function Picker({ name, value, open, onToggle, children }: PickerProps) {
           style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px", borderRadius: 10, border: "1px solid var(--glass-border)", fontSize: 14, fontWeight: 500 }}
         >
           <Truncate text={value} style={{ flex: 1, minWidth: 0 }} />
-          <span style={{ display: "flex", color: "var(--ink-muted)", transform: open ? "rotate(180deg)" : undefined, transition: "transform 320ms cubic-bezier(.22,.61,.36,1)" }}>
+          <span style={{ display: "flex", color: "var(--ink-muted)", transform: open ? "rotate(180deg)" : undefined, transition: "transform var(--slow) var(--ease)" }}>
             <Icon name="chevDown" size={14} />
           </span>
         </button>
@@ -187,7 +188,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
     }
   };
   return (
-    <Card style={{ width, flex: "none", background: "var(--glass-sheet)", minHeight: 0, animation: "slide-in 550ms var(--ease) both" }}>
+    <Card style={{ width, flex: "none", background: "var(--glass-sheet)", minHeight: 0, maxWidth: "100%" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "18px 18px 12px" }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 4 }}>
           {renaming ? (
@@ -212,10 +213,10 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
             </div>
           ) : (
             <button type="button" title="Rename" disabled={disabled} onClick={() => onRenaming(true)} style={{ display: "block", minWidth: 0, textAlign: "left" }}>
-              <Truncate text={device.name} style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }} />
+              <Truncate text={device.name} selectable style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }} />
             </button>
           )}
-          <Truncate text={[roomTitle(device.room.name), device.product_name].filter(Boolean).join(" · ")} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
+          <Truncate text={[roomTitle(device.room.name), device.product_name].filter(Boolean).join(" · ")} selectable style={{ fontSize: 13, color: "var(--ink-muted)" }} />
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: device.online ? "var(--sage-text)" : "var(--error)", marginTop: 2 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: device.online ? "var(--sage)" : "var(--error)", flex: "none" }} />
             {device.online ? (device.bridge_name ? `Online · via ${device.bridge_name}` : "Online") : "Offline"}
@@ -353,7 +354,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
           <span className="ui-label">Capabilities</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
             {device.capabilities.map((cap) => (
-              <span key={cap.capability} className="ui-mono" style={{ padding: "3px 9px", borderRadius: 8, background: "var(--sage-fill)", fontSize: 12, color: "var(--sage-text)" }}>
+              <span key={cap.capability} data-selectable className="ui-mono" style={{ padding: "3px 9px", borderRadius: 8, background: "var(--sage-fill)", fontSize: 12, color: "var(--sage-text)" }}>
                 {cap.capability}
               </span>
             ))}

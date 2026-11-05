@@ -3,6 +3,7 @@ import { Clamp, Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { isSameDay, isSameMonth } from "./dates";
+import { PlanButton } from "./PlanButton";
 import { itemKey, plansOn, planTone } from "./plans";
 
 const SHEET: CSSProperties = {
@@ -99,15 +100,11 @@ export function CalendarWeek({ days, now, items, onOpen }: CalendarViewsProps) {
                 const ended =
                   item.outcome === "done" || item.state === "cancelled";
                 return (
-                  <button
+                  <PlanButton
                     key={itemKey(item)}
-                    type="button"
+                    item={item}
                     className="ui-hover-card ui-trans"
                     onClick={(e) => onOpen(item, e.currentTarget)}
-                    onContextMenu={(e) => {
-                      e.preventDefault();
-                      onOpen(item, e.currentTarget);
-                    }}
                     title={item.title}
                     style={{
                       display: "flex",
@@ -177,7 +174,7 @@ export function CalendarWeek({ days, now, items, onOpen }: CalendarViewsProps) {
                         missed
                       </span>
                     ) : null}
-                  </button>
+                  </PlanButton>
                 );
               })}
             </div>
@@ -280,14 +277,10 @@ export function CalendarMonth({
                 {day.getDate()}
               </button>
               {own.slice(0, 3).map((item) => (
-                <button
+                <PlanButton
                   key={itemKey(item)}
-                  type="button"
+                  item={item}
                   onClick={(e) => onOpen(item, e.currentTarget)}
-                  onContextMenu={(e) => {
-                    e.preventDefault();
-                    onOpen(item, e.currentTarget);
-                  }}
                   style={{
                     display: "flex",
                     alignItems: "center",
@@ -314,7 +307,7 @@ export function CalendarMonth({
                       color: "var(--ink-muted)",
                     }}
                   />
-                </button>
+                </PlanButton>
               ))}
               {own.length > 3 ? (
                 <button
