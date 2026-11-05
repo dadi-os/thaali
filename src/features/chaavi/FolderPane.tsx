@@ -4,6 +4,7 @@ import { useContextActions } from "../../shared/interaction/contextMenu";
 import { EASE, SLOW_S } from "../../shared/motion";
 import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
+import { Field, FIELD_INPUT } from "../../shared/ui/Field";
 import { Icon, type IconName } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
@@ -34,17 +35,17 @@ function ScopeRow({ icon, name, count, selected, drop, hot = false, onClick }: S
   return (
     <button
       type="button"
-      className="ui-trans ui-hover-fill"
       data-drop={drop}
       aria-current={selected ? "true" : "false"}
       onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", height: 38, flex: "none", padding: "0 12px", borderRadius: 12, background: selected ? "var(--sage-active)" : "transparent", fontWeight: selected ? 600 : 500, ...(hot ? HOT_STYLE : {}) }}
+      className={`ui-trans ui-hover-fill flex h-10 w-full flex-none items-center gap-2.5 rounded-[12px] px-3 ${selected ? "bg-sage-active font-semibold" : "bg-transparent font-medium"}`}
+      style={hot ? HOT_STYLE : undefined}
     >
-      <span style={{ display: "flex", color: selected ? "var(--sage-text)" : "var(--ink-muted)" }}>
-        <Icon name={icon} size={15} />
+      <span className={`flex ${selected ? "text-sage-text" : "text-ink-muted"}`}>
+        <Icon name={icon} size={16} />
       </span>
-      <Truncate text={name} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
-      <span style={{ fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>{count}</span>
+      <Truncate text={name} className="min-w-0 flex-1 text-[14px]" />
+      <span className="text-[13px] text-ink-muted tabular-nums">{count}</span>
     </button>
   );
 }
@@ -52,7 +53,7 @@ function ScopeRow({ icon, name, count, selected, drop, hot = false, onClick }: S
 /** The label above a group of rows. */
 function GroupLabel({ children }: { children: string }) {
   return (
-    <span className="ui-label" style={{ padding: "14px 12px 6px", fontSize: 11 }}>
+    <span className="ui-label px-3 pt-3.5 pb-1.5">
       {children}
     </span>
   );
@@ -76,9 +77,10 @@ function NameRow({ depth, initial, save, onSubmit, onCancel }: NameRowProps) {
     }
   };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "none", height: 38, padding: `0 8px 0 ${12 + depth * 16}px`, borderRadius: 12, background: "var(--sage-active)" }}>
+    <div className="flex-none" style={{ paddingLeft: depth * 16 }}>
+      <Field extra={<><IconButton icon="check" label={save} size={32} iconSize={14} onClick={submit} /><IconButton icon="close" label="Cancel" size={32} iconSize={14} onClick={onCancel} /></>}>
       <input
-        className="cinp"
+        className={`${FIELD_INPUT} text-[14px]`}
         type="text"
         aria-label="Folder name"
         placeholder="Folder name"
@@ -94,10 +96,8 @@ function NameRow({ depth, initial, save, onSubmit, onCancel }: NameRowProps) {
             onCancel();
           }
         }}
-        style={{ fontSize: 14, color: "var(--ink)" }}
       />
-      <IconButton icon="check" label={save} size={26} iconSize={14} onClick={submit} />
-      <IconButton icon="close" label="Cancel" size={26} iconSize={14} onClick={onCancel} />
+      </Field>
     </div>
   );
 }
@@ -127,42 +127,40 @@ function FolderRow({ node, depth, on, open, hot, dropKey, busy, onScope, onToggl
   return (
     <div
       {...context}
-      className="frow ui-trans ui-hover-fill"
+      className={`frow ui-trans ui-hover-fill flex h-10 w-full flex-none items-center gap-1.5 rounded-[12px] pr-2 ${on ? "bg-sage-active" : "bg-transparent"}`}
       data-drop={dropKey}
-      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", height: 38, flex: "none", padding: `0 8px 0 ${6 + depth * 16}px`, borderRadius: 12, background: on ? "var(--sage-active)" : "transparent", ...(hot ? HOT_STYLE : {}) }}
+      style={{ paddingLeft: 6 + depth * 16, ...(hot ? HOT_STYLE : {}) }}
     >
       {node.children.length > 0 ? (
         <button
           type="button"
-          className="ui-trans ui-hover-fill"
+          className="ui-trans ui-hover-fill -mx-1 flex size-8 flex-none items-center justify-center rounded-[8px] text-ink-muted"
           aria-label={`${open ? "Collapse" : "Expand"} ${node.name}`}
           aria-expanded={open ? "true" : "false"}
           onClick={onToggle}
-          style={{ width: 28, height: 28, margin: "0 -4px", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-muted)", flex: "none" }}
         >
-          <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: SLOW_S, ease: EASE }} style={{ display: "flex" }}>
+          <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: SLOW_S, ease: EASE }} className="flex">
             <Icon name="chevron" size={12} />
           </motion.span>
         </button>
       ) : (
-        <span style={{ width: 20, height: 20, flex: "none" }} />
+        <span className="size-5 flex-none" />
       )}
       <button
         type="button"
-        className="ui-trans"
+        className={`ui-trans flex h-10 min-w-0 flex-1 items-center gap-2.5 text-left ${on ? "font-semibold" : "font-medium"}`}
         aria-current={on ? "true" : "false"}
         onClick={onScope}
-        style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, height: 38, fontWeight: on ? 600 : 500, textAlign: "left" }}
       >
-        <span style={{ display: "flex", color: node.id === null ? "var(--ink-faint)" : on ? "var(--sage-text)" : "var(--ink-muted)" }}>
-          <Icon name="folder" size={15} />
+        <span className={`flex ${node.id === null ? "text-ink-faint" : on ? "text-sage-text" : "text-ink-muted"}`}>
+          <Icon name="folder" size={16} />
         </span>
-        <Truncate text={node.name} style={{ flex: 1, minWidth: 0, fontSize: 14, color: node.id === null ? "var(--ink-muted)" : "var(--ink)" }} />
+        <Truncate text={node.name} className={`min-w-0 flex-1 text-[14px] ${node.id === null ? "text-ink-muted" : "text-ink"}`} />
       </button>
-      <span className="fcount" style={{ fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
+      <span className="fcount text-[13px] text-ink-muted tabular-nums">
         {node.count}
       </span>
-      <span className="fact" style={{ gap: 0 }}>
+      <span className="fact">
         <IconButton icon="plus" label={`Add a folder inside ${node.name}`} size={32} iconSize={13} disabled={busy || undefined} onClick={onAdd} />
         <IconButton icon="pencil" label={`Rename ${node.name}`} size={32} iconSize={13} disabled={busy || undefined} onClick={onRename} />
         {node.id === null ? null : <IconButton icon="trash" label={`Delete ${node.name}`} size={32} iconSize={13} disabled={busy || undefined} onClick={onRemove} />}
@@ -229,8 +227,8 @@ export function FolderPane({ items, folders, scope, busy, hot, onScope, onCreate
       }
       if (editing?.mode === "delete" && editing.path === node.path && node.id !== null) {
         return [
-          <div key={node.path} style={{ display: "flex", flexDirection: "column", flex: "none", gap: 8, padding: `10px 10px 10px ${12 + depth * 16}px`, borderRadius: 12, background: "var(--error-fill)" }}>
-            <span style={{ fontSize: 13, lineHeight: "18px", overflowWrap: "anywhere" }}>
+          <div key={node.path} className="flex flex-none flex-col gap-2 rounded-[12px] bg-error-fill p-2.5" style={{ paddingLeft: 12 + depth * 16 }}>
+            <span className="text-[13px] leading-[18px] break-words">
               {`Delete ${node.name}? Its ${node.own} ${node.own === 1 ? "item moves" : "items move"} to No folder${node.children.length > 0 ? "; the folders inside it stay." : "."}`}
             </span>
             <ButtonGroup>
@@ -294,22 +292,22 @@ export function FolderPane({ items, folders, scope, busy, hot, onScope, onCreate
   );
 
   return (
-    <Card style={{ width: 232, flex: "none", padding: 8, minHeight: 0 }}>
-      <div className="scroll" style={{ display: "flex", flexDirection: "column", gap: 2, flex: 1, minHeight: 0 }}>
+    <Card className="min-h-0 w-58 flex-none p-2">
+      <div className="scroll flex min-h-0 flex-1 flex-col gap-0.5">
         <ScopeRow icon="grid" name="All items" count={items.length} selected={scope.kind === "all"} onClick={() => onScope({ kind: "all" })} />
         <ScopeRow icon="star" name="Favorites" count={items.filter((item) => item.favorite).length} selected={scope.kind === "favorites"} drop="favorites" hot={hot === "favorites"} onClick={() => onScope({ kind: "favorites" })} />
         <GroupLabel>Types</GroupLabel>
         {ITEM_TYPES.filter((type) => kinds.has(type)).map((type) => (
           <ScopeRow key={type} icon={TYPE_META[type].icon} name={TYPE_META[type].many} count={kinds.get(type)!} selected={scope.kind === "type" && scope.type === type} onClick={() => onScope({ kind: "type", type })} />
         ))}
-        <div style={{ display: "flex", alignItems: "center", flex: "none", justifyContent: "space-between", padding: "0 4px 0 0" }}>
+        <div className="flex flex-none items-center justify-between pr-1">
           <GroupLabel>Folders</GroupLabel>
-          <IconButton icon="plus" label="New folder" size={26} iconSize={13} disabled={busy || undefined} onClick={() => startAdding(null)} />
+          <IconButton icon="plus" label="New folder" size={32} iconSize={13} disabled={busy || undefined} onClick={() => startAdding(null)} />
         </div>
         {editing?.mode === "create" && editing.parent === null ? createRow(null, 0) : null}
         {renderNodes(buildFolderTree(folders, items), 0)}
         <ScopeRow icon="folder" name="No folder" count={items.filter((item) => item.folderId === null).length} selected={scope.kind === "none"} drop="none" hot={hot === "none"} onClick={() => onScope({ kind: "none" })} />
-        <span style={{ flex: "none", fontSize: 12, lineHeight: "17px", color: "var(--ink-muted)", padding: "12px 12px 4px" }}>Drag an item onto a folder to move it, or onto Favorites to star it.</span>
+        <span className="flex-none px-3 pt-3 pb-1 text-[12px] leading-[17px] text-ink-muted">Drag an item onto a folder to move it, or onto Favorites to star it.</span>
       </div>
     </Card>
   );

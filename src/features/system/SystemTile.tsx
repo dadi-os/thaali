@@ -6,6 +6,7 @@ import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { AgentName } from "../../shared/ui/AgentName";
 import { Truncate } from "../../shared/ui/Truncate";
+import { ChipRow, MeterRow, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -49,61 +50,49 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
   const meters = metersOf(status);
   const columns = geometry.iw >= 300 ? 3 : 2;
   const serviceRows = Math.ceil(status.services.length / columns);
-  const servicesHeight = 28 * serviceRows + 8 * (serviceRows - 1);
+  const servicesHeight = 32 * serviceRows + 8 * (serviceRows - 1);
   const withDevices = geometry.bh >= 300;
-  const available = geometry.bh - servicesHeight - 12 - (withDevices ? 24 + 12 : 0);
-  const count = Math.max(1, Math.min(meters.length, Math.floor((available + 11) / 40)));
-  const left = available - (count * 29 + (count - 1) * 11) - 12 - 24;
+  const available = geometry.bh - servicesHeight - 12 - (withDevices ? 32 + 12 : 0);
+  const count = Math.max(1, Math.min(meters.length, Math.floor((available + 12) / 42)));
+  const left = available - (count * 30 + (count - 1) * 12) - 12 - 24;
   const taskRows = tasks.length > 0 ? Math.max(0, Math.min(3, Math.floor(left / 28))) : 0;
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12, minHeight: 0, justifyContent: "space-between" }}>
-      <div style={{ display: "grid", gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`, gap: 8, flex: "none" }}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-3">
+      <div className="grid flex-none gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
         {status.services.map((service) => (
-          <div key={service.name} style={{ display: "flex", alignItems: "center", gap: 7, height: 28, padding: "0 10px", borderRadius: 999, justifyContent: "center", background: service.healthy ? "var(--sage-fill)" : "var(--error-fill)", color: service.healthy ? "var(--sage-text)" : "var(--error)", fontSize: 13, fontWeight: 500, minWidth: 0 }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: service.healthy ? "var(--sage)" : "var(--error)", flex: "none" }} />
+          <StatusChip key={service.name} fill tone={service.healthy ? "sage" : "error"} title={service.healthy ? `${service.name} is healthy` : `${service.name} is down`}>
             <Truncate text={service.name} />
-          </div>
+          </StatusChip>
         ))}
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 11, flex: "none" }}>
+      <div className="flex flex-none flex-col gap-3">
         {meters.slice(0, count).map((meter) => (
-          <div key={meter.name} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <div style={{ display: "flex", alignItems: "center", fontSize: 14 }}>
-              <span style={{ flex: 1, minWidth: 0 }}>{meter.name}</span>
-              <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{`${Math.round(meter.percent)}%`}</span>
-            </div>
-            <span style={{ display: "block", height: 5, borderRadius: 4, background: "var(--rule)", overflow: "hidden" }}>
-              <span style={{ display: "block", height: "100%", width: `${Math.min(100, meter.percent)}%`, background: meter.percent > 75 ? "var(--clay)" : "var(--sage)", borderRadius: 4, transformOrigin: "left", animation: "grow 550ms var(--ease) both" }} />
-            </span>
-          </div>
+          <MeterRow key={meter.name} label={meter.name} value={`${Math.round(meter.percent)}%`} percent={meter.percent} />
         ))}
       </div>
       {taskRows > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 0, flex: "none", minHeight: 0 }}>
-          <span className="ui-label" style={{ fontSize: 11, height: 24 }}>Tasks</span>
-          {[...tasks]
-            .sort((a, b) => TASK_ORDER[a.status] - TASK_ORDER[b.status])
-            .slice(0, taskRows)
-            .map((task) => (
-              <div key={task.task} style={{ display: "flex", alignItems: "center", gap: 8, height: 28 }}>
-                <span style={{ color: "var(--ink-muted)", display: "flex" }}>
-                  <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />
-                </span>
-                <AgentName name={task.owner} selectable={false} className="flex-1 truncate text-[14px]" />
-                <Badge status={task.status} />
-              </div>
-            ))}
+        <div className="flex min-h-0 flex-none flex-col">
+          <SectionHeader title="Tasks" />
+          <TileList>
+            {[...tasks]
+              .sort((a, b) => TASK_ORDER[a.status] - TASK_ORDER[b.status])
+              .slice(0, taskRows)
+              .map((task) => (
+                <TileRow key={task.task} size="sm" ruled={false} lead={<Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />} trail={<Badge status={task.status} />}>
+                  <AgentName name={task.owner} selectable={false} className="truncate" />
+                </TileRow>
+              ))}
+          </TileList>
         </div>
       ) : null}
       {withDevices ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, height: 24, flex: "none", fontSize: 13, color: "var(--ink-muted)", overflow: "hidden" }}>
+        <ChipRow wrap>
           {clients.map((client) => (
-            <div key={client.node_name} style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: client.online ? "var(--sage)" : client.pending ? "var(--clay)" : "var(--ink-ghost)", flex: "none" }} />
+            <StatusChip key={client.node_name} tone={client.online ? "sage" : client.pending ? "clay" : "quiet"} title={`${client.node_name}: ${client.online ? "online" : client.pending ? "waiting to join" : "offline"}`}>
               {client.node_name}
-            </div>
+            </StatusChip>
           ))}
-        </div>
+        </ChipRow>
       ) : null}
     </div>
   );
@@ -138,17 +127,17 @@ export function SystemTile({ order }: { order: number }) {
       loading={failed === undefined && !ready && shown.state.kind === "loading"}
       notice={failed === undefined && !ready && shown.state.kind === "loading" ? null : tileNotice(shown.state, { name: "Nas", request: shown.request, empty: ["Nothing reported", ""] }, () => void shown.query.refetch())}
       skeleton={(g) => (
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 8 }}>
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="grid grid-cols-3 gap-2">
             {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} width="100%" height={28} radius={999} />
+              <Skeleton key={i} width="100%" height={32} radius={999} />
             ))}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3">
             {Array.from({ length: Math.max(3, Math.min(5, Math.floor((g.bh - 130) / 36))) }, (_, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-                <Skeleton width="100%" height={12} />
-                <Skeleton width="100%" height={5} />
+              <div key={i} className="flex flex-col gap-1">
+                <Skeleton width="100%" height={16} />
+                <Skeleton width="100%" height={6} />
               </div>
             ))}
           </div>

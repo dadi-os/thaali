@@ -1,8 +1,9 @@
 /**
  * First run and the way back to dadi, as on the phone: the field with દાદી resolving on it,
- * then a glass card to paste (or scan) the setup code; the wordmark breathing while this
- * computer joins; one tap to join when provisioned and off; and a glass Can't reach dadi
- * card with the real error, Try again and Forget this device.
+ * then the setup-code field to paste (or scan) into; the wordmark breathing while this
+ * computer joins; one tap to join when provisioned and off; and the Can't reach dadi state
+ * with the real error, Try again and Forget this device. Every stage is flat, built from the
+ * shared parts, and enters and leaves the same way.
  *
  * One wordmark lives through every stage. It is laid out once at its largest size and each
  * stage holds an invisible slot of the size it should show there; the mark glides to the
@@ -24,8 +25,11 @@ import { isTauriRuntime } from "../../shared/desktop/runtime";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { FieldBloom } from "../../shared/layout/FieldBloom";
 import { Wordmark } from "../../shared/layout/Wordmark";
-import { IconCamera, IconPower, IconRetry } from "../../shared/ui/IconButton";
-import { EASE, SLOWER_S } from "../../shared/motion";
+import { StateView } from "../../shared/states/ModuleState";
+import { Button, ButtonGroup } from "../../shared/ui/Button";
+import { TextField } from "../../shared/ui/Field";
+import { Icon } from "../../shared/ui/Icon";
+import { EASE, RISE, SLOWER_S } from "../../shared/motion";
 import { dispatchDesktopShell } from "../../contexts/desktopShell";
 import { QrScanner } from "./QrScanner";
 import { useNeedsProvisioning } from "./useNeedsProvisioning";
@@ -51,21 +55,7 @@ const SLOT_SIZE: Record<OnboardingStage, number> = {
 const INTRO_MS = 1_500;
 
 /** The wordmark gliding between stages: a smooth, unbouncy spring. */
-const GLIDE = { type: "spring", bounce: 0, duration: 0.7 } as const;
-
-/** A card arriving a beat after the stage changes, and leaving quicker. */
-const CARD = {
-  initial: { opacity: 0, scale: 0.94 },
-  animate: { opacity: 1, scale: 1, transition: { type: "spring", bounce: 0, duration: SLOWER_S, delay: 0.15 } },
-  exit: { opacity: 0, scale: 0.94, y: 24, transition: { duration: 0.4, ease: EASE } },
-} as const;
-
-/** Content on the bare field: it only fades. */
-const FIELD = {
-  initial: { opacity: 0 },
-  animate: { opacity: 1, transition: { duration: SLOWER_S, ease: EASE, delay: 0.1 } },
-  exit: { opacity: 0, transition: { duration: 0.25, ease: EASE } },
-} as const;
+const GLIDE = { type: "spring", bounce: 0, duration: SLOWER_S } as const;
 
 /** Where the wordmark's center goes and how far it is scaled. */
 type Placement = { x: number; y: number; scale: number };
@@ -241,87 +231,66 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
 
       <AnimatePresence initial={false}>
         {stage === "starting" || stage === "intro" ? (
-          <Stage key={stage} motionProps={FIELD}>
+          <Stage key={stage}>
             <Slot size={SLOT_SIZE[stage]} slotRef={slotRef(stage)} />
           </Stage>
         ) : null}
 
         {stage === "connecting" ? (
-          <Stage key="connecting" motionProps={FIELD}>
-            <div className="flex flex-col items-center gap-7 text-center">
-              <Slot size={SLOT_SIZE.connecting} slotRef={slotRef("connecting")} />
-              <div className="flex flex-col items-center gap-2.5">
-                <h1 className="m-0 text-[20px] font-semibold text-ink">Connecting to dadi</h1>
-                <p className="m-0 max-w-[22rem] text-[14px] leading-relaxed text-ink-muted">
-                  {joining
-                    ? "Joining with your new setup code. The first time, your computer may ask for your password."
-                    : "Joining this computer to dadi. The first time, your computer may ask for your password."}
-                </p>
-              </div>
-            </div>
+          <Stage key="connecting">
+            <Slot size={SLOT_SIZE.connecting} slotRef={slotRef("connecting")} />
+            <Heading
+              title="Connecting to dadi"
+              text={
+                joining
+                  ? "Joining with your new setup code. The first time, your computer may ask for your password."
+                  : "Joining this computer to dadi. The first time, your computer may ask for your password."
+              }
+            />
           </Stage>
         ) : null}
 
         {stage === "ready" ? (
-          <Stage key="ready" motionProps={FIELD}>
-            <div className="flex flex-col items-center gap-7 text-center">
-              <Slot size={SLOT_SIZE.ready} slotRef={slotRef("ready")} />
-              <div className="flex flex-col items-center gap-2.5">
-                <h1 className="m-0 text-[20px] font-semibold text-ink">Connect to dadi</h1>
-                <p className="m-0 max-w-[22rem] text-[14px] leading-relaxed text-ink-muted">
-                  Joins this computer to dadi, so this app, your browser and Terminal can all reach it.
-                </p>
-              </div>
-              <button
-                type="button"
-                autoFocus
-                className="glass-button glass-button--prominent min-w-[9rem]"
-                onClick={() => {
-                  void onConnect();
-                }}
-              >
-                <span className="size-4 [&_svg]:size-full">
-                  <IconPower />
-                </span>
-                Connect
-              </button>
+          <Stage key="ready">
+            <Slot size={SLOT_SIZE.ready} slotRef={slotRef("ready")} />
+            <Heading title="Connect to dadi" text="Joins this computer to dadi, so this app, your browser and Terminal can all reach it." />
+            <Button tone="fill" size="xl" pill icon="power" autoFocus className="min-w-36" onClick={() => void onConnect()}>
+              Connect
+            </Button>
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2">
+              <Button tone="quiet" size="md" onClick={onForget}>
+                Forget this device
+              </Button>
             </div>
-            <QuietForget onForget={onForget} />
           </Stage>
         ) : null}
 
         {stage === "failed" ? (
-          <Stage key="failed" motionProps={CARD}>
-            <div className="flex w-full flex-col items-center gap-6">
-              <Slot size={SLOT_SIZE.failed} slotRef={slotRef("failed")} />
-              <div className="glass-card flex w-full max-w-[29rem] flex-col items-center gap-4 px-8 py-8 text-center">
-                <IconUnreachable />
-                <h1 className="m-0 text-[21px] font-semibold text-ink">Can't reach dadi</h1>
-                <p className="m-0 select-text text-[14px] leading-relaxed break-words text-ink-muted">{failed}</p>
-                <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-                  <button type="button" className="glass-button glass-button--danger" onClick={onForget}>
-                    Forget this device
-                  </button>
-                  <button type="button" autoFocus className="glass-button glass-button--prominent" onClick={onTryAgain}>
-                    <IconRetry />
-                    Try again
-                  </button>
-                </div>
-              </div>
+          <Stage key="failed">
+            <Slot size={SLOT_SIZE.failed} slotRef={slotRef("failed")} />
+            <div data-selectable className="flex w-full flex-col">
+              <StateView kind="error" title="Can't reach dadi" detail={failed ?? undefined} />
             </div>
+            <ButtonGroup justify="center" wrap>
+              <Button tone="danger" size="xl" pill onClick={onForget}>
+                Forget this device
+              </Button>
+              <Button tone="fill" size="xl" pill icon="retry" autoFocus onClick={onTryAgain}>
+                Try again
+              </Button>
+            </ButtonGroup>
           </Stage>
         ) : null}
 
         {stage === "paste" ? (
-          <Stage key="paste" motionProps={CARD}>
-            <PasteCard
+          <Stage key="paste">
+            <Slot size={SLOT_SIZE.paste} slotRef={slotRef("paste")} />
+            <Heading title="Join dadi" text="On your box, open Preferences → Devices, add this computer, and paste its setup code here." />
+            <PasteForm
               code={code}
               error={setupError}
-              slot={<Slot size={SLOT_SIZE.paste} slotRef={slotRef("paste")} />}
               onCode={setCode}
-              onJoin={() => {
-                void joinWithCode(code);
-              }}
+              onJoin={() => void joinWithCode(code)}
               onScan={() => {
                 setSetupError(null);
                 setSetupView("scan");
@@ -331,25 +300,24 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
         ) : null}
 
         {stage === "scan" ? (
-          <Stage key="scan" motionProps={CARD}>
-            <div className="glass-card flex w-full max-w-[30rem] flex-col items-center gap-5 px-8 py-7 text-center">
-              <Slot size={SLOT_SIZE.scan} slotRef={slotRef("scan")} />
-              <h1 className="m-0 text-[19px] font-semibold text-ink">Scan the code on your box</h1>
-              <div className="w-[min(18rem,100%)]">
-                <QrScanner onDecode={onScanDecode} />
-              </div>
-              {setupError ? <Problem text={setupError} /> : null}
-              <button
-                type="button"
-                className="glass-button"
-                onClick={() => {
-                  setSetupError(null);
-                  setSetupView("paste");
-                }}
-              >
-                Paste a setup code
-              </button>
+          <Stage key="scan">
+            <Slot size={SLOT_SIZE.scan} slotRef={slotRef("scan")} />
+            <Heading title="Scan the code on your box" />
+            <div className="w-[min(18rem,100%)]">
+              <QrScanner onDecode={onScanDecode} />
             </div>
+            <Problem text={setupError} />
+            <Button
+              tone="outline"
+              size="xl"
+              pill
+              onClick={() => {
+                setSetupError(null);
+                setSetupView("paste");
+              }}
+            >
+              Paste a setup code
+            </Button>
           </Stage>
         ) : null}
       </AnimatePresence>
@@ -361,12 +329,8 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
         animate={placement ? { x: placement.x, y: placement.y, opacity: 1 } : { opacity: 0 }}
         transition={placement?.instant || reduce ? { duration: 0 } : GLIDE}
       >
-        <div style={{ transform: "translate(-50%, -50%)" }}>
-          <motion.div
-            initial={false}
-            animate={{ scale: placement?.scale ?? 1 }}
-            transition={placement?.instant || reduce ? { duration: 0 } : GLIDE}
-          >
+        <div className="-translate-x-1/2 -translate-y-1/2">
+          <motion.div initial={false} animate={{ scale: placement?.scale ?? 1 }} transition={placement?.instant || reduce ? { duration: 0 } : GLIDE}>
             <Wordmark size={MARK_SIZE} resolve breathe={breathing} className="text-sage-deep" />
           </motion.div>
         </div>
@@ -376,16 +340,31 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
 }
 
 type StageProps = {
-  motionProps: typeof CARD | typeof FIELD;
   children: ReactNode;
 };
 
-/** One stage's content, stacked over the others while they cross, scrolling when the window is short. */
-function Stage({ motionProps, children }: StageProps) {
+/** One stage: a centered, un-boxed column on the field. Every stage enters and leaves the same way, stacked while they cross, and scrolls when the window is short. */
+function Stage({ children }: StageProps) {
   return (
-    <motion.div className="absolute inset-0 overflow-y-auto" {...motionProps}>
-      <div className="relative flex min-h-full flex-col items-center justify-center px-6 py-12">{children}</div>
+    <motion.div className="scroll absolute inset-0" {...RISE}>
+      <div className="relative mx-auto flex min-h-full w-full max-w-[28rem] flex-col items-center justify-center gap-6 px-6 py-12 text-center">{children}</div>
     </motion.div>
+  );
+}
+
+type HeadingProps = {
+  title: string;
+  /** One line of explanation under the title. */
+  text?: string;
+};
+
+/** A stage's title and the sentence under it. */
+function Heading({ title, text }: HeadingProps) {
+  return (
+    <div className="flex flex-col items-center gap-2">
+      <h1 className="m-0 text-[20px] font-semibold text-ink">{title}</h1>
+      {text ? <p className="m-0 text-[14px] leading-relaxed text-ink-muted">{text}</p> : null}
+    </div>
   );
 }
 
@@ -398,29 +377,23 @@ type SlotProps = {
 /** An invisible દાદી of the size the wordmark shows at in a stage, marking where it goes. */
 function Slot({ size, slotRef }: SlotProps) {
   return (
-    <span
-      ref={slotRef}
-      aria-hidden
-      className="invisible inline-block shrink-0 whitespace-nowrap font-gujarati font-medium leading-none"
-      style={{ fontSize: size }}
-    >
+    <span ref={slotRef} aria-hidden className="invisible inline-block shrink-0 font-gujarati leading-none font-medium whitespace-nowrap" style={{ fontSize: size }}>
       દાદી
     </span>
   );
 }
 
-type PasteCardProps = {
+type PasteFormProps = {
   code: string;
+  /** Why the last join failed, or null. */
   error: string | null;
-  /** The wordmark's slot at the top of the card. */
-  slot: ReactNode;
   onCode: (code: string) => void;
   onJoin: () => void;
   onScan: () => void;
 };
 
-/** The glass paste card: the wordmark, Join dadi, the dashed setup-code field and Join. */
-function PasteCard({ code, error, slot, onCode, onJoin, onScan }: PasteCardProps) {
+/** The setup-code field with Join and the way to scan instead; Enter joins, Shift+Enter breaks the line. */
+function PasteForm({ code, error, onCode, onJoin, onScan }: PasteFormProps) {
   const empty = code.trim().length === 0;
   const submit = (e: { preventDefault(): void }) => {
     e.preventDefault();
@@ -429,97 +402,53 @@ function PasteCard({ code, error, slot, onCode, onJoin, onScan }: PasteCardProps
     }
   };
   return (
-    <form
-      onSubmit={submit}
-      className="glass-card flex w-full max-w-[32rem] flex-col items-center gap-5 px-9 py-8 text-center"
-    >
-      {slot}
-      <div className="flex flex-col items-center gap-2">
-        <h1 className="m-0 text-[22px] font-semibold text-ink">Join dadi</h1>
-        <p className="m-0 max-w-[25rem] text-[14px] leading-relaxed text-ink-muted">
-          On your box, open Preferences → Devices, add this computer, and paste its setup code here.
-        </p>
-      </div>
-      <textarea
+    <form onSubmit={submit} className="flex w-full flex-col items-stretch gap-4 text-left">
+      <TextField
         autoFocus
-        autoComplete="off"
-        spellCheck={false}
-        aria-label="Setup code"
-        placeholder="Setup code"
+        label="Setup code"
+        placeholder="Paste the setup code"
         rows={4}
         value={code}
-        onChange={(e) => onCode(e.target.value)}
+        invalid={error !== null}
+        className="font-numeric text-[13px] break-all"
+        onChange={onCode}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey) {
             submit(e);
           }
         }}
-        className="w-full resize-none rounded-[16px] border-[1.5px] border-dashed border-sage-line bg-bone-raised/70 px-4 py-3 text-left font-mono text-[13px] leading-relaxed break-all text-ink outline-none placeholder:text-ink-faint focus:border-sage"
       />
-      <AnimatePresence initial={false}>
-        {error ? (
-          <motion.div
-            key={error}
-            initial={{ opacity: 0, scale: 0.96 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.96 }}
-            transition={{ type: "spring", bounce: 0, duration: 0.32 }}
-          >
-            <Problem text={error} />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-      <button type="submit" disabled={empty} className="glass-button glass-button--prominent min-w-[9rem]">
-        Join
-      </button>
-      <button type="button" className="glass-button" onClick={onScan}>
-        <span className="size-4 [&_svg]:size-full">
-          <IconCamera />
-        </span>
-        Scan the code instead
-      </button>
+      <Problem text={error} />
+      <div className="flex flex-col items-center gap-2">
+        <Button type="submit" tone="fill" size="xl" pill disabled={empty} className="min-w-36">
+          Join
+        </Button>
+        <Button tone="quiet" size="md" pill icon="camera" onClick={onScan}>
+          Scan the code instead
+        </Button>
+      </div>
     </form>
   );
 }
 
-/** A join or read problem, in the error color with its mark. */
-function Problem({ text }: { text: string }) {
-  return (
-    <p role="alert" className="m-0 flex items-start gap-2 text-left text-[13px] leading-relaxed text-error select-text">
-      <svg viewBox="0 0 16 16" fill="none" aria-hidden className="mt-[3px] size-[14px] shrink-0">
-        <circle cx="8" cy="8" r="6.6" stroke="currentColor" strokeWidth="1.4" />
-        <path d="M8 4.6v4.1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
-        <circle cx="8" cy="11.2" r="0.9" fill="currentColor" />
-      </svg>
-      <span className="min-w-0 break-words">{text}</span>
-    </p>
-  );
-}
+type ProblemProps = {
+  /** The join or read problem, or null for none. */
+  text: string | null;
+};
 
-/** Forget this device as a quiet line at the foot of the field. */
-function QuietForget({ onForget }: { onForget: () => void }) {
+/** A join or read problem in the error color; it rises in and leaves when the problem clears. */
+function Problem({ text }: ProblemProps) {
   return (
-    <button
-      type="button"
-      onClick={onForget}
-      className="absolute bottom-7 left-1/2 -translate-x-1/2 text-[13px] text-ink-faint transition-colors hover:text-ink-muted"
-    >
-      Forget this device
-    </button>
-  );
-}
-
-/** Wi-Fi with an exclamation, in clay: dadi is out of reach. */
-function IconUnreachable() {
-  return (
-    <svg viewBox="0 0 48 48" fill="none" aria-hidden className="size-11 text-[var(--clay)]">
-      <path d="M6 18.5a26 26 0 0 1 30.5-4.2" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <path d="M12.2 25a17 17 0 0 1 18.6-3" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <path d="M18.4 31.4a8 8 0 0 1 8.4-1.6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
-      <circle cx="22.6" cy="37.4" r="2.4" fill="currentColor" />
-      <path d="M40 20v10" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" />
-      <circle cx="40" cy="37" r="2.2" fill="currentColor" />
-    </svg>
+    <AnimatePresence initial={false}>
+      {text ? (
+        <motion.p key={text} role="alert" data-selectable className="m-0 flex items-start gap-2 text-left text-[13px] leading-relaxed text-error" {...RISE}>
+          <span className="mt-0.5 flex-none">
+            <Icon name="alert" size={14} />
+          </span>
+          <span className="min-w-0 break-words">{text}</span>
+        </motion.p>
+      ) : null}
+    </AnimatePresence>
   );
 }
 

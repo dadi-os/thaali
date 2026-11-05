@@ -126,8 +126,7 @@ export function Dock({
           ) : null}
         </AnimatePresence>
         <div
-          className="flex items-end gap-1"
-          style={{ padding: FIELD.pad }}
+          className="flex items-end gap-1 p-2"
           onDragOver={(e) => {
             if (!offline && e.dataTransfer.types.includes("Files")) {
               e.preventDefault();

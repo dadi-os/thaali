@@ -1,8 +1,5 @@
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
-/** The monospace stack the feed draws tool calls and code in. */
-export const MONO = '"Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace';
-
 /** The inline markdown the feed shows: `**bold**` and `code`; anything else is text. */
 function inline(source: string): ReactNode[] {
   return source
@@ -11,14 +8,14 @@ function inline(source: string): ReactNode[] {
     .map((part, index) => {
       if (part.startsWith("**")) {
         return (
-          <strong key={index} style={{ fontWeight: 600 }}>
+          <strong key={index} className="font-semibold">
             {part.slice(2, -2)}
           </strong>
         );
       }
       if (part.startsWith("`")) {
         return (
-          <code key={index} style={{ fontFamily: MONO, fontSize: "0.92em" }}>
+          <code key={index} className="font-numeric text-[0.92em]">
             {part.slice(1, -1)}
           </code>
         );
@@ -30,26 +27,29 @@ function inline(source: string): ReactNode[] {
 export type RichProps = {
   /** Markdown: paragraphs, `- ` bullets, `**bold**` and `code`; nothing else is interpreted. */
   source: string;
-  size?: number;
+  /** Type size in px: one of the type scale. */
+  size?: 11 | 12 | 13 | 14;
+  /** Line height in px. */
   lineHeight?: number;
+  /** A CSS colour. */
   color?: string;
 };
 
 /** Agent-written text as the activity feed draws it. */
-export function Rich({ source, size = 12.5, lineHeight = 18, color = "var(--ink)" }: RichProps) {
+export function Rich({ source, size = 12, lineHeight = 18, color = "var(--ink)" }: RichProps) {
   return (
-    <div data-selectable style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <div data-selectable className="flex flex-col gap-0.5">
       {source
         .split("\n")
         .filter((line) => line.trim() !== "")
         .map((line, index) =>
           line.startsWith("- ") ? (
-            <div key={index} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: size, lineHeight: `${lineHeight}px`, color }}>
-              <span className="dot" style={{ width: 4, height: 4, background: "var(--sage)", marginTop: Math.round((lineHeight - 4) / 2) }} />
-              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{inline(line.slice(2))}</span>
+            <div key={index} className="flex items-start gap-2" style={{ fontSize: size, lineHeight: `${lineHeight}px`, color }}>
+              <span className="dot size-1 bg-sage" style={{ marginTop: Math.round((lineHeight - 4) / 2) }} />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{inline(line.slice(2))}</span>
             </div>
           ) : (
-            <span key={index} style={{ display: "block", fontSize: size, lineHeight: `${lineHeight}px`, color, overflowWrap: "anywhere" }}>
+            <span key={index} className="block [overflow-wrap:anywhere]" style={{ fontSize: size, lineHeight: `${lineHeight}px`, color }}>
               {inline(line)}
             </span>
           ),
@@ -85,12 +85,12 @@ export function Expand({ lines, lineHeight, open, onToggle, children }: ExpandPr
   }, [lines, lineHeight]);
   const cut = overflows && !open;
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-      <div style={cut ? { maxHeight: lines * lineHeight, overflow: "hidden", WebkitMaskImage: "linear-gradient(to bottom, black 60%, transparent)" } : {}}>
+    <div className="flex flex-col gap-0.5">
+      <div className={cut ? "overflow-hidden [-webkit-mask-image:linear-gradient(to_bottom,black_60%,transparent)]" : ""} style={cut ? { maxHeight: lines * lineHeight } : undefined}>
         <div ref={inner}>{children}</div>
       </div>
       {overflows ? (
-        <button type="button" className="ui-trans" aria-expanded={open} onClick={onToggle} style={{ alignSelf: "flex-start", fontSize: 12, fontWeight: 600, color: "var(--sage-text)" }}>
+        <button type="button" className="ui-trans self-start text-[12px] font-semibold text-sage-text" aria-expanded={open} onClick={onToggle}>
           {open ? "Show less" : "Show all"}
         </button>
       ) : null}

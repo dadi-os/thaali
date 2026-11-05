@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link } from "react-router-dom";
 import { FADE, RISE } from "../../shared/motion";
@@ -95,22 +95,6 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
     return () => observer.disconnect();
   }, []);
 
-  const style: CSSProperties = {
-    display: "flex",
-    flexDirection: "column",
-    gap: 12,
-    padding: 16,
-    textDecoration: "none",
-    color: "var(--ink)",
-    background: "var(--glass-veil)",
-    border: "1px solid var(--glass-border)",
-    borderRadius: 18,
-    boxShadow: "var(--shadow-card)",
-    minWidth: 0,
-    minHeight: 0,
-    overflow: "hidden",
-    gridArea: area,
-  };
   let body: ReactNode = null;
   let phase = "content";
   if (geometry !== null) {
@@ -126,16 +110,16 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
   }
   const showSummary = summary !== undefined && summary !== "" && notice === null && !loading;
   return (
-    <MotionLink ref={frame} to={to} aria-label={title} className="ui-hover-card ui-trans" style={style} {...RISE} transition={{ ...RISE.transition, delay: order * ENTRANCE_STEP_S }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 12, height: 24, flex: "none", padding: "0 2px" }}>
-        <span style={{ fontSize: 16, fontWeight: 600, color: "var(--sage-text)", letterSpacing: "-0.005em", flex: "none" }}>{title}</span>
-        <div style={{ flex: 1 }} />
-        {showSummary ? <Truncate text={summary} style={{ fontSize: 14, color: "var(--ink-muted)", maxWidth: "68%" }} /> : null}
+    <MotionLink ref={frame} to={to} aria-label={title} className="ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-[20px] border border-glass-border bg-glass-veil p-4 text-ink no-underline shadow-[var(--shadow-card)]" style={{ gridArea: area }} {...RISE} transition={{ ...RISE.transition, delay: order * ENTRANCE_STEP_S }}>
+      <div className="flex h-6 flex-none items-center gap-3 px-0.5">
+        <span className="flex-none text-[17px] font-semibold tracking-[-0.005em] text-sage-text">{title}</span>
+        <div className="flex-1" />
+        {showSummary ? <Truncate text={summary} className="max-w-[68%] text-[14px] text-ink-muted tabular-nums" /> : null}
         {right}
       </div>
-      <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={phase} style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column" }} {...FADE}>
+          <motion.div key={phase} className="flex min-h-0 min-w-0 flex-1 flex-col" {...FADE}>
             {body}
           </motion.div>
         </AnimatePresence>

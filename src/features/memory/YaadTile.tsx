@@ -2,6 +2,7 @@ import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, yaad } from "../../shared/api";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
+import { SectionHeader, Stat, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { startOfWeek } from "../timeline/dates";
 import { useModuleState } from "../../shared/hooks/useModuleState";
@@ -58,28 +59,24 @@ type BodyProps = {
 function Body({ nodes, counts, geometry }: BodyProps) {
   const used = nodes.filter((node) => node.access_count > 0).sort((a, b) => b.access_count - a.access_count);
   const oneRow = geometry.iw >= 3 * geometry.bh;
-  const listed = oneRow ? 0 : Math.max(0, Math.min(3, Math.floor((geometry.bh - 170) / 36)));
+  const listed = oneRow ? 0 : Math.max(0, Math.min(3, Math.floor((geometry.bh - 174) / 36)));
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 12 }}>
-      <div style={{ flex: 1, minHeight: 0, display: "grid", gridTemplateColumns: oneRow ? "repeat(4,1fr)" : "1fr 1fr", gridTemplateRows: oneRow ? "1fr" : "1fr 1fr", gap: 8 }}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className={`grid min-h-0 flex-1 gap-2 ${oneRow ? "grid-cols-4 grid-rows-1" : "grid-cols-2 grid-rows-2"}`}>
         {CELLS.map(({ kind, name, ink }) => (
-          <div key={kind} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 4, borderRadius: 14, background: "var(--sage-fill)", minWidth: 0, minHeight: 0, position: "relative" }}>
-            <span style={{ position: "absolute", top: 10, left: 12, width: 8, height: 8, borderRadius: "50%", background: ink }} />
-            <span style={{ fontSize: 30, fontWeight: 500, letterSpacing: "-0.02em", fontVariantNumeric: "tabular-nums", lineHeight: 1 }}>{counts.totals.get(kind) ?? 0}</span>
-            <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{name}</span>
-          </div>
+          <Stat key={kind} value={counts.totals.get(kind) ?? 0} label={name} ink={ink} />
         ))}
       </div>
       {listed > 0 ? (
-        <div style={{ display: "flex", flexDirection: "column", flex: "none" }}>
-          <span className="ui-label" style={{ fontSize: 11, paddingBottom: 6 }}>Most used</span>
-          {used.slice(0, listed).map((node) => (
-            <div key={node.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 36, borderTop: "1px solid var(--rule)" }}>
-              <span style={{ width: 7, height: 7, borderRadius: "50%", background: nodeInk(node.kind), flex: "none" }} />
-              <Truncate text={node.title} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
-              <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", fontVariantNumeric: "tabular-nums" }}>{`${node.access_count} uses`}</span>
-            </div>
-          ))}
+        <div className="flex flex-none flex-col">
+          <SectionHeader title="Most used" />
+          <TileList>
+            {used.slice(0, listed).map((node) => (
+              <TileRow key={node.id} lead={<span className="dot size-2" style={{ background: nodeInk(node.kind) }} />} trail={<span className="flex-none text-[13px] whitespace-nowrap text-ink-muted tabular-nums">{`${node.access_count} uses`}</span>}>
+                <Truncate text={node.title} />
+              </TileRow>
+            ))}
+          </TileList>
         </div>
       ) : null}
     </div>
@@ -102,10 +99,10 @@ export function YaadTile({ order }: { order: number }) {
       loading={state.kind === "loading"}
       notice={tileNotice(state, { name: "Yaad", request: "POST /graph", empty: ["Nothing remembered yet", "Memories appear here as agents learn them."] }, () => void query.refetch())}
       skeleton={() => (
-        <div style={{ flex: 1, minWidth: 0, display: "grid", gridTemplateColumns: "1fr 1fr", gridAutoRows: "1fr", gap: 8 }}>
+        <div className="grid min-w-0 flex-1 auto-rows-fr grid-cols-2 gap-2">
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, borderRadius: 14, background: "var(--sage-fill)" }}>
-              <Skeleton width={54} height={28} />
+            <div key={i} className="flex flex-col items-center justify-center gap-2 rounded-[14px] bg-sage-fill">
+              <Skeleton width={56} height={28} />
               <Skeleton width={64} height={12} />
             </div>
           ))}

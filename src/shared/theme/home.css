@@ -1,16 +1,6 @@
 /*
- * The Home tiles' own motion, from the design: a meter that grows from its left edge and the ring that spreads
- * from a running agent's node. The grid itself is in tokens.css.
+ * The Home tiles' own motion, from the design: the ring that spreads from a running agent's node. The grid itself is in tokens.css.
  */
-
-@keyframes grow {
-  from {
-    transform: scaleX(0);
-  }
-  to {
-    transform: scaleX(1);
-  }
-}
 
 @keyframes ring {
   0% {

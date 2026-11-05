@@ -103,39 +103,39 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
     marks.push(hour);
   }
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
-      <div style={{ display: "flex", alignItems: "stretch", height: HEADER, flex: "none" }}>
-        <div style={{ width: AXIS, flex: "none" }} />
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+      <div className="flex flex-none items-stretch" style={{ height: HEADER }}>
+        <div className="flex-none" style={{ width: AXIS }} />
         {days.map((day) => {
           const isToday = day.key === today;
           return (
-            <div key={day.key} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 1, borderRadius: 10, background: isToday ? "var(--sage-deep)" : "transparent", color: isToday ? "var(--bone)" : "var(--ink)" }}>
-              <span style={{ fontSize: 11, fontWeight: 500, color: isToday ? "#e8ece2" : "var(--ink-muted)" }}>{day.dow}</span>
-              <span style={{ fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{day.n}</span>
+            <div key={day.key} className={`flex min-w-0 flex-1 flex-col items-center justify-center gap-px rounded-[10px] ${isToday ? "bg-sage-deep text-bone" : "text-ink"}`}>
+              <span className={`text-[11px] font-medium ${isToday ? "text-bone/80" : "text-ink-muted"}`}>{day.dow}</span>
+              <span className="text-[14px] font-semibold tabular-nums">{day.n}</span>
             </div>
           );
         })}
       </div>
-      <div style={{ display: "flex", alignItems: "stretch", height: areaHeight, flex: "none", position: "relative" }}>
-        <div style={{ width: AXIS, flex: "none", position: "relative" }}>
+      <div className="relative flex flex-none items-stretch" style={{ height: areaHeight }}>
+        <div className="relative flex-none" style={{ width: AXIS }}>
           {marks
             .filter((hour) => (hour - lo) * px + 8 <= areaHeight)
             .map((hour) => (
-              <span key={hour} style={{ position: "absolute", top: (hour - lo) * px - 7, left: 0, fontSize: 11, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
+              <span key={hour} className="absolute left-0 text-[11px] text-ink-muted tabular-nums" style={{ top: (hour - lo) * px - 7 }}>
                 {hourLabel(hour)}
               </span>
             ))}
         </div>
-        <div style={{ position: "absolute", left: AXIS, right: 0, top: 0, bottom: 0 }}>
+        <div className="absolute inset-y-0 right-0" style={{ left: AXIS }}>
           {marks.map((hour) => (
-            <div key={hour} style={{ position: "absolute", left: 0, right: 0, top: (hour - lo) * px, borderTop: "1px solid var(--rule)" }} />
+            <div key={hour} className="absolute inset-x-0 border-t border-rule" style={{ top: (hour - lo) * px }} />
           ))}
         </div>
         {days.map((day) => {
           const isToday = day.key === today;
           const own = week.filter((item) => item.occurrence_date === day.key);
           return (
-            <div key={day.key} style={{ position: "relative", flex: 1, minWidth: 0, borderLeft: "1px solid var(--rule)", background: isToday ? "rgba(143,163,130,.07)" : "transparent" }}>
+            <div key={day.key} className={`relative min-w-0 flex-1 border-l border-rule ${isToday ? "bg-[rgba(143,163,130,.07)]" : ""}`}>
               {own
                 .filter((item) => item.start_at !== null)
                 .map((item) => {
@@ -149,7 +149,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
                       aria-expanded={opened === itemKey(item)}
                       onClick={(event) => open(event, item, onOpen)}
                       title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}`}
-                      style={{ position: "absolute", left: 3, right: 3, top: (hourOf(item.start_at!) - lo) * px, height: Math.max(7, (hourOf(item.end_at!) - hourOf(item.start_at!)) * px - 2), borderRadius: 6, background: wash, borderLeft: `3px solid ${ink}`, opacity: item.outcome === "done" ? 0.55 : 1, boxSizing: "border-box" }}
+                      className="absolute inset-x-1 rounded-[6px] border-l-[3px]" style={{ top: (hourOf(item.start_at!) - lo) * px, height: Math.max(7, (hourOf(item.end_at!) - hourOf(item.start_at!)) * px - 2), background: wash, borderLeftColor: ink, opacity: item.outcome === "done" ? 0.55 : 1 }}
                     />
                   );
                 })}
@@ -163,28 +163,28 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
                     aria-expanded={opened === itemKey(item)}
                     onClick={(event) => open(event, item, onOpen)}
                     title={`${item.title} · due ${formatClock(item.due_at!)}`}
-                    style={{ position: "absolute", left: 3, right: 3, top: Math.min(areaHeight - 8, Math.max(0, (hourOf(item.due_at!) - lo) * px)), height: 6, borderRadius: 4, background: "var(--clay)" }}
+                    className="absolute inset-x-1 h-1.5 rounded-[6px] bg-clay" style={{ top: Math.min(areaHeight - 8, Math.max(0, (hourOf(item.due_at!) - lo) * px)) }}
                   />
                 ))}
-              {isToday ? <div style={{ position: "absolute", left: 0, right: 0, top: (nowHour - lo) * px, height: 2, background: "var(--sage-deep)", zIndex: 2 }} /> : null}
+              {isToday ? <div className="absolute inset-x-0 z-[2] h-0.5 bg-sage-deep" style={{ top: (nowHour - lo) * px }} /> : null}
             </div>
           );
         })}
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, height: FOOTER, flex: "none", fontSize: 13, borderTop: "1px solid var(--rule)", paddingTop: 8 }}>
+      <div className="flex flex-none items-center gap-2 border-t border-rule pt-2 text-[13px]" style={{ height: FOOTER }}>
         {live !== undefined ? (
           <>
             <Chip tone="solid">Now</Chip>
-            <Truncate text={live.title} style={{ flex: 1, minWidth: 0, fontWeight: 500 }} />
+            <Truncate text={live.title} className="min-w-0 flex-1 font-medium" />
           </>
         ) : next !== undefined ? (
           <>
             <Chip>Next</Chip>
-            <Truncate text={next.title} style={{ flex: 1, minWidth: 0, fontWeight: 500 }} />
-            <span style={{ color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", flex: "none" }}>{formatClock(next.start_at!)}</span>
+            <Truncate text={next.title} className="min-w-0 flex-1 font-medium" />
+            <span className="flex-none text-ink-muted tabular-nums">{formatClock(next.start_at!)}</span>
           </>
         ) : (
-          <span style={{ color: "var(--ink-muted)" }}>Nothing left this week</span>
+          <span className="text-ink-muted">Nothing left this week</span>
         )}
       </div>
     </div>
@@ -216,20 +216,20 @@ export function WeekTile({ order }: { order: number }) {
         loading={state.kind === "loading"}
         notice={tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["Nothing planned today", "Sessions appear here once Yaad has some."] }, () => void query.refetch())}
         skeleton={() => (
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 4, height: 36, flex: "none" }}>
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+            <div className="flex h-10 flex-none items-center gap-1">
               {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: 5 }}>
-                  <Skeleton width={22} height={10} />
-                  <Skeleton width={18} height={14} />
+                <div key={i} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+                  <Skeleton width={24} height={12} />
+                  <Skeleton width={20} height={16} />
                 </div>
               ))}
             </div>
-            <div style={{ flex: 1, minWidth: 0, display: "flex", gap: 4, minHeight: 0 }}>
+            <div className="flex min-h-0 min-w-0 flex-1 gap-1">
               {Array.from({ length: 7 }, (_, i) => (
-                <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
+                <div key={i} className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
                   {[1 + (i % 2), 2 + (i % 3), 1 + ((i + 1) % 2)].map((grow, j) => (
-                    <span key={j} className="sk" style={{ display: "block", flex: grow, minHeight: 0, borderRadius: 6 }} />
+                    <span key={j} className="sk block min-h-0 rounded-[6px]" style={{ flex: grow }} />
                   ))}
                 </div>
               ))}

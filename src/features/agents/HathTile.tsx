@@ -2,10 +2,9 @@ import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { hath, isMeshOnline } from "../../shared/api";
-import { motion } from "motion/react";
 import { AgentName } from "../../shared/ui/AgentName";
 import { useContextActions } from "../../shared/interaction/contextMenu";
-import { RISE } from "../../shared/motion";
+import { ChipRow, StatusChip } from "../../shared/components/Module";
 import { agentActions } from "./actions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
@@ -36,7 +35,7 @@ function GhostGraph({ width, height }: { width: number; height: number }) {
   const outer = ring(22, radius * 0.82, -1.1);
   const pulse = (a: number) => `ui-pulse 1.6s ease-in-out ${(Math.abs(a * 0.3) % 1).toFixed(2)}s infinite`;
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" style={{ display: "block" }} aria-hidden="true">
+    <svg viewBox={`0 0 ${width} ${height}`} width="100%" height="100%" className="block" aria-hidden="true">
       {inner.map((p, i) => (
         <line key={`i${i}`} x1={cx} y1={cy} x2={p.x.toFixed(1)} y2={p.y.toFixed(1)} stroke="#e4ebdc" strokeWidth="1.5" />
       ))}
@@ -73,21 +72,19 @@ type AgentChipProps = {
 function AgentChip({ agent, state, onPick }: AgentChipProps) {
   const context = useContextActions(() => agentActions(agent, { onOpenInHath: onPick }));
   return (
-    <motion.button
-      {...RISE}
-      {...context}
-      type="button"
+    <StatusChip
+      pulse
+      context={context}
+      title={`${agent.name} · ${LANE_STATE_LABEL[state]}`}
       onClick={(event) => {
         event.preventDefault();
         event.stopPropagation();
         onPick(agent);
       }}
-      className="inline-flex h-8 min-w-0 flex-[0_1_auto] items-center gap-[7px] rounded-full bg-sage-fill px-3 text-[13px] font-medium whitespace-nowrap text-sage-text"
     >
-      <span className="size-[7px] flex-none rounded-full bg-sage" />
       <AgentName name={agent.name} selectable={false} className="truncate" />
       <span className="flex-none">{`· ${LANE_STATE_LABEL[state]}`}</span>
-    </motion.button>
+    </StatusChip>
   );
 }
 
@@ -97,8 +94,8 @@ function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   const shown: typeof running = [];
   let used = 0;
   for (const entry of running) {
-    const width = 14 + 7 + 8 + Math.min(200, `${entry.agent.name} · ${LANE_STATE_LABEL[entry.state]}`.length * 6.6) + 10;
-    if (used + width > geometry.iw - 30 && shown.length > 0) {
+    const width = 24 + 8 + 8 + Math.min(200, `${entry.agent.name} · ${LANE_STATE_LABEL[entry.state]}`.length * 6.6);
+    if (used + width > geometry.iw - 32 && shown.length > 0) {
       break;
     }
     shown.push(entry);
@@ -106,16 +103,18 @@ function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   }
   const many = agents.length > MANY_AGENTS;
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 12 }}>
-      <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="relative min-h-0 min-w-0 flex-1">
         <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh - 44)} labels={many ? "roots" : "active"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap", height: 32, overflow: "hidden", flex: "none" }}>
-        {shown.map(({ agent, state }) => (
-          <AgentChip key={agent.id} agent={agent} state={state} onPick={onPick} />
-        ))}
-        {running.length > shown.length ? <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none" }}>{`+${running.length - shown.length}`}</span> : null}
-        {running.length === 0 ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Nothing running</span> : null}
+      <div className="flex h-8 flex-none items-center gap-2 overflow-hidden">
+        <ChipRow>
+          {shown.map(({ agent, state }) => (
+            <AgentChip key={agent.id} agent={agent} state={state} onPick={onPick} />
+          ))}
+        </ChipRow>
+        {running.length > shown.length ? <span className="flex-none text-[13px] whitespace-nowrap text-ink-muted tabular-nums">{`+${running.length - shown.length}`}</span> : null}
+        {running.length === 0 ? <span className="text-[13px] text-ink-muted">Nothing running</span> : null}
       </div>
     </div>
   );
@@ -146,13 +145,13 @@ export function HathTile({ order }: { order: number }) {
       loading={state.kind === "loading"}
       notice={tileNotice(state, { name: "Hath", request: "GET /agents", empty: ["No agents yet", "Agents appear here once Hath creates one."] }, () => void query.refetch())}
       skeleton={(g) => (
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-          <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
+        <div className="flex min-w-0 flex-1 flex-col gap-3">
+          <div className="relative min-h-0 min-w-0 flex-1">
             <GhostGraph width={g.iw} height={Math.max(60, g.bh - 44)} />
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, height: 30 }}>
-            <Skeleton width={150} height={28} radius={999} />
-            <Skeleton width={120} height={28} radius={999} />
+          <div className="flex h-8 items-center gap-2">
+            <Skeleton width={152} height={32} radius={999} />
+            <Skeleton width={120} height={32} radius={999} />
           </div>
         </div>
       )}

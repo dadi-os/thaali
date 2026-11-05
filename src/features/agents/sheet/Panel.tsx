@@ -4,6 +4,7 @@ import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { Disclosure } from "../../../shared/ui/Disclosure";
 import { Icon } from "../../../shared/ui/Icon";
+import { ChipRow, KeyValue, SectionHeader, SheetHeader, StatusChip, TileList, TileRow } from "../../../shared/components/Module";
 import { TaskRow } from "../../../shared/components/Task/TaskRow";
 import { AnimatePresence, motion } from "motion/react";
 import { AgentName } from "../../../shared/ui/AgentName";
@@ -73,20 +74,20 @@ function CharterText({ source }: { source: string }) {
       {source.split("\n").flatMap((line, index) => {
         if (line.startsWith("## ")) {
           return [
-            <span key={index} className="mt-2.5 mb-[3px] block text-[13px] font-semibold">
+            <span key={index} className="mt-3 mb-1 block text-[13px] font-semibold">
               {line.slice(3)}
             </span>,
           ];
         }
         if (line.startsWith("- ")) {
           return [
-            <div key={index} className="flex items-start gap-2 text-[13px] leading-[19px] text-ink">
+            <div key={index} className="flex items-start gap-2 text-[13px] leading-[20px] text-ink">
               <span className="dot mt-2 size-1 bg-sage" />
               <span className="min-w-0 [overflow-wrap:anywhere]">{line.slice(2)}</span>
             </div>,
           ];
         }
-        return line.trim() === "" ? [] : [<span key={index} className="block text-[13px] leading-[19px] [overflow-wrap:anywhere] text-ink">{line}</span>];
+        return line.trim() === "" ? [] : [<span key={index} className="block text-[13px] leading-[20px] [overflow-wrap:anywhere] text-ink">{line}</span>];
       })}
     </div>
   );
@@ -128,38 +129,39 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
   const who = (id: string | null) => (id === null ? "Ankur" : id);
   const scroll = useRef<HTMLDivElement>(null);
   return (
-    <Card style={{ width: 400, flex: "none", background: "var(--glass-sheet)", boxShadow: "var(--shadow-deep)", minHeight: 0 }}>
-      <div className="flex flex-none flex-col gap-2.5 px-[18px] pt-[18px] pb-3">
-        <div className="flex items-start gap-2.5">
-          <div className="flex min-w-0 flex-1 flex-col gap-2">
-            <AgentName name={agent.name} className="text-[20px] font-semibold tracking-[-0.015em]" />
-            <div className="flex flex-wrap items-center gap-1.5">
-              {lanes.map((lane) => (
-                <span key={lane} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-sage-active px-2.5 text-[13px] font-semibold text-sage-text">
-                  <span className="dot dot-pulse size-1.5 bg-sage" />
-                  {lane}
-                </span>
-              ))}
-              {lanes.length === 0 ? <span className="text-[13px] text-ink-muted">{waiting === null ? "Idle" : "Waiting"}</span> : null}
-            </div>
-          </div>
+    <Card className="min-h-0 w-[400px] flex-none bg-glass-sheet shadow-deep">
+      <SheetHeader
+        name={<AgentName name={agent.name} className="text-[20px] font-semibold tracking-[-0.015em]" />}
+        status={
+          <ChipRow wrap>
+            {lanes.map((lane) => (
+              <StatusChip key={lane} pulse>
+                {lane}
+              </StatusChip>
+            ))}
+            {lanes.length === 0 ? (
+              <StatusChip key="idle" tone="quiet">
+                {waiting === null ? "Idle" : "Waiting"}
+              </StatusChip>
+            ) : null}
+          </ChipRow>
+        }
+        action={
           <Button tone="fill" onClick={onOpenThread}>
             Open thread
           </Button>
-        </div>
-      </div>
-      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-3 px-3.5 pt-3 pb-3.5">
-        <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-3.5 py-3">
-          <span className="ui-label" style={{ fontSize: 11 }}>
-            Right now
-          </span>
+        }
+      />
+      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
+        <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-4 py-3">
+          <SectionHeader title="Right now" />
           <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
             {workLine(agent, now)}
           </span>
           {status?.step ? <Truncate text={status.step} className="ui-mono" /> : null}
           {status?.job ? (
-            <div className="flex items-start gap-2 text-[13px] leading-[18px] text-ink-muted">
-              <Icon name="user" size={13} style={{ marginTop: 3 }} />
+            <div className="flex items-start gap-2 text-[13px] leading-[20px] text-ink-muted">
+              <span className="mt-1 flex"><Icon name="user" size={13} /></span>
               <span data-selectable className="min-w-0 flex-1">
                 <Clamp text={`${who(status.job.from)} asked at ${formatClock(status.job.at)}: ${status.job.content}`} lines={3} />
               </span>
@@ -170,10 +172,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
           {tasks.length > 0 ? (
             <motion.div key="tasks" {...REVEAL} className="overflow-hidden">
               <div className="flex flex-col gap-0.5">
-                <div className="flex items-center px-1 pb-1">
-                  <span className="ui-label">Helper tasks</span>
-                  <span className="ml-auto text-[13px] text-ink-muted">{`${tasks.length} · ${active} active`}</span>
-                </div>
+                <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
                 {tasks.map(({ task, question, preview }) => (
                   <TaskRow key={task.id} task={task} owner={agent.name} question={question} open={isTaskOpen(task.id)} onToggle={() => onToggleTask(task.id)} now={now}>
                     {preview}
@@ -186,26 +185,27 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
         <div className="flex flex-col">
           {calls.length > 0 ? (
             <Disclosure title="Last calls" summary={`${calls.length} · ${calls[calls.length - 1]!.name}`} open={isOpen("calls")} onToggle={() => onToggle("calls")}>
-              <div className="flex flex-col gap-[5px]">
+              <TileList>
                 {[...calls].reverse().map((call, index) => (
-                  <div key={index} className="flex items-center gap-2">
-                    <span data-selectable className="min-w-0 flex-1">
+                  <TileRow key={index} size="sm" ruled={false} trail={<span className={`flex-none text-[12px] font-semibold ${call.ok === false ? "text-error" : "text-ink-muted"}`}>{call.ok === null ? "running" : call.ok ? "ok" : "error"}</span>}>
+                    <span data-selectable>
                       <Truncate text={call.arg ? `${call.name} ${call.arg}` : call.name} className="ui-mono" />
                     </span>
-                    <span className={`text-[12px] font-semibold ${call.ok === false ? "text-error" : "text-ink-muted"}`}>{call.ok === null ? "running" : call.ok ? "ok" : "error"}</span>
-                  </div>
+                  </TileRow>
                 ))}
-              </div>
+              </TileList>
             </Disclosure>
           ) : null}
           {pending.length > 0 ? (
             <Disclosure title="Queued to send" summary={String(pending.length)} open={isOpen("queued")} onToggle={() => onToggle("queued")}>
-              <div className="flex flex-col gap-1.5">
-                {pending.map((message) => (
-                  <span key={message.id} data-selectable className="text-[13px] text-ink-muted">
-                    <Clamp text={`To ${who(message.to)}${message.expects_reply ? " (expects a reply)" : ""}: ${message.preview}`} lines={2} />
-                  </span>
-                ))}
+              <div className="flex flex-col gap-2">
+                <AnimatePresence initial={false}>
+                  {pending.map((message) => (
+                    <motion.span key={message.id} {...RISE} layout="position" data-selectable className="text-[13px] text-ink-muted">
+                      <Clamp text={`To ${who(message.to)}${message.expects_reply ? " (expects a reply)" : ""}: ${message.preview}`} lines={2} />
+                    </motion.span>
+                  ))}
+                </AnimatePresence>
               </div>
             </Disclosure>
           ) : null}
@@ -218,7 +218,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
               <div className="flex flex-col gap-2">
                 <AnimatePresence initial={false}>
                   {schedules.items.map((schedule, index) => (
-                    <motion.div key={schedule.id} {...RISE}>
+                    <motion.div key={schedule.id} {...RISE} layout="position">
                       <ScheduleRow schedule={schedule} agentId={agent.id} position={index + 1} onSave={onSaveSchedule} onCancel={onCancelSchedule} />
                     </motion.div>
                   ))}
@@ -242,19 +242,18 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             )}
           </Disclosure>
         </div>
-        <div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 px-1 pt-1 text-[13px] text-ink-muted">
-          <span>
-            Parent{" "}
+        <div className="flex flex-col px-1 pt-1">
+          <KeyValue label="Parent" selectable={parent === null}>
             {parent === null ? (
-              <span data-selectable>{agent.parent_agent_id ?? "none"}</span>
+              (agent.parent_agent_id ?? "none")
             ) : (
               <button type="button" className="ui-trans ui-hover-fill -mx-1 inline rounded-[6px] px-1 font-semibold text-sage-text" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
                 {parent.name}
               </button>
             )}
-          </span>
-          <span>{`Created ${formatDay(agent.created_at)}`}</span>
-          <span>{`Active ${formatRelative(agent.updated_at, now)}`}</span>
+          </KeyValue>
+          <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>
+          <KeyValue label="Active">{formatRelative(agent.updated_at, now)}</KeyValue>
         </div>
       </div>
     </Card>

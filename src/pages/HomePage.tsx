@@ -12,8 +12,8 @@ import { WeekTile } from "../features/timeline/WeekTile";
  */
 export function HomePage() {
   return (
-    <div data-page="home" style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", padding: 24, minHeight: 0 }}>
-      <div className="home-grid" style={{ flex: 1, minHeight: 0 }}>
+    <div data-page="home" className="flex min-h-0 min-w-0 flex-1 flex-col p-6">
+      <div className="home-grid min-h-0 flex-1">
         <HathTile order={0} />
         <YaadTile order={1} />
         <WeekTile order={2} />

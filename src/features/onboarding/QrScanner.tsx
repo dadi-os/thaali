@@ -1,5 +1,6 @@
 import jsQR from "jsqr";
 import { useEffect, useRef, useState } from "react";
+import { Button } from "../../shared/ui/Button";
 
 type QrScannerProps = {
   /** Called once with the decoded QR payload. */
@@ -170,39 +171,27 @@ export function QrScanner({ onDecode, onCancel, fill }: QrScannerProps) {
           <canvas ref={canvasRef} className="hidden" />
           {!ready && !error ? (
             <div className="absolute inset-0 flex items-center justify-center bg-bone/40">
-              <p className="text-[12px] font-medium tracking-[2px] text-sage-deep">
-                OPENING CAMERA…
-              </p>
+              <p className="ui-label m-0 text-sage-deep">Opening camera…</p>
             </div>
           ) : null}
         </div>
       </div>
 
       {error ? (
-        <div className="flex flex-col items-center gap-2">
-          <p className="text-center text-[13px] text-ink-muted">{error}</p>
-          <button
-            type="button"
-            onClick={retry}
-            className="text-[12px] font-medium tracking-[2px] text-sage-deep"
-          >
-            TRY CAMERA
-          </button>
+        <div role="alert" className="flex flex-col items-center gap-2">
+          <p className="m-0 text-center text-[13px] text-ink-muted">{error}</p>
+          <Button tone="sage" size="md" pill icon="retry" onClick={retry}>
+            Try camera
+          </Button>
         </div>
       ) : (
-        <p className="text-center text-[13px] text-ink-muted">
-          Hold the setup QR in the frame — it joins automatically.
-        </p>
+        <p className="m-0 text-center text-[13px] text-ink-muted">Hold the setup QR in the frame — it joins automatically.</p>
       )}
 
       {onCancel ? (
-        <button
-          type="button"
-          onClick={onCancel}
-          className="text-[12px] font-medium tracking-[2px] text-sage-deep"
-        >
-          USE CODE INSTEAD
-        </button>
+        <Button tone="quiet" size="md" pill onClick={onCancel}>
+          Use code instead
+        </Button>
       ) : null}
     </div>
   );

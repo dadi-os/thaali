@@ -18,18 +18,17 @@ export type PageHeaderProps = {
  */
 export function PageHeader({ title, meta, trailing }: PageHeaderProps) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, minHeight: 40, flex: "none" }}>
+    <div className="flex min-h-10 flex-none items-center gap-4">
       <Link
         to="/"
         aria-label="Back to home"
-        className="ui-trans ui-hover-fill"
-        style={{ width: 32, height: 32, borderRadius: 10, border: "1px dashed var(--sage-line)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sage-deep)", flex: "none" }}
+        className="ui-trans ui-hover-fill flex size-8 flex-none items-center justify-center rounded-[10px] border border-dashed border-sage-line text-sage-deep"
       >
         <Icon name="back" size={14} />
       </Link>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 3 }}>
-        <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "2.5px", color: "var(--sage-deep)", textTransform: "uppercase" }}>{title}</span>
-        {meta ? <Truncate text={meta} style={{ fontSize: 13, color: "var(--ink-muted)" }} /> : null}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="ui-label text-sage-deep">{title}</span>
+        {meta ? <Truncate text={meta} className="text-[13px] text-ink-muted" /> : null}
       </div>
       {trailing}
     </div>

@@ -37,8 +37,8 @@ describe("where input and the operating system are handled", () => {
     expect(filesMatching(/key === "Escape"/).filter((path) => !path.startsWith("shared/interaction/"))).toEqual(expect.not.arrayContaining(["shared/overlay/Dialog.tsx", "shared/overlay/Sheet.tsx", "shared/overlay/Popover/index.tsx"]));
   });
 
-  it("reaches the Tauri APIs only from the desktop layer, the API layer and the few window-bound files", () => {
+  it("reaches the Tauri APIs only from the desktop layer, the API layer and the one window-bound radio file", () => {
     const allowed = (path: string) => path.startsWith("shared/desktop/") || path.startsWith("shared/api/");
-    expect(filesMatching(/from "@tauri-apps\//).filter((path) => !allowed(path))).toEqual(["features/ghar/radio.ts", "shared/layout/shell/TitleBar.tsx", "shared/layout/shell/WindowControls.tsx"]);
+    expect(filesMatching(/from "@tauri-apps\//).filter((path) => !allowed(path))).toEqual(["features/ghar/radio.ts"]);
   });
 });

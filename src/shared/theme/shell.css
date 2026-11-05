@@ -289,7 +289,16 @@
     z-index: 30;
     touch-action: none;
     outline: none;
-    transition: background-color 160ms var(--ease);
+  }
+
+  /* The grab area reaches 8px past the rail edge and 4px into it, wider than the 2px line it moves. */
+  .rz::before {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: -4px;
+    right: -8px;
   }
 
   .rz-l {
@@ -299,9 +308,11 @@
     bottom: 0;
     width: 2px;
     background: transparent;
+    transform-origin: right center;
     transition:
-      background-color 160ms var(--ease),
-      box-shadow 160ms var(--ease);
+      background-color var(--fast) var(--ease),
+      box-shadow var(--fast) var(--ease),
+      transform var(--fast) var(--ease);
   }
 
   .rz-g {
@@ -318,12 +329,13 @@
     opacity: 0;
     transform: scaleY(0.8);
     transition:
-      opacity 160ms var(--ease),
-      transform 200ms var(--ease);
+      opacity var(--fast) var(--ease),
+      transform var(--fast) var(--ease);
   }
 
   .rz:hover .rz-l {
     background: var(--sage-line);
+    transform: scaleX(1.5);
   }
 
   .rz:hover .rz-g,

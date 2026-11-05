@@ -3,6 +3,7 @@ import { chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
+import { ChipRow, Meter, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
@@ -12,7 +13,7 @@ import { TYPE_META } from "./draft";
 
 /** The room the tile's blocks take: the label above the categories, the gap between blocks and the label above the folders. */
 const CHIP_HEIGHT = 32;
-const FOLDER_ROW = 31;
+const FOLDER_ROW = 28;
 
 type BodyProps = {
   items: ChaaviItem[];
@@ -40,39 +41,40 @@ function Body({ items, folders, geometry }: BodyProps) {
     }
     used += width + 8;
   }
-  const categories = 14 + 8 + chipRows * CHIP_HEIGHT + (chipRows - 1) * 8;
-  const footer = 14 + 1 + 10 + 18;
-  const room = geometry.bh - categories - 14 - 21;
+  const categories = 24 + 8 + chipRows * CHIP_HEIGHT + (chipRows - 1) * 8;
+  const footer = 12 + 1 + 12 + 20;
+  const room = geometry.bh - categories - 12 - 24;
   const showFooter = room - FOLDER_ROW >= footer + FOLDER_ROW || room >= footer + 4 * FOLDER_ROW;
-  const rows = Math.max(1, Math.min(inFolders.length, Math.floor((room - (showFooter ? footer : 0) + 7) / FOLDER_ROW)));
+  const rows = Math.max(1, Math.min(inFolders.length, Math.floor((room - (showFooter ? footer : 0)) / FOLDER_ROW)));
   return (
-    <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 14, justifyContent: "flex-start" }}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none" }}>
-        <span className="ui-label" style={{ fontSize: 11 }}>Categories</span>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-          {[...types].map(([type, count]) => (
-            <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, height: CHIP_HEIGHT, padding: "0 12px", borderRadius: 999, background: "var(--sage-fill)", fontSize: 14, whiteSpace: "nowrap", minWidth: 0 }}>
-              <Truncate text={count === 1 ? TYPE_META[type].one : TYPE_META[type].many} style={{ fontWeight: 500, color: "var(--sage-text)" }} />
-              <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{count}</span>
-            </div>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+      <div className="flex flex-none flex-col gap-2">
+        <SectionHeader title="Categories" />
+        <ChipRow wrap>
+          {[...types].map(([type, count]) => {
+            const name = count === 1 ? TYPE_META[type].one : TYPE_META[type].many;
+            return (
+              <StatusChip key={type} dot={false} title={`${count} ${name}`}>
+                <span className="truncate">{name}</span>
+                <span className="font-semibold text-ink tabular-nums">{count}</span>
+              </StatusChip>
+            );
+          })}
+        </ChipRow>
+      </div>
+      <div className="flex min-h-0 flex-none flex-col">
+        <SectionHeader title="Folders" />
+        <TileList>
+          {inFolders.slice(0, rows).map((folder) => (
+            <TileRow key={folder.id} size="sm" ruled={false} trail={<><Meter percent={(folder.count / widest) * 100} width={56} /><span className="min-w-[3ch] flex-none text-right text-[13px] text-ink-muted tabular-nums">{folder.count}</span></>}>
+              <Truncate text={folder.name} />
+            </TileRow>
           ))}
-        </div>
+        </TileList>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 7, flex: "none", minHeight: 0 }}>
-        <span className="ui-label" style={{ fontSize: 11 }}>Folders</span>
-        {inFolders.slice(0, rows).map((folder) => (
-          <div key={folder.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 24 }}>
-            <Truncate text={folder.name} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
-            <span style={{ width: 56, height: 5, borderRadius: 4, background: "var(--rule)", overflow: "hidden", flex: "none" }}>
-              <span style={{ display: "block", height: "100%", width: `${(folder.count / widest) * 100}%`, background: "var(--sage)" }} />
-            </span>
-            <span style={{ minWidth: 20, textAlign: "right", fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", flex: "none" }}>{folder.count}</span>
-          </div>
-        ))}
-      </div>
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
       {showFooter ? (
-        <div style={{ display: "flex", alignItems: "center", gap: "4px 14px", flexWrap: "wrap", fontSize: 13, color: "var(--ink-muted)", flex: "none", whiteSpace: "nowrap", borderTop: "1px solid var(--rule)", paddingTop: 10 }}>
+        <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-rule pt-3 text-[13px] whitespace-nowrap text-ink-muted tabular-nums">
           <span>{`${passkeys} ${passkeys === 1 ? "passkey" : "passkeys"}`}</span>
           <span>{`${codes} one-time ${codes === 1 ? "code" : "codes"}`}</span>
         </div>
@@ -112,24 +114,25 @@ export function ChaaviTile({ order }: { order: number }) {
           : tileNotice(state, { name: "Chaavi", request: "GET /v1/items", empty: ["The vault is empty", "Logins and notes appear here once you add them."] }, retry)
       }
       skeleton={() => (
-        <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 14, justifyContent: "space-between" }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
             {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} width={88 + i * 14} height={32} radius={999} />
+              <Skeleton key={i} width={88 + i * 16} height={32} radius={999} />
             ))}
           </div>
-          <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+          <div className="flex flex-col gap-3">
             {Array.from({ length: 4 }, (_, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <Skeleton width="42%" height={14} />
-                <Skeleton width={56} height={5} style={{ marginLeft: "auto" }} />
-                <Skeleton width={14} height={13} />
+              <div key={i} className="flex items-center gap-3">
+                <Skeleton width="42%" height={16} />
+                <div className="flex-1" />
+                <Skeleton width={56} height={6} />
+                <Skeleton width={16} height={16} />
               </div>
             ))}
           </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <Skeleton width={70} height={12} />
-            <Skeleton width={90} height={12} />
+          <div className="flex items-center gap-4">
+            <Skeleton width={72} height={12} />
+            <Skeleton width={92} height={12} />
           </div>
         </div>
       )}

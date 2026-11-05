@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import { yaad } from "../../shared/api";
 import type { TimelineItem } from "../../types/timeline";
 import type { EdgeRecord, NodeRecord } from "../../types/yaad";
 import { RISE, stagger } from "../../shared/motion";
 import { Button, IconButton } from "../../shared/ui/Button";
+import { SectionHeader } from "../../shared/components/Module";
 import { Popover, type PopoverAnchor } from "../../shared/overlay/Popover";
 import { Tooltip } from "../../shared/overlay/Tooltip";
 import { formatAbsolute, formatRelative } from "../../shared/lib/ux/time";
@@ -37,7 +38,14 @@ type Connection = { edge: EdgeRecord; node: NodeRecord; outgoing: boolean };
  * jump to the node in the Yaad graph. For a session it also shows the session's state and
  * offers Completed and a message to the plan's owner; nothing here edits the plan.
  */
-export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }: NodePopoverProps) {
+export function NodePopover({
+  open,
+  nodeId,
+  session,
+  anchor,
+  onClose,
+  onSelect,
+}: NodePopoverProps) {
   const navigate = useNavigate();
   const [showAll, setShowAll] = useState(false);
 
@@ -55,10 +63,16 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
   }, [nodeId]);
 
   const node = nodeQuery.data;
-  const connections = neighborsQuery.data ? connectionsOf(nodeId, neighborsQuery.data) : [];
-  const listed = showAll ? connections : connections.slice(0, CONNECTIONS_SHOWN);
+  const connections = neighborsQuery.data
+    ? connectionsOf(nodeId, neighborsQuery.data)
+    : [];
+  const listed = showAll
+    ? connections
+    : connections.slice(0, CONNECTIONS_SHOWN);
   const folded = connections.length - listed.length;
-  const shownAt = session ? (session.start_at ?? session.due_at) : node?.occurred_at;
+  const shownAt = session
+    ? (session.start_at ?? session.due_at)
+    : node?.occurred_at;
   const shownEnd = session ? session.end_at : null;
 
   return (
@@ -71,19 +85,32 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
       contentKey={nodeId}
     >
       {nodeQuery.isError ? (
-        <p className="px-4 py-4 text-[13px] text-error">{nodeQuery.error.message}</p>
+        <p className="px-4 py-4 text-[13px] text-error">
+          {nodeQuery.error.message}
+        </p>
       ) : !node ? (
         <p className="px-4 py-4 text-[13px] text-ink-ghost">Loading…</p>
       ) : (
         <>
-          <header data-selectable className="shrink-0 border-b border-rule/60 px-4 pt-3.5 pb-3">
+          <header
+            data-selectable
+            className="shrink-0 border-b border-rule/60 px-4 pt-3 pb-3"
+          >
             <div className="flex items-baseline justify-between gap-3">
-              <h3 className={`min-w-0 text-[15px] leading-snug font-medium text-ink ${session?.state === "cancelled" ? "line-through" : ""}`}>
+              <h3
+                className={`min-w-0 text-[15px] leading-snug font-medium text-ink ${session?.state === "cancelled" ? "line-through" : ""}`}
+              >
                 {node.title}
               </h3>
-              <IconButton icon="close" label="Close" size={32} iconSize={14} onClick={onClose} />
+              <IconButton
+                icon="close"
+                label="Close"
+                size={32}
+                iconSize={14}
+                onClick={onClose}
+              />
             </div>
-            <p className="mt-1 flex items-center gap-1.5 text-[12px] text-ink-muted">
+            <p className="mt-1 flex items-center gap-2 text-[12px] text-ink-muted">
               <span
                 aria-hidden
                 className="inline-block size-1.5 rounded-full"
@@ -95,7 +122,10 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
             </p>
           </header>
 
-          <div data-selectable className="scroll min-h-0 flex-1 overflow-y-auto px-4 py-3">
+          <div
+            data-selectable
+            className="scroll min-h-0 flex-1 overflow-y-auto px-4 py-3"
+          >
             {shownAt ? (
               <div className="mb-3 flex items-baseline justify-between gap-3">
                 <span className="text-[13px] text-ink">
@@ -103,7 +133,9 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
                   {whenOf(shownAt, shownEnd, session?.all_day === true)}
                 </span>
                 <Tooltip content={formatAbsolute(shownAt)}>
-                  <span className="shrink-0 text-[12px] text-ink-ghost">{formatRelative(shownAt)}</span>
+                  <span className="shrink-0 text-[12px] text-ink-ghost">
+                    {formatRelative(shownAt)}
+                  </span>
                 </Tooltip>
               </div>
             ) : null}
@@ -120,52 +152,69 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
                         ? "Someday"
                         : "Not marked"}
                 {session.recurrence ? ` · ${session.recurrence}` : ""}
-                {session.series ? ` · completed ${session.series.completed} of ${session.series.total}` : ""}
-                {session.place ? ` · ${session.place.title}${session.place.room ? ` room ${session.place.room}` : ""}` : ""}
+                {session.series
+                  ? ` · completed ${session.series.completed} of ${session.series.total}`
+                  : ""}
+                {session.place
+                  ? ` · ${session.place.title}${session.place.room ? ` room ${session.place.room}` : ""}`
+                  : ""}
               </p>
             ) : null}
 
-            {node.body ? <p className="mb-4 text-[13px] leading-relaxed text-ink">{node.body}</p> : null}
+            {node.body ? (
+              <p className="mb-4 text-[13px] leading-relaxed text-ink">
+                {node.body}
+              </p>
+            ) : null}
 
             <section className="mb-1">
-              <h3 className="mb-1.5 flex items-baseline justify-between text-[11px] font-medium tracking-[2px] text-ink-faint">
-                CONNECTIONS
-                <span className="tracking-normal text-ink-ghost">
-                  {neighborsQuery.data ? connections.length : null}
-                </span>
-              </h3>
+              <SectionHeader
+                title="Connections"
+                count={neighborsQuery.data ? connections.length : undefined}
+              />
               {neighborsQuery.isError ? (
-                <p className="text-[13px] text-error">{neighborsQuery.error.message}</p>
+                <p className="text-[13px] text-error">
+                  {neighborsQuery.error.message}
+                </p>
               ) : !neighborsQuery.data ? (
                 <p className="text-[13px] text-ink-ghost">Loading…</p>
               ) : connections.length === 0 ? (
-                <p className="text-[13px] text-ink-muted">Not linked to anything yet.</p>
+                <p className="text-[13px] text-ink-muted">
+                  Not linked to anything yet.
+                </p>
               ) : (
                 <ul className="-mx-2 flex flex-col">
-                  {listed.map((c, i) => (
-                    <motion.li
-                      key={c.edge.id}
-                      {...RISE}
-                      transition={{ ...RISE.transition, delay: stagger(i) }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => onSelect(c.node.id)}
-                        className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
+                  <AnimatePresence initial={false}>
+                    {listed.map((c, i) => (
+                      <motion.li
+                        key={c.edge.id}
+                        {...RISE}
+                        layout="position"
+                        transition={{ ...RISE.transition, delay: stagger(i) }}
                       >
-                        <span
-                          aria-hidden
-                          className="inline-block size-1.5 shrink-0 rounded-full"
-                          style={{ background: `var(${KIND_TOKEN[c.node.kind]})` }}
-                        />
-                        <span className="min-w-0 flex-1 truncate text-[13px] text-ink">{c.node.title}</span>
-                        <span className="shrink-0 text-[11px] text-ink-ghost">
-                          {c.outgoing ? null : "← "}
-                          {c.edge.type.replace(/_/g, " ").toLowerCase()}
-                        </span>
-                      </button>
-                    </motion.li>
-                  ))}
+                        <button
+                          type="button"
+                          onClick={() => onSelect(c.node.id)}
+                          className="flex w-full items-center gap-2 rounded-[6px] px-2 py-1 text-left transition-colors duration-slow ease-dadi hover:bg-sage-fill"
+                        >
+                          <span
+                            aria-hidden
+                            className="inline-block size-1.5 shrink-0 rounded-full"
+                            style={{
+                              background: `var(${KIND_TOKEN[c.node.kind]})`,
+                            }}
+                          />
+                          <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                            {c.node.title}
+                          </span>
+                          <span className="shrink-0 text-[11px] text-ink-ghost">
+                            {c.outgoing ? null : "← "}
+                            {c.edge.type.replace(/_/g, " ").toLowerCase()}
+                          </span>
+                        </button>
+                      </motion.li>
+                    ))}
+                  </AnimatePresence>
                 </ul>
               )}
               {folded > 0 ? (
@@ -174,12 +223,16 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
                 </Button>
               ) : null}
             </section>
-
           </div>
 
-          <footer className="flex shrink-0 flex-col gap-2.5 border-t border-rule/60 px-4 py-3">
+          <footer className="flex shrink-0 flex-col gap-2 border-t border-rule/60 px-4 py-3">
             {session ? <SessionActions item={session} /> : null}
-            <Button tone="quiet" size="sm" onClick={() => navigate(`/yaad?focus=${node.id}`)} style={{ alignSelf: "flex-start" }}>
+            <Button
+              tone="quiet"
+              size="sm"
+              onClick={() => navigate(`/yaad?focus=${node.id}`)}
+              className="self-start"
+            >
               Open in Yaad →
             </Button>
           </footer>
@@ -190,7 +243,10 @@ export function NodePopover({ open, nodeId, session, anchor, onClose, onSelect }
 }
 
 /** Every neighbor of `nodeId` in a seeded `/graph` response, people first, then by title. */
-function connectionsOf(nodeId: string, graph: { nodes: NodeRecord[]; edges: EdgeRecord[] }): Connection[] {
+function connectionsOf(
+  nodeId: string,
+  graph: { nodes: NodeRecord[]; edges: EdgeRecord[] },
+): Connection[] {
   const byId = new Map(graph.nodes.map((n) => [n.id, n]));
   return graph.edges
     .flatMap((edge) =>
@@ -200,7 +256,11 @@ function connectionsOf(nodeId: string, graph: { nodes: NodeRecord[]; edges: Edge
           ? [{ edge, node: byId.get(edge.src_id)!, outgoing: false }]
           : [],
     )
-    .sort((a, b) => KIND_ORDER[a.node.kind] - KIND_ORDER[b.node.kind] || a.node.title.localeCompare(b.node.title));
+    .sort(
+      (a, b) =>
+        KIND_ORDER[a.node.kind] - KIND_ORDER[b.node.kind] ||
+        a.node.title.localeCompare(b.node.title),
+    );
 }
 
 /** When something is, e.g. "Fri, Oct 3 · 1:00 PM – 2:30 PM", or "Mon, Oct 19 · All day"; `end` is a plan's end, if any. */

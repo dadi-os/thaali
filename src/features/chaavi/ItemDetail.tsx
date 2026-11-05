@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { Button, IconButton } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
+import { Field } from "../../shared/ui/Field";
 import { useContextActions } from "../../shared/interaction/contextMenu";
 import { Truncate } from "../../shared/ui/Truncate";
 import { copyText } from "../../shared/desktop/clipboard";
@@ -13,9 +14,6 @@ import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../t
 import { copySecret } from "./clipboard";
 import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META, websiteUrl } from "./draft";
 import { Avatar } from "./ItemList";
-
-/** The mono face a code or number is set in. */
-const MONO = "'Geist Mono',ui-monospace,SFMono-Regular,Menlo,monospace";
 
 /** How long a row says it was copied, in ms. */
 const COPIED_MS = 4_000;
@@ -155,20 +153,25 @@ function FieldRow({ label, value, mono = false, multiline = false, extra, reveal
     ...(reveal ? [{ id: "reveal", label: `${reveal.shown ? "Hide" : "Reveal"} ${name}`, icon: "eye" as const, disabledReason: reveal.pending ? "Working" : undefined, run: reveal.onToggle }] : []),
     ...(onOpen ? [{ id: "open", label: "Open website", icon: "link" as const, run: onOpen }] : []),
   ]);
-  return (
-    <div {...context} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 56, padding: "8px 14px", borderRadius: 14, background: "rgba(250,250,247,.8)", border: "1px solid var(--glass-border)" }}>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 3 }}>
-        <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{label}</span>
-        {multiline ? (
-          <span data-selectable style={{ fontSize: 15, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value}</span>
-        ) : (
-          <Truncate selectable text={value} style={mono ? { fontFamily: MONO, fontSize: 14, letterSpacing: value.includes("•") ? "2px" : "0" } : { fontSize: 15 }} />
-        )}
-      </div>
+  const controls = (
+    <>
       {extra}
       {onOpen ? <IconButton icon="link" label="Open website" onClick={onOpen} /> : null}
       {reveal ? <IconButton icon="eye" label={`${reveal.shown ? "Hide" : "Reveal"} ${name}`} selected={reveal.shown ? true : undefined} disabled={reveal.pending || undefined} onClick={reveal.onToggle} /> : null}
       {onCopy ? <IconButton icon="copy" label={`Copy ${name}`} onClick={onCopy} /> : null}
+    </>
+  );
+  return (
+    <div {...context}>
+      <Field label={label} tall={multiline} extra={controls}>
+        {multiline ? (
+          <span data-selectable className="min-w-0 flex-1 text-[15px] leading-5 break-words whitespace-pre-wrap">
+            {value}
+          </span>
+        ) : (
+          <Truncate selectable text={value} className={mono ? `flex-1 font-numeric text-[14px] ${value.includes("•") ? "tracking-[2px]" : ""}` : "flex-1 text-[15px]"} />
+        )}
+      </Field>
     </div>
   );
 }
@@ -222,12 +225,12 @@ function TotpRow({ itemId }: TotpRowProps) {
       mono
       extra={
         totp ? (
-          <span style={{ position: "relative", width: 28, height: 28, flex: "none" }}>
-            <svg width="28" height="28" viewBox="0 0 28 28" aria-hidden="true">
-              <circle cx="14" cy="14" r="11" fill="none" stroke="#e8ece2" strokeWidth="3" />
-              <circle cx="14" cy="14" r="11" fill="none" stroke="#8fa382" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference.toFixed(1)} strokeDashoffset={(circumference * (1 - left / totp.period)).toFixed(1)} transform="rotate(-90 14 14)" />
+          <span className="relative size-8 flex-none">
+            <svg className="size-8" viewBox="0 0 28 28" aria-hidden="true">
+              <circle cx="14" cy="14" r="11" fill="none" className="stroke-sage-active" strokeWidth="3" />
+              <circle cx="14" cy="14" r="11" fill="none" className="stroke-sage" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference.toFixed(1)} strokeDashoffset={(circumference * (1 - left / totp.period)).toFixed(1)} transform="rotate(-90 14 14)" />
             </svg>
-            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{left}</span>
+            <span className="absolute inset-0 flex items-center justify-center text-[11px] font-semibold tabular-nums">{left}</span>
           </span>
         ) : undefined
       }
@@ -317,22 +320,22 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
 
   const changed = item.revisionDate;
   return (
-    <Card style={{ flex: 1, minWidth: 0, minHeight: 0, padding: 0 }}>
-      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px 14px", padding: "20px 22px 14px", flex: "none" }}>
+    <Card className="min-h-0 min-w-0 flex-1 p-0">
+      <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2.5 px-6 pt-5 pb-4">
         <Avatar name={item.name} size={52} />
-        <div style={{ display: "flex", flexDirection: "column", flex: "1 1 140px", minWidth: 140, gap: 4 }}>
-          <Truncate text={item.name} style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.015em" }} />
-          <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} style={{ fontSize: 14, color: "var(--ink-muted)" }} />
+        <div className="flex min-w-35 flex-[1_1_140px] flex-col gap-1">
+          <Truncate text={item.name} className="text-[20px] font-semibold tracking-[-0.015em]" />
+          <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} className="text-[14px] text-ink-muted" />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none", marginLeft: "auto" }}>
-          <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} style={{ color: item.favorite ? "var(--clay)" : "var(--ink-muted)" }} />
-          <Button tone="outline" disabled={busy} onClick={onEdit} style={{ color: "var(--sage-text)", fontWeight: 600 }}>
+        <div className="ml-auto flex flex-none items-center gap-2">
+          <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} className={item.favorite ? "text-clay" : ""} />
+          <Button tone="outline" disabled={busy} onClick={onEdit} className="font-semibold text-sage-text">
             Edit
           </Button>
-          <IconButton icon="trash" label="Delete item" disabled={busy || undefined} onClick={onDelete} style={{ color: "var(--error)" }} />
+          <IconButton icon="trash" label="Delete item" disabled={busy || undefined} onClick={onDelete} className="text-error" />
         </div>
       </div>
-      <div className="scroll" style={{ flex: 1, minHeight: 0, padding: "0 22px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
+      <div className="scroll flex min-h-0 flex-1 flex-col gap-3 px-6 pb-6">
         {fieldsOf(item).map((field) => {
           if (field.kind === "totp") {
             return <TotpRow key="totp" itemId={item.id} />;
@@ -344,7 +347,7 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
                 label={field.label}
                 value={field.value}
                 mono={field.mono}
-                extra={field.note ? <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{field.note}</span> : undefined}
+                extra={field.note ? <span className="text-[13px] whitespace-nowrap text-ink-muted">{field.note}</span> : undefined}
                 onOpen={field.open ? () => openExternal(websiteUrl(field.value)).catch((err: unknown) => reportFailure("Couldn't open the website", err)) : undefined}
                 onCopy={field.copy === false ? undefined : () => copyPlainField(field)}
               />
@@ -364,7 +367,7 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
             />
           );
         })}
-        {changed ? <span style={{ fontSize: 13, color: "var(--ink-muted)", padding: "6px 4px 0" }}>{`Changed ${formatDay(changed)}, ${formatClock(changed)}`}</span> : null}
+        {changed ? <span className="px-1 pt-1.5 text-[13px] text-ink-muted">{`Changed ${formatDay(changed)}, ${formatClock(changed)}`}</span> : null}
       </div>
     </Card>
   );

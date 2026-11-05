@@ -2,7 +2,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { copyText } from "../desktop/clipboard";
 import { EASE, SLOW_S } from "../motion";
-import { IconCheck, IconCopy } from "./IconButton";
+import { Icon } from "./Icon";
 
 /** How long the check mark shows after a copy. */
 const COPIED_MS = 1_400;
@@ -48,7 +48,7 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
             .then(() => setCopied(true))
             .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
         }}
-        className={`inline-flex size-6 items-center justify-center rounded-[8px] transition-colors duration-fast ease-dadi hover:bg-sage-active/50 [&_svg]:size-[13px] ${
+        className={`ui-trans ui-hover-fill inline-flex size-8 items-center justify-center rounded-[8px] ${
           copied ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
         }`}
       >
@@ -60,7 +60,7 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             transition={{ duration: SLOW_S, ease: EASE }}
           >
-            {copied ? <IconCheck /> : <IconCopy />}
+            <Icon name={copied ? "check" : "copy"} size={14} />
           </motion.span>
         </AnimatePresence>
       </button>

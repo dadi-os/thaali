@@ -1,6 +1,7 @@
 import { useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
+import { Field, FieldGroup, FIELD_INPUT, SelectField, TextField } from "../../shared/ui/Field";
 import { Icon } from "../../shared/ui/Icon";
 import { Sheet } from "../../shared/overlay/Sheet";
 import { confirmOwner } from "../../shared/desktop/owner";
@@ -102,51 +103,6 @@ function fieldsFor(type: ChaaviItemType): FormField[] {
   return [];
 }
 
-type SheetFieldProps = {
-  label: string;
-  /** Whether the box grows with its text, as notes do. */
-  tall?: boolean;
-  children: ReactNode;
-  /** Drawn at the end of the box, such as a button or a chevron. */
-  extra?: ReactNode;
-};
-
-/** A label over a box that holds one input. */
-function SheetField({ label, tall = false, children, extra }: SheetFieldProps) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span className="ui-label" style={{ fontSize: 11 }}>
-        {label}
-      </span>
-      <div
-        style={{
-          display: "flex",
-          alignItems: tall ? "flex-start" : "center",
-          gap: 8,
-          ...(tall ? { minHeight: 96, padding: "10px 14px" } : { height: 44, padding: "0 14px" }),
-          borderRadius: 12,
-          background: "var(--bone)",
-          border: "1px solid var(--glass-border)",
-        }}
-      >
-        {children}
-        {extra}
-      </div>
-    </div>
-  );
-}
-
-type BoxProps = {
-  children: ReactNode;
-};
-
-/** A one-line box holding inputs, as a field's own is. */
-function Box({ children }: BoxProps) {
-  return (
-    <div style={{ display: "flex", alignItems: "center", gap: 8, height: 44, padding: "0 14px", borderRadius: 12, background: "var(--bone)", border: "1px solid var(--glass-border)" }}>{children}</div>
-  );
-}
-
 export type ItemSheetProps = {
   /** `create` lets the kind change; `edit` keeps it. */
   mode: "create" | "edit";
@@ -176,7 +132,7 @@ type EyeProps = {
 
 /** Shows or hides what is typed; on an edit of a secret not yet read, it reads the stored value in. */
 function Eye({ name, editing, loaded, shown, onClick }: EyeProps) {
-  return <IconButton icon="eye" label={shown ? `Hide ${name}` : editing && !loaded ? `Reveal ${name}` : `Show ${name}`} size={28} iconSize={15} selected={shown ? true : undefined} onClick={onClick} />;
+  return <IconButton icon="eye" label={shown ? `Hide ${name}` : editing && !loaded ? `Reveal ${name}` : `Show ${name}`} size={32} iconSize={15} selected={shown ? true : undefined} onClick={onClick} />;
 }
 
 /**
@@ -265,103 +221,65 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
         {masked || editing ? eye : null}
       </>
     );
+    const hidden = masked && !visible && loaded ? "[-webkit-text-security:disc]" : "";
+    const change = (event: { target: { value: string } }) => update((next) => field.set(next, { value: event.target.value, dirty: true }));
     return (
-      <SheetField key={`${draft.type}-${field.label}`} label={field.label} tall={area} extra={extra}>
+      <Field key={`${draft.type}-${field.label}`} label={field.label} tall={area} extra={extra}>
         {area ? (
-          <textarea
-            className="cinp"
-            aria-label={field.label}
-            rows={4}
-            spellCheck={false}
-            placeholder={placeholder}
-            value={value.value}
-            onChange={(event) => update((next) => field.set(next, { value: event.target.value, dirty: true }))}
-            style={{ fontSize: 15, color: "var(--ink)", resize: "none", lineHeight: "20px", ...(masked ? { WebkitTextSecurity: visible || !loaded ? "none" : "disc" } : {}) }}
-          />
+          <textarea className={`${FIELD_INPUT} resize-none leading-5 ${hidden}`} aria-label={field.label} rows={4} spellCheck={false} placeholder={placeholder} value={value.value} onChange={change} />
         ) : (
-          <input
-            className="cinp"
-            type={visible ? "text" : "password"}
-            aria-label={field.label}
-            autoComplete="new-password"
-            spellCheck={false}
-            placeholder={placeholder}
-            value={value.value}
-            onChange={(event) => update((next) => field.set(next, { value: event.target.value, dirty: true }))}
-            style={{ fontSize: 15, color: "var(--ink)" }}
-          />
+          <input className={FIELD_INPUT} type={visible ? "text" : "password"} aria-label={field.label} autoComplete="new-password" spellCheck={false} placeholder={placeholder} value={value.value} onChange={change} />
         )}
-      </SheetField>
+      </Field>
     );
   };
 
   const renderField = (field: FormField): ReactNode => {
     if (field.kind === "text") {
       return (
-        <SheetField key={`${draft.type}-${field.label}`} label={field.label}>
-          <input
-            className="cinp"
-            type={field.date ? "date" : "text"}
-            aria-label={field.label}
-            autoComplete="off"
-            spellCheck={false}
-            placeholder={field.placeholder}
-            inputMode={field.numeric ? "numeric" : undefined}
-            maxLength={field.numeric ? 4 : undefined}
-            value={field.get(draft)}
-            onChange={(event) => update((next) => field.set(next, event.target.value))}
-            style={{ fontSize: 15, color: "var(--ink)" }}
-          />
-        </SheetField>
+        <TextField
+          key={`${draft.type}-${field.label}`}
+          label={field.label}
+          type={field.date ? "date" : "text"}
+          placeholder={field.placeholder}
+          inputMode={field.numeric ? "numeric" : undefined}
+          maxLength={field.numeric ? 4 : undefined}
+          value={field.get(draft)}
+          onChange={(value) => update((next) => field.set(next, value))}
+        />
       );
     }
     if (field.kind === "choice") {
-      return (
-        <SheetField key={`${draft.type}-${field.label}`} label={field.label} extra={<Icon name="chevDown" size={14} />}>
-          <select className="cinp" aria-label={field.label} value={field.get(draft)} onChange={(event) => update((next) => field.set(next, event.target.value))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
-            {field.options.map(([value, name]) => (
-              <option key={value} value={value}>
-                {name}
-              </option>
-            ))}
-          </select>
-        </SheetField>
-      );
+      return <SelectField key={`${draft.type}-${field.label}`} label={field.label} options={field.options} value={field.get(draft)} onChange={(value) => update((next) => field.set(next, value))} />;
     }
     if (field.kind === "websites") {
       return (
-        <div key="websites" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span className="ui-label" style={{ fontSize: 11 }}>
-            Websites
-          </span>
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-            {draft.login.uris.map((entry, i) => (
-              <Box key={entry.key}>
-                <input className="cinp" type="text" aria-label={`Website ${i + 1}`} autoComplete="off" spellCheck={false} placeholder="https://" value={entry.uri} onChange={(event) => update((next) => void (next.login.uris[i]!.uri = event.target.value))} style={{ fontSize: 15, color: "var(--ink)" }} />
-                <select
-                  className="cinp"
-                  aria-label={`Website ${i + 1} match`}
-                  value={entry.match}
-                  onChange={(event) => update((next) => void (next.login.uris[i]!.match = event.target.value as (typeof URI_MATCHES)[number]["id"]))}
-                  style={{ fontSize: 13, color: "var(--ink)", appearance: "none", flex: "none", width: 112 }}
-                >
-                  {URI_MATCHES.map((match) => (
-                    <option key={match.id} value={match.id}>
-                      {match.label}
-                    </option>
-                  ))}
-                </select>
-                <Icon name="chevDown" size={14} />
-                <IconButton icon="close" label={`Remove website ${i + 1}`} size={28} iconSize={14} onClick={() => update((next) => void next.login.uris.splice(i, 1))} />
-              </Box>
-            ))}
-            <div style={{ alignSelf: "flex-start" }}>
-              <Button tone="sage" size="md" pill icon="plus" aria-label="Add website" onClick={() => update((next) => void next.login.uris.push({ key: draftKey(), uri: "", match: "default" }))}>
-                Website
-              </Button>
-            </div>
+        <FieldGroup key="websites" label="Websites">
+          {draft.login.uris.map((entry, i) => (
+            <Field key={entry.key}>
+              <input className={FIELD_INPUT} type="text" aria-label={`Website ${i + 1}`} autoComplete="off" spellCheck={false} placeholder="https://" value={entry.uri} onChange={(event) => update((next) => void (next.login.uris[i]!.uri = event.target.value))} />
+              <select
+                className={`${FIELD_INPUT} w-28 flex-none appearance-none text-[13px]`}
+                aria-label={`Website ${i + 1} match`}
+                value={entry.match}
+                onChange={(event) => update((next) => void (next.login.uris[i]!.match = event.target.value as (typeof URI_MATCHES)[number]["id"]))}
+              >
+                {URI_MATCHES.map((match) => (
+                  <option key={match.id} value={match.id}>
+                    {match.label}
+                  </option>
+                ))}
+              </select>
+              <Icon name="chevDown" size={14} />
+              <IconButton icon="close" label={`Remove website ${i + 1}`} size={32} iconSize={14} onClick={() => update((next) => void next.login.uris.splice(i, 1))} />
+            </Field>
+          ))}
+          <div className="self-start">
+            <Button tone="sage" size="md" pill icon="plus" aria-label="Add website" onClick={() => update((next) => void next.login.uris.push({ key: draftKey(), uri: "", match: "default" }))}>
+              Website
+            </Button>
           </div>
-        </div>
+        </FieldGroup>
       );
     }
     return renderSecret(field);
@@ -373,23 +291,31 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
     const stored = field.storedAs;
     const loaded = field.value.value !== "" || field.value.dirty;
     return (
-      <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, borderRadius: 14, background: "rgba(250,250,247,.8)", border: "1px solid var(--glass-border)" }}>
-        <Box>
-          <span className="ui-label" style={{ fontSize: 11, width: 56, flex: "none" }}>
-            {field.type}
-          </span>
-          <input className="cinp" type="text" aria-label={`Field ${i + 1} name`} autoComplete="off" spellCheck={false} placeholder="Name" value={field.name} onChange={(event) => update((next) => void (next.fields[i]!.name = event.target.value))} style={{ fontSize: 15, color: "var(--ink)" }} />
-          <IconButton icon="close" label={`Remove field ${i + 1}`} size={28} iconSize={14} onClick={() => update((next) => void next.fields.splice(i, 1))} />
-        </Box>
+      <div key={field.key} className="flex flex-col gap-2 rounded-[14px] border border-glass-border bg-glass-sheet p-2.5">
+        <Field>
+          <span className="ui-label w-14 flex-none">{field.type}</span>
+          <input className={FIELD_INPUT} type="text" aria-label={`Field ${i + 1} name`} autoComplete="off" spellCheck={false} placeholder="Name" value={field.name} onChange={(event) => update((next) => void (next.fields[i]!.name = event.target.value))} />
+          <IconButton icon="close" label={`Remove field ${i + 1}`} size={32} iconSize={14} onClick={() => update((next) => void next.fields.splice(i, 1))} />
+        </Field>
         {field.type === "text" ? (
-          <Box>
-            <input className="cinp" type="text" aria-label={`Field ${i + 1} value`} autoComplete="off" spellCheck={false} value={field.value.value} onChange={(event) => update((next) => void (next.fields[i]!.value = { value: event.target.value, dirty: true }))} style={{ fontSize: 15, color: "var(--ink)" }} />
-          </Box>
+          <Field>
+            <input className={FIELD_INPUT} type="text" aria-label={`Field ${i + 1} value`} autoComplete="off" spellCheck={false} value={field.value.value} onChange={(event) => update((next) => void (next.fields[i]!.value = { value: event.target.value, dirty: true }))} />
+          </Field>
         ) : null}
         {field.type === "hidden" ? (
-          <Box>
+          <Field
+            extra={
+              <Eye
+                name={`field ${i + 1}`}
+                editing={stored !== null}
+                loaded={loaded}
+                shown={visible}
+                onClick={() => (visible || stored === null || loaded ? show(key, !visible) : reveal(key, field.name, { field: "custom", name: stored }, (next, v) => void (next.fields[i]!.value = { value: v, dirty: false })))}
+              />
+            }
+          >
             <input
-              className="cinp"
+              className={FIELD_INPUT}
               type={visible ? "text" : "password"}
               aria-label={`Field ${i + 1} value`}
               autoComplete="new-password"
@@ -397,26 +323,18 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
               placeholder={stored !== null ? "Leave blank to keep it" : undefined}
               value={field.value.value}
               onChange={(event) => update((next) => void (next.fields[i]!.value = { value: event.target.value, dirty: true }))}
-              style={{ fontSize: 15, color: "var(--ink)" }}
             />
-            <Eye
-              name={`field ${i + 1}`}
-              editing={stored !== null}
-              loaded={loaded}
-              shown={visible}
-              onClick={() => (visible || stored === null || loaded ? show(key, !visible) : reveal(key, field.name, { field: "custom", name: stored }, (next, v) => void (next.fields[i]!.value = { value: v, dirty: false })))}
-            />
-          </Box>
+          </Field>
         ) : null}
         {field.type === "boolean" ? (
-          <Box>
-            <input type="checkbox" aria-label={`Field ${i + 1} value`} checked={field.bool} onChange={(event) => update((next) => void (next.fields[i]!.bool = event.target.checked))} style={{ width: 16, height: 16, margin: 0, accentColor: "var(--sage)", flex: "none" }} />
-            <span style={{ fontSize: 15, flex: 1 }}>{field.bool ? "Yes" : "No"}</span>
-          </Box>
+          <Field>
+            <input type="checkbox" aria-label={`Field ${i + 1} value`} checked={field.bool} onChange={(event) => update((next) => void (next.fields[i]!.bool = event.target.checked))} className="m-0 size-4 flex-none accent-sage" />
+            <span className="flex-1 text-[15px]">{field.bool ? "Yes" : "No"}</span>
+          </Field>
         ) : null}
         {field.type === "linked" ? (
-          <Box>
-            <select className="cinp" aria-label={`Field ${i + 1} links to`} value={field.linkedTo ?? ""} onChange={(event) => update((next) => void (next.fields[i]!.linkedTo = (event.target.value || null) as FieldDraft["linkedTo"]))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
+          <Field extra={<Icon name="chevDown" size={14} />}>
+            <select className={`${FIELD_INPUT} appearance-none`} aria-label={`Field ${i + 1} links to`} value={field.linkedTo ?? ""} onChange={(event) => update((next) => void (next.fields[i]!.linkedTo = (event.target.value || null) as FieldDraft["linkedTo"]))}>
               <option value="">Links to…</option>
               {targets.map((target) => (
                 <option key={target.id} value={target.id}>
@@ -424,8 +342,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
                 </option>
               ))}
             </select>
-            <Icon name="chevDown" size={14} />
-          </Box>
+          </Field>
         ) : null}
       </div>
     );
@@ -433,53 +350,27 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
 
   return (
     <Sheet open={open} onClose={onClose} label={title} locked={pending}>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: 22, gap: 16 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span style={{ fontSize: 20, fontWeight: 600, flex: 1, minWidth: 0 }}>{title}</span>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
+        <div className="flex items-center gap-2.5">
+          <span className="min-w-0 flex-1 text-[20px] font-semibold">{title}</span>
           <IconButton icon="close" label="Close" disabled={pending || undefined} onClick={onClose} />
         </div>
-        {editing ? null : (
-          <SheetField label="Kind" extra={<Icon name="chevDown" size={14} />}>
-            <select className="cinp" aria-label="Kind" value={draft.type} onChange={(event) => setDraft((current) => retype(current, event.target.value as ChaaviItemType))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
-              {KINDS.map((type) => (
-                <option key={type} value={type}>
-                  {TYPE_META[type].one}
-                </option>
-              ))}
-            </select>
-          </SheetField>
-        )}
-        <div className="scroll" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 16, padding: 2, margin: -2 }}>
-          <SheetField label="Name">
-            <input className="cinp" type="text" aria-label="Name" autoComplete="off" spellCheck={false} autoFocus value={draft.name} onChange={(event) => update((next) => void (next.name = event.target.value))} style={{ fontSize: 15, color: "var(--ink)" }} />
-          </SheetField>
+        {editing ? null : <SelectField label="Kind" value={draft.type} options={KINDS.map((type): [string, string] => [type, TYPE_META[type].one])} onChange={(value) => setDraft((current) => retype(current, value as ChaaviItemType))} />}
+        <div className="scroll -m-0.5 flex min-h-0 flex-1 flex-col gap-4 p-0.5">
+          <TextField label="Name" autoFocus value={draft.name} onChange={(value) => update((next) => void (next.name = value))} />
           {fieldsFor(draft.type).map(renderField)}
           {renderSecret(notesField)}
-          <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="ui-label" style={{ fontSize: 11 }}>
-              Custom fields
-            </span>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {draft.fields.map(renderCustom)}
-              <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                {(["text", "hidden", "boolean", "linked"] as const).map((type) => (
-                  <Button key={type} tone="sage" size="md" pill icon="plus" aria-label={`Add ${type} field`} disabled={type === "linked" && targets.length === 0} onClick={() => addField(type)}>
-                    {type[0]!.toUpperCase() + type.slice(1)}
-                  </Button>
-                ))}
-              </div>
-            </div>
-          </div>
-          <SheetField label="Folder" extra={<Icon name="chevDown" size={14} />}>
-            <select className="cinp" aria-label="Folder" value={draft.folderId ?? ""} onChange={(event) => update((next) => void (next.folderId = event.target.value === "" ? null : event.target.value))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
-              <option value="">No folder</option>
-              {folders.map((folder) => (
-                <option key={folder.id} value={folder.id}>
-                  {folder.name}
-                </option>
+          <FieldGroup label="Custom fields">
+            {draft.fields.map(renderCustom)}
+            <div className="flex flex-wrap items-center gap-2">
+              {(["text", "hidden", "boolean", "linked"] as const).map((type) => (
+                <Button key={type} tone="sage" size="md" pill icon="plus" aria-label={`Add ${type} field`} disabled={type === "linked" && targets.length === 0} onClick={() => addField(type)}>
+                  {type[0]!.toUpperCase() + type.slice(1)}
+                </Button>
               ))}
-            </select>
-          </SheetField>
+            </div>
+          </FieldGroup>
+          <SelectField label="Folder" value={draft.folderId ?? ""} options={[["", "No folder"], ...folders.map((folder): [string, string] => [folder.id, folder.name])]} onChange={(value) => update((next) => void (next.folderId = value === "" ? null : value))} />
         </div>
         <ButtonGroup justify="flex-end">
           <Button tone="quiet" size="xl" disabled={pending} onClick={onClose}>

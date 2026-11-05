@@ -93,7 +93,7 @@ export function ScheduleRow({ schedule, agentId, position, onSave, onCancel }: S
   return (
     <div {...context} className={`flex flex-col gap-2 rounded-[12px] border px-[11px] py-[9px] transition-colors duration-slow ease-dadi ${editing ? "border-sage-line bg-bone" : "border-transparent bg-sage-fill"}`}>
       {head}
-      <AnimatePresence initial={false} mode="wait">
+      <AnimatePresence initial={false}>
         {editing ? (
           <motion.div key="edit" {...REVEAL} className="overflow-hidden">
             <div className="flex flex-col gap-2">

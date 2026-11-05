@@ -1,5 +1,7 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
+import { AnimatePresence, motion } from "motion/react";
+import { RISE } from "../../shared/motion";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Switch } from "../../shared/ui/Switch";
@@ -56,18 +58,19 @@ function Light({ light, house }: LightProps) {
     void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
   };
   return (
-    <button
+    <motion.button
+      {...RISE}
+      layout="position"
       type="button"
-      className="ui-trans ui-hover-fill"
+      className={`ui-trans ui-hover-fill -mx-1 flex h-5 w-[calc(100%+8px)] items-center gap-2 rounded-[6px] px-1 text-left text-[13px] ${on ? "text-ink" : "text-ink-muted"} ${light.online ? "" : "opacity-45"}`}
       aria-pressed={on}
       title={`Switch ${on ? "off" : "on"} ${light.name}`}
       disabled={!house.connected || !light.online || house.pending.has(light.id)}
       onClick={flip}
-      style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% + 8px)", margin: "0 -4px", padding: "0 4px", height: 20, borderRadius: 6, textAlign: "left", fontSize: 13, color: on ? "var(--ink)" : "var(--ink-muted)", ...(light.online ? {} : { opacity: 0.45 }) }}
     >
-      <span style={{ width: 9, height: 9, borderRadius: "50%", background: lightColor(light), border: on ? "none" : "1px solid var(--sage-line)", flex: "none" }} />
-      <Truncate text={light.name} style={{ flex: 1, minWidth: 0 }} />
-    </button>
+      <span className={`dot size-2 ${on ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
+      <Truncate text={light.name} className="min-w-0 flex-1" />
+    </motion.button>
   );
 }
 
@@ -88,45 +91,52 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
   const shown = rooms.length + 1 <= slots ? rooms : rooms.slice(0, slots - 1);
   const extra = rooms.length - shown.length;
   const cell = (geometry.bh - 8 * (rowsFit - 1)) / rowsFit;
-  const listed = Math.max(0, Math.min(4, Math.floor((cell - 64) / 22)));
+  const listed = Math.max(0, Math.min(4, Math.floor((cell - 66) / 22)));
+  const tileClass = "flex min-h-0 items-center justify-center gap-2 rounded-[14px] border border-dashed border-sage-line text-[14px] text-sage-text";
   return (
-    <div style={{ flex: 1, minWidth: 0, minHeight: 0, display: "grid", gridTemplateColumns: `repeat(${columns},minmax(0,1fr))`, gridAutoRows: "minmax(0,1fr)", gap: 8 }}>
-      {shown.map((room) => (
-        <div
-          key={room.name}
-          className="ui-hover-card ui-trans"
-          title={`Open ${room.name} in Ghar`}
-          style={{ display: "flex", flexDirection: "column", gap: 3, padding: "12px 12px 10px", borderRadius: 14, textAlign: "left", minWidth: 0, minHeight: 0, background: room.on > 0 ? "rgba(240,168,104,.12)" : "var(--sage-fill)", border: `1px solid ${room.on > 0 ? "rgba(240,168,104,.45)" : "var(--glass-border)"}` }}
-        >
-          <NameTruncate name={room.name} style={{ fontSize: 14, fontWeight: 600 }} />
-          <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`${room.on} of ${room.lights.length} on`}</span>
-          <div style={{ flex: 1 }} />
-          {listed === 0 ? null : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-              {room.lights.length <= listed
-                ? room.lights.map((light) => <Light key={light.id} light={light} house={house} />)
-                : listed === 1
-                  ? [<span key="count" style={{ fontSize: 13, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`${room.lights.length} lights`}</span>]
-                  : [
-                      ...room.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
-                      <span key="more" style={{ fontSize: 12, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`+${room.lights.length - (listed - 1)} more`}</span>,
-                    ]}
+    <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
+      <AnimatePresence initial={false}>
+        {shown.map((room) => (
+          <motion.div
+            key={room.name}
+            {...RISE}
+            layout="position"
+            className={`ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${room.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
+            title={`Open ${room.name} in Ghar`}
+          >
+            <div className="flex min-w-0 text-[14px] font-semibold">
+              <NameTruncate name={room.name} />
             </div>
-          )}
-        </div>
-      ))}
+            <span className="text-[13px] text-ink-muted tabular-nums">{`${room.on} of ${room.lights.length} on`}</span>
+            <div className="flex-1" />
+            {listed === 0 ? null : (
+              <div className="flex flex-col gap-0.5">
+                <AnimatePresence initial={false}>
+                  {room.lights.length <= listed
+                    ? room.lights.map((light) => <Light key={light.id} light={light} house={house} />)
+                    : listed === 1
+                      ? [<span key="count" className="flex h-5 items-center text-[13px] text-ink-muted tabular-nums">{`${room.lights.length} lights`}</span>]
+                      : [
+                          ...room.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
+                          <span key="more" className="flex h-5 items-center text-[12px] text-ink-muted tabular-nums">{`+${room.lights.length - (listed - 1)} more`}</span>,
+                        ]}
+                </AnimatePresence>
+              </div>
+            )}
+          </motion.div>
+        ))}
+      </AnimatePresence>
       {naming ? (
-        <div onClick={swallow} style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", minHeight: 0, padding: "0 12px" }}>
+        <div onClick={swallow} className={`${tileClass} px-3`}>
           <Icon name="plus" size={14} />
           <input
             type="text"
-            className="cinp"
+            className="cinp text-[14px] text-ink"
             placeholder="Room name"
             aria-label="New room name"
             autoComplete="off"
             spellCheck={false}
             autoFocus
-            style={{ fontSize: 14, color: "var(--ink)" }}
             onBlur={(event) => {
               setNaming(false);
               void createRoom(house, event.currentTarget.value);
@@ -146,7 +156,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
           type="button"
           disabled={!house.connected}
           aria-label={extra > 0 ? "Show all rooms" : "New room"}
-          className="ui-hover-fill ui-trans"
+          className={`ui-hover-fill ui-trans ${tileClass} font-medium`}
           onClick={(event) => {
             swallow(event);
             if (extra > 0) {
@@ -155,10 +165,9 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
               setNaming(true);
             }
           }}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", fontSize: 14, fontWeight: 500, minHeight: 0 }}
         >
           <Icon name="plus" size={14} />
-          {extra > 0 ? `${extra} more` : "New room"}
+          <span className="tabular-nums">{extra > 0 ? `${extra} more` : "New room"}</span>
         </button>
       )}
     </div>
@@ -186,7 +195,7 @@ export function GharTile({ order }: { order: number }) {
       summary={lights.length > 0 ? `${on} of ${lights.length} on` : undefined}
       right={
         state.kind === "ready" ? (
-          <span onClick={swallow} style={{ display: "flex", marginTop: -4 }}>
+          <span onClick={swallow} className="-mt-1 flex">
             <Switch on={on > 0} label="All lights" onChange={() => void house.run(sectionSwitch(lights))} />
           </span>
         ) : undefined
@@ -196,16 +205,16 @@ export function GharTile({ order }: { order: number }) {
       skeleton={(g) => {
         const columns = g.iw >= 440 ? 3 : 2;
         return (
-          <div style={{ flex: 1, minWidth: 0, display: "grid", gridTemplateColumns: `repeat(${g.iw >= 440 ? 3 : 2},1fr)`, gridAutoRows: "minmax(64px,1fr)", gap: 8 }}>
+          <div className="grid min-w-0 flex-1 auto-rows-[minmax(64px,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(${columns},1fr)` }}>
             {Array.from({ length: columns === 3 ? 3 : 4 }, (_, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 12, borderRadius: 14, background: "var(--sage-fill)" }}>
+              <div key={i} className="flex flex-col gap-2 rounded-[14px] bg-sage-fill p-3">
                 <Skeleton width="60%" height={14} />
-                <Skeleton width="40%" height={11} />
-                <div style={{ flex: 1 }} />
-                <div style={{ display: "flex", alignItems: "center", gap: 5 }}>
-                  <Skeleton width={10} height={10} radius={5} />
-                  <Skeleton width={10} height={10} radius={5} />
-                  <Skeleton width={10} height={10} radius={5} />
+                <Skeleton width="40%" height={12} />
+                <div className="flex-1" />
+                <div className="flex items-center gap-1">
+                  <Skeleton width={12} height={12} radius={6} />
+                  <Skeleton width={12} height={12} radius={6} />
+                  <Skeleton width={12} height={12} radius={6} />
                 </div>
               </div>
             ))}
