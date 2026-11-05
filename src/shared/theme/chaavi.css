@@ -1,6 +1,7 @@
 /*
- * The Chaavi page's own style: the bare text field inside a sheet's field row, which the row's box surrounds. The
- * values come from the design (the Thaali design artifact's generator, gen/chaavi.mjs); the fidelity gate holds them to it.
+ * The Chaavi page's own style: the bare text field inside a sheet's field row, which the row's box surrounds, and
+ * the folder row's count that gives way to its actions on hover. The values come from the design (the Thaali design
+ * artifact's generator, gen/chaavi.mjs); the fidelity gate holds them to it.
  */
 
 @layer components {
@@ -14,17 +15,34 @@
 }
 
 @layer components {
+  .frow .fact,
+  .frow .fcount {
+    transition:
+      opacity var(--fast) var(--ease),
+      display var(--fast) allow-discrete;
+  }
+
   .frow .fact {
     display: none;
+    opacity: 0;
   }
 
   .frow:hover .fact,
   .frow:focus-within .fact {
     display: flex;
+    opacity: 1;
   }
 
   .frow:hover .fcount,
   .frow:focus-within .fcount {
     display: none;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .frow:hover .fact,
+    .frow:focus-within .fact {
+      opacity: 0;
+    }
   }
 }

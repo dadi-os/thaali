@@ -1,10 +1,14 @@
 import { useState, type ReactElement } from "react";
+import { motion } from "motion/react";
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import { EASE, SLOW_S } from "../../shared/motion";
 import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { Icon, type IconName } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, TYPE_META, type VaultScope } from "./draft";
+import { folderActions } from "./actions";
 import { buildFolderTree, joinPath, parentPath, type FolderNode } from "./folders";
 
 /** The washed background and halo of a row an item is dragged over, or has just landed on. */
@@ -98,6 +102,75 @@ function NameRow({ depth, initial, save, onSubmit, onCancel }: NameRowProps) {
   );
 }
 
+type FolderRowProps = {
+  node: FolderNode;
+  depth: number;
+  /** The folder is the chosen scope. */
+  on: boolean;
+  /** Its children show. */
+  open: boolean;
+  /** An item is dragged over it. */
+  hot: boolean;
+  /** The key a dragged item lands on; unset for a folder that exists only as another's path. */
+  dropKey: string | undefined;
+  busy: boolean;
+  onScope: () => void;
+  onToggle: () => void;
+  onAdd: () => void;
+  onRename: () => void;
+  onRemove: () => void;
+};
+
+/** One folder of the tree: a chevron when it has folders inside, its name and count, and add, rename and delete on hover, also on its right-click menu. */
+function FolderRow({ node, depth, on, open, hot, dropKey, busy, onScope, onToggle, onAdd, onRename, onRemove }: FolderRowProps) {
+  const context = useContextActions(() => folderActions(node.name, node.id !== null, { busy, add: onAdd, rename: onRename, remove: onRemove }));
+  return (
+    <div
+      {...context}
+      className="frow ui-trans ui-hover-fill"
+      data-drop={dropKey}
+      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", height: 38, flex: "none", padding: `0 8px 0 ${6 + depth * 16}px`, borderRadius: 11, background: on ? "var(--sage-active)" : "transparent", ...(hot ? HOT_STYLE : {}) }}
+    >
+      {node.children.length > 0 ? (
+        <button
+          type="button"
+          className="ui-trans ui-hover-fill"
+          aria-label={`${open ? "Collapse" : "Expand"} ${node.name}`}
+          aria-expanded={open ? "true" : "false"}
+          onClick={onToggle}
+          style={{ width: 28, height: 28, margin: "0 -4px", borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-muted)", flex: "none" }}
+        >
+          <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: SLOW_S, ease: EASE }} style={{ display: "flex" }}>
+            <Icon name="chevron" size={12} />
+          </motion.span>
+        </button>
+      ) : (
+        <span style={{ width: 20, height: 20, flex: "none" }} />
+      )}
+      <button
+        type="button"
+        className="ui-trans"
+        aria-current={on ? "true" : "false"}
+        onClick={onScope}
+        style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, height: 38, fontWeight: on ? 600 : 500, textAlign: "left" }}
+      >
+        <span style={{ display: "flex", color: node.id === null ? "var(--ink-faint)" : on ? "var(--sage-text)" : "var(--ink-muted)" }}>
+          <Icon name="folder" size={15} />
+        </span>
+        <Truncate text={node.name} style={{ flex: 1, minWidth: 0, fontSize: 14, color: node.id === null ? "var(--ink-muted)" : "var(--ink)" }} />
+      </button>
+      <span className="fcount" style={{ fontSize: 12.5, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
+        {node.count}
+      </span>
+      <span className="fact" style={{ gap: 0 }}>
+        <IconButton icon="plus" label={`Add a folder inside ${node.name}`} size={32} iconSize={13} disabled={busy || undefined} onClick={onAdd} />
+        <IconButton icon="pencil" label={`Rename ${node.name}`} size={32} iconSize={13} disabled={busy || undefined} onClick={onRename} />
+        {node.id === null ? null : <IconButton icon="trash" label={`Delete ${node.name}`} size={32} iconSize={13} disabled={busy || undefined} onClick={onRemove} />}
+      </span>
+    </div>
+  );
+}
+
 export type FolderPaneProps = {
   /** Every item in the vault, which the counts are of. */
   items: ChaaviItem[];
@@ -181,47 +254,21 @@ export function FolderPane({ items, folders, scope, busy, hot, onScope, onCreate
       }
       const dropKey = node.id === null ? undefined : `folder:${node.id}`;
       const out: ReactElement[] = [
-        <div
+        <FolderRow
           key={node.path}
-          className="frow ui-trans ui-hover-fill"
-          data-drop={dropKey}
-          style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", height: 38, flex: "none", padding: `0 8px 0 ${6 + depth * 16}px`, borderRadius: 11, background: on ? "var(--sage-active)" : "transparent", ...(dropKey !== undefined && hot === dropKey ? HOT_STYLE : {}) }}
-        >
-          {node.children.length > 0 ? (
-            <button
-              type="button"
-              className="ui-trans ui-hover-fill"
-              aria-label={`${open ? "Collapse" : "Expand"} ${node.name}`}
-              aria-expanded={open ? "true" : "false"}
-              onClick={() => setCollapsed((current) => (open ? [...current, node.path] : current.filter((path) => path !== node.path)))}
-              style={{ width: 20, height: 20, borderRadius: 6, display: "flex", alignItems: "center", justifyContent: "center", color: "var(--ink-muted)", flex: "none" }}
-            >
-              <Icon name="chevron" size={12} style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform 160ms cubic-bezier(.22,.61,.36,1)" }} />
-            </button>
-          ) : (
-            <span style={{ width: 20, height: 20, flex: "none" }} />
-          )}
-          <button
-            type="button"
-            className="ui-trans"
-            aria-current={on ? "true" : "false"}
-            onClick={() => onScope({ kind: "folder", path: node.path })}
-            style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0, height: 38, fontWeight: on ? 600 : 500, textAlign: "left" }}
-          >
-            <span style={{ display: "flex", color: node.id === null ? "var(--ink-faint)" : on ? "var(--sage-text)" : "var(--ink-muted)" }}>
-              <Icon name="folder" size={15} />
-            </span>
-            <Truncate text={node.name} style={{ flex: 1, minWidth: 0, fontSize: 14, color: node.id === null ? "var(--ink-muted)" : "var(--ink)" }} />
-          </button>
-          <span className="fcount" style={{ fontSize: 12.5, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
-            {node.count}
-          </span>
-          <span className="fact" style={{ gap: 2 }}>
-            <IconButton icon="plus" label={`Add a folder inside ${node.name}`} size={24} iconSize={13} disabled={busy || undefined} onClick={() => startAdding(node.path)} />
-            <IconButton icon="pencil" label={`Rename ${node.name}`} size={24} iconSize={13} disabled={busy || undefined} onClick={() => setEditing({ mode: "rename", path: node.path })} />
-            {node.id === null ? null : <IconButton icon="trash" label={`Delete ${node.name}`} size={24} iconSize={13} disabled={busy || undefined} onClick={() => setEditing({ mode: "delete", path: node.path })} />}
-          </span>
-        </div>,
+          node={node}
+          depth={depth}
+          on={on}
+          open={open}
+          hot={dropKey !== undefined && hot === dropKey}
+          dropKey={dropKey}
+          busy={busy}
+          onScope={() => onScope({ kind: "folder", path: node.path })}
+          onToggle={() => setCollapsed((current) => (open ? [...current, node.path] : current.filter((path) => path !== node.path)))}
+          onAdd={() => startAdding(node.path)}
+          onRename={() => setEditing({ mode: "rename", path: node.path })}
+          onRemove={() => setEditing({ mode: "delete", path: node.path })}
+        />,
       ];
       if (editing?.mode === "create" && editing.parent === node.path) {
         out.push(createRow(node.path, depth + 1));

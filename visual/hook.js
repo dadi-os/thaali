@@ -60,7 +60,7 @@ new MutationObserver((records) => {
   const at = performance.now();
   for (const record of records) {
     for (const node of record.addedNodes) {
-      if (!(node instanceof HTMLElement) || at < window.__mountSince) continue;
+      if (!(node instanceof HTMLElement) || at < window.__mountSince || window.__still) continue;
       requestAnimationFrame(() => {
         const rect = node.getBoundingClientRect();
         if (!node.isConnected || rect.width < 12 || rect.height < 12) return;

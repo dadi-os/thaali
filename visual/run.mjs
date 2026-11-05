@@ -235,7 +235,7 @@ function plan(opts, outDir) {
         const tag = `${page}~${scenario}~${size}`;
         const steps = [{ shot: `${tag}.png` }, { checks: "settled" }];
         if (opts.interact) steps.push(...interactionSteps(tag));
-        jobs.push({ name: tag, url: `${ORIGIN}${PAGES[page]}?fixtures=${scenario}`, width, height, settleMs: SETTLE_MS[scenario] ?? 2500, steps });
+        jobs.push({ name: tag, url: `${ORIGIN}${PAGES[page]}?fixtures=${scenario}`, width, height, settleMs: SETTLE_MS[scenario] ?? 4000, steps });
       }
     }
   }
