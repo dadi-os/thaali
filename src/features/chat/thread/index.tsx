@@ -89,6 +89,20 @@ export function ThreadView({
             )}
           </motion.div>
         ) : null}
+        {isEmpty && load === null ? (
+          <motion.div
+            key="loading"
+            {...FADE}
+            role="status"
+            aria-label="Loading messages"
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col justify-end gap-3 px-4"
+            style={{ paddingBottom: composerPad + 16 }}
+          >
+            <span className="sk h-10 w-3/5 rounded-[14px]" />
+            <span className="sk h-16 w-4/5 self-end rounded-[14px]" />
+            <span className="sk h-12 w-2/3 rounded-[14px]" />
+          </motion.div>
+        ) : null}
       </AnimatePresence>
       <div
         ref={scrollRef}

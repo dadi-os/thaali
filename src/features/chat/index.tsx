@@ -11,7 +11,7 @@ import {
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { FADE } from "../../shared/motion";
+import { FADE, sheetMotion } from "../../shared/motion";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
@@ -645,8 +645,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       style={{ width: rail.width, height: "100%" }}
       data-agent-id={openAgentId ?? undefined}
     >
+      <AnimatePresence initial={false} mode="popLayout">
       {viewingThread ? (
-        <div className="pane-in absolute inset-0 flex flex-col">
+        <motion.div key="thread" className="absolute inset-0 flex flex-col" {...sheetMotion("right")}>
           <ThreadHeader
             onBack={backToList}
             title={openAgentRecord ? openAgentRecord.name : null}
@@ -735,9 +736,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
               />
             ) : null}
           </AnimatePresence>
-        </div>
+        </motion.div>
       ) : (
-        <>
+        <motion.div key="list" className="absolute inset-0 flex flex-col" {...sheetMotion("left")}>
           <ConversationList
             conversations={chat.conversations}
             selectedAgentId={null}
@@ -767,8 +768,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
             onSend={() => void sendDadi(draft, draftAttachments.length > 0 ? toMessageAttachments(draftAttachments) : undefined)}
             textareaRef={dockTextareaRef}
           />
-        </>
+        </motion.div>
       )}
+      </AnimatePresence>
       <ResizeHandle rail={rail} />
 
     </aside>
