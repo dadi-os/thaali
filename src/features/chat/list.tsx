@@ -94,7 +94,7 @@ export function ConversationList({
       </div>
       <div
         data-edge-fade="off"
-        className={`scroll absolute inset-0 flex flex-col overflow-y-auto transition-[opacity,filter] duration-slow ease-dadi ${offline ? "opacity-[.62] saturate-[.7]" : ""}`}
+        className={`scroll absolute inset-0 flex flex-col overflow-y-auto ${offline ? "opacity-[.62] saturate-[.7]" : ""}`}
         onClick={onDismissKeyboard}
         style={{ paddingTop: SEARCH_CLEAR_PX, paddingBottom: DOCK_CLEAR_PX }}
       >

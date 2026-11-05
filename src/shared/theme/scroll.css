@@ -51,9 +51,9 @@
   }
 
   /* A scroller that runs under floating glass lets its text show through the glass instead of fading. */
-  [data-edge-fade="off"] {
-    -webkit-mask-image: none;
-    mask-image: none;
+  [data-edge-fade="off"][data-edge-fade="off"] {
+    -webkit-mask-image: none !important;
+    mask-image: none !important;
   }
 
   [data-edge-top] {
