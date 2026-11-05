@@ -1,8 +1,46 @@
 import { type ReactNode, Suspense, useEffect, useRef } from "react";
-import { Canvas } from "@react-three/fiber";
+import { Canvas, useFrame, useThree } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 import { useThemeTokens } from "../../hooks/useThemeTokens";
+
+/** How long the scene keeps rendering after the last pointer, orbit or content change, so springs, camera flights and the layout settle. */
+const WAKE_MS = 6000;
+
+/**
+ * Renders on demand: keeps requesting frames while the scene is within `WAKE_MS` of the
+ * last activity (mount, content change, pointer, wheel, orbit), then goes fully idle.
+ */
+function Wake() {
+  const invalidate = useThree((s) => s.invalidate);
+  const dom = useThree((s) => s.gl.domElement);
+  const until = useRef(performance.now() + WAKE_MS);
+  useEffect(() => {
+    until.current = performance.now() + WAKE_MS;
+    invalidate();
+  });
+  useEffect(() => {
+    const wake = () => {
+      until.current = performance.now() + WAKE_MS;
+      invalidate();
+    };
+    const events = ["pointermove", "pointerdown", "pointerup", "wheel"] as const;
+    for (const name of events) {
+      dom.addEventListener(name, wake, { passive: true });
+    }
+    return () => {
+      for (const name of events) {
+        dom.removeEventListener(name, wake);
+      }
+    };
+  }, [dom, invalidate]);
+  useFrame(() => {
+    if (performance.now() < until.current) {
+      invalidate();
+    }
+  });
+  return null;
+}
 
 export type GraphSpaceProps = {
   /** When true, enable orbit / zoom / pan. */
@@ -61,7 +99,8 @@ export function GraphSpace({
     <div className={rootClass}>
       <Canvas
         className="h-full w-full touch-none"
-        dpr={[1, 1.75]}
+        frameloop="demand"
+        dpr={[1, 1.5]}
         gl={{ antialias: true, alpha: true }}
         camera={{
           position: cameraPosition,
@@ -80,6 +119,7 @@ export function GraphSpace({
         <directionalLight position={[50, 90, 40]} intensity={0.7} />
         <directionalLight position={[-40, 30, -50]} intensity={0.28} />
         <hemisphereLight args={["#fafaf7", "#b9c9ab", 0.35]} />
+        <Wake />
         <Suspense fallback={null}>{children}</Suspense>
         {interactive ? (
           <OrbitControls
