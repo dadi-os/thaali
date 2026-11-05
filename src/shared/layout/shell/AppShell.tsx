@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { RISE } from "../../motion";
 import { ChatSidebar } from "../../../features/chat";
 import { TakeoverModal } from "../../../features/agents/takeover";
 import { ForgetDeviceDialog } from "../../../features/onboarding/ForgetDevice";
@@ -88,7 +89,9 @@ export function AppShell() {
 
         <div className="relative flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
           <ErrorBoundary key={location.pathname} label={location.pathname === "/" ? "Home" : location.pathname.slice(1)}>
-            <Outlet />
+            <motion.div key={location.pathname} style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, minHeight: 0 }} {...RISE}>
+              <Outlet />
+            </motion.div>
           </ErrorBoundary>
         </div>
 

@@ -318,17 +318,19 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
   const changed = item.revisionDate;
   return (
     <Card style={{ flex: 1, minWidth: 0, minHeight: 0, padding: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, padding: "20px 22px 14px", flex: "none" }}>
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "10px 14px", padding: "20px 22px 14px", flex: "none" }}>
         <Avatar name={item.name} size={52} />
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 4 }}>
+        <div style={{ display: "flex", flexDirection: "column", flex: "1 1 140px", minWidth: 140, gap: 4 }}>
           <Truncate text={item.name} style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.015em" }} />
           <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} style={{ fontSize: 14, color: "var(--ink-muted)" }} />
         </div>
-        <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} style={{ color: item.favorite ? "var(--clay)" : "var(--ink-muted)" }} />
-        <Button tone="outline" disabled={busy} onClick={onEdit} style={{ color: "var(--sage-text)", fontWeight: 600 }}>
-          Edit
-        </Button>
-        <IconButton icon="trash" label="Delete item" disabled={busy || undefined} onClick={onDelete} style={{ color: "var(--error)" }} />
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none", marginLeft: "auto" }}>
+          <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} style={{ color: item.favorite ? "var(--clay)" : "var(--ink-muted)" }} />
+          <Button tone="outline" disabled={busy} onClick={onEdit} style={{ color: "var(--sage-text)", fontWeight: 600 }}>
+            Edit
+          </Button>
+          <IconButton icon="trash" label="Delete item" disabled={busy || undefined} onClick={onDelete} style={{ color: "var(--error)" }} />
+        </div>
       </div>
       <div className="scroll" style={{ flex: 1, minHeight: 0, padding: "0 22px 22px", display: "flex", flexDirection: "column", gap: 10 }}>
         {fieldsOf(item).map((field) => {

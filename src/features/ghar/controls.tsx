@@ -29,12 +29,15 @@ export type SliderProps = {
   onCommit: (fraction: number) => void;
 };
 
+/** The knob's radius in px; the track is inset by it so the knob sits whole at either end. */
+const KNOB_RADIUS = 10;
+
 /** A horizontal slider: a track, its fill and a knob. A drag follows the pointer and commits once on release; the arrow, page, home and end keys step it. */
 export function Slider({ value, color, thickness, name, text, disabled = false, onDrag, onCommit }: SliderProps) {
   const drag = useRef<number | null>(null);
   const at = (event: PointerEvent<HTMLDivElement>) => {
     const rect = event.currentTarget.getBoundingClientRect();
-    return Math.min(1, Math.max(0, (event.clientX - rect.left) / rect.width));
+    return Math.min(1, Math.max(0, (event.clientX - rect.left - KNOB_RADIUS) / (rect.width - KNOB_RADIUS * 2)));
   };
   const press = (event: KeyboardEvent<HTMLDivElement>) => {
     const step = { ArrowLeft: -1, ArrowDown: -1, ArrowRight: 1, ArrowUp: 1, PageDown: -10, PageUp: 10 }[event.key];
@@ -83,11 +86,13 @@ export function Slider({ value, color, thickness, name, text, disabled = false, 
       onKeyDown={disabled ? undefined : press}
       style={{ position: "relative", height: 24, display: "flex", alignItems: "center", touchAction: "none", ...(disabled ? { opacity: 0.45 } : {}) }}
     >
-      <span style={{ display: "block", width: "100%", height: thickness, borderRadius: thickness, background: "var(--rule)" }} />
-      <span style={{ position: "absolute", left: 0, width: `${value}%`, height: thickness, borderRadius: thickness, background: color }} />
-      <span
-        style={{ position: "absolute", left: `calc(${value}% - 10px)`, width: 20, height: 20, borderRadius: "50%", background: "var(--bone)", border: `2px solid ${color}`, boxShadow: "var(--shadow)" }}
-      />
+      <div style={{ position: "absolute", left: KNOB_RADIUS, right: KNOB_RADIUS, top: 0, bottom: 0, display: "flex", alignItems: "center" }}>
+        <span style={{ display: "block", width: "100%", height: thickness, borderRadius: thickness, background: "var(--rule)" }} />
+        <span style={{ position: "absolute", left: 0, width: `${value}%`, height: thickness, borderRadius: thickness, background: color }} />
+        <span
+          style={{ position: "absolute", left: `calc(${value}% - ${KNOB_RADIUS}px)`, width: KNOB_RADIUS * 2, height: KNOB_RADIUS * 2, borderRadius: "50%", background: "var(--bone)", border: `2px solid ${color}`, boxShadow: "var(--shadow)" }}
+        />
+      </div>
     </div>
   );
 }
