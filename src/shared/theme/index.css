@@ -2,6 +2,8 @@
 
 @import "./fonts.css";
 @import "./tokens.css";
+@import "./base.css";
+@import "./scroll.css";
 @import "./ghar.css";
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities);

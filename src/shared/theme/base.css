@@ -1,0 +1,106 @@
+/*
+ * The desktop input policy, applied to every element so no component decides it alone.
+ *
+ * - The window is chrome: text is not selectable and the cursor is the arrow. Content a person reads or copies
+ *   (messages, log lines, values, ids, notes) opts in with `data-selectable`, or is a text field.
+ * - Anything a person can act on shows the pointer, eases its hover and focus changes, and gives under the
+ *   finger on press. A disabled one shows the arrow and does not react.
+ * - No scrollbar draws anywhere; a scrolling region shows it continues with an edge fade (see ScrollArea).
+ */
+
+@layer base {
+  html {
+    cursor: default;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  [data-selectable],
+  [data-selectable] *,
+  .chat-md,
+  .chat-md * {
+    -webkit-user-select: text;
+    user-select: text;
+  }
+
+  [data-selectable],
+  .chat-md {
+    cursor: text;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"] {
+    cursor: text;
+  }
+
+  button,
+  a[href],
+  summary,
+  select,
+  label[for],
+  [role="button"],
+  [role="tab"],
+  [role="menuitem"],
+  [role="menuitemradio"],
+  [role="menuitemcheckbox"],
+  [role="radio"],
+  [role="switch"],
+  [role="option"],
+  [data-interactive] {
+    cursor: pointer;
+    transition:
+      background-color var(--fast) var(--ease),
+      border-color var(--fast) var(--ease),
+      color var(--fast) var(--ease),
+      box-shadow var(--fast) var(--ease),
+      opacity var(--fast) var(--ease),
+      scale var(--fast) var(--ease);
+  }
+
+  button:active:not(:disabled):not([aria-disabled="true"]),
+  a[href]:active,
+  [role="button"]:active:not([aria-disabled="true"]),
+  [data-interactive]:active:not([aria-disabled="true"]) {
+    scale: 0.985;
+  }
+
+  button:disabled,
+  [aria-disabled="true"] {
+    cursor: default;
+  }
+
+  img,
+  svg,
+  canvas,
+  video {
+    -webkit-user-drag: none;
+  }
+
+  ::selection {
+    background: var(--sage-active);
+    color: var(--ink);
+  }
+
+  * {
+    scrollbar-width: none;
+  }
+
+  *::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    button:active:not(:disabled),
+    a[href]:active,
+    [role="button"]:active,
+    [data-interactive]:active {
+      scale: none;
+    }
+  }
+}

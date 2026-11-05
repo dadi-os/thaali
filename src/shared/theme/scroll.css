@@ -1,0 +1,89 @@
+/*
+ * Scroll edge fade. No scrollbar draws anywhere (base.css); a scrolling region shows it continues by fading
+ * the edge with more content beyond it. The marks (`data-edge-*`) come from interaction/scrollEdges.ts.
+ * The fade length animates, so an edge dissolves in and out as a region is scrolled instead of switching.
+ */
+
+@property --fade-top {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-bottom {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-left {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@property --fade-right {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0px;
+}
+
+@layer components {
+  [data-edge-top],
+  [data-edge-bottom] {
+    -webkit-mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--fade-top),
+      #000 calc(100% - var(--fade-bottom)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to bottom,
+      transparent 0,
+      #000 var(--fade-top),
+      #000 calc(100% - var(--fade-bottom)),
+      transparent 100%
+    );
+    transition:
+      --fade-top var(--slow) var(--ease),
+      --fade-bottom var(--slow) var(--ease);
+  }
+
+  [data-edge-top] {
+    --fade-top: 28px;
+  }
+
+  [data-edge-bottom] {
+    --fade-bottom: 28px;
+  }
+
+  [data-edge-left]:not([data-edge-top]):not([data-edge-bottom]),
+  [data-edge-right]:not([data-edge-top]):not([data-edge-bottom]) {
+    -webkit-mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--fade-left),
+      #000 calc(100% - var(--fade-right)),
+      transparent 100%
+    );
+    mask-image: linear-gradient(
+      to right,
+      transparent 0,
+      #000 var(--fade-left),
+      #000 calc(100% - var(--fade-right)),
+      transparent 100%
+    );
+    transition:
+      --fade-left var(--slow) var(--ease),
+      --fade-right var(--slow) var(--ease);
+  }
+
+  [data-edge-left] {
+    --fade-left: 28px;
+  }
+
+  [data-edge-right] {
+    --fade-right: 28px;
+  }
+}

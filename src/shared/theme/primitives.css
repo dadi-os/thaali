@@ -167,7 +167,8 @@
   /* A color, border, shadow or transform change on hover, press or focus eases over --fast. */
   .ui-trans {
     transition: background-color var(--fast) var(--ease), border-color var(--fast) var(--ease),
-      color var(--fast) var(--ease), box-shadow var(--fast) var(--ease), transform var(--fast) var(--ease),
+      color var(--fast) var(--ease), box-shadow var(--fast) var(--ease), scale var(--fast) var(--ease),
+      transform var(--fast) var(--ease),
       opacity var(--fast) var(--ease);
   }
 
@@ -178,7 +179,6 @@
 
   .ui-hover-fill:active:not(:disabled) {
     background-color: var(--sage-active) !important;
-    transform: scale(0.985);
   }
 
   .ui-hover-solid:hover:not(:disabled) {
@@ -187,7 +187,6 @@
 
   .ui-hover-solid:active:not(:disabled) {
     background-color: var(--sage-deep-press) !important;
-    transform: scale(0.98);
   }
 
   .ui-hover-card:hover {
@@ -196,9 +195,6 @@
     box-shadow: 0 2px 6px rgba(92, 107, 82, 0.08), 0 14px 34px rgba(44, 48, 42, 0.07) !important;
   }
 
-  .ui-hover-card:active {
-    transform: scale(0.995);
-  }
 
   .ui-hover-danger:hover:not(:disabled) {
     background-color: var(--error-hover) !important;
