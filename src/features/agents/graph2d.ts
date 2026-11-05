@@ -89,6 +89,9 @@ export function graphName(name: string): string {
   return name;
 }
 
+/** The most room, as a fraction of the graph's width, the names beside it may take on each side. */
+const MAX_LABEL_MARGIN = 0.3;
+
 /** The radius of an agent's node in px, by its depth. */
 export function nodeRadius(depth: number, scale: number): number {
   return (depth === 1 ? 8 : depth === 2 ? 6 : 4.5) * scale;
@@ -145,15 +148,17 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
       nodes
         .filter((n) => (Math.cos(n.ang) >= -0.05) === right && (labels === "all" || n.depth === 1 || isLive(n.state) || n.state === "waiting"))
         .reduce((most, n) => Math.max(most, n.x * (right ? 1 : -1) + unit(18) + graphName(n.agent.name).length * letter * 0.6), -Infinity);
-    ext = { l: Math.max(0, widest(false) - -minX), r: Math.max(0, widest(true) - maxX) };
+    const room = (maxX - minX + pad * 2) * MAX_LABEL_MARGIN;
+    ext = { l: Math.min(room, Math.max(0, widest(false) - -minX)), r: Math.min(room, Math.max(0, widest(true) - maxX)) };
   }
   const priority = (n: ForestNode) => (isLive(n.state) ? 1 : n.state === "waiting" ? 2 : n.depth === 1 ? 3 : 4 + n.depth);
+  const matters = (n: ForestNode) => n.depth === 1 || isLive(n.state) || n.state === "waiting";
   const boxes = nodes.map((n) => {
     const r = unit(nodeRadius(n.depth, nodeScale)) + unit(2);
-    return { x0: n.x - r, x1: n.x + r, y0: n.y - r, y1: n.y + r, own: n as ForestNode | null };
+    return { x0: n.x - r, x1: n.x + r, y0: n.y - r, y1: n.y + r, own: n as ForestNode | null, solid: matters(n) };
   });
   const covered = (box: { x0: number; x1: number; y0: number; y1: number }, self: ForestNode) =>
-    boxes.some((other) => other.own !== self && box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0);
+    boxes.some((other) => other.own !== self && (other.solid || !matters(self)) && box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0);
   const written = new Map<ForestNode, { right: boolean; name: string; size: number }>();
   for (const n of [...nodes].sort((a, b) => priority(a) - priority(b))) {
     const live = isLive(n.state);
@@ -170,7 +175,7 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
       const start = right ? n.x + r + unit(7) : n.x - r - unit(7) - wide;
       const box = { x0: start, x1: start + wide, y0: n.y - size * 0.75, y1: n.y + size * 0.45 };
       if (!covered(box, n)) {
-        boxes.push({ ...box, own: null });
+        boxes.push({ ...box, own: null, solid: true });
         written.set(n, { right, name, size });
         break;
       }

@@ -16,6 +16,8 @@ export type ComposerProps = {
   canSubmit: boolean;
   /** Process lane busy (processing): sends go to the local queue. */
   processingMode: boolean;
+  /** The work lane is running (and the process lane is not): the glass takes a live rim. */
+  workingMode?: boolean;
   /** Floats above the field, such as the chip saying what the agent is doing. */
   above?: ReactNode;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -47,6 +49,7 @@ export function Composer({
   placeholder,
   canSubmit,
   processingMode,
+  workingMode = false,
   above,
   textareaRef,
   fileInputRef,
@@ -112,7 +115,7 @@ export function Composer({
               onPickFiles(e.dataTransfer.files);
             }
           }}
-          className={`pointer-events-auto flex flex-col gap-2 border-t border-rule pt-2 transition-opacity duration-slow ease-dadi ${connected ? "" : "opacity-70"}`}
+          className={`composer-glass pointer-events-auto flex flex-col gap-2 px-2 py-2 transition-[opacity,box-shadow] duration-slow ease-dadi ${workingMode && !processingMode ? "composer-glass--live" : ""} ${processingMode ? "composer-glass--processing" : ""} ${connected ? "" : "opacity-70"}`}
         >
           <AnimatePresence initial={false}>
             {attachments.length > 0 ? (

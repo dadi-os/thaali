@@ -720,6 +720,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 placeholder={placeholder}
                 canSubmit={canSubmit}
                 processingMode={processBusy}
+                workingMode={workBusy && !processBusy}
                 above={<LaneChip process={processBusy} work={workBusy} />}
                 fieldMaxPx={TEXTAREA_MAX_PX}
                 textareaRef={textareaRef}

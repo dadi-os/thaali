@@ -101,8 +101,22 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
             key={room.name}
             {...RISE}
             layout="position"
-            className={`ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${room.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
-            title={`Open ${room.name} in Ghar`}
+            role="button"
+            tabIndex={0}
+            aria-pressed={room.on > 0}
+            className={`ui-hover-card ui-trans flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${room.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
+            title={`Switch ${room.on > 0 ? "off" : "on"} ${room.name}`}
+            onClick={(event) => {
+              swallow(event);
+              void house.run(sectionSwitch(room.lights));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                void house.run(sectionSwitch(room.lights));
+              }
+            }}
           >
             <div className="flex min-w-0 text-[14px] font-semibold">
               <NameTruncate name={room.name} />

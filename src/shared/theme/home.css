@@ -12,3 +12,19 @@
     opacity: 0;
   }
 }
+
+/*
+ * A Home tile rises in once when it mounts. It is a CSS animation, not a motion prop: a tile re-renders whenever
+ * its data changes (the System tile every poll) and a prop-driven entrance would replay each time.
+ */
+@layer components {
+  .tile-enter {
+    animation: rise var(--slow) var(--ease) both;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tile-enter {
+      animation: none;
+    }
+  }
+}

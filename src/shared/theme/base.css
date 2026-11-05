@@ -86,6 +86,13 @@
    * A text field shows focus on the box around it, not with a square ring of its own: the field is bare and the
    * container (a search field, a composer, a form row) takes a soft halo while its field has focus.
    */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    border: 0;
+    background: transparent;
+  }
+
   input:focus-visible,
   textarea:focus-visible,
   select:focus-visible {

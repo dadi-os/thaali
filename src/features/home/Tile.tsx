@@ -1,12 +1,11 @@
-import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { Link } from "react-router-dom";
-import { FADE, RISE } from "../../shared/motion";
+import { FADE } from "../../shared/motion";
 import { StateView } from "../../shared/states/ModuleState";
 import { Truncate } from "../../shared/ui/Truncate";
 
 /** The tile's frame as a link that animates: it rises into the grid like any arriving card. */
-const MotionLink = motion.create(Link);
 /** How long after the tile before it each tile's entrance starts, in seconds. */
 const ENTRANCE_STEP_S = 0.06;
 
@@ -109,8 +108,9 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
     }
   }
   const showSummary = summary !== undefined && summary !== "" && notice === null && !loading;
+  const placement = useMemo(() => ({ gridArea: area, animationDelay: `${order * ENTRANCE_STEP_S}s` }), [area, order]);
   return (
-    <MotionLink ref={frame} to={to} aria-label={title} className="ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-[20px] border border-glass-border bg-glass-veil p-4 text-ink no-underline shadow-[var(--shadow-card)]" style={{ gridArea: area }} {...RISE} transition={{ ...RISE.transition, delay: order * ENTRANCE_STEP_S }}>
+    <Link ref={frame} to={to} aria-label={title} className="tile-enter ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-[20px] border border-glass-border bg-glass-veil p-4 text-ink no-underline shadow-[var(--shadow-card)]" style={placement}>
       <div className="flex h-6 flex-none items-center gap-3 px-0.5">
         <span className="flex-none text-[17px] font-semibold tracking-[-0.005em] text-sage-text">{title}</span>
         <div className="flex-1" />
@@ -124,6 +124,6 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
           </motion.div>
         </AnimatePresence>
       </div>
-    </MotionLink>
+    </Link>
   );
 }
