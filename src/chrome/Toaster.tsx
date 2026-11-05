@@ -1,6 +1,6 @@
 import { useSyncExternalStore } from "react";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
-import { Toast } from "../shared/components/Toast";
+import { Toast } from "../shared/overlay/Toast";
 import { openAgent } from "../store/chat";
 import { requestDock } from "../store/dock";
 import { dismissToast, getToasts, removeToast, subscribeToasts, type ToastTarget } from "../store/toasts";

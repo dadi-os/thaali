@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, nas } from "../../shared/api";
 import type { NasStatus, NasTask } from "../../shared/api/nas";
-import { Badge } from "../../shared/components/Badge";
-import { Icon } from "../../shared/components/Icon";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { NameTruncate, Truncate } from "../../shared/components/Truncate";
+import { Badge } from "../../shared/ui/Badge";
+import { Icon } from "../../shared/ui/Icon";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";

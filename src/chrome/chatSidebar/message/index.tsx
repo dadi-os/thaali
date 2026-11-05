@@ -3,8 +3,8 @@ import { motion } from "motion/react";
 import {
   IconDismiss,
   IconRetry,
-} from "../../../shared/components/IconButton";
-import { CopyButton } from "../../../shared/components/CopyButton";
+} from "../../../shared/ui/IconButton";
+import { CopyButton } from "../../../shared/ui/CopyButton";
 import { EASE, SLOW_S } from "../../../shared/motion";
 import { formatAbsolute } from "../../../shared/lib/ux/time";
 import type { ChatMessage } from "../../../store/chat";

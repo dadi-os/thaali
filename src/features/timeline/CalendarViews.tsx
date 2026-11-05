@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { Clamp, Truncate } from "../../shared/components/Truncate";
+import { Clamp, Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { isSameDay, isSameMonth } from "./dates";

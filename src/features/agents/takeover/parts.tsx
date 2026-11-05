@@ -1,9 +1,9 @@
 import { useLayoutEffect, useRef, type ReactNode } from "react";
-import { Badge } from "../../../shared/components/Badge";
-import { Button } from "../../../shared/components/Button";
-import { IconButton } from "../../../shared/components/Button";
-import { Icon } from "../../../shared/components/Icon";
-import { Clamp, NameTruncate, Truncate } from "../../../shared/components/Truncate";
+import { Badge } from "../../../shared/ui/Badge";
+import { Button } from "../../../shared/ui/Button";
+import { IconButton } from "../../../shared/ui/Button";
+import { Icon } from "../../../shared/ui/Icon";
+import { Clamp, NameTruncate, Truncate } from "../../../shared/ui/Truncate";
 import type { TaskStatus } from "../../../types/hath";
 
 /** The dark ground of a terminal: its output, its command line and the marks on them. */

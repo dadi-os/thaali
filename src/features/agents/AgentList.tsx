@@ -1,7 +1,7 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import type { AgentRecord } from "../../types/hath";
-import { Card } from "../../shared/components/Card";
-import { NameTruncate, Truncate } from "../../shared/components/Truncate";
+import { Card } from "../../shared/ui/Card";
+import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
 import { useSize } from "../../shared/hooks/useSize";
 import { formatAge } from "../../shared/lib/ux/time";
 import { isLive, LANE_STATE_LABEL, type LaneState } from "./laneState";

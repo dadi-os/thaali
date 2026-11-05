@@ -1,4 +1,4 @@
-import { Icon } from "./Icon";
+import { Icon } from "../ui/Icon";
 
 export type OfflineNoticeProps = {
   text: string;

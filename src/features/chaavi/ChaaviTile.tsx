@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { Truncate } from "../../shared/components/Truncate";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";

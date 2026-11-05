@@ -1,8 +1,8 @@
 import { useState, type ReactNode } from "react";
 import type { PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
-import { Button } from "../../../shared/components/Button";
-import { Icon } from "../../../shared/components/Icon";
-import { Clamp, Truncate } from "../../../shared/components/Truncate";
+import { Button } from "../../../shared/ui/Button";
+import { Icon } from "../../../shared/ui/Icon";
+import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import { formatClock, formatDay } from "../../../shared/lib/ux/time";
 import { canSave, changesOf, draftOf, REPEAT_PRESETS, repeatLabel, type ScheduleDraft } from "./schedule";
 

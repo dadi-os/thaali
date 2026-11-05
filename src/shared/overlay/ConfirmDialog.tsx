@@ -1,5 +1,5 @@
-import { Button, ButtonGroup } from "../components/Button";
-import { Icon, type IconName } from "../components/Icon";
+import { Button, ButtonGroup } from "../ui/Button";
+import { Icon, type IconName } from "../ui/Icon";
 import { Dialog } from "./Dialog";
 
 /** Props of {@link ConfirmDialog}. */

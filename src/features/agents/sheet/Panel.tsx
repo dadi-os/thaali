@@ -1,11 +1,11 @@
 import { useRef, type ReactNode } from "react";
 import type { AgentRecord, AgentTask, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
-import { Button } from "../../../shared/components/Button";
-import { Card } from "../../../shared/components/Card";
-import { Disclosure } from "../../../shared/components/Disclosure";
-import { Icon } from "../../../shared/components/Icon";
-import { TaskRow } from "../../../shared/components/TaskRow";
-import { Clamp, NameTruncate, Truncate } from "../../../shared/components/Truncate";
+import { Button } from "../../../shared/ui/Button";
+import { Card } from "../../../shared/ui/Card";
+import { Disclosure } from "../../../shared/ui/Disclosure";
+import { Icon } from "../../../shared/ui/Icon";
+import { TaskRow } from "../../../shared/components/Task/TaskRow";
+import { Clamp, NameTruncate, Truncate } from "../../../shared/ui/Truncate";
 import { formatClock, formatDay, formatRelative } from "../../../shared/lib/ux/time";
 import type { ActivityWake } from "./activity";
 import { ActivityFeed } from "./ActivityFeed";

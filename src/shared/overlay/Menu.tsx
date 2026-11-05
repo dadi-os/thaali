@@ -1,8 +1,8 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { motion } from "motion/react";
 import { pushToast } from "../../store/toasts";
-import { Icon } from "../components/Icon";
-import { Truncate } from "../components/Truncate";
+import { Icon } from "../ui/Icon";
+import { Truncate } from "../ui/Truncate";
 import { tidyActions, type Action, type ActionList } from "../interaction/actions";
 import { MENU } from "../motion";
 

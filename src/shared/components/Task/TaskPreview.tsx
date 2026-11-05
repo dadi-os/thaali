@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
-import { Icon } from "./Icon";
-import { Truncate } from "./Truncate";
+import { Icon } from "../../ui/Icon";
+import { Truncate } from "../../ui/Truncate";
 
 export type TaskPreviewProps = {
   kind: "browser" | "terminal";

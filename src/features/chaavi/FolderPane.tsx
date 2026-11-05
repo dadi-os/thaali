@@ -1,8 +1,8 @@
 import { useState, type ReactElement } from "react";
-import { Button, ButtonGroup, IconButton } from "../../shared/components/Button";
-import { Card } from "../../shared/components/Card";
-import { Icon, type IconName } from "../../shared/components/Icon";
-import { Truncate } from "../../shared/components/Truncate";
+import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
+import { Card } from "../../shared/ui/Card";
+import { Icon, type IconName } from "../../shared/ui/Icon";
+import { Truncate } from "../../shared/ui/Truncate";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { ITEM_TYPES, TYPE_META, type VaultScope } from "./draft";
 import { buildFolderTree, joinPath, parentPath, type FolderNode } from "./folders";

@@ -20,7 +20,7 @@ import { useDeviceRemote } from "./useDeviceRemote";
 import { useNeedsProvisioning } from "./useNeedsProvisioning";
 import { requestDock } from "../store/dock";
 import { usingMesh } from "../shared/api";
-import { ErrorBoundary } from "../shared/components/ErrorBoundary";
+import { ErrorBoundary } from "../shared/states/ErrorBoundary";
 import { logLine } from "../shared/lib/log";
 
 /** Settles launch's read of the saved setup code into a boot state. */

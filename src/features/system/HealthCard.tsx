@@ -1,8 +1,8 @@
 import type { NasStatus } from "../../shared/api/nas";
-import { Card } from "../../shared/components/Card";
-import { Icon } from "../../shared/components/Icon";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { Truncate } from "../../shared/components/Truncate";
+import { Card } from "../../shared/ui/Card";
+import { Icon } from "../../shared/ui/Icon";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { Truncate } from "../../shared/ui/Truncate";
 import { formatGb, formatUptime, loadTone } from "./format";
 
 /** The circumference of a gauge's ring, which is drawn at radius 38 in a 96 unit box. */

@@ -1,7 +1,7 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ApiError } from "../api/errors";
 import { logLine } from "../lib/log";
-import { failureFacts } from "./states/failure";
+import { failureFacts } from "./failure";
 import { StateView } from "./ModuleState";
 
 export type ErrorBoundaryProps = {

@@ -1,8 +1,8 @@
 import type { CSSProperties, ReactNode } from "react";
 import { terminalCapture } from "../fixtures/nas";
 import { agentTasks, nasTasks } from "../fixtures/tasks";
-import { Button } from "../../shared/components/Button";
-import { Dialog, DialogOption, Modal } from "../../shared/components/Overlay";
+import { Button } from "../../shared/ui/Button";
+import { Dialog, DialogOption, Modal } from "../../shared/overlay/Overlay";
 import { TakeoverBanner, TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "../../features/agents/takeover/parts";
 import { CASES } from "./cases";
 

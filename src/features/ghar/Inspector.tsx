@@ -1,9 +1,9 @@
 import type { ReactNode } from "react";
-import { Button, ButtonGroup, IconButton } from "../../shared/components/Button";
-import { Card } from "../../shared/components/Card";
-import { Reveal } from "../../shared/components/Disclosure";
-import { Icon } from "../../shared/components/Icon";
-import { Truncate } from "../../shared/components/Truncate";
+import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
+import { Card } from "../../shared/ui/Card";
+import { Reveal } from "../../shared/ui/Disclosure";
+import { Icon } from "../../shared/ui/Icon";
+import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock, formatRelative } from "../../shared/lib/ux/time";
 import type { GharCommand, GharDevice, GharRoom } from "../../types/ghar";
 import { Slider, Switch, useDraft } from "./controls";

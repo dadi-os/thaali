@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
-import { Button, IconButton } from "../../shared/components/Button";
-import { Card } from "../../shared/components/Card";
-import { Clamp, Truncate } from "../../shared/components/Truncate";
+import { Button, IconButton } from "../../shared/ui/Button";
+import { Card } from "../../shared/ui/Card";
+import { Clamp, Truncate } from "../../shared/ui/Truncate";
 import { formatAge, formatClock, formatDay } from "../../shared/lib/ux/time";
 import type { NodeKind } from "../../types/yaad";
 import { KIND_TOKEN, MEMORIES_SHOWN, SOURCE_LABEL, connectionsOf, sectionsOf, type Connection, type MemoryLink, type MemoryNode } from "./graph";

@@ -2,7 +2,7 @@
 
 import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
-import type { PopoverAnchor } from "../../shared/components/Popover";
+import type { PopoverAnchor } from "../../shared/overlay/Popover";
 import { endOfDay, formatTime, isSameDay, startOfDay } from "./dates";
 
 /**

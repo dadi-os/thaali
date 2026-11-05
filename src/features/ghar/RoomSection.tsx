@@ -1,7 +1,7 @@
 import { useState } from "react";
-import { Button, ButtonGroup } from "../../shared/components/Button";
-import { Reveal } from "../../shared/components/Disclosure";
-import { Icon } from "../../shared/components/Icon";
+import { Button, ButtonGroup } from "../../shared/ui/Button";
+import { Reveal } from "../../shared/ui/Disclosure";
+import { Icon } from "../../shared/ui/Icon";
 import type { GharDevice } from "../../types/ghar";
 import { Slider, Switch, useDraft } from "./controls";
 import { DeviceTile } from "./DeviceTile";

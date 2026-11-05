@@ -1,8 +1,8 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
-import { Icon } from "../../shared/components/Icon";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { NameTruncate, Truncate } from "../../shared/components/Truncate";
+import { Icon } from "../../shared/ui/Icon";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
 import { ghar } from "../../shared/api";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { pushToast } from "../../store/toasts";

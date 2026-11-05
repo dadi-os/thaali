@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { Truncate } from "./Truncate";
+import { Truncate } from "../ui/Truncate";
 
 /** How a dialog's scrim fades in. */
 const SCRIM = "scrim-in 200ms cubic-bezier(0.22, 0.61, 0.36, 1) both";

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { usingMesh } from "../shared/api";
-import { OfflineNotice } from "../shared/components/OfflineNotice";
+import { OfflineNotice } from "../shared/states/OfflineNotice";
 import { useConnection } from "../shared/hooks/useConnection";
 
 /**

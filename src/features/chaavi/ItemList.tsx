@@ -1,7 +1,7 @@
-import { Card } from "../../shared/components/Card";
-import { Icon } from "../../shared/components/Icon";
-import { StateView } from "../../shared/components/ModuleState";
-import { Truncate } from "../../shared/components/Truncate";
+import { Card } from "../../shared/ui/Card";
+import { Icon } from "../../shared/ui/Icon";
+import { StateView } from "../../shared/states/ModuleState";
+import { Truncate } from "../../shared/ui/Truncate";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { ChaaviItem } from "../../types/chaavi";
 import { itemSubtitle } from "./draft";

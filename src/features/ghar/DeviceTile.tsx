@@ -1,5 +1,5 @@
-import { Icon, type IconName } from "../../shared/components/Icon";
-import { Truncate } from "../../shared/components/Truncate";
+import { Icon, type IconName } from "../../shared/ui/Icon";
+import { Truncate } from "../../shared/ui/Truncate";
 import type { GharDevice } from "../../types/ghar";
 import { Slider, Switch, useDraft } from "./controls";
 import { has, isOn, isSwitchable, lightColor, num, stateLine } from "./model";

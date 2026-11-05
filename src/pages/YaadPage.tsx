@@ -6,11 +6,11 @@ import { createMemorySimulation, KIND_TOKEN, mergeGraph, type GraphData } from "
 import { MemoryGraph3D } from "../features/memory/MemoryGraph3D";
 import { NodeSheet } from "../features/memory/NodeSheet";
 import { hath, isMeshOnline, yaad } from "../shared/api";
-import { Pill } from "../shared/components/Button";
-import { Card } from "../shared/components/Card";
-import { syncForceSimulation } from "../shared/components/ForceGraph";
-import { Icon } from "../shared/components/Icon";
-import { StateView, StaleBanner } from "../shared/components/ModuleState";
+import { Pill } from "../shared/ui/Button";
+import { Card } from "../shared/ui/Card";
+import { syncForceSimulation } from "../shared/components/Graph/ForceGraph";
+import { Icon } from "../shared/ui/Icon";
+import { StateView, StaleBanner } from "../shared/states/ModuleState";
 import { useConnection } from "../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
 import { useModuleState } from "../shared/hooks/useModuleState";

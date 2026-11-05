@@ -1,6 +1,6 @@
 import { useMemo } from "react";
-import { ForceGraph, type SyncedForceGraph } from "../../shared/components/ForceGraph";
-import { GraphSpace } from "../../shared/components/GraphSpace";
+import { ForceGraph, type SyncedForceGraph } from "../../shared/components/Graph/ForceGraph";
+import { GraphSpace } from "../../shared/components/Graph/GraphSpace";
 import { useThemeTokens } from "../../shared/hooks/useThemeTokens";
 import type { NodeRecord } from "../../types/yaad";
 import { KIND_TOKEN, nodeRadius, truncate, type GraphEdge, type MemorySimulation } from "./graph";

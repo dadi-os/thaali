@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { StateView } from "../../shared/components/ModuleState";
-import { Truncate } from "../../shared/components/Truncate";
+import { StateView } from "../../shared/states/ModuleState";
+import { Truncate } from "../../shared/ui/Truncate";
 
 /** The pixels a tile's frame takes around its body: 16 px of padding and a 1 px border on each side. */
 const FRAME = 34;

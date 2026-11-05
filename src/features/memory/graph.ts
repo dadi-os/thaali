@@ -13,7 +13,7 @@ import type {
   ForceLinkDatum,
   ForceLinkResolved,
   ForceNode,
-} from "../../shared/components/ForceGraph";
+} from "../../shared/components/Graph/ForceGraph";
 
 /** Theme token that colors each node kind, in the scene and in the sheet. */
 export const KIND_TOKEN = {

@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
 import type { Lane } from "../../../types/hath";
-import { Button } from "../../../shared/components/Button";
-import { Segmented } from "../../../shared/components/Segmented";
-import { Truncate } from "../../../shared/components/Truncate";
+import { Button } from "../../../shared/ui/Button";
+import { Segmented } from "../../../shared/ui/Segmented";
+import { Truncate } from "../../../shared/ui/Truncate";
 import { formatToolSignature } from "../../../shared/lib/content/toolSignature";
 import { LANE_LABEL } from "../../../shared/lib/ux/lanes";
 import { countNoun } from "../../../shared/lib/ux/plural";

@@ -1,4 +1,4 @@
-import { ApiError } from "../../api/errors";
+import { ApiError } from "../api/errors";
 
 /** The `message` field of a service's `{ error: { type, message } }` body inside an ApiError's text. */
 const SERVER_MESSAGE = /"message":"((?:\\.|[^"\\])*)"/;

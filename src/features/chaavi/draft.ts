@@ -15,7 +15,7 @@ import type {
   ChaaviUpdateItem,
   ChaaviUriMatch,
 } from "../../types/chaavi";
-import type { IconName } from "../../shared/components/Icon";
+import type { IconName } from "../../shared/ui/Icon";
 import { isWithin } from "./folders";
 
 /** Display names and the icon of each item type. */

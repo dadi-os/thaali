@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, yaad } from "../../shared/api";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { Truncate } from "../../shared/components/Truncate";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { startOfWeek } from "../timeline/dates";
 import { useModuleState } from "../../shared/hooks/useModuleState";

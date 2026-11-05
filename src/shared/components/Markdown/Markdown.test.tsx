@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { MarkdownBody } from "./Markdown";
+import { MarkdownBody } from ".";
 
 const FIXTURE = [
   "Inline $\\rightarrow$ and \\(a^2\\) math.",

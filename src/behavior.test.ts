@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { focusSet } from "./shared/components/ForceGraph/focus";
-import { inHoverZone } from "./shared/components/Popover/zone";
+import { focusSet } from "./shared/components/Graph/ForceGraph/focus";
+import { inHoverZone } from "./shared/overlay/Popover/zone";
 import {
   dayLabel,
   formatMessageTime,
@@ -54,8 +54,8 @@ import {
   type GraphData,
   type MemoryLink,
 } from "./features/memory/graph";
-import { syncForceSimulation } from "./shared/components/ForceGraph";
-import { revealSchedule } from "./shared/components/ForceGraph/reveal";
+import { syncForceSimulation } from "./shared/components/Graph/ForceGraph";
+import { revealSchedule } from "./shared/components/Graph/ForceGraph/reveal";
 import { autoLiveTaskId, pickLiveViews, showsLiveView, taskLiveView } from "./features/agents/sessions";
 import type { AgentTask } from "./types/hath";
 import type { NasTask } from "./shared/api/nas";

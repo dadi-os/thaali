@@ -1,4 +1,4 @@
-import type { IconName } from "../components/Icon";
+import type { IconName } from "../ui/Icon";
 
 /** One thing a person can do to an object, declared once and drawn as a context menu row, a `...` menu row or a shortcut. */
 export type Action = {

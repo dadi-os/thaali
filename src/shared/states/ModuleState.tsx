@@ -1,6 +1,6 @@
-import { Button } from "./Button";
-import { Icon, type IconName } from "./Icon";
-import { Truncate } from "./Truncate";
+import { Button } from "../ui/Button";
+import { Icon, type IconName } from "../ui/Icon";
+import { Truncate } from "../ui/Truncate";
 
 /** What a module cannot show: its service is down, a request failed, the mesh is out of reach, or there is nothing yet. */
 export type StateKind = "error" | "module-offline" | "offline" | "empty";

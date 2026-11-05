@@ -1,10 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, nas } from "../../shared/api";
-import { Card } from "../../shared/components/Card";
-import { Icon } from "../../shared/components/Icon";
-import { StateView } from "../../shared/components/ModuleState";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { Clamp, Truncate } from "../../shared/components/Truncate";
+import { Card } from "../../shared/ui/Card";
+import { Icon } from "../../shared/ui/Icon";
+import { StateView } from "../../shared/states/ModuleState";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { Clamp, Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { failureProps } from "../../shared/lib/ux/moduleState";

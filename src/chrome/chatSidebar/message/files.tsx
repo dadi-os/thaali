@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { hath } from "../../../shared/api";
-import { IconAttach } from "../../../shared/components/IconButton";
+import { IconAttach } from "../../../shared/ui/IconButton";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { attachmentSizeLabel } from "../../../shared/lib/content/attachments";
 import type { AttachmentSummary, MessageAttachment } from "../../../types/hath";

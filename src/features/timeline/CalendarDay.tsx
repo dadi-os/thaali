@@ -1,7 +1,7 @@
 import type { CSSProperties } from "react";
-import { Icon } from "../../shared/components/Icon";
-import { Card } from "../../shared/components/Card";
-import { Truncate } from "../../shared/components/Truncate";
+import { Icon } from "../../shared/ui/Icon";
+import { Card } from "../../shared/ui/Card";
+import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";

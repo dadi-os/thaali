@@ -22,9 +22,9 @@ import { decodeProvisioningBundle, saveCredentials, type Credentials } from "../
 import { transport } from "../../shared/api";
 import { isTauriRuntime } from "../../shared/desktop/runtime";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { FieldBloom } from "../../shared/components/FieldBloom";
-import { Wordmark } from "../../shared/components/Wordmark";
-import { IconCamera, IconPower, IconRetry } from "../../shared/components/IconButton";
+import { FieldBloom } from "../../shared/layout/FieldBloom";
+import { Wordmark } from "../../shared/layout/Wordmark";
+import { IconCamera, IconPower, IconRetry } from "../../shared/ui/IconButton";
 import { EASE, SLOWER_S } from "../../shared/motion";
 import { dispatchDesktopShell } from "../../store/desktopShell";
 import { QrScanner } from "../QrScanner";

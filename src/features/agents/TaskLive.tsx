@@ -1,4 +1,4 @@
-import { TaskPreview } from "../../shared/components/TaskPreview";
+import { TaskPreview } from "../../shared/components/Task/TaskPreview";
 import { setTakeover } from "../../store/takeover";
 import { BrowserFrame } from "./BrowserFrame";
 import { useTerminalCapture } from "./terminalCapture";

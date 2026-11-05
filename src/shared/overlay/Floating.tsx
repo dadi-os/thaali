@@ -1,6 +1,6 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
-import { Icon, type IconName } from "./Icon";
-import { Truncate } from "./Truncate";
+import { Icon, type IconName } from "../ui/Icon";
+import { Truncate } from "../ui/Truncate";
 
 export type MenuPanelProps = {
   children: ReactNode;

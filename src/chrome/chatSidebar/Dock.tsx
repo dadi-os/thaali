@@ -1,5 +1,5 @@
 import { useLayoutEffect, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
-import { Icon } from "../../shared/components/Icon";
+import { Icon } from "../../shared/ui/Icon";
 import { pasteAsFile, type DraftAttachment } from "../../shared/lib/content/attachments";
 
 /** The open dock's textarea bounds, line height and padding around the field, from the composer it grows into. */

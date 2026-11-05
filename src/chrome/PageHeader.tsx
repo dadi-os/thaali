@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
-import { Icon } from "../shared/components/Icon";
-import { Truncate } from "../shared/components/Truncate";
+import { Icon } from "../shared/ui/Icon";
+import { Truncate } from "../shared/ui/Truncate";
 
 export type PageHeaderProps = {
   title: string;

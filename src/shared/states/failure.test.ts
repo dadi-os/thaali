@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ApiError } from "../../api/errors";
+import { ApiError } from "../api/errors";
 import { failureFacts } from "./failure";
 
 const REQUEST = "3f2a9c1e-77aa-4b1c-9d0e-123456789abc";

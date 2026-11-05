@@ -15,7 +15,7 @@ import {
   IconDismiss,
   IconPlus,
   IconSend,
-} from "../../shared/components/IconButton";
+} from "../../shared/ui/IconButton";
 import {
   attachmentSizeLabel,
   pasteAsFile,

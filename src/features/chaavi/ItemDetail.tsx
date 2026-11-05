@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
-import { Button, IconButton } from "../../shared/components/Button";
-import { Card } from "../../shared/components/Card";
-import { Truncate } from "../../shared/components/Truncate";
+import { Button, IconButton } from "../../shared/ui/Button";
+import { Card } from "../../shared/ui/Card";
+import { Truncate } from "../../shared/ui/Truncate";
 import { copyText } from "../../shared/desktop/clipboard";
 import { confirmOwner } from "../../shared/desktop/owner";
 import { openExternal } from "../../shared/desktop/open";

@@ -1,8 +1,8 @@
 import { useState } from "react";
-import { Button } from "../../shared/components/Button";
-import { Icon } from "../../shared/components/Icon";
-import { Skeleton } from "../../shared/components/Skeleton";
-import { Clamp, NameTruncate, Truncate } from "../../shared/components/Truncate";
+import { Button } from "../../shared/ui/Button";
+import { Icon } from "../../shared/ui/Icon";
+import { Skeleton } from "../../shared/ui/Skeleton";
+import { Clamp, NameTruncate, Truncate } from "../../shared/ui/Truncate";
 import type { Conversation, HistoryStatus } from "../../store/chat";
 import type { RunningMap } from "../../store/running";
 import { formatRailTime, groupByDay, plainPreview } from "./format";

@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
-import type { AgentTask } from "../../types/hath";
-import { formatAge, formatClock, formatRelative } from "../lib/ux/time";
-import { Badge } from "./Badge";
-import { Chevron, Reveal } from "./Disclosure";
-import { Icon } from "./Icon";
-import { Clamp, NameTruncate, Truncate } from "./Truncate";
+import type { AgentTask } from "../../../types/hath";
+import { formatAge, formatClock, formatRelative } from "../../lib/ux/time";
+import { Badge } from "../../ui/Badge";
+import { Chevron, Reveal } from "../../ui/Disclosure";
+import { Icon } from "../../ui/Icon";
+import { Clamp, NameTruncate, Truncate } from "../../ui/Truncate";
 
 export type TaskRowProps = {
   task: AgentTask;

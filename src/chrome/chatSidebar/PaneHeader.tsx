@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { IconBack } from "../../shared/components/IconButton";
+import { IconBack } from "../../shared/ui/IconButton";
 import { EASE } from "../../shared/motion";
 
 export type PaneHeaderProps = {

@@ -3,7 +3,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { BrowserFrame } from "../../features/agents/BrowserFrame";
 import { TerminalScreen } from "../../features/agents/TerminalScreen";
-import { IconDismiss } from "../../shared/components/IconButton";
+import { IconDismiss } from "../../shared/ui/IconButton";
 import { EASE, SLOW_S } from "../../shared/motion";
 
 export type HostPinProps = {

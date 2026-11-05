@@ -2,7 +2,7 @@ import { useRef, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useDismiss } from "../interaction/dismiss";
 import { DIALOG, SCRIM } from "../motion";
-import { Truncate } from "../components/Truncate";
+import { Truncate } from "../ui/Truncate";
 
 /** Props of {@link Dialog}. */
 export type DialogProps = {

@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
-import { Clamp, Truncate } from "./Truncate";
-import { Icon, type IconName } from "./Icon";
+import { Clamp, Truncate } from "../ui/Truncate";
+import { Icon, type IconName } from "../ui/Icon";
 
 /** What a toast is about: `info` reports something that happened, `error` a failure, `ok` something Ankur did. */
 export type ToastKind = "info" | "error" | "ok";
