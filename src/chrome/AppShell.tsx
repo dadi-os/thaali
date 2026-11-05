@@ -8,6 +8,7 @@ import { OfflinePill } from "./OfflinePill";
 import { Onboarding, type BootState } from "./onboarding";
 import { ProvisionOverlay } from "./ProvisionOverlay";
 import { TitleBar } from "./TitleBar";
+import { ContextMenuHost } from "../shared/overlay/ContextMenuHost";
 import { Toaster } from "./Toaster";
 import { bootstrapMesh, prepareMesh } from "../store/connection";
 import { useConnection } from "../shared/hooks/useConnection";
@@ -114,6 +115,7 @@ export function AppShell() {
       </div>
       <TakeoverModal />
       <Toaster />
+      <ContextMenuHost />
       <ProvisionOverlay
         open={provisionOpen}
         onClose={() => setProvisionOpen(false)}

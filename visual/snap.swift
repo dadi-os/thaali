@@ -97,7 +97,7 @@ func run(_ plan: Plan) async -> [[String: Any]] {
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: job.width, height: job.height), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = webView
         window.acceptsMouseMovedEvents = true
-        window.alphaValue = 0.01
+        window.alphaValue = 0.6
         window.ignoresMouseEvents = true
         window.level = .normal
         window.orderFrontRegardless()

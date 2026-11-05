@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { EASE, SLOW_S } from "../lib/ux/motion";
+import { EASE, SLOW_S } from "../motion";
 
 export type GliderProps<T extends string> = {
   options: Array<{ value: T; label: string }>;

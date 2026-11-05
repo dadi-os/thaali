@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { ProvisionDevice } from "../features/system/ProvisionDevice";
 import { IconButton, IconDismiss } from "../shared/components/IconButton";
-import { EASE, SLOW_S } from "../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../shared/motion";
 
 export interface ProvisionOverlayProps {
   /** Whether the modal is visible. */

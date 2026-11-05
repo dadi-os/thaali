@@ -8,6 +8,10 @@ import "./shared/theme/index.css";
 async function boot(): Promise<void> {
   await Promise.all([initApi(), prepareTarget()]);
   installInteraction();
+  if (import.meta.env.DEV && (window as Window & { __still?: boolean }).__still === true) {
+    const { MotionGlobalConfig } = await import("motion/react");
+    MotionGlobalConfig.skipAnimations = true;
+  }
   const root = ReactDOM.createRoot(document.getElementById("root")!);
   const gallery = import.meta.env.DEV ? await import("./dev/gallery") : null;
   const galleryCase = gallery === null ? null : gallery.readGalleryCase(window.location.search);

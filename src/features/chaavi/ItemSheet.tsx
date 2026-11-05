@@ -2,6 +2,7 @@ import { useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { Button, ButtonGroup, IconButton } from "../../shared/components/Button";
 import { Icon } from "../../shared/components/Icon";
+import { Sheet } from "../../shared/overlay/Sheet";
 import { confirmOwner } from "../../shared/desktop/owner";
 import { pushToast } from "../../store/toasts";
 import type { ChaaviFolder, ChaaviItemType, ChaaviReveal } from "../../types/chaavi";
@@ -20,12 +21,6 @@ import {
   type ItemDraft,
   type SecretDraft,
 } from "./draft";
-
-/** How the sheet and its scrim ease in. */
-const EASE_IN = "320ms cubic-bezier(.22,.61,.36,1)";
-
-/** How they ease out; the page removes the sheet when it is over. */
-const EASE_OUT = "200ms cubic-bezier(.22,.61,.36,1)";
 
 /** The card brands a card's brand can be. */
 const BRANDS = ["Visa", "Mastercard", "Amex", "Discover", "Diners Club", "JCB", "Maestro", "UnionPay", "RuPay", "Other"];
@@ -162,8 +157,8 @@ export type ItemSheetProps = {
   folders: ChaaviFolder[];
   /** A save is in flight. */
   pending: boolean;
-  /** Leaves with its exit animation. */
-  leaving?: boolean;
+  /** Whether the sheet is showing; closing plays its exit. */
+  open: boolean;
   onClose: () => void;
   onSubmit: (draft: ItemDraft) => void;
 };
@@ -189,7 +184,7 @@ function Eye({ name, editing, loaded, shown, onClick }: EyeProps) {
  * custom fields and its folder. A stored secret starts blank and untouched, so a blank one keeps its value; the eye reads it in after the computer's owner check,
  * and typing replaces it. What stops a save is told in a toast.
  */
-export function ItemSheet({ mode, initial, itemId, folders, pending, leaving = false, onClose, onSubmit }: ItemSheetProps) {
+export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClose, onSubmit }: ItemSheetProps) {
   const [draft, setDraft] = useState<ItemDraft>(initial);
   const [shown, setShown] = useState<Set<string>>(new Set());
   const editing = mode === "edit";
@@ -437,17 +432,8 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, leaving = f
   };
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={title}
-      onClick={pending ? undefined : onClose}
-      style={{ position: "absolute", inset: 0, background: "rgba(44,48,42,.18)", display: "flex", justifyContent: "flex-end", animation: leaving ? `fade-out ${EASE_OUT} both` : `fade ${EASE_IN} both`, zIndex: 30 }}
-    >
-      <div
-        onClick={(event) => event.stopPropagation()}
-        style={{ display: "flex", flexDirection: "column", width: 420, height: "100%", background: "var(--bone)", borderLeft: "1px solid var(--glass-border)", boxShadow: "var(--shadow-deep)", padding: 22, gap: 16, animation: leaving ? `slide-out ${EASE_OUT} both` : `slide-in ${EASE_IN} both` }}
-      >
+    <Sheet open={open} onClose={onClose} label={title} locked={pending}>
+      <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, padding: 22, gap: 16 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <span style={{ fontSize: 20, fontWeight: 600, flex: 1, minWidth: 0 }}>{title}</span>
           <IconButton icon="close" label="Close" disabled={pending || undefined} onClick={onClose} />
@@ -504,6 +490,6 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, leaving = f
           </Button>
         </ButtonGroup>
       </div>
-    </div>
+    </Sheet>
   );
 }

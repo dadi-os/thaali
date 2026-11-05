@@ -8,7 +8,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { EASE, FAST_S } from "../lib/ux/motion";
+import { EASE, FAST_S } from "../motion";
 
 export type TooltipProps = {
   content: string;

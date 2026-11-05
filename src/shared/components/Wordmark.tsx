@@ -1,5 +1,5 @@
 import { motion, useReducedMotion } from "motion/react";
-import { BREATH_S } from "../lib/ux/motion";
+import { BREATH_S } from "../motion";
 
 /**
  * Where Noto Sans Gujarati's ink sits above its line box's center, per em: દાદી with its

@@ -1,8 +1,8 @@
-import { DeleteDialog } from "../../features/chaavi/DeleteDialog";
 import { draftFromItem, emptyDraft, retype } from "../../features/chaavi/draft";
 import { FolderPane } from "../../features/chaavi/FolderPane";
 import { DragGhost, ItemList } from "../../features/chaavi/ItemList";
 import { ItemSheet } from "../../features/chaavi/ItemSheet";
+import { ConfirmDialog } from "../../shared/overlay/ConfirmDialog";
 import type { ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { folders, items } from "../fixtures/chaavi";
 import { CASES } from "./cases";
@@ -18,13 +18,13 @@ function Window({ children }: { children: React.ReactNode }) {
 
 CASES["chaavi.sheet.login"] = () => (
   <Window>
-    <ItemSheet mode="create" initial={emptyDraft("login", null)} itemId={null} folders={folders("normal")} pending={false} onClose={noop} onSubmit={noop} />
+    <ItemSheet open mode="create" initial={emptyDraft("login", null)} itemId={null} folders={folders("normal")} pending={false} onClose={noop} onSubmit={noop} />
   </Window>
 );
 
 CASES["chaavi.dialog.delete"] = () => (
   <Window>
-    <DeleteDialog name="GitHub" pending={false} onCancel={noop} onConfirm={noop} />
+    <ConfirmDialog open title="Delete GitHub?" detail="It moves to the vault’s trash on every device." confirmLabel="Delete" onCancel={noop} onConfirm={noop} />
   </Window>
 );
 
@@ -32,7 +32,7 @@ CASES["chaavi.dialog.delete"] = () => (
 function createSheet(type: ChaaviItemType) {
   CASES[`chaavi.sheet.${type}`] = () => (
     <Window>
-      <ItemSheet mode="create" initial={retype(emptyDraft("login", null), type)} itemId={null} folders={folders("normal")} pending={false} onClose={noop} onSubmit={noop} />
+      <ItemSheet open mode="create" initial={retype(emptyDraft("login", null), type)} itemId={null} folders={folders("normal")} pending={false} onClose={noop} onSubmit={noop} />
     </Window>
   );
 }
@@ -69,7 +69,7 @@ const FULL_LOGIN: ChaaviItem = {
 
 CASES["chaavi.sheet.edit.login"] = () => (
   <Window>
-    <ItemSheet mode="edit" initial={draftFromItem(FULL_LOGIN)} itemId={FULL_LOGIN.id} folders={folders("normal")} pending={false} onClose={noop} onSubmit={noop} />
+    <ItemSheet open mode="edit" initial={draftFromItem(FULL_LOGIN)} itemId={FULL_LOGIN.id} folders={folders("normal")} pending={false} onClose={noop} onSubmit={noop} />
   </Window>
 );
 

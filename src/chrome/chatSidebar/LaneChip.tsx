@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { AnimatePresence, motion, useAnimationFrame, useReducedMotion } from "motion/react";
 import { LANE_LABEL } from "../../shared/lib/ux/lanes";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../shared/motion";
 
 export type LaneChipProps = {
   /** Process lane busy: the agent is reading what arrived and answering it. */

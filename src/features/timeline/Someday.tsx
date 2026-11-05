@@ -4,7 +4,7 @@ import { timeline } from "../../shared/api";
 import { openAgent } from "../../store/chat";
 import { requestDock } from "../../store/dock";
 import { DADI_DRAFT_KEY, saveDraft } from "../../store/drafts";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../shared/motion";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";

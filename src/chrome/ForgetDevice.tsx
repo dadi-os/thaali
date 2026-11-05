@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { forgetDevice } from "../store/connection";
-import { EASE, SLOW_S } from "../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../shared/motion";
 
 export interface ForgetDeviceDialogProps {
   /** Whether the confirmation is showing. */

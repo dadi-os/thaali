@@ -4,7 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { BrowserFrame } from "../../features/agents/BrowserFrame";
 import { TerminalScreen } from "../../features/agents/TerminalScreen";
 import { IconDismiss } from "../../shared/components/IconButton";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../shared/motion";
 
 export type HostPinProps = {
   /** Live Nas browser to pin, or null when this agent has none. */

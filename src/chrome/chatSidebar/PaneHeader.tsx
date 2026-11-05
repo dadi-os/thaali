@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { IconBack } from "../../shared/components/IconButton";
-import { EASE } from "../../shared/lib/ux/motion";
+import { EASE } from "../../shared/motion";
 
 export type PaneHeaderProps = {
   /** Back to the conversation list. */

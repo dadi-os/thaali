@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { motion } from "motion/react";
-import { EASE } from "../lib/ux/motion";
+import { EASE } from "../motion";
 
 export type IconButtonSize = "sm" | "md" | "lg";
 

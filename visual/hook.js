@@ -1,4 +1,44 @@
 /* Runs before the page's own scripts: records console errors and what mounts without motion. */
+
+/*
+ * When the capture window is not on screen (a locked or sleeping display), WebKit reports the page hidden: animation
+ * frames never fire and the document timeline stops, which leaves every animation on its first frame. Drive both by
+ * hand at 60 fps so a capture still shows motion.
+ */
+if (document.visibilityState !== "visible") {
+  window.__still = true;
+  const timers = new Map();
+  let nextFrame = 1;
+  window.requestAnimationFrame = (callback) => {
+    const id = nextFrame++;
+    timers.set(
+      id,
+      setTimeout(() => {
+        timers.delete(id);
+        callback(performance.now());
+      }, 16),
+    );
+    return id;
+  };
+  window.cancelAnimationFrame = (id) => {
+    clearTimeout(timers.get(id));
+    timers.delete(id);
+  };
+  const born = new WeakMap();
+  setInterval(() => {
+    const now = performance.now();
+    for (const animation of document.getAnimations()) {
+      if (animation.playState === "finished" || animation.playState === "idle" || animation.playState === "paused") {
+        continue;
+      }
+      if (!born.has(animation)) {
+        born.set(animation, now);
+      }
+      animation.currentTime = now - born.get(animation);
+    }
+  }, 16);
+}
+
 window.__errs = [];
 for (const level of ["error", "warn"]) {
   const original = console[level].bind(console);

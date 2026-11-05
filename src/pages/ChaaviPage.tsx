@@ -1,8 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
-import { DeleteDialog } from "../features/chaavi/DeleteDialog";
 import { draftFromItem, emptyDraft, createBody, inScope, searchItems, updateBody, type ItemDraft, type VaultScope } from "../features/chaavi/draft";
 import { dropChange, useItemDrag, type DropTarget } from "../features/chaavi/drag";
 import { FolderPane } from "../features/chaavi/FolderPane";
@@ -18,7 +17,9 @@ import { StaleBanner, StateView } from "../shared/components/ModuleState";
 import { Skeleton } from "../shared/components/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
+import { useRetained } from "../shared/hooks/useRetained";
 import { useSize } from "../shared/hooks/useSize";
+import { ConfirmDialog } from "../shared/overlay/ConfirmDialog";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
 import type { ChaaviItem, ChaaviUpdateItem } from "../types/chaavi";
@@ -30,7 +31,6 @@ const FOLDER_PANE_FROM = 800;
 const WIDE_LIST_FROM = 1500;
 
 /** How long a sheet or dialog takes to leave, in ms. */
-const LEAVE_MS = 200;
 
 /** What is open over the page. */
 type Overlay = { kind: "create"; draft: ItemDraft } | { kind: "edit"; item: ChaaviItem } | { kind: "delete"; item: ChaaviItem };
@@ -111,7 +111,6 @@ export function ChaaviPage() {
   const [scope, setScope] = useState<VaultScope>({ kind: "all" });
   const [query, setQuery] = useState("");
   const [overlay, setOverlay] = useState<Overlay | null>(null);
-  const [leaving, setLeaving] = useState(false);
 
   const health = useQuery({ queryKey: CHAAVI_HEALTH_KEY, queryFn: () => chaavi.getHealth(), enabled: connected });
   const open = health.data?.vault === "ready";
@@ -136,13 +135,8 @@ export function ChaaviPage() {
 
   const invalidate = () => Promise.all([queryClient.invalidateQueries({ queryKey: CHAAVI_ITEMS_KEY }), queryClient.invalidateQueries({ queryKey: CHAAVI_FOLDERS_KEY })]);
 
-  const close = () => {
-    setLeaving(true);
-    window.setTimeout(() => {
-      setOverlay(null);
-      setLeaving(false);
-    }, LEAVE_MS);
-  };
+  const close = () => setOverlay(null);
+  const shown = useRetained(overlay);
 
   const patch = useMutation({
     mutationFn: (input: { id: string; body: ChaaviUpdateItem }) => chaavi.updateItem(input.id, input.body),
@@ -210,20 +204,6 @@ export function ChaaviPage() {
       setPickedId(null);
       close();
     },
-  });
-
-  const overlaid = overlay !== null && !leaving;
-  useEffect(() => {
-    if (!overlaid) {
-      return undefined;
-    }
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape" && !save.isPending && !remove.isPending) {
-        close();
-      }
-    };
-    window.addEventListener("keydown", escape);
-    return () => window.removeEventListener("keydown", escape);
   });
 
   const narrow = width < FOLDER_PANE_FROM;
@@ -328,20 +308,30 @@ export function ChaaviPage() {
         {ready && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Chaavi reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={retry} /> : null}
         {body}
       </div>
-      {overlay?.kind === "create" || overlay?.kind === "edit" ? (
+      {shown?.kind === "create" || shown?.kind === "edit" ? (
         <ItemSheet
-          mode={overlay.kind}
-          initial={overlay.kind === "create" ? overlay.draft : draftFromItem(overlay.item)}
-          itemId={overlay.kind === "edit" ? overlay.item.id : null}
+          open={overlay !== null}
+          mode={shown.kind}
+          initial={shown.kind === "create" ? shown.draft : draftFromItem(shown.item)}
+          itemId={shown.kind === "edit" ? shown.item.id : null}
           folders={folders}
           pending={save.isPending}
-          leaving={leaving}
           onClose={close}
-          onSubmit={(draft) => save.mutate(overlay.kind === "create" ? { mode: "create", draft } : { mode: "edit", item: overlay.item, draft })}
+          onSubmit={(draft) => save.mutate(shown.kind === "create" ? { mode: "create", draft } : { mode: "edit", item: shown.item, draft })}
         />
       ) : null}
       {drag.ghost === null ? null : <DragGhost name={drag.ghost.item.name} x={drag.ghost.x} y={drag.ghost.y} />}
-      {overlay?.kind === "delete" ? <DeleteDialog name={overlay.item.name} pending={remove.isPending} leaving={leaving} onCancel={close} onConfirm={() => remove.mutate(overlay.item.id)} /> : null}
+      {shown?.kind === "delete" ? (
+        <ConfirmDialog
+          open={overlay !== null}
+          title={`Delete ${shown.item.name}?`}
+          detail="It moves to the vault’s trash on every device."
+          confirmLabel="Delete"
+          pending={remove.isPending}
+          onCancel={close}
+          onConfirm={() => remove.mutate(shown.item.id)}
+        />
+      ) : null}
     </div>
   );
 }

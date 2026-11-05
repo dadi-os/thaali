@@ -9,7 +9,7 @@ import { IconCheck, IconDismiss, IconUpdate } from "../../../shared/components/I
 import { MarkdownBody } from "../../../shared/components/Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../../shared/lib/content/attachments";
 import { saveFile } from "../../../shared/desktop/download";
-import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../../shared/motion";
 import type { AttachmentSummary } from "../../../types/hath";
 
 /** Longest text the viewer colors; past it the file shows as plain text, since highlighting would stall the window. */

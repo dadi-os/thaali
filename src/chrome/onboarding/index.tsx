@@ -25,7 +25,7 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { FieldBloom } from "../../shared/components/FieldBloom";
 import { Wordmark } from "../../shared/components/Wordmark";
 import { IconCamera, IconPower, IconRetry } from "../../shared/components/IconButton";
-import { EASE, SLOWER_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOWER_S } from "../../shared/motion";
 import { dispatchDesktopShell } from "../../store/desktopShell";
 import { QrScanner } from "../QrScanner";
 import { useNeedsProvisioning } from "../useNeedsProvisioning";

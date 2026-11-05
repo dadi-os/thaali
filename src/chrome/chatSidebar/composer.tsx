@@ -21,7 +21,7 @@ import {
   pasteAsFile,
   type DraftAttachment,
 } from "../../shared/lib/content/attachments";
-import { EASE, SLOW_S } from "../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../shared/motion";
 import { TEXTAREA_MAX_PX } from "./constants";
 import { LaneChip, type LaneChipProps } from "./LaneChip";
 

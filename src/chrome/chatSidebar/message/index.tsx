@@ -5,7 +5,7 @@ import {
   IconRetry,
 } from "../../../shared/components/IconButton";
 import { CopyButton } from "../../../shared/components/CopyButton";
-import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
+import { EASE, SLOW_S } from "../../../shared/motion";
 import { formatAbsolute } from "../../../shared/lib/ux/time";
 import type { ChatMessage } from "../../../store/chat";
 import { MarkdownBody } from "../../../shared/components/Markdown";

@@ -9,7 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, animate, motion, useMotionValue } from "motion/react";
-import { EASE, SLOW_S, SLOWER_S } from "../../lib/ux/motion";
+import { EASE, SLOW_S, SLOWER_S } from "../../motion";
 import { inHoverZone } from "./zone";
 
 export type PopoverAnchor = {
