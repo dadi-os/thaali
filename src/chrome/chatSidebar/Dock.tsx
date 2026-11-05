@@ -1,11 +1,13 @@
 import { useLayoutEffect, useState, type CSSProperties, type KeyboardEvent, type RefObject } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { useDismiss } from "../../shared/interaction/dismiss";
+import { RISE } from "../../shared/motion";
+import { IconButton } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
 import { pasteAsFile, type DraftAttachment } from "../../shared/lib/content/attachments";
 
 /** The open dock's textarea bounds, line height and padding around the field, from the composer it grows into. */
 const FIELD = { min: 40, max: 160, pad: 8, chips: 68 } as const;
-/** How a staged attachment tile eases in. */
-const TILE_IN = "rise 220ms cubic-bezier(.22,.61,.36,1) both";
 
 export type DockProps = {
   /** The composer is showing instead of the "Talk to Dadi" bar. */
@@ -56,6 +58,7 @@ export function Dock({
   textareaRef,
 }: DockProps) {
   const [fieldHeight, setFieldHeight] = useState<number>(FIELD.min);
+  useDismiss({ open, onDismiss: onClose });
 
   useLayoutEffect(() => {
     const el = textareaRef.current;
@@ -85,9 +88,6 @@ export function Dock({
       if (canSend) {
         onSend();
       }
-    } else if (e.key === "Escape") {
-      e.preventDefault();
-      onClose();
     }
   };
 
@@ -97,59 +97,37 @@ export function Dock({
         <span className="dglyph">
           <span className="dring" />દ
         </span>
-        <span style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 1, textAlign: "left" }}>
-          <span style={{ fontSize: 14.5, fontWeight: 600, lineHeight: "19px" }}>Talk to Dadi</span>
-          <span title={sub} style={{ fontSize: 13, lineHeight: "17px", color: "var(--ink-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+        <span className="flex min-w-0 flex-1 flex-col gap-px text-left">
+          <span className="text-[14.5px] leading-[19px] font-semibold">Talk to Dadi</span>
+          <span title={sub} className="truncate text-[13px] leading-[17px] text-ink-muted">
             {sub}
           </span>
         </span>
         <span className="dkbd">⌘K</span>
       </button>
       <div className="d-open" aria-hidden={!open}>
-        {attachments.length > 0 ? (
-          <div style={{ display: "flex", gap: 8, padding: "12px 18px 0 14px", height: FIELD.chips, alignItems: "flex-start", overflow: "visible" }}>
-            {attachments.map((att, index) => (
-              <span key={`${att.filename ?? att.media_type}-${index}`} style={{ position: "relative", flex: "none", animation: TILE_IN }}>
-                <span
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "center",
-                    height: 56,
-                    maxWidth: 144,
-                    padding: "0 16px 0 10px",
-                    borderRadius: 12,
-                    border: "1px solid var(--rule)",
-                    background: "var(--sage-fill)",
-                    fontSize: 11,
-                    lineHeight: "14px",
-                    color: "var(--ink-muted)",
-                  }}
-                >
-                  <span title={att.filename ?? "file"} style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                    {att.filename ?? "file"}
+        <AnimatePresence initial={false}>
+          {attachments.length > 0 ? (
+            <motion.div key="staged" {...RISE} className="flex items-start gap-2 pt-3 pr-[18px] pl-3.5" style={{ height: FIELD.chips }}>
+              {attachments.map((att, index) => (
+                <motion.span key={`${att.filename ?? att.media_type}-${index}`} {...RISE} className="relative flex-none">
+                  <span className="flex h-14 max-w-36 flex-col justify-center rounded-xl bg-sage-fill py-0 pr-4 pl-2.5 text-[11px] leading-[14px] text-ink-muted">
+                    <span data-selectable title={att.filename ?? "file"} className="truncate">
+                      {att.filename ?? "file"}
+                    </span>
+                    <span>{att.media_type.startsWith("image/") ? "image" : "file"}</span>
                   </span>
-                  <span style={{ color: "var(--ink-muted)" }}>{att.media_type.startsWith("image/") ? "image" : "file"}</span>
-                </span>
-                <button
-                  type="button"
-                  className="ui-trans"
-                  aria-label="Remove attachment"
-                  onClick={() => onRemoveAttachment(index)}
-                  style={{ position: "absolute", top: -12, right: -12, width: 32, height: 32, display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <span
-                    style={{ width: 20, height: 20, borderRadius: "50%", background: "var(--bone)", color: "var(--ink-muted)", boxShadow: "var(--shadow)", display: "flex", alignItems: "center", justifyContent: "center" }}
-                  >
-                    <Icon name="close" size={11} />
+                  <span className="absolute -top-3 -right-3">
+                    <IconButton icon="close" label="Remove attachment" size={32} iconSize={11} onClick={() => onRemoveAttachment(index)} />
                   </span>
-                </button>
-              </span>
-            ))}
-          </div>
-        ) : null}
+                </motion.span>
+              ))}
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
         <div
-          style={{ display: "flex", alignItems: "flex-end", gap: 4, padding: FIELD.pad, boxSizing: "border-box" }}
+          className="flex items-end gap-1"
+          style={{ padding: FIELD.pad }}
           onDragOver={(e) => {
             if (!offline && e.dataTransfer.types.includes("Files")) {
               e.preventDefault();
@@ -162,17 +140,7 @@ export function Dock({
             }
           }}
         >
-          <button
-            type="button"
-            className="ui-trans ui-hover-fill"
-            aria-label="Attach a file"
-            title="Attach a file"
-            disabled={offline}
-            onClick={onAttach}
-            style={{ width: 40, height: 40, marginBottom: 0, borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sage-deep)", flex: "none" }}
-          >
-            <Icon name="plus" size={18} />
-          </button>
+          <IconButton icon="plus" label="Attach a file" size={40} iconSize={18} disabled={offline} onClick={onAttach} />
           <textarea
             ref={textareaRef}
             className="dta"
@@ -200,12 +168,11 @@ export function Dock({
           />
           <button
             type="button"
-            className="dsend"
             aria-label="Send"
             title={routing ? "Dadi is routing" : "Send"}
             disabled={!canSend}
             onClick={onSend}
-            style={{ marginBottom: 2 }}
+            className="dsend mb-0.5"
           >
             <Icon name="send" size={17} />
           </button>

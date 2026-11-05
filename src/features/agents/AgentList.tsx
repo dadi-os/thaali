@@ -1,9 +1,14 @@
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useState } from "react";
+import { motion } from "motion/react";
 import type { AgentRecord } from "../../types/hath";
 import { Card } from "../../shared/ui/Card";
-import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
+import { AgentName } from "../../shared/ui/AgentName";
+import { Truncate } from "../../shared/ui/Truncate";
+import { useContextActions } from "../../shared/interaction/contextMenu";
 import { useSize } from "../../shared/hooks/useSize";
+import { RISE } from "../../shared/motion";
 import { formatAge } from "../../shared/lib/ux/time";
+import { agentActions } from "./actions";
 import { isLive, LANE_STATE_LABEL, type LaneState } from "./laneState";
 
 /** How often the ages in the list are read again. */
@@ -48,7 +53,7 @@ function nowOf(agent: AgentRecord): string {
   return agent.running.waiting_on === null ? "" : `Waiting on ${agent.running.waiting_on.targets.join(", ")}`;
 }
 
-const HEAD: CSSProperties = { minWidth: 0, fontSize: 11, fontWeight: 600, letterSpacing: "2px", textTransform: "uppercase", color: "var(--ink-muted)" };
+const HEAD = "min-w-0 text-[11px] font-semibold tracking-[2px] text-ink-muted uppercase";
 
 export type AgentListProps = {
   agents: AgentRecord[];
@@ -61,6 +66,44 @@ export type AgentListProps = {
   onPick: (agent: AgentRecord) => void;
 };
 
+type AgentListRowProps = {
+  row: AgentRow;
+  state: LaneState;
+  selected: boolean;
+  dimmed: boolean;
+  showNow: boolean;
+  now: number;
+  onPick: (agent: AgentRecord) => void;
+};
+
+/** One agent's row; right-click offers its thread, its Hath sheet and its name and id. */
+function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow, now, onPick }: AgentListRowProps) {
+  const context = useContextActions(() => agentActions(agent, { onOpenInHath: onPick }));
+  const tasks = agent.sessions.tasks.length;
+  return (
+    <motion.div {...RISE} {...context}>
+      <button
+        type="button"
+        className={`agent-row ui-trans flex min-h-[46px] w-full items-center gap-3.5 border-b border-rule px-[18px] py-1.5 ${dimmed ? "opacity-40" : ""}`}
+        aria-current={selected}
+        onClick={() => onPick(agent)}
+      >
+        <div className="flex min-w-0 flex-1 items-center gap-2 text-left" style={{ paddingLeft: depth * INDENT }}>
+          {depth > 0 ? <span className="-mt-1 size-2.5 flex-none rounded-bl-[4px] border-b border-l border-sage-line" /> : null}
+          <span className={`size-2 flex-none rounded-full ${isLive(state) ? "bg-sage" : "bg-ink-ghost"}`} />
+          <AgentName name={agent.name} selectable={false} className={`text-[14px] ${depth > 0 ? "font-medium" : "font-semibold"}`} />
+        </div>
+        <span className="w-[124px] flex-none text-left">
+          {state === "idle" ? <span className="text-[13px] text-ink-muted">idle</span> : <span className="text-[13px] font-medium text-sage-text">{LANE_STATE_LABEL[state]}</span>}
+        </span>
+        {showNow ? <Truncate text={nowOf(agent)} className="ui-mono min-w-0 flex-1 text-ink-muted" /> : null}
+        <span className="w-[52px] flex-none text-right text-[13px] text-ink-muted tabular-nums">{tasks === 0 ? "–" : tasks}</span>
+        <span className="w-16 flex-none text-right text-[12.5px] text-ink-muted">{formatAge(agent.updated_at, now)}</span>
+      </button>
+    </motion.div>
+  );
+}
+
 /** Every agent as a row in tree order: its state, what it is doing now when the card is wide enough, how many helper tasks it has and when it was last active. */
 export function AgentList({ agents, stateOf, selectedId, dimmed, onPick }: AgentListProps) {
   const [card, { width }] = useSize<HTMLDivElement>();
@@ -72,40 +115,17 @@ export function AgentList({ agents, stateOf, selectedId, dimmed, onPick }: Agent
   const showNow = width > NOW_COLUMN_FROM;
   return (
     <Card ref={card} style={{ flex: 1, minHeight: 0 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14, height: 40, padding: "0 18px", borderBottom: "1px solid var(--rule)", flex: "none" }}>
-        <span style={{ ...HEAD, width: 0, flex: 1 }}>Agent</span>
-        <span style={{ ...HEAD, width: 124, flex: "none" }}>State</span>
-        {showNow ? <span style={{ ...HEAD, width: 0, flex: 1 }}>Now</span> : null}
-        <span style={{ ...HEAD, width: 52, flex: "none", textAlign: "right" }}>Tasks</span>
-        <span style={{ ...HEAD, width: 64, flex: "none", textAlign: "right" }}>Active</span>
+      <div className="flex h-10 flex-none items-center gap-3.5 border-b border-rule px-[18px]">
+        <span className={`${HEAD} w-0 flex-1`}>Agent</span>
+        <span className={`${HEAD} w-[124px] flex-none`}>State</span>
+        {showNow ? <span className={`${HEAD} w-0 flex-1`}>Now</span> : null}
+        <span className={`${HEAD} w-[52px] flex-none text-right`}>Tasks</span>
+        <span className={`${HEAD} w-16 flex-none text-right`}>Active</span>
       </div>
-      <div className="scroll" style={{ flex: 1, minHeight: 0 }}>
-        {agentRows(agents).map(({ agent, depth }) => {
-          const state = stateOf(agent);
-          const tasks = agent.sessions.tasks.length;
-          return (
-            <button
-              key={agent.id}
-              type="button"
-              className="agent-row ui-trans"
-              aria-current={agent.id === selectedId}
-              onClick={() => onPick(agent)}
-              style={{ display: "flex", alignItems: "center", gap: 14, width: "100%", height: 46, padding: "0 18px", opacity: dimmed?.has(agent.id) ? 0.4 : 1, borderBottom: "1px solid var(--rule)" }}
-            >
-              <div style={{ display: "flex", alignItems: "center", flex: 1, minWidth: 0, gap: 8, paddingLeft: depth * INDENT }}>
-                {depth > 0 ? <span style={{ width: 10, height: 10, borderLeft: "1px solid var(--sage-line)", borderBottom: "1px solid var(--sage-line)", borderBottomLeftRadius: 4, marginTop: -4, flex: "none" }} /> : null}
-                <span style={{ width: 8, height: 8, borderRadius: "50%", background: isLive(state) ? "var(--sage)" : "var(--ink-ghost)", flex: "none" }} />
-                <NameTruncate name={agent.name} style={{ fontSize: 14, fontWeight: depth > 0 ? 500 : 600 }} />
-              </div>
-              <span style={{ width: 124, flex: "none" }}>
-                {state === "idle" ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>idle</span> : <span style={{ fontSize: 13, fontWeight: 500, color: "var(--sage-text)" }}>{LANE_STATE_LABEL[state]}</span>}
-              </span>
-              {showNow ? <Truncate text={nowOf(agent)} className="ui-mono" style={{ flex: 1, minWidth: 0, color: "var(--ink-muted)" }} /> : null}
-              <span style={{ width: 52, flex: "none", textAlign: "right", fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>{tasks === 0 ? "–" : tasks}</span>
-              <span style={{ width: 64, flex: "none", textAlign: "right", fontSize: 12.5, color: "var(--ink-muted)" }}>{formatAge(agent.updated_at, now)}</span>
-            </button>
-          );
-        })}
+      <div className="scroll min-h-0 flex-1">
+        {agentRows(agents).map((row) => (
+          <AgentListRow key={row.agent.id} row={row} state={stateOf(row.agent)} selected={row.agent.id === selectedId} dimmed={dimmed?.has(row.agent.id) ?? false} showNow={showNow} now={now} onPick={onPick} />
+        ))}
       </div>
     </Card>
   );

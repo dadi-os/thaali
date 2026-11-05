@@ -5,7 +5,10 @@ import { Card } from "../../../shared/ui/Card";
 import { Disclosure } from "../../../shared/ui/Disclosure";
 import { Icon } from "../../../shared/ui/Icon";
 import { TaskRow } from "../../../shared/components/Task/TaskRow";
-import { Clamp, NameTruncate, Truncate } from "../../../shared/ui/Truncate";
+import { AnimatePresence, motion } from "motion/react";
+import { AgentName } from "../../../shared/ui/AgentName";
+import { REVEAL, RISE } from "../../../shared/motion";
+import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import { formatClock, formatDay, formatRelative } from "../../../shared/lib/ux/time";
 import type { ActivityWake } from "./activity";
 import { ActivityFeed } from "./ActivityFeed";
@@ -66,30 +69,24 @@ function kilo(n: number): string {
 /** A markdown charter as the sheet draws it: `##` headings, `-` bullets and paragraphs, with nothing else interpreted. */
 function CharterText({ source }: { source: string }) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <div data-selectable className="flex flex-col gap-0.5">
       {source.split("\n").flatMap((line, index) => {
         if (line.startsWith("## ")) {
           return [
-            <span key={index} style={{ display: "block", fontSize: 13, fontWeight: 600, margin: "10px 0 3px" }}>
+            <span key={index} className="mt-2.5 mb-[3px] block text-[13px] font-semibold">
               {line.slice(3)}
             </span>,
           ];
         }
         if (line.startsWith("- ")) {
           return [
-            <div key={index} style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, lineHeight: "19px", color: "var(--ink)" }}>
-              <span className="dot" style={{ width: 4, height: 4, background: "var(--sage)", marginTop: 8 }} />
-              <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>{line.slice(2)}</span>
+            <div key={index} className="flex items-start gap-2 text-[13px] leading-[19px] text-ink">
+              <span className="dot mt-2 size-1 bg-sage" />
+              <span className="min-w-0 [overflow-wrap:anywhere]">{line.slice(2)}</span>
             </div>,
           ];
         }
-        return line.trim() === ""
-          ? []
-          : [
-              <span key={index} style={{ display: "block", fontSize: 13, lineHeight: "19px", color: "var(--ink)", overflowWrap: "anywhere" }}>
-                {line}
-              </span>,
-            ];
+        return line.trim() === "" ? [] : [<span key={index} className="block text-[13px] leading-[19px] [overflow-wrap:anywhere] text-ink">{line}</span>];
       })}
     </div>
   );
@@ -98,12 +95,12 @@ function CharterText({ source }: { source: string }) {
 /** What a feed shows in place of its content while it loads or fails: bars the size of rows, or the error's own message. */
 function FeedState({ feed }: { feed: SheetFeed<unknown> }) {
   if (feed.kind === "error") {
-    return <span style={{ fontSize: 13, color: "var(--error)" }}>{feed.message}</span>;
+    return <span data-selectable className="text-[13px] text-error">{feed.message}</span>;
   }
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-      <span className="sk" style={{ width: "100%", height: 12 }} />
-      <span className="sk" style={{ width: "70%", height: 12 }} />
+    <div className="flex flex-col gap-2">
+      <span className="sk h-3 w-full" />
+      <span className="sk h-3 w-[70%]" />
     </div>
   );
 }
@@ -131,19 +128,19 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
   const who = (id: string | null) => (id === null ? "Ankur" : id);
   const scroll = useRef<HTMLDivElement>(null);
   return (
-    <Card style={{ width: 400, flex: "none", background: "var(--glass-sheet)", boxShadow: "var(--shadow-deep)", minHeight: 0, animation: "slide-in 550ms var(--ease) both" }}>
-      <div style={{ padding: "18px 18px 12px", display: "flex", flexDirection: "column", gap: 10, flex: "none" }}>
-        <div style={{ display: "flex", alignItems: "flex-start", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
-            <NameTruncate name={agent.name} style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }} />
-            <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+    <Card style={{ width: 400, flex: "none", background: "var(--glass-sheet)", boxShadow: "var(--shadow-deep)", minHeight: 0 }}>
+      <div className="flex flex-none flex-col gap-2.5 px-[18px] pt-[18px] pb-3">
+        <div className="flex items-start gap-2.5">
+          <div className="flex min-w-0 flex-1 flex-col gap-2">
+            <AgentName name={agent.name} className="text-[20px] font-semibold tracking-[-0.015em]" />
+            <div className="flex flex-wrap items-center gap-1.5">
               {lanes.map((lane) => (
-                <span key={lane} style={{ display: "inline-flex", alignItems: "center", gap: 6, height: 24, padding: "0 10px", borderRadius: 999, background: "var(--sage-active)", color: "var(--sage-text)", fontSize: 12.5, fontWeight: 600 }}>
-                  <span className="dot dot-pulse" style={{ width: 6, height: 6, background: "var(--sage)" }} />
+                <span key={lane} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-sage-active px-2.5 text-[12.5px] font-semibold text-sage-text">
+                  <span className="dot dot-pulse size-1.5 bg-sage" />
                   {lane}
                 </span>
               ))}
-              {lanes.length === 0 ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{waiting === null ? "Idle" : "Waiting"}</span> : null}
+              {lanes.length === 0 ? <span className="text-[13px] text-ink-muted">{waiting === null ? "Idle" : "Waiting"}</span> : null}
             </div>
           </div>
           <Button tone="fill" onClick={onOpenThread}>
@@ -151,45 +148,51 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
           </Button>
         </div>
       </div>
-      <div ref={scroll} className="scroll" style={{ flex: 1, minHeight: 0, padding: "12px 14px 14px", display: "flex", flexDirection: "column", gap: 12 }}>
-        <div style={{ padding: "12px 14px", borderRadius: 14, background: "var(--sage-fill)", display: "flex", flexDirection: "column", gap: 8 }}>
+      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-3 px-3.5 pt-3 pb-3.5">
+        <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-3.5 py-3">
           <span className="ui-label" style={{ fontSize: 10.5 }}>
             Right now
           </span>
-          {status === null ? (
-            <span style={{ fontSize: 14, color: "var(--ink-muted)" }}>{workLine(agent, now)}</span>
-          ) : (
-            <span style={{ fontSize: 14, lineHeight: "20px", fontWeight: 500 }}>{workLine(agent, now)}</span>
-          )}
+          <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
+            {workLine(agent, now)}
+          </span>
           {status?.step ? <Truncate text={status.step} className="ui-mono" /> : null}
           {status?.job ? (
-            <div style={{ display: "flex", alignItems: "flex-start", gap: 8, fontSize: 13, color: "var(--ink-muted)", lineHeight: "18px" }}>
+            <div className="flex items-start gap-2 text-[13px] leading-[18px] text-ink-muted">
               <Icon name="user" size={13} style={{ marginTop: 3 }} />
-              <Clamp text={`${who(status.job.from)} asked at ${formatClock(status.job.at)}: ${status.job.content}`} lines={3} style={{ flex: 1, minWidth: 0 }} />
+              <span data-selectable className="min-w-0 flex-1">
+                <Clamp text={`${who(status.job.from)} asked at ${formatClock(status.job.at)}: ${status.job.content}`} lines={3} />
+              </span>
             </div>
           ) : null}
         </div>
-        {tasks.length > 0 ? (
-          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <div style={{ display: "flex", alignItems: "center", padding: "0 4px 4px" }}>
-              <span className="ui-label">Helper tasks</span>
-              <span style={{ fontSize: 12.5, color: "var(--ink-muted)", marginLeft: "auto" }}>{`${tasks.length} · ${active} active`}</span>
-            </div>
-            {tasks.map(({ task, question, preview }) => (
-              <TaskRow key={task.id} task={task} owner={agent.name} question={question} open={isTaskOpen(task.id)} onToggle={() => onToggleTask(task.id)} now={now}>
-                {preview}
-              </TaskRow>
-            ))}
-          </div>
-        ) : null}
-        <div style={{ display: "flex", flexDirection: "column", gap: 0 }}>
+        <AnimatePresence initial={false}>
+          {tasks.length > 0 ? (
+            <motion.div key="tasks" {...REVEAL} className="overflow-hidden">
+              <div className="flex flex-col gap-0.5">
+                <div className="flex items-center px-1 pb-1">
+                  <span className="ui-label">Helper tasks</span>
+                  <span className="ml-auto text-[12.5px] text-ink-muted">{`${tasks.length} · ${active} active`}</span>
+                </div>
+                {tasks.map(({ task, question, preview }) => (
+                  <TaskRow key={task.id} task={task} owner={agent.name} question={question} open={isTaskOpen(task.id)} onToggle={() => onToggleTask(task.id)} now={now}>
+                    {preview}
+                  </TaskRow>
+                ))}
+              </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+        <div className="flex flex-col">
           {calls.length > 0 ? (
             <Disclosure title="Last calls" summary={`${calls.length} · ${calls[calls.length - 1]!.name}`} open={isOpen("calls")} onToggle={() => onToggle("calls")}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 5 }}>
+              <div className="flex flex-col gap-[5px]">
                 {[...calls].reverse().map((call, index) => (
-                  <div key={index} style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <Truncate text={call.arg ? `${call.name} ${call.arg}` : call.name} className="ui-mono" style={{ flex: 1, minWidth: 0 }} />
-                    <span style={{ fontSize: 12, fontWeight: 600, color: call.ok === false ? "var(--error)" : "var(--ink-muted)" }}>{call.ok === null ? "running" : call.ok ? "ok" : "error"}</span>
+                  <div key={index} className="flex items-center gap-2">
+                    <span data-selectable className="min-w-0 flex-1">
+                      <Truncate text={call.arg ? `${call.name} ${call.arg}` : call.name} className="ui-mono" />
+                    </span>
+                    <span className={`text-[12px] font-semibold ${call.ok === false ? "text-error" : "text-ink-muted"}`}>{call.ok === null ? "running" : call.ok ? "ok" : "error"}</span>
                   </div>
                 ))}
               </div>
@@ -197,9 +200,11 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
           ) : null}
           {pending.length > 0 ? (
             <Disclosure title="Queued to send" summary={String(pending.length)} open={isOpen("queued")} onToggle={() => onToggle("queued")}>
-              <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+              <div className="flex flex-col gap-1.5">
                 {pending.map((message) => (
-                  <Clamp key={message.id} text={`To ${who(message.to)}${message.expects_reply ? " (expects a reply)" : ""}: ${message.preview}`} lines={2} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
+                  <span key={message.id} data-selectable className="text-[13px] text-ink-muted">
+                    <Clamp text={`To ${who(message.to)}${message.expects_reply ? " (expects a reply)" : ""}: ${message.preview}`} lines={2} />
+                  </span>
                 ))}
               </div>
             </Disclosure>
@@ -208,12 +213,16 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             {schedules.kind !== "ready" ? (
               <FeedState feed={schedules} />
             ) : schedules.items.length === 0 ? (
-              <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Nothing scheduled.</span>
+              <span className="text-[13px] text-ink-muted">Nothing scheduled.</span>
             ) : (
-              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                {schedules.items.map((schedule, index) => (
-                  <ScheduleRow key={schedule.id} schedule={schedule} agentId={agent.id} position={index + 1} onSave={onSaveSchedule} onCancel={onCancelSchedule} />
-                ))}
+              <div className="flex flex-col gap-2">
+                <AnimatePresence initial={false}>
+                  {schedules.items.map((schedule, index) => (
+                    <motion.div key={schedule.id} {...RISE}>
+                      <ScheduleRow schedule={schedule} agentId={agent.id} position={index + 1} onSave={onSaveSchedule} onCancel={onCancelSchedule} />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </div>
             )}
           </Disclosure>
@@ -233,13 +242,13 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             )}
           </Disclosure>
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 18, flexWrap: "wrap", fontSize: 12.5, color: "var(--ink-muted)", padding: "4px 4px 0" }}>
+        <div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 px-1 pt-1 text-[12.5px] text-ink-muted">
           <span>
             Parent{" "}
             {parent === null ? (
-              (agent.parent_agent_id ?? "none")
+              <span data-selectable>{agent.parent_agent_id ?? "none"}</span>
             ) : (
-              <button type="button" className="ui-trans ui-hover-fill" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)} style={{ display: "inline", borderRadius: 5, padding: "0 4px", margin: "0 -4px", fontWeight: 600, color: "var(--sage-text)" }}>
+              <button type="button" className="ui-trans ui-hover-fill -mx-1 inline rounded-[5px] px-1 font-semibold text-sage-text" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
                 {parent.name}
               </button>
             )}

@@ -1,7 +1,8 @@
 import { motion, useReducedMotion } from "motion/react";
 import type { AgentRecord } from "../../../types/hath";
-import { EASE, SLOW_S } from "../../../shared/motion";
-import { formatRelative } from "../format";
+import { BREATH_S, EASE, RISE } from "../../../shared/motion";
+import { AgentName } from "../../../shared/ui/AgentName";
+import { formatRelative } from "../../../shared/components/Thread/format";
 
 export type ThreadEmptyProps = {
   /** Display name for the agent (header title). */
@@ -25,9 +26,7 @@ export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
   return (
     <motion.div
       className="flex w-full max-w-[16rem] flex-col items-center"
-      initial={{ opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: SLOW_S, ease: EASE }}
+      {...RISE}
     >
       <div className="relative flex size-16 items-center justify-center">
         <motion.span
@@ -38,7 +37,7 @@ export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
           transition={
             reduced
               ? undefined
-              : { duration: 3.2, repeat: Infinity, ease: EASE }
+              : { duration: BREATH_S, repeat: Infinity, ease: EASE }
           }
           aria-hidden
         />
@@ -46,9 +45,7 @@ export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
           {monogram(name)}
         </span>
       </div>
-      <p className="mt-5 max-w-full truncate text-[16px] font-medium text-ink">
-        {name}
-      </p>
+      <AgentName name={name} className="mt-5 max-w-full text-center text-[16px] font-medium text-ink" />
       {spawned ? (
         <p className="mt-1 text-[11px] tracking-[0.12em] text-ink-ghost uppercase">
           {spawned}
@@ -63,7 +60,7 @@ export function ThreadEmpty({ name, agent, onSuggest }: ThreadEmptyProps) {
             key={text}
             type="button"
             onClick={() => onSuggest(text)}
-            className="max-w-full truncate rounded-full border border-sage-line/50 px-3 py-1.5 text-[12.5px] text-ink-muted transition-colors duration-fast ease-dadi hover:border-sage-line hover:bg-sage-active/40 hover:text-ink"
+            className="max-w-full rounded-full border border-sage-line/50 px-3 py-1.5 text-[12.5px] text-ink-muted transition-colors duration-fast ease-dadi hover:border-sage-line hover:bg-sage-active/40 hover:text-ink"
           >
             {text}
           </button>

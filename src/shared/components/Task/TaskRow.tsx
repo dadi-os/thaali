@@ -1,10 +1,15 @@
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import type { AgentTask } from "../../../types/hath";
-import { formatAge, formatClock, formatRelative } from "../../lib/ux/time";
-import { Badge } from "../../ui/Badge";
-import { Chevron, Reveal } from "../../ui/Disclosure";
+import { useContextActions } from "../../interaction/contextMenu";
+import { formatClock, formatRelative } from "../../lib/ux/time";
+import { REVEAL, RISE } from "../../motion";
+import { Chevron } from "../../ui/Disclosure";
 import { Icon } from "../../ui/Icon";
-import { Clamp, NameTruncate, Truncate } from "../../ui/Truncate";
+import { AgentName } from "../../ui/AgentName";
+import { Clamp, Truncate } from "../../ui/Truncate";
+import { taskActions } from "./actions";
+import { TaskStatus } from "./TaskStatus";
 
 export type TaskRowProps = {
   task: AgentTask;
@@ -16,7 +21,7 @@ export type TaskRowProps = {
   question?: string;
   open: boolean;
   onToggle: () => void;
-  /** The expanded content: the task's {@link TaskPreview} and any controls; a page mounts it only while the row is open or easing shut. Unused while the task sleeps. */
+  /** The expanded content: the task's {@link TaskView} and any controls; mounted only while the row is open and while it eases shut. Unused while the task sleeps. */
   children?: ReactNode;
   now?: number;
 };
@@ -30,67 +35,60 @@ function shortId(id: string): string {
  * The one row for a helper task, shared by the agent sheet and the System page: its id, owner, status and age,
  * what it is for and where it is now, and an expanding panel for its live view. A task waiting on its agent shows
  * the question it asked, never as a request to Ankur. A task its owner is driving has the `paused` status.
+ * Right-click offers the task's actions.
  */
 export function TaskRow({ task, owner, showOwner = false, question, open, onToggle, children, now = Date.now() }: TaskRowProps) {
   const waiting = task.status === "asking";
   const asleep = task.status === "asleep";
+  const context = useContextActions(() => taskActions({ id: task.id, live: !asleep }));
   return (
-    <div
-      className={open ? "trow open" : "trow"}
-      style={{
-        borderRadius: 14,
-        background: waiting ? "var(--tide-wash)" : "transparent",
-        border: `1px solid ${waiting ? "var(--tide-line)" : "transparent"}`,
-        animation: "rise 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both",
-      }}
-    >
-      <button
-        type="button"
-        className="ui-trans ui-hover-fill"
-        aria-expanded={open}
-        onClick={onToggle}
-        style={{ display: "flex", flexDirection: "column", gap: 6, width: "100%", padding: "10px 10px 10px 8px", borderRadius: 12, textAlign: "left" }}
-      >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span style={{ display: "flex", color: "var(--ink-muted)" }}>
-            <Chevron />
+    <motion.div {...RISE} {...context} className={`overflow-hidden rounded-[14px] border ${waiting ? "border-tide-line bg-tide-wash" : "border-transparent"}`}>
+      <button type="button" className="ui-trans ui-hover-fill flex w-full flex-col gap-1.5 rounded-xl py-2.5 pr-2.5 pl-2 text-left" aria-expanded={open} onClick={onToggle}>
+        <div className="flex items-center gap-2">
+          <span className="flex text-ink-muted">
+            <span className={open ? "open" : ""}>
+              <Chevron />
+            </span>
           </span>
-          <span style={{ display: "flex", color: waiting ? "var(--tide-ink)" : "var(--ink-muted)" }}>
+          <span className={`flex ${waiting ? "text-tide-ink" : "text-ink-muted"}`}>
             <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={15} />
           </span>
-          <Truncate text={shortId(task.id)} style={{ flex: 1, minWidth: 0, fontFamily: "var(--font-numeric)", fontSize: 12.5, color: "var(--ink)" }} />
-          {showOwner && owner ? <NameTruncate name={owner} style={{ maxWidth: 150, fontSize: 12.5, color: "var(--ink-muted)" }} /> : null}
-          <Badge status={task.status} />
-          <span style={{ fontSize: 12, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", width: 30, textAlign: "right" }}>{formatAge(task.last_activity, now)}</span>
+          <Truncate text={shortId(task.id)} className="min-w-0 flex-1 font-numeric text-[12.5px] text-ink" />
+          {showOwner && owner ? <AgentName name={owner} selectable={false} className="max-w-[40%] text-[12.5px] text-ink-muted" /> : null}
+          <TaskStatus status={task.status} lastActivity={task.last_activity} now={now} />
         </div>
-        <div style={{ paddingLeft: 45 }}>
-          <Clamp text={task.purpose} lines={2} style={{ fontSize: 13.5, lineHeight: "19px", color: "var(--ink)" }} />
+        <div className="pl-[45px]">
+          <Clamp text={task.purpose} lines={2} style={{ fontSize: 13.5, lineHeight: "19px" }} />
         </div>
         {!asleep && task.current ? (
-          <div style={{ paddingLeft: 45 }}>
+          <div className="pl-[45px]">
             <Truncate text={task.current} className="ui-mono" />
           </div>
         ) : null}
       </button>
       {waiting ? (
-        <div style={{ margin: "0 10px 10px 45px", padding: "10px 12px", borderRadius: 11, background: "var(--bone)", border: "1px solid var(--tide-line)", display: "flex", flexDirection: "column", gap: 6 }}>
-          <span className="ui-label" style={{ color: "var(--tide-ink)", fontSize: 10.5 }}>{`Asked ${owner ?? "its agent"}`}</span>
-          <Clamp text={question || task.current} lines={3} style={{ fontSize: 13.5, lineHeight: "19px" }} />
-          <Truncate text={formatRelative(task.last_activity, now)} className="ui-mono" style={{ fontSize: 11.5, fontFamily: "Inter" }} />
+        <div className="mt-0 mr-2.5 mb-2.5 ml-[45px] flex flex-col gap-1.5 rounded-[11px] border border-tide-line bg-bone px-3 py-2.5">
+          <span className="ui-label text-tide-ink" style={{ fontSize: 10.5 }}>{`Asked ${owner ?? "its agent"}`}</span>
+          <span data-selectable className="text-[13.5px] leading-[19px]">{question || task.current}</span>
+          <Truncate text={formatRelative(task.last_activity, now)} className="ui-mono" />
         </div>
       ) : null}
-      <Reveal>
-        <div style={{ padding: "0 10px 10px 8px" }}>
-          {asleep ? (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: 12, borderRadius: 12, background: "var(--sage-fill)", fontSize: 13, color: "var(--ink-muted)" }}>
-              <Icon name="clock" size={14} />
-              <span>{`Asleep since ${formatClock(task.last_activity)}. It wakes on the next steer.`}</span>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div key="body" {...REVEAL} className="overflow-hidden">
+            <div className="flex flex-col gap-2 pr-2.5 pb-2.5 pl-2">
+              {asleep ? (
+                <div className="flex items-center gap-2.5 rounded-xl bg-sage-fill p-3 text-[13px] text-ink-muted">
+                  <Icon name="clock" size={14} />
+                  <span>{`Asleep since ${formatClock(task.last_activity)}. It wakes on the next steer.`}</span>
+                </div>
+              ) : (
+                children
+              )}
             </div>
-          ) : (
-            children === undefined ? null : <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>{children}</div>
-          )}
-        </div>
-      </Reveal>
-    </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
+    </motion.div>
   );
 }

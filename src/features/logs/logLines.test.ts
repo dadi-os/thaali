@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NasLogEntry } from "../../shared/api/nas";
-import { isNoiseLog, keyEntries, nearestLog, prettyRaw, rangeFor } from "./logLines";
+import { isNoiseLog, keyEntries, nearestLog, prettyRaw, rangeFor, requestIdOf } from "./logLines";
 
 const entry = (time: string, msg: string, raw?: string): NasLogEntry => ({ time, service: "hath", level: "info", msg, ...(raw === undefined ? {} : { raw }) });
 
@@ -28,6 +28,13 @@ describe("log lines", () => {
     expect(rangeFor("2026-10-28T11:30:00Z", now)).toBe("1h");
     expect(rangeFor("2026-10-28T08:00:00Z", now)).toBe("6h");
     expect(rangeFor("2026-10-27T20:00:00Z", now)).toBe("24h");
+  });
+
+  it("reads a line's request id from its raw record and nowhere else", () => {
+    expect(requestIdOf(entry("t", "x", '{"request_id":"req-9"}'))).toBe("req-9");
+    expect(requestIdOf(entry("t", "x", '{"other":1}'))).toBeNull();
+    expect(requestIdOf(entry("t", "x", "plain text"))).toBeNull();
+    expect(requestIdOf(entry("t", "x"))).toBeNull();
   });
 
   it("lays JSON out one field to a line and leaves other text alone", () => {

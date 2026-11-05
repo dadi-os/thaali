@@ -10,11 +10,12 @@ import {
 } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { FADE } from "../../shared/motion";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
-import { pickLiveViews } from "../../features/agents/sessions";
+import { pickLiveTasks } from "../../features/agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
@@ -57,7 +58,8 @@ import {
 import { logLine } from "../../shared/lib/log";
 import { hydrateHistory } from "../../shared/hooks/useEvents";
 import { reportSendFailure } from "../sendFailure";
-import { FloatingComposer } from "./composer";
+import { Composer } from "../../shared/components/Thread/Composer";
+import { ThreadHeader } from "../../shared/components/Thread/ThreadHeader";
 import {
   COMPOSER_GAP,
   HISTORY_LOG_LIMIT,
@@ -69,7 +71,7 @@ import {
 import { Dock } from "./Dock";
 import { partitionByQueued } from "./lanes";
 import { ConversationList, WIDE_ROW_PX } from "./list";
-import { PaneHeader } from "./PaneHeader";
+import { LaneChip } from "./LaneChip";
 import { ResizeHandle, useRailWidth } from "./ResizeHandle";
 import { ThreadView } from "./thread";
 import { useMarkRead } from "./useMarkRead";
@@ -609,12 +611,11 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const openAgentView = resolveOpenAgent(openAgentId, agentsQuery);
   const openAgentRecord = openAgentView?.kind === "ready" ? openAgentView.agent : undefined;
-  const { browserId: liveBrowserId, terminalId: liveTerminalId } =
+  const { browser: liveBrowser, terminal: liveTerminal } =
     openAgentRecord && tasksQuery.isSuccess
-      ? pickLiveViews(openAgentRecord.sessions, tasksQuery.data)
-      : { browserId: null, terminalId: null };
-  const showHostPin =
-    viewingThread && (liveBrowserId !== null || liveTerminalId !== null);
+      ? pickLiveTasks(openAgentRecord.sessions, tasksQuery.data)
+      : { browser: null, terminal: null };
+  const showHostPin = viewingThread && (liveBrowser !== null || liveTerminal !== null);
 
   const showComposer = openAgentView?.kind === "ready" && openAgentView.agent.active;
 
@@ -646,36 +647,43 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     >
       {viewingThread ? (
         <div className="pane-in absolute inset-0 flex flex-col">
-          <PaneHeader
+          <ThreadHeader
             onBack={backToList}
             title={openAgentRecord ? openAgentRecord.name : null}
             error={openAgentView?.kind === "error" ? openAgentView.message : null}
             onOpenDetails={openAgentId === null ? undefined : () => navigate({ pathname: "/hath", search: `?agent=${openAgentId}` })}
           />
           <div className="relative flex min-h-0 flex-1 flex-col">
-            {showHostPin ? <HostPin browserId={liveBrowserId} terminalId={liveTerminalId} /> : null}
+            <HostPin browser={liveBrowser} terminal={liveTerminal} />
             <div className="relative min-h-0 flex-1">
-              {openAgentView?.kind === "error" ? (
-                <p
-                  role="alert"
-                  className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] leading-relaxed text-error"
-                  style={{ paddingBottom: composerPad }}
-                >
-                  Couldn't load this agent. {openAgentView.message}
-                </p>
-              ) : null}
-              {openAgentView?.kind === "loading" ? (
-                <div
-                  role="status"
-                  aria-label="Loading this agent"
-                  className="absolute inset-0 flex flex-col justify-end gap-3 px-4"
-                  style={{ paddingBottom: composerPad + 16 }}
-                >
-                  <span className="sk h-10 w-3/5 rounded-[14px]" />
-                  <span className="sk h-16 w-4/5 self-end rounded-[14px]" />
-                  <span className="sk h-12 w-2/3 rounded-[14px]" />
-                </div>
-              ) : null}
+              <AnimatePresence initial={false}>
+                {openAgentView?.kind === "error" ? (
+                  <motion.p
+                    key="error"
+                    {...FADE}
+                    role="alert"
+                    data-selectable
+                    className="absolute inset-0 flex items-center justify-center px-8 text-center text-[13px] leading-relaxed text-error"
+                    style={{ paddingBottom: composerPad }}
+                  >
+                    Couldn't load this agent. {openAgentView.message}
+                  </motion.p>
+                ) : null}
+                {openAgentView?.kind === "loading" ? (
+                  <motion.div
+                    key="loading"
+                    {...FADE}
+                    role="status"
+                    aria-label="Loading this agent"
+                    className="absolute inset-0 flex flex-col justify-end gap-3 px-4"
+                    style={{ paddingBottom: composerPad + 16 }}
+                  >
+                    <span className="sk h-10 w-3/5 rounded-[14px]" />
+                    <span className="sk h-16 w-4/5 self-end rounded-[14px]" />
+                    <span className="sk h-12 w-2/3 rounded-[14px]" />
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
               {openAgentId && openAgentRecord ? (
                 <ThreadView
                   scrollRef={scrollRef}
@@ -704,7 +712,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
           </div>
           <AnimatePresence initial={false}>
             {showComposer ? (
-              <FloatingComposer
+              <Composer
                 key="composer"
                 connected={connected}
                 draft={draft}
@@ -712,8 +720,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 placeholder={placeholder}
                 canSubmit={canSubmit}
                 processingMode={processBusy}
-                workingMode={workBusy && !processBusy}
-                lanes={{ process: processBusy, work: workBusy }}
+                above={<LaneChip process={processBusy} work={workBusy} />}
+                fieldMaxPx={TEXTAREA_MAX_PX}
                 textareaRef={textareaRef}
                 fileInputRef={fileInputRef}
                 cameraInputRef={cameraInputRef}

@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { hath, isMeshOnline, nas } from "../../shared/api";
 import type { NasTask } from "../../shared/api/nas";
@@ -7,6 +7,7 @@ import { Pill } from "../../shared/ui/Button";
 import { StateView } from "../../shared/states/ModuleState";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { TaskRow } from "../../shared/components/Task/TaskRow";
+import { TaskView } from "../../shared/components/Task/TaskView";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
@@ -14,26 +15,8 @@ import { useModuleState } from "../../shared/hooks/useModuleState";
 import { failureProps } from "../../shared/lib/ux/moduleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import type { AgentTask } from "../../types/hath";
-import { TaskPreviewLive } from "../agents/TaskLive";
 import { SectionLabel } from "./SectionLabel";
 import { filterCounts, listedTasks, slotLabel, TASK_FILTERS, type TaskFilter } from "./taskList";
-
-/** How long a row's preview stays mounted after the row is shut, so the content is still there while the row eases closed. */
-const CLOSE_MS = 340;
-
-/** Whether a row's content is mounted: while it is open, and for {@link CLOSE_MS} after it is shut. */
-function useMounted(open: boolean): boolean {
-  const [mounted, setMounted] = useState(open);
-  useEffect(() => {
-    if (open) {
-      setMounted(true);
-      return undefined;
-    }
-    const timer = window.setTimeout(() => setMounted(false), CLOSE_MS);
-    return () => window.clearTimeout(timer);
-  }, [open]);
-  return open || mounted;
-}
 
 type TaskItemProps = {
   task: NasTask;
@@ -43,27 +26,28 @@ type TaskItemProps = {
   onToggle: () => void;
 };
 
-/** One helper task as a row; its live view mounts only while the row is open, since a mounted view holds a capture on the box. */
+/** One helper task as a row; its live view is mounted by the row only while it is open, since a mounted view holds a capture on the box. */
 function TaskItem({ task, current, open, onToggle }: TaskItemProps) {
-  const mounted = useMounted(open);
   const row: AgentTask = { id: task.task, kind: task.kind, status: task.status, purpose: task.purpose, current, last_activity: task.last_activity };
   const slot = slotLabel(task);
   return (
     <TaskRow task={row} owner={task.owner} showOwner question={task.state} open={open} onToggle={onToggle}>
-      {mounted && task.resource !== undefined ? (
+      {task.resource !== undefined ? (
         <>
           {slot === null ? null : (
-            <div style={{ display: "flex", alignItems: "center", gap: 10, padding: "0 4px" }}>
-              <Truncate text={slot} className="ui-mono" />
+            <div className="flex items-center gap-2.5 px-1">
+              <span data-selectable className="min-w-0 flex-1">
+                <Truncate text={slot} className="ui-mono" />
+              </span>
             </div>
           )}
-          <TaskPreviewLive
+          <TaskView
             task={task.task}
             kind={task.kind}
             resource={task.resource}
             caption={task.kind === "browser" ? current : `${task.id} · ${task.resource}`}
             paused={task.status === "paused"}
-            tall
+            variant="tall"
           />
         </>
       ) : undefined}
@@ -110,10 +94,10 @@ export function TasksBlock() {
   switch (state.kind) {
     case "loading":
       body = (
-        <div style={{ display: "flex", flexDirection: "column", padding: 14, gap: 14 }}>
+        <div className="flex flex-col gap-3.5 p-3.5">
           {Array.from({ length: 3 }, (_, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div key={i} className="flex flex-col gap-2">
+              <div className="flex items-center gap-2.5">
                 <Skeleton width={160} height={14} />
                 <Skeleton width={60} height={20} radius={10} style={{ marginLeft: "auto" }} />
               </div>
@@ -132,11 +116,11 @@ export function TasksBlock() {
       body = <StateView kind="error" title="Nas couldn’t list the tasks" {...failureProps(state.error)} detail="GET /tasks failed; the rest of this page is current." onRetry={() => void tasksQuery.refetch()} />;
       break;
     case "empty":
-      body = <div style={{ padding: "20px 16px", fontSize: 13.5, color: "var(--ink-muted)" }}>None in flight. Tasks appear here while an agent’s browser or terminal helper is running.</div>;
+      body = <div className="px-4 py-5 text-[13.5px] text-ink-muted">None in flight. Tasks appear here while an agent’s browser or terminal helper is running.</div>;
       break;
     case "ready":
       body = (
-        <div style={{ display: "flex", flexDirection: "column", padding: "6px 6px" }}>
+        <div className="flex flex-col p-1.5">
           {listedTasks(tasks, filter).map((task) => (
             <TaskItem key={task.task} task={task} current={currentOf(task.task)} open={openIds.has(task.task)} onToggle={() => toggle(task.task)} />
           ))}
@@ -147,9 +131,9 @@ export function TasksBlock() {
   const waiting = counts.Waiting;
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${tasks.length} · ${waiting} waiting on an agent`}</span> : null}>Tasks</SectionLabel>
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[12.5px] text-ink-muted">{`${tasks.length} · ${waiting} waiting on an agent`}</span> : null}>Tasks</SectionLabel>
       {state.kind === "ready" ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex flex-wrap items-center gap-2">
           {TASK_FILTERS.map((name) => (
             <Pill key={name} active={name === filter} count={counts[name]} onClick={() => setFilter(name)}>
               {name}

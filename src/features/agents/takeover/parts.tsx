@@ -1,13 +1,12 @@
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { FADE, REVEAL } from "../../../shared/motion";
+import { AgentName } from "../../../shared/ui/AgentName";
 import { Badge } from "../../../shared/ui/Badge";
-import { Button } from "../../../shared/ui/Button";
-import { IconButton } from "../../../shared/ui/Button";
+import { Button, IconButton } from "../../../shared/ui/Button";
 import { Icon } from "../../../shared/ui/Icon";
-import { Clamp, NameTruncate, Truncate } from "../../../shared/ui/Truncate";
+import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import type { TaskStatus } from "../../../types/hath";
-
-/** The dark ground of a terminal: its output, its command line and the marks on them. */
-const TERMINAL = { ground: "#23271f", bar: "#1b1e18", ink: "#dfe6d6", dim: "#a9b3a0", rule: "#3a4033", prompt: "#9fc08a" } as const;
 
 /** What the modal's header, banner and footer say about the task. */
 export type TakeoverTask = {
@@ -29,7 +28,7 @@ function shortId(task: string): string {
 
 /** A keyboard shortcut as the footer names it. */
 function Kbd({ children }: { children: string }) {
-  return <span style={{ fontFamily: "var(--font-numeric)", fontSize: 11, padding: "1px 5px", borderRadius: 5, border: "1px solid var(--sage-line)", color: "var(--ink-muted)" }}>{children}</span>;
+  return <span className="rounded-[5px] border border-sage-line px-[5px] py-px font-numeric text-[11px] text-ink-muted">{children}</span>;
 }
 
 export type TakeoverHeaderProps = {
@@ -39,46 +38,63 @@ export type TakeoverHeaderProps = {
   onClose: () => void;
 };
 
-/** The modal's 60 px header: the task's kind, id, owner and purpose, then its status, or, while Ankur drives, the mark that he is and the way to hand it back. */
+/** The modal's header: the task's kind, id, owner and purpose, then its status, or, while Ankur drives, the mark that he is and the way to hand it back. */
 export function TakeoverHeader({ task, driving, onClose }: TakeoverHeaderProps) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 12, height: 60, padding: "0 12px 0 16px", borderBottom: "1px solid var(--rule)", flex: "none" }}>
-      <span style={{ width: 32, height: 32, borderRadius: 10, background: "var(--sage-fill)", color: "var(--sage-text)", display: "flex", alignItems: "center", justifyContent: "center", flex: "none" }}>
+    <div className="flex min-h-[60px] flex-none items-center gap-3 border-b border-rule py-2 pr-3 pl-4">
+      <span className="flex size-8 flex-none items-center justify-center rounded-[10px] bg-sage-fill text-sage-text">
         <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={16} />
       </span>
-      <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <Truncate text={shortId(task.task)} className="ui-mono" style={{ fontSize: 13, color: "var(--ink)", flex: "none" }} />
-          <NameTruncate name={task.owner} style={{ fontSize: 13, color: "var(--ink-muted)", flex: 1, minWidth: 0 }} />
+      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+        <div className="flex items-baseline gap-2.5 text-[13px]">
+          <Truncate text={shortId(task.task)} className="flex-none font-numeric text-ink" />
+          <AgentName name={task.owner} className="flex-1 text-ink-muted" />
         </div>
         <Clamp text={task.purpose} lines={1} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />
       </div>
-      {driving ? (
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 28, padding: "0 12px", borderRadius: 999, background: "var(--sage-deep)", color: "var(--bone)", fontSize: 12.5, fontWeight: 600, whiteSpace: "nowrap", flex: "none" }}>
-          <span className="dot" style={{ width: 6, height: 6, background: "var(--bone)" }} />
-          You are driving
-        </span>
-      ) : (
-        <Badge status={task.status} />
-      )}
-      {driving ? (
-        <Button tone="fill" onClick={onClose}>
-          Hand back
-        </Button>
-      ) : null}
-      <IconButton icon="close" label="Close" size={36} onClick={driving ? undefined : onClose} style={driving ? { display: "none" } : undefined} />
+      <AnimatePresence mode="wait" initial={false}>
+        {driving ? (
+          <motion.span key="driving" {...FADE} className="inline-flex h-7 flex-none items-center gap-[7px] rounded-full bg-sage-deep px-3 text-[12.5px] font-semibold whitespace-nowrap text-bone">
+            <span className="dot size-1.5 bg-bone" />
+            You are driving
+          </motion.span>
+        ) : (
+          <motion.span key="status" {...FADE} className="flex">
+            <Badge status={task.status} />
+          </motion.span>
+        )}
+      </AnimatePresence>
+      <AnimatePresence mode="wait" initial={false}>
+        {driving ? (
+          <motion.span key="hand-back" {...FADE} className="flex">
+            <Button tone="fill" onClick={onClose}>
+              Hand back
+            </Button>
+          </motion.span>
+        ) : (
+          <motion.span key="close" {...FADE} className="flex">
+            <IconButton icon="close" label="Close" size={36} onClick={onClose} />
+          </motion.span>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
 
 /** The strip under the header while Ankur drives: the helper is paused and waits for its agent to be handed back. */
-export function TakeoverBanner({ owner }: { owner: string }) {
+export function TakeoverBanner({ owner, driving }: { owner: string; driving: boolean }) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, height: 40, padding: "0 16px", background: "var(--due-fill)", color: "var(--due-ink)", borderBottom: "1px solid var(--due-line)", fontSize: 13, fontWeight: 500, flex: "none", animation: "drop-in 260ms var(--ease) both" }}>
-      <Icon name="pause" size={14} />
-      <span style={{ whiteSpace: "nowrap" }}>Paused while you drive</span>
-      <Truncate text={`${owner}’s helper waits`} style={{ flex: 1, minWidth: 0, fontWeight: 400 }} />
-    </div>
+    <AnimatePresence initial={false}>
+      {driving ? (
+        <motion.div key="banner" {...REVEAL} className="flex-none overflow-hidden">
+          <div className="flex h-10 items-center gap-2.5 border-b border-due-line bg-due-fill px-4 text-[13px] font-medium text-due-ink">
+            <Icon name="pause" size={14} />
+            <span className="whitespace-nowrap">Paused while you drive</span>
+            <Truncate text={`${owner}’s helper waits`} className="min-w-0 flex-1 font-normal" />
+          </div>
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
   );
 }
 
@@ -88,17 +104,26 @@ export type TakeoverFooterProps = {
   driving: boolean;
 };
 
-/** The modal's 44 px footer: the shortcut that leaves, and where the task runs. */
+/** The modal's footer: the shortcut that leaves, and where the task runs. */
 export function TakeoverFooter({ kind, resource, driving }: TakeoverFooterProps) {
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 14, height: 44, padding: "0 16px", borderTop: "1px solid var(--rule)", flex: "none", fontSize: 12.5, color: "var(--ink-muted)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+    <div className="flex h-11 flex-none items-center gap-3.5 border-t border-rule px-4 text-[12.5px] text-ink-muted">
+      <div className="flex items-center gap-1.5">
         <Kbd>{driving ? "⌘ ." : "Esc"}</Kbd>
         {driving ? "Hand back" : "Close"}
       </div>
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
       <Truncate text={kind === "browser" ? `slot ${resource}` : `tmux ${resource}`} className="ui-mono" />
     </div>
+  );
+}
+
+/** The ring that marks the page or the pane Ankur is driving; it lives inside the modal and nowhere else. */
+function DrivingRing({ driving }: { driving: boolean }) {
+  return (
+    <AnimatePresence>
+      {driving ? <motion.span key="ring" {...FADE} className="pointer-events-none absolute inset-0 z-[3] shadow-[inset_0_0_0_2px_var(--sage-deep)]" /> : null}
+    </AnimatePresence>
   );
 }
 
@@ -118,31 +143,24 @@ export type TakeoverBrowserProps = {
 /** The browser modal's body: the address bar with Back and Reload, and the page in a region the picture is centred in. */
 export function TakeoverBrowser({ url, task, driving, onBack, onReload, children }: TakeoverBrowserProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, position: "relative" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, height: 48, padding: "0 12px", background: "#f1f2ee", borderBottom: "1px solid var(--rule)", flex: "none" }}>
+    <div className="relative flex min-h-0 flex-1 flex-col">
+      <div className="flex h-12 flex-none items-center gap-2 border-b border-rule bg-[#f1f2ee] px-3">
         <IconButton icon="back" label="Back" size={32} onClick={onBack} />
         <IconButton icon="retry" label="Reload" size={32} onClick={onReload} />
-        <div style={{ flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 8, height: 32, padding: "0 12px", borderRadius: 16, background: "#fff", border: "1px solid var(--rule)", fontSize: 13, color: "var(--ink-muted)" }}>
+        <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-rule bg-white px-3 text-[13px] text-ink-muted">
           <Icon name="lock" size={12} />
-          <Truncate text={url} style={{ flex: 1, minWidth: 0, fontSize: 13 }} />
+          <Truncate text={url} className="min-w-0 flex-1 text-[13px]" />
         </div>
       </div>
-      <div role="application" aria-label={`Browser page for ${shortId(task)}`} style={{ flex: 1, minHeight: 0, position: "relative", containerType: "size", background: "#ece9e1", cursor: driving ? "default" : "pointer" }}>
+      <div role="application" aria-label={`Browser page for ${shortId(task)}`} className={`relative min-h-0 flex-1 [container-type:size] bg-[#ece9e1] ${driving ? "cursor-default" : "cursor-pointer"}`}>
         {children}
       </div>
-      {driving ? <DrivingRing /> : null}
+      <DrivingRing driving={driving} />
     </div>
   );
 }
 
-/** The ring that marks the page or the pane Ankur is driving; it lives inside the modal and nowhere else. */
-function DrivingRing() {
-  return <span style={{ position: "absolute", inset: 0, boxShadow: "inset 0 0 0 2px var(--sage-deep)", pointerEvents: "none", zIndex: 3, animation: "scrim-in 220ms var(--ease) both" }} />;
-}
-
 export type TakeoverTerminalProps = {
-  /** The pane's text, newest line last. */
-  output: string;
   /** The directory the helper is in. */
   cwd: string;
   driving: boolean;
@@ -151,42 +169,35 @@ export type TakeoverTerminalProps = {
   onCommand: (command: string) => void;
   /** Ankur pressed Enter on the command. */
   onSubmit: () => void;
+  /** The pane's output: the task's full view. */
+  children: ReactNode;
 };
 
 /** The terminal modal's body: the pane's output, which scrolls, and a command line under it. */
-export function TakeoverTerminal({ output, cwd, driving, command, onCommand, onSubmit }: TakeoverTerminalProps) {
-  const paneRef = useRef<HTMLPreElement>(null);
-  useLayoutEffect(() => {
-    const pane = paneRef.current;
-    if (pane) {
-      pane.scrollTop = pane.scrollHeight;
-    }
-  }, [output]);
+export function TakeoverTerminal({ cwd, driving, command, onCommand, onSubmit, children }: TakeoverTerminalProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minHeight: 0, background: TERMINAL.ground, color: TERMINAL.ink, position: "relative" }}>
-      <pre ref={paneRef} className="scroll" style={{ margin: 0, flex: 1, minHeight: 0, padding: "14px 16px", fontFamily: "var(--font-numeric)", fontSize: 12.5, lineHeight: "18px", overflow: "auto", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-        {output}
-      </pre>
-      <div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 16px", borderTop: `1px solid ${TERMINAL.rule}`, background: TERMINAL.bar, fontFamily: "var(--font-numeric)", fontSize: 13, color: TERMINAL.ink, flex: "none" }}>
-          <span style={{ color: TERMINAL.dim, flex: "none" }}>{cwd}</span>
-          <span style={{ color: TERMINAL.prompt, flex: "none" }}>$</span>
-          <input
-            aria-label="Command"
-            autoComplete="off"
-            spellCheck={false}
-            value={command}
-            onChange={(e) => onCommand(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                onSubmit();
-              }
-            }}
-            style={{ flex: 1, minWidth: 0, border: 0, outline: 0, background: "transparent", color: TERMINAL.ink, fontFamily: "var(--font-numeric)", fontSize: 13, height: 34 }}
-          />
-        </div>
+    <div className="relative flex min-h-0 flex-1 flex-col bg-[#23271f] text-[#dfe6d6]">
+      {children}
+      <div className="flex h-[46px] flex-none items-center gap-2 border-t border-[#3a4033] bg-[#1b1e18] px-4 font-numeric text-[13px] text-[#dfe6d6]">
+        <span data-selectable className="flex-none text-[#a9b3a0]">
+          {cwd}
+        </span>
+        <span className="flex-none text-[#9fc08a]">$</span>
+        <input
+          aria-label="Command"
+          autoComplete="off"
+          spellCheck={false}
+          value={command}
+          onChange={(e) => onCommand(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              onSubmit();
+            }
+          }}
+          className="h-[34px] min-w-0 flex-1 border-0 bg-transparent font-numeric text-[13px] text-[#dfe6d6] outline-0"
+        />
       </div>
-      {driving ? <DrivingRing /> : null}
+      <DrivingRing driving={driving} />
     </div>
   );
 }

@@ -1,9 +1,10 @@
 import { useEffect, useRef, type RefObject, type UIEvent } from "react";
-import { AnimatePresence } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
+import { FADE } from "../../../shared/motion";
 import type { AgentRecord } from "../../../types/hath";
 import { messageKey, type ChatMessage } from "../../../store/chat";
 import { trackIncoming } from "../lanes";
-import { MessageBubble } from "../message";
+import { MessageBubble } from "../../../shared/components/Thread/Message";
 import { ThreadEmpty } from "./ThreadEmpty";
 
 export interface ThreadViewProps {
@@ -71,25 +72,29 @@ export function ThreadView({
 
   return (
     <div className="absolute inset-0">
-      {isEmpty && load ? (
-        <div
-          className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-8 [&>*]:pointer-events-auto"
-          style={{ paddingBottom: composerPad }}
-        >
-          {load.error ? (
-            <p role="alert" className="max-w-[16rem] text-center text-[13px] leading-relaxed text-error">
-              Couldn't load messages. {load.error}
-            </p>
-          ) : (
-            <ThreadEmpty name={agentName} agent={agent} onSuggest={onSuggest} />
-          )}
-        </div>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {isEmpty && load ? (
+          <motion.div
+            key="empty"
+            {...FADE}
+            className="pointer-events-none absolute inset-0 z-10 flex flex-col items-center justify-center px-8 [&>*]:pointer-events-auto"
+            style={{ paddingBottom: composerPad }}
+          >
+            {load.error ? (
+              <p role="alert" data-selectable className="max-w-[16rem] text-center text-[13px] leading-relaxed text-error">
+                Couldn't load messages. {load.error}
+              </p>
+            ) : (
+              <ThreadEmpty name={agentName} agent={agent} onSuggest={onSuggest} />
+            )}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
       <div
         ref={scrollRef}
         onScroll={onScroll}
         onClick={onDismissKeyboard}
-        className={`h-full overflow-y-auto overscroll-contain px-3.5 py-4 ${
+        className={`scroll h-full overflow-y-auto overscroll-contain px-3.5 py-4 ${
           fadeTop ? "thread-fade-top" : ""
         }`}
         style={{ paddingBottom: composerPad }}

@@ -19,27 +19,37 @@ export function taskLiveView(task: NasTask | undefined): TaskLiveView | null {
     : { kind: "terminal", terminalId: task.resource };
 }
 
+/** A live task the chat rail pins above an agent's thread. */
+export type PinnedTask = {
+  /** The task's address, such as `task/browser/3`. */
+  task: string;
+  /** The browser slot or terminal id it holds in Nas. */
+  resource: string;
+  /** What the preview's bar says: the page a browser is on, or a terminal's id and slot. */
+  caption: string;
+};
+
 /**
- * The newest live browser and terminal among an agent's tasks, for the thread's host strip.
+ * The newest live browser and terminal among an agent's tasks, for the thread's pin.
  * `sessions.tasks` is most recently active first.
  */
-export function pickLiveViews(
+export function pickLiveTasks(
   sessions: AgentSessions,
   nasTasks: NasTask[],
-): { browserId: number | null; terminalId: string | null } {
+): { browser: PinnedTask | null; terminal: PinnedTask | null } {
   const byId = new Map(nasTasks.map((t) => [t.task, t]));
-  let browserId: number | null = null;
-  let terminalId: string | null = null;
+  let browser: PinnedTask | null = null;
+  let terminal: PinnedTask | null = null;
   for (const row of sessions.tasks) {
     const view = taskLiveView(byId.get(row.id));
-    if (view?.kind === "browser" && browserId === null) {
-      browserId = view.browserId;
+    if (view?.kind === "browser" && browser === null) {
+      browser = { task: row.id, resource: String(view.browserId), caption: row.current };
     }
-    if (view?.kind === "terminal" && terminalId === null) {
-      terminalId = view.terminalId;
+    if (view?.kind === "terminal" && terminal === null) {
+      terminal = { task: row.id, resource: view.terminalId, caption: `${row.id.replace(/^task\//, "")} · ${view.terminalId}` };
     }
   }
-  return { browserId, terminalId };
+  return { browser, terminal };
 }
 
 /**

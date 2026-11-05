@@ -1,5 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import type { Lane } from "../../../types/hath";
+import { FADE, REVEAL } from "../../../shared/motion";
 import { Button } from "../../../shared/ui/Button";
 import { Segmented } from "../../../shared/ui/Segmented";
 import { Truncate } from "../../../shared/ui/Truncate";
@@ -100,7 +102,9 @@ function ToolRow({ tool, partKey, live, calledAt, open, flip }: ToolRowProps) {
           <span style={{ flex: "none", fontSize: 11, color: "var(--error)" }}>error</span>
         ) : null}
       </button>
-      {isOpen ? (
+      <AnimatePresence initial={false}>
+        {isOpen ? (
+          <motion.div key="tool" {...REVEAL} style={{ overflow: "hidden" }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, margin: "6px 0 4px", paddingLeft: 10, borderLeft: "1px solid var(--rule)" }}>
           {params.length > 0 ? (
             <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
@@ -111,7 +115,7 @@ function ToolRow({ tool, partKey, live, calledAt, open, flip }: ToolRowProps) {
                     <span style={{ flex: "none", fontFamily: MONO, fontSize: 10.5, lineHeight: "16px", padding: "4px 6px", color: "var(--ink-muted)", background: "rgba(44, 48, 42, 0.06)" }}>{name}</span>
                     <div style={{ flex: 1, minWidth: 0, padding: "4px 6px", color: "var(--ink)" }}>
                       <Expand lines={5} lineHeight={16} open={open.expanded.has(key)} onToggle={() => flip("expanded", key)}>
-                        <span style={{ display: "block", ...MONO_TEXT }}>{prettyValue(value)}</span>
+                        <span data-selectable style={{ display: "block", ...MONO_TEXT }}>{prettyValue(value)}</span>
                       </Expand>
                     </div>
                   </div>
@@ -123,11 +127,13 @@ function ToolRow({ tool, partKey, live, calledAt, open, flip }: ToolRowProps) {
           )}
           {result !== null && result.content.trim() !== "" ? (
             <Expand lines={8} lineHeight={16} open={open.expanded.has(`${partKey}:result`)} onToggle={() => flip("expanded", `${partKey}:result`)}>
-              <span style={{ display: "block", ...MONO_TEXT, color: result.isError ? "var(--error)" : "var(--ink-muted)" }}>{prettyResult(result.content)}</span>
+              <span data-selectable style={{ display: "block", ...MONO_TEXT, color: result.isError ? "var(--error)" : "var(--ink-muted)" }}>{prettyResult(result.content)}</span>
             </Expand>
           ) : null}
         </div>
-      ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -176,13 +182,17 @@ function Turn({ step, live, open, flip }: { step: TurnStep } & Omit<StepViewProp
           >
             {thought.gist}
           </button>
-          {thoughtOpen ? (
-            <div style={{ margin: "4px 0 2px", paddingLeft: 10, borderLeft: "1px solid var(--rule)", fontStyle: "italic" }}>
-              <Expand lines={12} lineHeight={17} open={open.expanded.has(`${step.key}:thought`)} onToggle={() => flip("expanded", `${step.key}:thought`)}>
-                <Rich source={thought.text} size={12} lineHeight={17} color="var(--ink-muted)" />
-              </Expand>
-            </div>
-          ) : null}
+          <AnimatePresence initial={false}>
+            {thoughtOpen ? (
+              <motion.div key="thought" {...REVEAL} style={{ overflow: "hidden" }}>
+                <div style={{ margin: "4px 0 2px", paddingLeft: 10, borderLeft: "1px solid var(--rule)", fontStyle: "italic" }}>
+                  <Expand lines={12} lineHeight={17} open={open.expanded.has(`${step.key}:thought`)} onToggle={() => flip("expanded", `${step.key}:thought`)}>
+                    <Rich source={thought.text} size={12} lineHeight={17} color="var(--ink-muted)" />
+                  </Expand>
+                </div>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       )}
       {step.parts.map((part) =>
@@ -248,7 +258,9 @@ function WakeCard({ wake, steps, live, open, isOpen, onToggle, flip, now }: Wake
         ) : null}
       </button>
       {line === null ? null : <Truncate text={line.text} style={{ marginTop: 3, fontSize: line.mono ? 12 : 12.5, color: "var(--ink-muted)", ...(line.mono ? { fontFamily: MONO } : {}) }} />}
-      {isOpen ? (
+      <AnimatePresence initial={false}>
+        {isOpen ? (
+          <motion.div key="steps" {...REVEAL} style={{ overflow: "hidden" }}>
         <ol style={{ listStyle: "none", margin: "6px 0 0", padding: 0, position: "relative" }}>
           <div style={{ position: "absolute", top: 8, bottom: 10, left: 3, borderLeft: "1px solid var(--rule)" }} />
           {rows.map((row, index) => {
@@ -278,7 +290,9 @@ function WakeCard({ wake, steps, live, open, isOpen, onToggle, flip, now }: Wake
             );
           })}
         </ol>
-      ) : null}
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -377,18 +391,22 @@ export function ActivityFeed({ wakes, running, scrollRef, now }: ActivityFeedPro
             setLimit(WAKE_PAGE);
           }}
         />
-        {newCount > 0 ? (
-          <Button tone="sage" size="sm" pill style={{ marginLeft: "auto" }} onClick={() => headerRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })}>
-            {`↑ ${newCount} new`}
-          </Button>
-        ) : null}
+        <AnimatePresence initial={false}>
+          {newCount > 0 ? (
+            <motion.span key="new" {...FADE} style={{ marginLeft: "auto" }}>
+              <Button tone="sage" size="sm" pill onClick={() => headerRef.current?.scrollIntoView({ block: "start", behavior: "smooth" })}>
+                {`↑ ${newCount} new`}
+              </Button>
+            </motion.span>
+          ) : null}
+        </AnimatePresence>
       </div>
       {shown.length === 0 ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{filter === "all" ? "No recent activity." : `No recent ${LANE_LABEL[filter]}.`}</span> : null}
       <ol ref={listRef} style={{ listStyle: "none", margin: 0, padding: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         {visible.map(({ wake, steps }, index) => (
-          <li key={wake.key}>
+          <motion.li key={wake.key} {...FADE}>
             <WakeCard wake={wake} steps={steps} live={wake.key === liveKey} open={open} isOpen={open.wakes[wake.key] ?? index === 0} onToggle={() => setOpen({ ...open, wakes: { ...open.wakes, [wake.key]: !(open.wakes[wake.key] ?? index === 0) } })} flip={flip} now={now} />
-          </li>
+          </motion.li>
         ))}
       </ol>
       {older > 0 || limit > WAKE_PAGE ? (

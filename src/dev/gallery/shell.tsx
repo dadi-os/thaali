@@ -1,7 +1,8 @@
 import { useRef } from "react";
 import { MemoryRouter } from "react-router-dom";
 import { PageHeader } from "../../chrome/PageHeader";
-import { ConversationList, RailRow } from "../../chrome/chatSidebar/list";
+import { ConversationList } from "../../chrome/chatSidebar/list";
+import { ConversationRow as RailRow } from "../../shared/components/Thread/ConversationRow";
 import { Dock } from "../../chrome/chatSidebar/Dock";
 import { ResizeHandle, type RailWidth } from "../../chrome/chatSidebar/ResizeHandle";
 import { TitleBar } from "../../chrome/TitleBar";
@@ -144,7 +145,7 @@ const ROW = conversationsOf("normal").find((c) => c.agent_id === SELECTED)!;
 const ROW_UNREAD = hath.threads("normal").find((t) => t.agent_id === SELECTED)!.unread;
 const row = (selected: boolean, wide: boolean) => () => (
   <div style={{ width: 300, padding: "0 4px" }}>
-    <RailRow conversation={ROW} unread={ROW_UNREAD} working selected={selected} wide={wide} now={Date.now()} onOpen={noop} />
+    <RailRow conversation={ROW} unread={ROW_UNREAD} working selected={selected} wide={wide} now={Date.now()} onOpen={noop} onOpenInHath={noop} />
   </div>
 );
 CASES["rail.row.rest"] = row(false, false);

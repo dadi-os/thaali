@@ -38,7 +38,7 @@ export type RichProps = {
 /** Agent-written text as the activity feed draws it. */
 export function Rich({ source, size = 12.5, lineHeight = 18, color = "var(--ink)" }: RichProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+    <div data-selectable style={{ display: "flex", flexDirection: "column", gap: 2 }}>
       {source
         .split("\n")
         .filter((line) => line.trim() !== "")

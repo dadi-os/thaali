@@ -1,17 +1,19 @@
 import { useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
 import { isMeshOnline, nas } from "../shared/api";
 import type { NasStatus } from "../shared/api/nas";
 import { Badge } from "../shared/ui/Badge";
+import { Page } from "../shared/layout/Page";
+import { FADE, RISE } from "../shared/motion";
 import { Card } from "../shared/ui/Card";
 import { StateView, StaleBanner } from "../shared/states/ModuleState";
 import { Skeleton } from "../shared/ui/Skeleton";
 import { Truncate } from "../shared/ui/Truncate";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
-import { useSize } from "../shared/hooks/useSize";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { POLL_MS } from "../shared/lib/ux/poll";
 import { formatAge, formatRelative } from "../shared/lib/ux/time";
@@ -41,10 +43,10 @@ function Services({ status, onPick }: ServicesProps) {
   return (
     <>
       <SectionLabel>Services</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
+      <div className="grid grid-cols-3 gap-2.5">
         {status === null
           ? Array.from({ length: 6 }, (_, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", gap: 10, height: 48, padding: "0 16px", borderRadius: 16, border: "1px solid var(--glass-border)", background: "var(--glass-veil)" }}>
+              <div key={i} className="flex h-12 items-center gap-2.5 rounded-2xl border border-glass-border bg-glass-veil px-4">
                 <Skeleton width={10} height={10} radius={5} />
                 <Skeleton width={80} height={14} />
                 <Skeleton width={52} height={12} style={{ marginLeft: "auto" }} />
@@ -54,14 +56,13 @@ function Services({ status, onPick }: ServicesProps) {
               <button
                 key={service.name}
                 type="button"
-                className="ui-trans ui-hover-card"
+                className={`ui-trans ui-hover-card flex h-12 min-w-0 items-center gap-2.5 rounded-2xl border bg-glass-veil px-4 shadow-widget ${service.healthy ? "border-glass-border" : "border-error-line"}`}
                 title={`Show ${service.name}’s log lines`}
                 onClick={() => onPick(service.name)}
-                style={{ display: "flex", alignItems: "center", gap: 10, height: 48, padding: "0 16px", borderRadius: 16, background: "var(--glass-veil)", border: `1px solid ${service.healthy ? "var(--glass-border)" : "var(--error-line)"}`, boxShadow: "var(--shadow)", minWidth: 0 }}
               >
-                <span style={{ width: 9, height: 9, borderRadius: "50%", background: service.healthy ? "var(--sage)" : "var(--error)", flex: "none" }} />
-                <Truncate text={capitalize(service.name)} style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 600 }} />
-                <span style={{ fontSize: 12.5, color: service.healthy ? "var(--ink-muted)" : "var(--error)", whiteSpace: "nowrap" }}>{service.healthy ? "Healthy" : "Offline"}</span>
+                <span className={`size-[9px] flex-none rounded-full ${service.healthy ? "bg-sage" : "bg-error"}`} />
+                <Truncate text={capitalize(service.name)} className="min-w-0 flex-1 text-[15px] font-semibold" />
+                <span className={`text-[12.5px] whitespace-nowrap ${service.healthy ? "text-ink-muted" : "text-error"}`}>{service.healthy ? "Healthy" : "Offline"}</span>
               </button>
             ))}
       </div>
@@ -75,11 +76,11 @@ function Drives({ status }: { status: NasStatus | null }) {
   return (
     <>
       <SectionLabel>Drives</SectionLabel>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 }}>
+      <div className="grid grid-cols-2 gap-2.5">
         {disks === null
           ? Array.from({ length: 2 }, (_, i) => (
-              <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px", borderRadius: 16, background: "var(--glass-veil)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow)", minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <div key={i} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-glass-border bg-glass-veil px-4 py-3.5 shadow-widget">
+                <div className="flex items-center gap-2">
                   <Skeleton width={90} height={14} />
                   <Skeleton width={120} height={12} style={{ marginLeft: "auto" }} />
                 </div>
@@ -88,17 +89,19 @@ function Drives({ status }: { status: NasStatus | null }) {
               </div>
             ))
           : disks.map((disk) => (
-              <div key={disk.mount} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px", borderRadius: 16, background: "var(--glass-veil)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow)", minWidth: 0 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 14.5, fontWeight: 600 }}>{diskName(disk.mount)}</span>
-                  <div style={{ flex: 1 }} />
-                  <Truncate text={`${formatGb(disk.free_bytes)} free of ${formatGb(disk.total_bytes)}`} style={{ fontSize: 12.5, color: "var(--ink-muted)", maxWidth: "62%" }} />
+              <motion.div key={disk.mount} {...RISE} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-glass-border bg-glass-veil px-4 py-3.5 shadow-widget">
+                <div className="flex items-center gap-2">
+                  <span className="text-[14.5px] font-semibold">{diskName(disk.mount)}</span>
+                  <div className="flex-1" />
+                  <Truncate text={`${formatGb(disk.free_bytes)} free of ${formatGb(disk.total_bytes)}`} className="max-w-[62%] text-[12.5px] text-ink-muted" />
                 </div>
-                <span style={{ display: "block", height: 6, borderRadius: 3, background: "var(--rule)", overflow: "hidden" }}>
-                  <span style={{ display: "block", height: "100%", width: `${disk.used_percent}%`, background: loadTone(disk.used_percent), borderRadius: 3 }} />
+                <span className="block h-1.5 overflow-hidden rounded-[3px] bg-rule">
+                  <span className="block h-full rounded-[3px]" style={{ width: `${disk.used_percent}%`, background: loadTone(disk.used_percent) }} />
                 </span>
-                <Truncate text={[disk.model, disk.transport, disk.mount].filter((part) => part !== undefined).join(" · ")} className="ui-mono" style={{ fontSize: 11.5 }} />
-              </div>
+                <span data-selectable className="min-w-0">
+                  <Truncate text={[disk.model, disk.transport, disk.mount].filter((part) => part !== undefined).join(" · ")} className="ui-mono text-[11.5px]" />
+                </span>
+              </motion.div>
             ))}
       </div>
     </>
@@ -114,7 +117,7 @@ function Devices() {
   let body: ReactNode;
   if (state.kind === "loading") {
     body = [0, 1, 2].map((i) => (
-      <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 48, borderTop: i > 0 ? "1px solid var(--rule)" : "none" }}>
+      <div key={i} className={`flex min-h-12 items-center gap-3 ${i > 0 ? "border-t border-rule" : ""}`}>
         <Skeleton width={9} height={9} radius={5} />
         <Skeleton width={70} height={14} />
         <Skeleton width="40%" height={12} />
@@ -123,21 +126,25 @@ function Devices() {
     ));
   } else if (state.kind === "ready") {
     body = clients.map((client, i) => (
-      <div key={client.node_name} style={{ display: "flex", alignItems: "center", gap: 12, minHeight: 48, borderTop: i > 0 ? "1px solid var(--rule)" : "none" }}>
-        <span style={{ width: 9, height: 9, borderRadius: "50%", background: client.online ? "var(--sage)" : client.pending ? "var(--clay)" : "var(--ink-ghost)", flex: "none" }} />
-        <Truncate text={client.node_name} style={{ fontSize: 14.5, fontWeight: 600, width: 70, flex: "none" }} />
-        <Truncate text={client.ip_addresses[0] ?? "no address yet"} className="ui-mono" style={{ flex: 1, minWidth: 0 }} />
+      <motion.div key={client.node_name} {...RISE} className={`flex min-h-12 items-center gap-3 py-2 ${i > 0 ? "border-t border-rule" : ""}`}>
+        <span className={`size-[9px] flex-none rounded-full ${client.online ? "bg-sage" : client.pending ? "bg-clay" : "bg-ink-ghost"}`} />
+        <span data-selectable title={client.node_name} className="max-w-[40%] min-w-0 flex-none text-[14.5px] font-semibold [overflow-wrap:anywhere]">
+          {client.node_name}
+        </span>
+        <span data-selectable className="min-w-0 flex-1">
+          <Truncate text={client.ip_addresses[0] ?? "no address yet"} className="ui-mono" />
+        </span>
         {client.pending ? (
           <Badge status="idle" label="pending" />
         ) : (
-          <span style={{ fontSize: 12.5, color: client.online ? "var(--sage-text)" : "var(--ink-muted)", whiteSpace: "nowrap", fontWeight: client.online ? 600 : 400 }}>
+          <span className={`text-[12.5px] whitespace-nowrap ${client.online ? "font-semibold text-sage-text" : "text-ink-muted"}`}>
             {client.online ? "Online" : client.last_seen === null ? "Offline" : `Seen ${formatAge(client.last_seen)} ago`}
           </span>
         )}
-      </div>
+      </motion.div>
     ));
   } else if (state.kind === "empty") {
-    body = <div style={{ padding: "14px 0", fontSize: 13.5, color: "var(--ink-muted)" }}>No devices have joined dadi yet.</div>;
+    body = <div className="py-3.5 text-[13.5px] text-ink-muted">No devices have joined dadi yet.</div>;
   } else if (state.kind === "offline") {
     body = <StateView kind="offline" title="dadi is unreachable" detail="Waiting for the mesh to reconnect" />;
   } else {
@@ -145,7 +152,7 @@ function Devices() {
   }
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${clients.filter((client) => client.online).length} online`}</span> : null}>Devices on dadi</SectionLabel>
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[12.5px] text-ink-muted">{`${clients.filter((client) => client.online).length} online`}</span> : null}>Devices on dadi</SectionLabel>
       <Card style={{ padding: "4px 16px", borderRadius: 16 }}>{body}</Card>
     </>
   );
@@ -161,7 +168,6 @@ export function SystemPage() {
   const [params] = useSearchParams();
   const location = useLocation();
   const [chip, setChip] = useState<LogFocus | null>(null);
-  const [root, { width }] = useSize<HTMLDivElement>();
 
   const statusQuery = useQuery({ queryKey: ["nas", "status"], queryFn: () => nas.getStatus(), enabled: isMeshOnline(connection), refetchInterval: POLL_MS });
   const state = useModuleState(statusQuery, () => false);
@@ -173,52 +179,58 @@ export function SystemPage() {
   const pick = (name: string) => setChip({ service: name, q: "", at: new Date().toISOString(), key: crypto.randomUUID() });
 
   const status = state.kind === "ready" ? state.data : null;
-  const stack = width > 0 && width < STACK_BELOW;
   const failure = state.kind === "error" || state.kind === "module-offline" ? failureProps(state.error) : null;
   return (
-    <div ref={root} data-page="system" style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "18px 20px 20px", gap: 14, minHeight: 0 }}>
-      <PageHeader title="System" meta={status === null ? undefined : `Up ${formatUptime(status.uptime_seconds)}`} />
-      <div style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 16, minHeight: 0 }}>
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, minHeight: 0, overflow: "hidden" }}>
-          <div
-            className="scroll"
-            data-vp="1"
-            style={{ flex: 1, minHeight: 0, minWidth: 0, paddingRight: 4, maskImage: "linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%)", WebkitMaskImage: "linear-gradient(180deg, transparent 0, #000 14px, #000 calc(100% - 20px), transparent 100%)" }}
-          >
-            <div data-shift="1" style={{ marginTop: 0, display: "flex", flexDirection: "column", gap: 12 }}>
-              {state.kind === "loading" || state.kind === "ready" ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-                  {state.kind === "ready" && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Nas reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={() => void statusQuery.refetch()} /> : null}
-                  <HealthCard status={status} />
-                  <Services status={status} onPick={pick} />
-                  <Drives status={status} />
-                  <Devices />
-                  <TasksBlock />
-                  <ErrorsBlock onOpen={(card) => setChip(errorFocus(card, crypto.randomUUID()))} />
+    <Page name="system">
+      {(room) => {
+        const stack = room.width < STACK_BELOW;
+        return (
+          <>
+            <PageHeader title="System" meta={status === null ? undefined : `Up ${formatUptime(status.uptime_seconds)}`} />
+            <div className="flex min-h-0 min-w-0 flex-1 items-stretch gap-4">
+              <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
+                <div className="scroll min-h-0 min-w-0 flex-1 pr-1" data-vp="1">
+                  <div className="flex flex-col gap-3" data-shift="1">
+                    <AnimatePresence mode="wait" initial={false}>
+                      {state.kind === "loading" || state.kind === "ready" ? (
+                        <motion.div key="cards" {...FADE} className="flex flex-col gap-3">
+                          {state.kind === "ready" && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Nas reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={() => void statusQuery.refetch()} /> : null}
+                          <HealthCard status={status} />
+                          <Services status={status} onPick={pick} />
+                          <Drives status={status} />
+                          <Devices />
+                          <TasksBlock />
+                          <ErrorsBlock onOpen={(card) => setChip(errorFocus(card, crypto.randomUUID()))} />
+                        </motion.div>
+                      ) : (
+                        <motion.div key="failed" {...FADE}>
+                          <Card style={{ flex: 1 }}>
+                            {failure === null ? (
+                              <StateView kind="offline" title="dadi is unreachable" detail="Waiting for the mesh to reconnect" />
+                            ) : (
+                              <StateView kind="error" title="Nas failed to answer" {...failure} onRetry={() => void statusQuery.refetch()} />
+                            )}
+                          </Card>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                    {stack ? (
+                      <div className="flex">
+                        <LogsCard focus={focus} flat />
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
-              ) : (
-                <Card style={{ flex: 1 }}>
-                  {failure === null ? (
-                    <StateView kind="offline" title="dadi is unreachable" detail="Waiting for the mesh to reconnect" />
-                  ) : (
-                    <StateView kind="error" title="Nas failed to answer" {...failure} onRetry={() => void statusQuery.refetch()} />
-                  )}
-                </Card>
+              </div>
+              {stack ? null : (
+                <div className="flex min-h-0 flex-none flex-col" style={{ width: Math.min(LOGS_MAX, room.width * LOGS_SHARE) }}>
+                  <LogsCard focus={focus} />
+                </div>
               )}
-              {stack ? (
-                <div style={{ display: "flex" }}>
-                  <LogsCard focus={focus} flat />
-                </div>
-              ) : null}
             </div>
-          </div>
-        </div>
-        {stack ? null : (
-          <div style={{ width: Math.min(LOGS_MAX, width * LOGS_SHARE), display: "flex", flexDirection: "column", minHeight: 0, flex: "none" }}>
-            <LogsCard focus={focus} />
-          </div>
-        )}
-      </div>
-    </div>
+          </>
+        );
+      }}
+    </Page>
   );
 }

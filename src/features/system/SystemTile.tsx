@@ -4,7 +4,8 @@ import type { NasStatus, NasTask } from "../../shared/api/nas";
 import { Badge } from "../../shared/ui/Badge";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
-import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
+import { AgentName } from "../../shared/ui/AgentName";
+import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -88,7 +89,7 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
                 <span style={{ color: "var(--ink-muted)", display: "flex" }}>
                   <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />
                 </span>
-                <NameTruncate name={task.owner} style={{ flex: 1, minWidth: 0, fontSize: 13.5 }} />
+                <AgentName name={task.owner} selectable={false} className="flex-1 truncate text-[13.5px]" />
                 <Badge status={task.status} />
               </div>
             ))}

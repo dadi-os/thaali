@@ -1,6 +1,8 @@
 import { Fragment } from "react";
 import type { AgentRecord } from "../../types/hath";
 import { layoutForest, nodeRadius, viewForest, type ForestLink, type ForestOptions, type GraphLabels } from "./graph2d";
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import { agentActions } from "./actions";
 import { isLive, type LaneState } from "./laneState";
 
 /** The fill of a node by what its agent is doing: sage on a lane, tide on the process lane alone, a bone ring while it waits. */
@@ -44,6 +46,62 @@ function ringOf(state: LaneState, selected: boolean): string {
   return state === "waiting" ? "#8fa382" : state === "both" ? "#7d9aa6" : "#fafaf7";
 }
 
+type AgentNodeProps = {
+  agent: AgentRecord;
+  state: LaneState;
+  /** The node's centre and radius in the graph's own units, as the strings the SVG takes. */
+  cx: string;
+  cy: string;
+  r: number;
+  stroke: string;
+  strokeWidth: number;
+  dimmed: boolean;
+  onPick?: (agent: AgentRecord) => void;
+};
+
+/** One agent's node: a circle that answers a click when the graph picks, and a right-click menu with the agent's actions. */
+function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onPick }: AgentNodeProps) {
+  const context = useContextActions(() => agentActions(agent, { onOpenInHath: onPick }));
+  return (
+    <circle
+      {...context}
+      role={onPick === undefined ? undefined : "button"}
+      tabIndex={onPick === undefined ? undefined : 0}
+      aria-label={onPick === undefined ? undefined : `Open ${agent.name}`}
+      onKeyDown={
+        onPick === undefined
+          ? undefined
+          : (event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                event.stopPropagation();
+                onPick(agent);
+              }
+            }
+      }
+      className={onPick === undefined ? undefined : "gnode"}
+      opacity={dimmed ? 0.2 : undefined}
+      onClick={
+        onPick === undefined
+          ? undefined
+          : (event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onPick(agent);
+            }
+      }
+      cx={cx}
+      cy={cy}
+      r={r}
+      fill={FILL[state]}
+      stroke={stroke}
+      strokeWidth={strokeWidth}
+    >
+      <title>{`${agent.name} · ${state}`}</title>
+    </circle>
+  );
+}
+
 /** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes that have room for one. */
 export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale, layout, fontScale, selectedId = null, dimmed = null, onPick }: AgentGraph2DProps) {
   const view = viewForest(layoutForest(agents, stateOf, layout), { labels, width, height, nodeScale, fontScale });
@@ -80,37 +138,17 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
           return (
             <Fragment key={n.agent.id}>
               {isLive(n.state) ? <circle cx={x} cy={y} r={r} fill="#8fa382" style={{ transformOrigin: `${x}px ${y}px`, animation: "ring 2.2s ease-out infinite" }} /> : null}
-              <circle
-                role={onPick === undefined ? undefined : "button"}
-                tabIndex={onPick === undefined ? undefined : 0}
-                aria-label={onPick === undefined ? undefined : `Open ${n.agent.name}`}
-                onKeyDown={onPick === undefined ? undefined : (event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    onPick(n.agent);
-                  }
-                }}
-                className={onPick === undefined ? undefined : "gnode"}
-                opacity={dimmed?.has(n.agent.id) ? 0.2 : undefined}
-                onClick={
-                  onPick === undefined
-                    ? undefined
-                    : (event) => {
-                        event.preventDefault();
-                        event.stopPropagation();
-                        onPick(n.agent);
-                      }
-                }
+              <AgentNode
+                agent={n.agent}
+                state={n.state}
                 cx={x}
                 cy={y}
                 r={r}
-                fill={FILL[n.state]}
-                stroke={ringOf(n.state, selected)}
                 strokeWidth={unit(selected ? 2.4 : n.state === "waiting" || n.state === "both" ? 2 : 1.5)}
-              >
-                <title>{`${n.agent.name} · ${n.state}`}</title>
-              </circle>
+                stroke={ringOf(n.state, selected)}
+                dimmed={dimmed?.has(n.agent.id) ?? false}
+                onPick={onPick}
+              />
             </Fragment>
           );
         })}

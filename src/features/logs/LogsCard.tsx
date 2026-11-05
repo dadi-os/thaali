@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode, type UIEvent } from "react";
-import { createPortal } from "react-dom";
+import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, nas } from "../../shared/api";
 import type { NasLogEntry, NasLogLevel } from "../../shared/api/nas";
 import { Pill } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
-import { MenuItem, MenuPanel } from "../../shared/overlay/Floating";
+import type { ActionList } from "../../shared/interaction/actions";
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import { AnchoredMenu } from "../../shared/overlay/AnchoredMenu";
+import { FADE, REVEAL } from "../../shared/motion";
 import { Icon } from "../../shared/ui/Icon";
 import { StateView } from "../../shared/states/ModuleState";
 import { Segmented } from "../../shared/ui/Segmented";
@@ -15,6 +18,7 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { failureProps } from "../../shared/lib/ux/moduleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
+import { logActions } from "./actions";
 import { isNoiseLog, keyEntries, LOG_LEVELS, logTime, nearestLog, prettyRaw, RANGE_PRESETS, rangeBounds, rangeFor, type KeyedLog, type LogFocus, type RangePreset } from "./logLines";
 
 /** How long typing in the filter waits before the logs are asked for again. */
@@ -43,62 +47,28 @@ type ServiceMenuProps = {
   onClear: () => void;
 };
 
-/** The button that narrows the logs to some services, and the menu of services it opens under it, drawn on the page so no card clips or offsets it. */
+/** The button that narrows the logs to some services, and the shared menu of services it opens under it. */
 function ServiceMenu({ services, selected, onToggle, onClear }: ServiceMenuProps) {
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const button = useRef<HTMLButtonElement>(null);
-  const menu = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (anchor === null) {
-      return undefined;
-    }
-    const away = (event: MouseEvent) => {
-      const target = event.target as Node;
-      if (!button.current?.contains(target) && !menu.current?.contains(target)) {
-        setAnchor(null);
-      }
-    };
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setAnchor(null);
-      }
-    };
-    document.addEventListener("mousedown", away);
-    window.addEventListener("keydown", escape);
-    return () => {
-      document.removeEventListener("mousedown", away);
-      window.removeEventListener("keydown", escape);
-    };
-  }, [anchor]);
   const [only] = selected;
   const summary = selected.size === 0 ? "All services" : selected.size === 1 && only !== undefined ? only : `${selected.size} services`;
+  const actions: ActionList = [
+    { id: "service.all", label: "All services", icon: "server", selected: selected.size === 0, run: onClear },
+    ...services.map((name) => ({ id: `service.${name}`, label: name, icon: "server" as const, selected: selected.has(name), run: () => onToggle(name) })),
+  ];
   return (
     <>
       <button
-        ref={button}
         type="button"
-        className="ui-trans ui-hover-fill"
+        className="ui-trans ui-hover-fill inline-flex h-10 flex-none items-center gap-[7px] rounded-xl border border-glass-border px-[13px] text-[13px] font-medium whitespace-nowrap"
         aria-haspopup="menu"
         aria-expanded={anchor !== null}
-        onClick={() => setAnchor(anchor === null ? (button.current?.getBoundingClientRect() ?? null) : null)}
-        style={{ height: 40, padding: "0 13px", borderRadius: 12, border: "1px solid var(--glass-border)", display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", flex: "none" }}
+        onClick={(event) => setAnchor(anchor === null ? event.currentTarget.getBoundingClientRect() : null)}
       >
         {summary}
         <Icon name="chevDown" size={14} />
       </button>
-      {anchor === null
-        ? null
-        : createPortal(
-            <div ref={menu} style={{ position: "fixed", top: anchor.bottom + 6, right: window.innerWidth - anchor.right, zIndex: "var(--z-menu)" }}>
-              <MenuPanel>
-                <MenuItem label="All services" icon="server" on={selected.size === 0} check={selected.size === 0} onClick={onClear} />
-                {services.map((name) => (
-                  <MenuItem key={name} label={name} icon="server" on={selected.has(name)} check={selected.has(name)} onClick={() => onToggle(name)} />
-                ))}
-              </MenuPanel>
-            </div>,
-            document.body,
-          )}
+      <AnchoredMenu actions={actions} anchor={anchor} onClose={() => setAnchor(null)} width={200} />
     </>
   );
 }
@@ -107,34 +77,43 @@ type LogLineProps = {
   line: KeyedLog;
   pinned: boolean;
   onPin: () => void;
+  onFilterService: (service: string) => void;
 };
 
-/** One line: its time, service and message, and, pinned open, its whole record under it. */
-function LogLine({ line, pinned, onPin }: LogLineProps) {
+/** One line: its time, service and message, and, pinned open, its whole record under it. Right-click offers copying it or its request id and filtering to its service. */
+function LogLine({ line, pinned, onPin, onFilterService }: LogLineProps) {
   const { entry } = line;
+  const context = useContextActions(() => logActions(entry, { onFilterService }));
   return (
-    <div data-log-key={line.key} style={{ borderTop: "1px solid var(--rule)", background: pinned ? "var(--sage-fill)" : (WASH[entry.level] ?? "transparent"), borderRadius: pinned ? 10 : 0 }}>
-      <button
-        type="button"
-        className="ui-trans ui-hover-fill"
-        aria-expanded={pinned}
-        onClick={onPin}
-        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", height: 38, padding: "0 10px", borderRadius: 8 }}
-      >
-        <span className="ui-mono" style={{ whiteSpace: "nowrap", width: 86, flex: "none" }}>{logTime(entry.time)}</span>
-        <span style={{ width: 54, flex: "none", display: "flex", alignItems: "center", gap: 6, fontSize: 13, fontWeight: 600 }}>
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: levelDot(entry.level), flex: "none" }} />
+    <div
+      {...context}
+      data-log-key={line.key}
+      className={`border-t border-rule ${pinned ? "rounded-[10px] bg-sage-fill" : ""}`}
+      style={pinned ? undefined : { background: WASH[entry.level] ?? "transparent" }}
+    >
+      <button type="button" className="ui-trans ui-hover-fill flex h-[38px] w-full items-center gap-3 rounded-lg px-2.5" aria-expanded={pinned} onClick={onPin}>
+        <span data-selectable className="ui-mono w-[86px] flex-none whitespace-nowrap">
+          {logTime(entry.time)}
+        </span>
+        <span data-selectable className="flex w-[54px] flex-none items-center gap-1.5 text-[13px] font-semibold">
+          <span className="size-[7px] flex-none rounded-full" style={{ background: levelDot(entry.level) }} />
           {entry.service}
         </span>
-        <Truncate text={entry.msg} style={{ flex: 1, minWidth: 0, fontSize: 13.5, color: entry.level === "error" ? "var(--error)" : "var(--ink)" }} />
+        <span data-selectable className="min-w-0 flex-1">
+          <Truncate text={entry.msg} className={`text-[13.5px] ${entry.level === "error" ? "text-error" : "text-ink"}`} />
+        </span>
       </button>
-      {pinned && entry.raw !== undefined ? (
-        <div style={{ padding: "2px 10px 12px 10px", animation: "rise 320ms cubic-bezier(0.22, 0.61, 0.36, 1) both" }}>
-          <pre className="ui-mono" style={{ margin: 0, padding: "10px 12px", borderRadius: 10, background: "var(--bone)", border: "1px solid var(--rule)", fontSize: 11.5, lineHeight: "17px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>
-            {prettyRaw(entry.raw)}
-          </pre>
-        </div>
-      ) : null}
+      <AnimatePresence initial={false}>
+        {pinned && entry.raw !== undefined ? (
+          <motion.div key="raw" {...REVEAL} className="overflow-hidden">
+            <div className="px-2.5 pt-0.5 pb-3">
+              <pre data-selectable className="ui-mono m-0 rounded-[10px] border border-rule bg-bone px-3 py-2.5 text-[11.5px] leading-[17px] break-words whitespace-pre-wrap">
+                {prettyRaw(entry.raw)}
+              </pre>
+            </div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }
@@ -235,9 +214,9 @@ export function LogsCard({ focus, flat = false }: LogsCardProps) {
   let body: ReactNode;
   if (state.kind === "loading") {
     body = (
-      <div style={{ display: "flex", flexDirection: "column", padding: "0 16px" }}>
+      <div className="flex flex-col px-4">
         {Array.from({ length: 12 }, (_, i) => (
-          <div key={i} style={{ display: "flex", alignItems: "center", gap: 12, height: 40, borderTop: "1px solid var(--rule)" }}>
+          <div key={i} className="flex h-10 items-center gap-3 border-t border-rule">
             <Skeleton width={76} height={12} />
             <Skeleton width={46} height={12} />
             <Skeleton width={`${30 + ((i * 17) % 50)}%`} height={12} />
@@ -254,28 +233,29 @@ export function LogsCard({ focus, flat = false }: LogsCardProps) {
   } else {
     body = (
       <div
-        className="scroll"
+        className={`scroll min-h-0 px-2 ${flat ? "flex-none" : "flex-1"}`}
         onScroll={onScroll}
         data-vp={flat ? undefined : "1"}
-        style={flat ? { flex: "none", maxHeight: FLAT_LINES * LINE_PX, minHeight: 0, padding: "0 8px" } : { flex: 1, minHeight: 0, padding: "0 8px" }}
+        style={flat ? { maxHeight: FLAT_LINES * LINE_PX } : undefined}
       >
         {listed.slice(0, shown).map((line) => (
-          <LogLine key={line.key} line={line} pinned={pinned === line.key} onPin={() => setPinned(pinned === line.key ? null : line.key)} />
+          <LogLine key={line.key} line={line} pinned={pinned === line.key} onPin={() => setPinned(pinned === line.key ? null : line.key)} onFilterService={(service) => setSelected(new Set([service]))} />
         ))}
       </div>
     );
   }
 
+  const bodyKey = state.kind === "ready" && showing ? "lines" : state.kind === "ready" ? "none" : state.kind;
   return (
     <Card style={{ flex: 1, minWidth: 0, minHeight: 0, borderRadius: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", padding: "16px 16px 6px 18px", gap: 10 }}>
+      <div className="flex items-center gap-2.5 pt-4 pr-4 pb-1.5 pl-[18px]">
         <span className="ui-label">Logs</span>
-        <div style={{ flex: 1 }} />
+        <div className="flex-1" />
         <Segmented options={RANGE_PRESETS} value={range} onChange={setRange} />
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10, padding: "6px 16px 10px", flex: "none" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ flex: 1, minWidth: 0 }}>
+      <div className="flex flex-none flex-col gap-2.5 px-4 pt-1.5 pb-2.5">
+        <div className="flex items-center gap-2.5">
+          <div className="min-w-0 flex-1">
             <label className="search-field">
               <Icon name="search" size={15} />
               <input type="search" className="sfi" placeholder="Filter messages" aria-label="Filter messages" value={draft} onChange={(event) => setDraft(event.target.value)} />
@@ -283,7 +263,7 @@ export function LogsCard({ focus, flat = false }: LogsCardProps) {
           </div>
           <ServiceMenu services={services.data?.services ?? []} selected={selected} onToggle={toggleService} onClear={() => setSelected(new Set())} />
         </div>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+        <div className="flex flex-wrap items-center gap-2">
           <Pill active={level === null} onClick={() => setLevel(null)}>
             All
           </Pill>
@@ -294,13 +274,17 @@ export function LogsCard({ focus, flat = false }: LogsCardProps) {
           ))}
         </div>
       </div>
-      {body}
-      <div style={{ display: "flex", alignItems: "center", height: 38, padding: "0 18px", borderTop: "1px solid var(--rule)", fontSize: 12.5, color: "var(--ink-muted)", flex: "none", gap: 8 }}>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={bodyKey} {...FADE} className={`flex min-h-0 flex-col ${showing && !flat ? "flex-1" : "flex-none"}`}>
+          {body}
+        </motion.div>
+      </AnimatePresence>
+      <div className="flex h-[38px] flex-none items-center gap-2 border-t border-rule px-[18px] text-[12.5px] text-ink-muted">
         {showing ? (
           <>
             {`${listed.length} lines`}
-            <span style={{ marginLeft: "auto", display: "inline-flex", alignItems: "center", gap: 6 }}>
-              <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--sage)", flex: "none", animation: "ui-pulse 1.6s ease-in-out infinite" }} />
+            <span className="ml-auto inline-flex items-center gap-1.5">
+              <span className="size-1.5 flex-none animate-breath rounded-full bg-sage" />
               Live
             </span>
           </>

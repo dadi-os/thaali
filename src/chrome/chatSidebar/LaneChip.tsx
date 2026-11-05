@@ -3,7 +3,7 @@
 import { useRef } from "react";
 import { AnimatePresence, motion, useAnimationFrame, useReducedMotion } from "motion/react";
 import { LANE_LABEL } from "../../shared/lib/ux/lanes";
-import { EASE, SLOW_S } from "../../shared/motion";
+import { EASE, FAST_S, SLOW_S } from "../../shared/motion";
 
 export type LaneChipProps = {
   /** Process lane busy: the agent is reading what arrived and answering it. */
@@ -134,7 +134,7 @@ export function LaneChip({ process: processing, work: working }: LaneChipProps) 
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
-                transition={{ duration: 0.22, ease: EASE }}
+                transition={{ duration: FAST_S, ease: EASE }}
               >
                 {label}
               </motion.span>

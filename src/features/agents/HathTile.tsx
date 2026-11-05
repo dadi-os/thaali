@@ -2,7 +2,11 @@ import { useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { hath, isMeshOnline } from "../../shared/api";
-import { NameTruncate } from "../../shared/ui/Truncate";
+import { motion } from "motion/react";
+import { AgentName } from "../../shared/ui/AgentName";
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import { RISE } from "../../shared/motion";
+import { agentActions } from "./actions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { useModuleState } from "../../shared/hooks/useModuleState";
@@ -59,6 +63,34 @@ type BodyProps = {
   onPick: (agent: AgentRecord) => void;
 };
 
+type AgentChipProps = {
+  agent: AgentRecord;
+  state: LaneState;
+  onPick: (agent: AgentRecord) => void;
+};
+
+/** A running agent as a chip with its full name and state; a click opens it on the Hath page and right-click offers its actions. */
+function AgentChip({ agent, state, onPick }: AgentChipProps) {
+  const context = useContextActions(() => agentActions(agent, { onOpenInHath: onPick }));
+  return (
+    <motion.button
+      {...RISE}
+      {...context}
+      type="button"
+      onClick={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onPick(agent);
+      }}
+      className="inline-flex h-8 min-w-0 flex-[0_1_auto] items-center gap-[7px] rounded-full bg-sage-fill px-3 text-[13px] font-medium whitespace-nowrap text-sage-text"
+    >
+      <span className="size-[7px] flex-none rounded-full bg-sage" />
+      <AgentName name={agent.name} selectable={false} className="truncate" />
+      <span className="flex-none">{`· ${LANE_STATE_LABEL[state]}`}</span>
+    </motion.button>
+  );
+}
+
 /** The agent graph over a row of chips, one per running agent as many as fit and a count of the rest. */
 function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   const running = agents.map((agent) => ({ agent, state: stateOf(agent) })).filter((entry) => isLive(entry.state));
@@ -76,19 +108,11 @@ function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   return (
     <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 12 }}>
       <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
-        <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh - 42)} labels={many ? "roots" : "active"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
+        <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh - 44)} labels={many ? "roots" : "active"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
       </div>
-      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap", height: 30, overflow: "hidden", flex: "none" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "nowrap", height: 32, overflow: "hidden", flex: "none" }}>
         {shown.map(({ agent, state }) => (
-          <button type="button" key={agent.id} onClick={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            onPick(agent);
-          }} style={{ display: "inline-flex", alignItems: "center", gap: 7, height: 28, padding: "0 12px", borderRadius: 999, fontSize: 13, fontWeight: 500, whiteSpace: "nowrap", minWidth: 0, flex: "0 1 auto", background: "var(--sage-fill)", color: "var(--sage-text)", border: "1px solid transparent" }}>
-            <span style={{ width: 7, height: 7, borderRadius: "50%", background: "var(--sage)", flex: "none" }} />
-            <NameTruncate name={agent.name} style={{ minWidth: 0 }} />
-            <span style={{ flex: "none" }}>{`· ${LANE_STATE_LABEL[state]}`}</span>
-          </button>
+          <AgentChip key={agent.id} agent={agent} state={state} onPick={onPick} />
         ))}
         {running.length > shown.length ? <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none" }}>{`+${running.length - shown.length}`}</span> : null}
         {running.length === 0 ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>Nothing running</span> : null}
@@ -124,7 +148,7 @@ export function HathTile({ order }: { order: number }) {
       skeleton={(g) => (
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 12 }}>
           <div style={{ flex: 1, minWidth: 0, minHeight: 0, position: "relative" }}>
-            <GhostGraph width={g.iw} height={Math.max(60, g.bh - 42)} />
+            <GhostGraph width={g.iw} height={Math.max(60, g.bh - 44)} />
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: 8, height: 30 }}>
             <Skeleton width={150} height={28} radius={999} />

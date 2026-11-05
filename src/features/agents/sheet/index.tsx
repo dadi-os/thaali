@@ -8,7 +8,7 @@ import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { openAgent } from "../../../store/chat";
 import { getRunning, subscribeRunning } from "../../../store/running";
 import { autoLiveTaskId, showsLiveView } from "../sessions";
-import { TaskPreviewLive } from "../TaskLive";
+import { TaskView } from "../../../shared/components/Task/TaskView";
 import { AgentSheetPanel, type SheetFeed, type SheetSection, type SheetTask } from "./Panel";
 import { buildActivity, carryWakeKeys, type ActivityWake } from "./activity";
 
@@ -94,12 +94,13 @@ export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
       question: live?.state ?? "",
       preview:
         live?.resource === undefined || live.status === "asleep" ? null : (
-          <TaskPreviewLive
+          <TaskView
             task={row.id}
             kind={row.kind}
             resource={live.resource}
             caption={row.kind === "browser" ? row.current : `${shortId} · ${live.resource}`}
             paused={live.status === "paused"}
+            variant="compact"
           />
         ),
     };

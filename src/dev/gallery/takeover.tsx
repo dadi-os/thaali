@@ -57,7 +57,7 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
     <div style={{ position: "relative", width, height }}>
       <Modal label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`} width="min(1120px, calc(100% - 96px))" height="min(780px, calc(100% - 96px))">
         <TakeoverHeader task={info} driving={driving} onClose={noop} />
-        {driving ? <TakeoverBanner owner={nas.owner} /> : null}
+        <TakeoverBanner owner={nas.owner} driving={driving} />
         {nas.kind === "browser" ? (
           <TakeoverBrowser url={row.current} task={task} driving={driving} onBack={noop} onReload={noop}>
             <div style={PAGE}>
@@ -79,7 +79,9 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
             </div>
           </TakeoverBrowser>
         ) : (
-          <TakeoverTerminal output={terminalCapture().output} cwd={row.current.split(" · ")[0]!} driving={driving} command="" onCommand={noop} onSubmit={noop} />
+          <TakeoverTerminal cwd={row.current.split(" · ")[0]!} driving={driving} command="" onCommand={noop} onSubmit={noop}>
+            <pre style={{ margin: 0, padding: 16, flex: 1 }}>{terminalCapture().output}</pre>
+          </TakeoverTerminal>
         )}
         <TakeoverFooter kind={nas.kind} resource={nas.resource} driving={driving} />
         {handingBack ? (

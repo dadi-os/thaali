@@ -10,9 +10,9 @@ export type SectionLabelProps = {
 /** The label above a block of the System page: its name at the left and, at the right, a short line about it. */
 export function SectionLabel({ children, right }: SectionLabelProps) {
   return (
-    <div style={{ display: "flex", alignItems: "center", padding: "6px 4px 0", gap: 10 }}>
+    <div className="flex items-center gap-2.5 px-1 pt-1.5">
       <span className="ui-label">{children}</span>
-      <div style={{ flex: 1 }} />
+      <div className="flex-1" />
       {right}
     </div>
   );

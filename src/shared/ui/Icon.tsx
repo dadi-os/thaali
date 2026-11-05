@@ -53,6 +53,7 @@ const PATHS = {
   camera: "M4 8h3l2-3h6l2 3h3a1 1 0 011 1v10a1 1 0 01-1 1H4a1 1 0 01-1-1V9a1 1 0 011-1zM12 17a4 4 0 100-8 4 4 0 000 8z",
   image: "M4 5h16a1 1 0 011 1v12a1 1 0 01-1 1H4a1 1 0 01-1-1V6a1 1 0 011-1zM8 11a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM21 16l-5-5-8 8",
   doc: "M6 3h9l4 4v14H6zM14 3v5h5",
+  download: "M12 4v11M7.5 10.5L12 15l4.5-4.5M5 20h14",
 } as const;
 
 /** The name of one icon in the set. */

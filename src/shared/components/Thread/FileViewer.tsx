@@ -2,14 +2,16 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { hath } from "../../../shared/api";
-import { CopyButton } from "../../../shared/ui/CopyButton";
-import { Segmented } from "../../../shared/ui/Segmented";
-import { IconCheck, IconDismiss, IconUpdate } from "../../../shared/ui/IconButton";
-import { MarkdownBody } from "../../../shared/components/Markdown";
-import { attachmentSizeLabel, isTextMediaType } from "../../../shared/lib/content/attachments";
-import { saveFile } from "../../../shared/desktop/download";
-import { EASE, SLOW_S } from "../../../shared/motion";
+import { hath } from "../../api";
+import { CopyButton } from "../../ui/CopyButton";
+import { Segmented } from "../../ui/Segmented";
+import { IconButton } from "../../ui/Button";
+import { Icon } from "../../ui/Icon";
+import { MarkdownBody } from "../Markdown";
+import { attachmentSizeLabel, isTextMediaType } from "../../lib/content/attachments";
+import { saveFile } from "../../desktop/download";
+import { useDismiss } from "../../interaction/dismiss";
+import { DIALOG, SCRIM } from "../../motion";
 import type { AttachmentSummary } from "../../../types/hath";
 
 /** Longest text the viewer colors; past it the file shows as plain text, since highlighting would stall the window. */
@@ -97,18 +99,7 @@ export type FileViewerProps = {
  * or, for other files, a card to download them. ESC or a click on the frost closes it.
  */
 export function FileViewer({ file, onClose }: FileViewerProps) {
-  useEffect(() => {
-    if (file === null) {
-      return;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [file, onClose]);
+  useDismiss({ open: file !== null, onDismiss: onClose });
 
   return createPortal(
     <AnimatePresence>
@@ -116,10 +107,7 @@ export function FileViewer({ file, onClose }: FileViewerProps) {
         <motion.div
           key="file-viewer"
           className="host-modal fixed inset-0 z-[200] flex items-center justify-center p-6"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          transition={{ duration: SLOW_S, ease: EASE }}
+          {...SCRIM}
           onClick={onClose}
         >
           <Sheet key={file.id} file={file} onClose={onClose} />
@@ -174,15 +162,12 @@ function Sheet({ file, onClose }: SheetProps) {
       className={`file-sheet flex max-h-[88vh] flex-col overflow-hidden rounded-[18px] ${
         wide ? "h-[min(88vh,820px)] w-[min(92vw,960px)]" : "max-w-[min(92vw,1200px)]"
       }`}
-      initial={{ opacity: 0, scale: 0.96, y: 12 }}
-      animate={{ opacity: 1, scale: 1, y: 0 }}
-      exit={{ opacity: 0, scale: 0.97, y: 8 }}
-      transition={{ duration: SLOW_S, ease: EASE }}
+      {...DIALOG}
       onClick={(e) => e.stopPropagation()}
     >
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-rule/70 pr-2 pl-4">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13.5px] leading-tight font-medium text-ink" title={file.filename}>
+          <p data-selectable className="truncate text-[13.5px] leading-tight font-medium text-ink" title={file.filename}>
             {file.filename}
           </p>
           <p className="truncate text-[11px] leading-tight text-ink-ghost">{meta.join(" · ")}</p>
@@ -195,19 +180,11 @@ function Sheet({ file, onClose }: SheetProps) {
             <CopyButton text={text.data} label={`Copy ${file.filename}`} />
           ) : null}
           <DownloadButton file={file} text={text.data} />
-          <button
-            type="button"
-            aria-label="Close"
-            title="Close"
-            onClick={onClose}
-            className="inline-flex size-6 items-center justify-center rounded-[7px] text-ink-ghost transition-colors duration-fast ease-dadi hover:bg-sage-active/50 hover:text-ink-muted [&_svg]:size-3"
-          >
-            <IconDismiss />
-          </button>
+          <IconButton icon="close" label="Close" size={32} iconSize={13} onClick={onClose} />
         </div>
       </header>
 
-      <div className="min-h-0 flex-1 overflow-auto">
+      <div className="scroll min-h-0 flex-1 overflow-auto">
         {kind === "image" ? (
           <div className="file-sheet__canvas flex items-center justify-center">
             <img
@@ -224,7 +201,7 @@ function Sheet({ file, onClose }: SheetProps) {
             <p className="text-[12px] text-ink-ghost">Download it to open it on this computer.</p>
           </div>
         ) : text.isError ? (
-          <p className="px-5 py-4 text-[13px] text-error">{text.error.message}</p>
+          <p data-selectable className="px-5 py-4 text-[13px] text-error">{text.error.message}</p>
         ) : text.data === undefined ? (
           <div aria-label={`Loading ${file.filename}`} className="flex flex-col gap-2.5 px-5 py-5">
             {[72, 54, 88, 40, 66].map((width) => (
@@ -232,15 +209,15 @@ function Sheet({ file, onClose }: SheetProps) {
             ))}
           </div>
         ) : kind === "markdown" && mode === "rendered" ? (
-          <div className="mx-auto max-w-[760px] px-7 py-6 text-[14px] leading-[1.65] text-ink">
+          <div data-selectable className="mx-auto max-w-[760px] px-7 py-6 text-[14px] leading-[1.65] text-ink">
             <MarkdownBody content={text.data} />
           </div>
         ) : html.isError ? (
-          <p className="px-5 py-4 text-[13px] text-error">Could not color this file: {html.error.message}</p>
+          <p data-selectable className="px-5 py-4 text-[13px] text-error">Could not color this file: {html.error.message}</p>
         ) : html.data !== undefined ? (
-          <div className="code-view font-mono" dangerouslySetInnerHTML={{ __html: html.data }} />
+          <div data-selectable className="code-view font-mono" dangerouslySetInnerHTML={{ __html: html.data }} />
         ) : (
-          <pre className="code-view__plain font-mono">{text.data}</pre>
+          <pre data-selectable className="code-view__plain font-mono">{text.data}</pre>
         )}
       </div>
     </motion.div>
@@ -285,7 +262,7 @@ function DownloadButton({ file, text }: DownloadButtonProps) {
   return (
     <span className="inline-flex items-center gap-1">
       {error ? (
-        <span role="alert" className="max-w-[16rem] truncate text-[11px] text-error" title={error}>
+        <span role="alert" data-selectable className="max-w-[16rem] truncate text-[11px] text-error" title={error}>
           Download failed: {error}
         </span>
       ) : null}
@@ -299,7 +276,7 @@ function DownloadButton({ file, text }: DownloadButtonProps) {
           state === "saved" ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
         } ${state === "saving" ? "animate-breath" : ""}`}
       >
-        {state === "saved" ? <IconCheck /> : <IconUpdate />}
+        <Icon name={state === "saved" ? "check" : "download"} size={14} />
       </button>
     </span>
   );

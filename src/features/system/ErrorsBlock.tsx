@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { AnimatePresence, motion } from "motion/react";
+import { FADE, RISE } from "../../shared/motion";
 import { isMeshOnline, nas } from "../../shared/api";
 import { Card } from "../../shared/ui/Card";
 import { Icon } from "../../shared/ui/Icon";
@@ -26,27 +28,27 @@ export type ErrorsBlockProps = {
 /** One error line as a card: its service and status, when it happened, the human cause, the line's own message, the request it came from, and a way into the logs. */
 function ErrorItem({ card, onOpen }: { card: ErrorCard; onOpen: () => void }) {
   return (
-    <button
+    <motion.button
+      {...RISE}
       type="button"
-      className="ui-trans ui-hover-card"
+      className="ui-trans ui-hover-card flex min-w-0 flex-col items-stretch gap-1.5 rounded-2xl border border-error-line bg-glass-veil px-4 py-3.5 text-left shadow-widget"
       title={`Show this line in ${capitalize(card.service)}’s logs`}
       onClick={onOpen}
-      style={{ display: "flex", flexDirection: "column", alignItems: "stretch", textAlign: "left", gap: 6, padding: "14px 16px", borderRadius: 16, background: "var(--glass-veil)", border: "1px solid var(--error-line)", boxShadow: "var(--shadow)", minWidth: 0 }}
     >
-      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
-        <span style={{ width: 8, height: 8, borderRadius: "50%", background: "var(--error)", flex: "none" }} />
-        <Truncate text={capitalize(card.service)} style={{ fontSize: 13.5, fontWeight: 600, flex: "0 1 auto" }} />
-        {card.code === null ? null : <span className="ui-mono" style={{ fontSize: 11.5, color: "var(--error)", background: "var(--error-fill)", borderRadius: 999, padding: "0 8px", lineHeight: "20px", flex: "none" }}>{card.code}</span>}
-        <span style={{ marginLeft: "auto", fontSize: 12, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", flex: "none" }}>{formatClock(card.time)}</span>
+      <span className="flex items-center gap-2">
+        <span className="size-2 flex-none rounded-full bg-error" />
+        <Truncate text={capitalize(card.service)} className="flex-[0_1_auto] text-[13.5px] font-semibold" />
+        {card.code === null ? null : <span className="ui-mono flex-none rounded-full bg-error-fill px-2 text-[11.5px] leading-5 text-error">{card.code}</span>}
+        <span className="ml-auto flex-none text-[12px] whitespace-nowrap text-ink-muted tabular-nums">{formatClock(card.time)}</span>
       </span>
       <Clamp text={card.title} lines={3} style={{ fontSize: 14, lineHeight: "20px", fontWeight: 500, color: "var(--ink)" }} />
-      {card.context === null ? null : <Truncate text={card.context} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />}
-      {card.request === null ? null : <Truncate text={card.request} className="ui-mono" style={{ fontSize: 11.5 }} />}
-      <span style={{ display: "flex", alignItems: "center", gap: 4, fontSize: 12.5, fontWeight: 600, color: "var(--sage-text)", marginTop: 2 }}>
+      {card.context === null ? null : <Truncate text={card.context} className="text-[12.5px] text-ink-muted" />}
+      {card.request === null ? null : <Truncate text={card.request} className="ui-mono text-[11.5px]" />}
+      <span className="mt-0.5 flex items-center gap-1 text-[12.5px] font-semibold text-sage-text">
         Open in logs
         <Icon name="chevron" size={13} />
       </span>
-    </button>
+    </motion.button>
   );
 }
 
@@ -64,15 +66,15 @@ export function ErrorsBlock({ onOpen }: ErrorsBlockProps) {
   });
   const state = useModuleState(query, (answer) => answer.entries.length === 0);
   const cards = state.kind === "ready" ? state.data.entries.map(errorCard) : [];
-  const grid = { display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 10 } as const;
+  const grid = "grid grid-cols-2 gap-2.5";
   let body;
   switch (state.kind) {
     case "loading":
       body = (
-        <div style={grid}>
+        <div className={grid}>
           {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", gap: 8, padding: "14px 16px", borderRadius: 16, background: "var(--glass-veil)", border: "1px solid var(--glass-border)", boxShadow: "var(--shadow)", minWidth: 0 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <div key={i} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-glass-border bg-glass-veil px-4 py-3.5 shadow-widget">
+              <div className="flex items-center gap-2">
                 <Skeleton width={8} height={8} radius={4} />
                 <Skeleton width={70} height={14} />
                 <Skeleton width={40} height={12} style={{ marginLeft: "auto" }} />
@@ -102,13 +104,13 @@ export function ErrorsBlock({ onOpen }: ErrorsBlockProps) {
     case "empty":
       body = (
         <Card style={{ borderRadius: 16 }}>
-          <div style={{ padding: "20px 16px", fontSize: 13.5, color: "var(--ink-muted)" }}>No errors in the last hour.</div>
+          <div className="px-4 py-5 text-[13.5px] text-ink-muted">No errors in the last hour.</div>
         </Card>
       );
       break;
     case "ready":
       body = (
-        <div style={grid}>
+        <div className={grid}>
           {cards.map((card) => (
             <ErrorItem key={card.key} card={card} onOpen={() => onOpen(card)} />
           ))}
@@ -118,8 +120,12 @@ export function ErrorsBlock({ onOpen }: ErrorsBlockProps) {
   }
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${cards.length} · last hour`}</span> : null}>Errors</SectionLabel>
-      {body}
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[12.5px] text-ink-muted">{`${cards.length} · last hour`}</span> : null}>Errors</SectionLabel>
+      <AnimatePresence mode="wait" initial={false}>
+        <motion.div key={state.kind} {...FADE}>
+          {body}
+        </motion.div>
+      </AnimatePresence>
     </>
   );
 }

@@ -19,8 +19,8 @@ export type GaugeProps = {
 /** One ring meter: the percentage in its middle, the meter's name and a line of detail under it. */
 function Gauge({ name, percent, detail }: GaugeProps) {
   return (
-    <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, alignItems: "center", gap: 6 }}>
-      <div style={{ position: "relative", width: 92, height: 92 }}>
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
+      <div className="relative size-[92px]">
         <svg width="92" height="92" viewBox="0 0 96 96" aria-hidden="true">
           <circle cx="48" cy="48" r="38" fill="none" stroke="#e8ece2" strokeWidth="9" />
           <circle
@@ -36,10 +36,12 @@ function Gauge({ name, percent, detail }: GaugeProps) {
             transform="rotate(-90 48 48)"
           />
         </svg>
-        <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{`${Math.round(percent)}%`}</span>
+        <span className="absolute inset-0 flex items-center justify-center text-[18px] font-semibold tabular-nums">{`${Math.round(percent)}%`}</span>
       </div>
-      <span style={{ fontSize: 13.5, fontWeight: 500 }}>{name}</span>
-      <Truncate text={detail} style={{ fontSize: 12, color: "var(--ink-muted)", maxWidth: "100%", textAlign: "center" }} />
+      <span className="text-[13.5px] font-medium">{name}</span>
+      <span data-selectable className="max-w-full min-w-0">
+        <Truncate text={detail} className="text-center text-[12px] text-ink-muted" />
+      </span>
     </div>
   );
 }
@@ -81,16 +83,16 @@ export function HealthCard({ status }: HealthCardProps) {
   if (status === null) {
     return (
       <Card style={{ padding: 20, gap: 18 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div className="flex items-center gap-3.5">
           <Skeleton width={40} height={40} radius={20} />
-          <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+          <div className="flex flex-col gap-2">
             <Skeleton width={210} height={24} />
             <Skeleton width={140} height={12} />
           </div>
         </div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-around" }}>
+        <div className="flex items-center justify-around">
           {Array.from({ length: 5 }, (_, i) => (
-            <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8 }}>
+            <div key={i} className="flex flex-col items-center gap-2">
               <Skeleton width={92} height={92} radius={46} />
               <Skeleton width={60} height={12} />
               <Skeleton width={80} height={10} />
@@ -103,16 +105,16 @@ export function HealthCard({ status }: HealthCardProps) {
   const down = status.services.filter((service) => !service.healthy).length;
   return (
     <Card style={{ padding: 20, gap: 18 }}>
-      <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-        <span style={{ width: 40, height: 40, borderRadius: "50%", background: down > 0 ? "var(--error)" : "var(--sage-deep)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--bone)", flex: "none" }}>
+      <div className="flex items-center gap-3.5">
+        <span className={`flex size-10 flex-none items-center justify-center rounded-full text-bone ${down > 0 ? "bg-error" : "bg-sage-deep"}`}>
           <Icon name={down > 0 ? "alert" : "check"} size={20} />
         </span>
-        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-          <span style={{ fontSize: 24, fontWeight: 600, letterSpacing: "-0.02em" }}>{down > 0 ? `${down} ${down === 1 ? "service needs" : "services need"} attention` : "dadi is healthy"}</span>
-          <span style={{ fontSize: 13.5, color: "var(--ink-muted)" }}>{`Up ${formatUptime(status.uptime_seconds)}`}</span>
+        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="text-[24px] font-semibold tracking-[-0.02em]">{down > 0 ? `${down} ${down === 1 ? "service needs" : "services need"} attention` : "dadi is healthy"}</span>
+          <span className="text-[13.5px] text-ink-muted">{`Up ${formatUptime(status.uptime_seconds)}`}</span>
         </div>
       </div>
-      <div style={{ display: "flex", alignItems: "flex-start", gap: 8 }}>
+      <div className="flex items-start gap-2">
         {gauges(status).map((gauge) => (
           <Gauge key={`${gauge.name}-${gauge.detail}`} {...gauge} />
         ))}

@@ -1,6 +1,6 @@
 /** Display helpers for the chat sidebar. */
 
-import { formatClock } from "../../shared/lib/ux/time";
+import { formatClock } from "../../lib/ux/time";
 
 /** The calendar day of an instant in the device's zone, as `2026-10-28`. */
 function dayKey(ms: number): string {

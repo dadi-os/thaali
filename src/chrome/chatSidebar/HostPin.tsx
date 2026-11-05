@@ -1,125 +1,40 @@
-import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
-import { BrowserFrame } from "../../features/agents/BrowserFrame";
-import { TerminalScreen } from "../../features/agents/TerminalScreen";
-import { IconDismiss } from "../../shared/ui/IconButton";
-import { EASE, SLOW_S } from "../../shared/motion";
+import { TaskView } from "../../shared/components/Task/TaskView";
+import { REVEAL, RISE } from "../../shared/motion";
+import type { PinnedTask } from "../../features/agents/sessions";
 
 export type HostPinProps = {
-  /** Live Nas browser to pin, or null when this agent has none. */
-  browserId: number | null;
-  /** Live Nas terminal id to pin, or null when this agent has none. */
-  terminalId: string | null;
+  /** The agent's newest live browser task, or null when it has none. */
+  browser: PinnedTask | null;
+  /** The agent's newest live terminal task, or null when it has none. */
+  terminal: PinnedTask | null;
 };
 
-/** Which host view is blown up into the modal. */
-type Expanded = "browser" | "terminal" | null;
-
 /**
- * Host strip above an open agent thread: the agent's live browser and live terminal as
- * glass cards. The strip is in layout (the thread scrolls beneath it, not behind it) and
- * reads as floating through its shadow and the thread's top dissolve. Clicking a card
- * blows it up, frameless, over the frosted window; ESC, the close button or a click on
- * the frost puts it back.
+ * Strip above an open agent thread: the agent's live browser and live terminal, each drawn by the shared
+ * {@link TaskView} so they look and open exactly as they do in the agent sheet and on the System page. A click opens the takeover.
+ * The strip is in layout (the thread scrolls beneath it, not behind it).
  */
-export function HostPin({ browserId, terminalId }: HostPinProps) {
-  const [expanded, setExpanded] = useState<Expanded>(null);
-  const shown =
-    (expanded === "browser" && browserId !== null) || (expanded === "terminal" && terminalId !== null)
-      ? expanded
-      : null;
-
-  useEffect(() => {
-    if (shown === null) {
-      return;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        setExpanded(null);
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [shown]);
-
-  if (browserId === null && terminalId === null) {
-    return null;
-  }
-
-  const card =
-    "host-pin block w-full cursor-zoom-in text-left transition-[transform,box-shadow] duration-slow ease-dadi hover:-translate-y-px hover:shadow-[var(--shadow-deep)]";
-
+export function HostPin({ browser, terminal }: HostPinProps) {
+  const pinned = [
+    browser === null ? null : { ...browser, kind: "browser" as const },
+    terminal === null ? null : { ...terminal, kind: "terminal" as const },
+  ].filter((entry) => entry !== null);
   return (
-    <div className="relative z-10 flex shrink-0 flex-col gap-2 px-3 pb-1 pt-3">
-      {browserId !== null ? (
-        <button type="button" className={card} aria-label="Expand browser" onClick={() => setExpanded("browser")}>
-          <div className="flex min-w-0 items-center gap-2 px-3 py-2">
-            <span className="host-pin__live" aria-hidden />
-            <span className="min-w-0 flex-1 truncate text-[11px] leading-none tracking-[0.12em] text-sage-text uppercase">
-              Browser
-            </span>
+    <AnimatePresence initial={false}>
+      {pinned.length > 0 ? (
+        <motion.div key="pin" {...REVEAL} className="relative z-10 shrink-0 overflow-hidden">
+          <div className="flex flex-col gap-2 px-3 pt-3 pb-1">
+            <AnimatePresence initial={false}>
+              {pinned.map((entry) => (
+                <motion.div key={entry.task} {...RISE}>
+                  <TaskView task={entry.task} kind={entry.kind} resource={entry.resource} caption={entry.caption} variant="compact" />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
-          <div className="px-1.5 pb-1.5">
-            <BrowserFrame browserId={browserId} variant="rail" className="rounded-[11px]" />
-          </div>
-        </button>
+        </motion.div>
       ) : null}
-      {terminalId !== null ? (
-        <button type="button" className={card} aria-label="Expand terminal" onClick={() => setExpanded("terminal")}>
-          <div className="p-1.5">
-            <TerminalScreen terminalId={terminalId} variant="rail" className="rounded-[11px]" />
-          </div>
-        </button>
-      ) : null}
-
-      {createPortal(
-        <AnimatePresence>
-          {shown !== null ? (
-            <motion.div
-              key="host-modal"
-              className="host-modal fixed inset-0 z-[200] flex items-center justify-center"
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: SLOW_S, ease: EASE }}
-              onClick={() => setExpanded(null)}
-            >
-              <button
-                type="button"
-                aria-label="Close"
-                onClick={() => setExpanded(null)}
-                className="host-modal__close fixed top-5 right-5 inline-flex size-9 items-center justify-center rounded-full text-ink-muted transition-colors duration-fast ease-dadi hover:text-ink [&_svg]:size-4"
-              >
-                <IconDismiss />
-              </button>
-              <motion.div
-                role="dialog"
-                aria-modal="true"
-                aria-label={shown === "browser" ? "Browser" : "Terminal"}
-                className={`host-modal__media overflow-hidden rounded-[16px] ${
-                  shown === "browser"
-                    ? "w-[min(92vw,calc(86vh*16/9))]"
-                    : "h-[min(80vh,760px)] w-[min(92vw,1100px)]"
-                }`}
-                initial={{ opacity: 0, scale: 0.94, y: 14 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.96, y: 8 }}
-                transition={{ duration: SLOW_S, ease: EASE }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {shown === "browser" && browserId !== null ? (
-                  <BrowserFrame browserId={browserId} variant="full" />
-                ) : null}
-                {shown === "terminal" && terminalId !== null ? (
-                  <TerminalScreen terminalId={terminalId} variant="full" className="h-full" />
-                ) : null}
-              </motion.div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>,
-        document.body,
-      )}
-    </div>
+    </AnimatePresence>
   );
 }

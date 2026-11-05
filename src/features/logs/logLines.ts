@@ -71,6 +71,23 @@ export function nearestLog(lines: KeyedLog[], iso: string): KeyedLog | null {
   return lines.reduce<KeyedLog | null>((best, line) => (best === null || Math.abs(new Date(line.entry.time).getTime() - at) < Math.abs(new Date(best.entry.time).getTime() - at) ? line : best), null);
 }
 
+/** The `request_id` a line's raw JSON record carries, or null when it has no raw record, it is not JSON or it names no request. */
+export function requestIdOf(entry: NasLogEntry): string | null {
+  if (entry.raw === undefined) {
+    return null;
+  }
+  try {
+    const record: unknown = JSON.parse(entry.raw);
+    const id = typeof record === "object" && record !== null ? (record as { request_id?: unknown }).request_id : undefined;
+    return typeof id === "string" && id !== "" ? id : null;
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 /** A line's raw record laid out one field to a line when it is JSON, else the text as it was logged. */
 export function prettyRaw(raw: string): string {
   try {
