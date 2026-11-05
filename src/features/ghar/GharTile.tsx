@@ -6,7 +6,7 @@ import { Switch } from "../../shared/ui/Switch";
 import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
 import { ghar } from "../../shared/api";
 import { useModuleState } from "../../shared/hooks/useModuleState";
-import { pushToast } from "../../store/toasts";
+import { pushToast } from "../../contexts/toasts";
 import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";

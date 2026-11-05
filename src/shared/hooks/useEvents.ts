@@ -3,7 +3,7 @@ import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { HATH_URL, hath, transport } from "../api";
 import type { AgentRecord, HathEvent } from "../../types/hath";
 import type { ConnectionState } from "../api/transport";
-import { subscribeConnection } from "../../store/connection";
+import { subscribeConnection } from "../../contexts/connection";
 import {
   announceAgentMessage,
   applyThreadRead,
@@ -14,7 +14,7 @@ import {
   seedConversations,
   setHistoryState,
   upsertConversation,
-} from "../../store/chat";
+} from "../../contexts/chat";
 import {
   clearRouterRuns,
   endRouterRun,
@@ -23,8 +23,8 @@ import {
   seedRunningFromAgents,
   setLaneRunning,
   startRouterRun,
-} from "../../store/running";
-import { pushToast } from "../../store/toasts";
+} from "../../contexts/running";
+import { pushToast } from "../../contexts/toasts";
 import { logLine } from "../lib/log";
 import { notifyAgentMessage } from "../desktop/notify";
 

@@ -1,5 +1,5 @@
-import { ProvisionDevice } from "../features/system/ProvisionDevice";
-import { Dialog } from "../shared/overlay/Dialog";
+import { ProvisionDevice } from "../system/ProvisionDevice";
+import { Dialog } from "../../shared/overlay/Dialog";
 
 export interface ProvisionOverlayProps {
   /** Whether the dialog is visible. */

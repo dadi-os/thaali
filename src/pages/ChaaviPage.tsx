@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { PageHeader } from "../chrome/PageHeader";
+import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { itemActions } from "../features/chaavi/actions";
 import { draftFromItem, emptyDraft, createBody, inScope, searchItems, updateBody, type ItemDraft, type VaultScope } from "../features/chaavi/draft";
 import { dropChange, useItemDrag, type DropTarget } from "../features/chaavi/drag";

@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
-import { usingMesh } from "../shared/api";
-import { OfflineNotice } from "../shared/states/OfflineNotice";
-import { useConnection } from "../shared/hooks/useConnection";
+import { usingMesh } from "../../api";
+import { OfflineNotice } from "../../states/OfflineNotice";
+import { useConnection } from "../../hooks/useConnection";
 
 /**
  * The one notice for dadi being out of reach, for the title bar: "Reconnecting to dadi…" while the

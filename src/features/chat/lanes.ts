@@ -1,6 +1,6 @@
 /** Pure helpers for chat sidebar lane/message presentation. */
 
-import { messageKey, type ChatMessage } from "../../store/chat";
+import { messageKey, type ChatMessage } from "../../contexts/chat";
 
 /** Split messages into settled and queued (local hold while the process lane is busy). */
 export function partitionByQueued(messages: ChatMessage[]): {

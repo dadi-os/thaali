@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isTauriRuntime } from "../shared/desktop/runtime";
-import { detectDesktopOs } from "../shared/desktop/os";
+import { isTauriRuntime } from "../../desktop/runtime";
+import { detectDesktopOs } from "../../desktop/os";
 import { WindowControls } from "./WindowControls";
 
 /**

@@ -12,8 +12,8 @@ import {
 import {
   partitionByQueued,
   trackIncoming,
-} from "./chrome/chatSidebar/lanes";
-import { laneChipLabel } from "./chrome/chatSidebar/LaneChip";
+} from "./features/chat/lanes";
+import { laneChipLabel } from "./features/chat/LaneChip";
 import { formatToolSignature } from "./shared/lib/content/toolSignature";
 import {
   attachmentSizeLabel,
@@ -42,9 +42,9 @@ import {
   seqToMark,
   threadAgentId,
   upsertConversation,
-} from "./store/chat";
-import type { ChatMessage } from "./store/chat";
-import { dismissToast, failureTarget, getToasts, pushToast, removeToast, resetToasts } from "./store/toasts";
+} from "./contexts/chat";
+import type { ChatMessage } from "./contexts/chat";
+import { dismissToast, failureTarget, getToasts, pushToast, removeToast, resetToasts } from "./contexts/toasts";
 import { ApiError } from "./shared/api/errors";
 import type { DurableMessage } from "./types/hath";
 import {

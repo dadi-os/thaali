@@ -1,28 +1,28 @@
 import { useEffect, useState } from "react";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
-import { ChatSidebar } from "./chatSidebar";
-import { TakeoverModal } from "../features/agents/takeover";
-import { ForgetDeviceDialog } from "./ForgetDevice";
+import { ChatSidebar } from "../../../features/chat";
+import { TakeoverModal } from "../../../features/agents/takeover";
+import { ForgetDeviceDialog } from "../../../features/onboarding/ForgetDevice";
 import { OfflinePill } from "./OfflinePill";
-import { Onboarding, type BootState } from "./onboarding";
-import { ProvisionOverlay } from "./ProvisionOverlay";
+import { Onboarding, type BootState } from "../../../features/onboarding";
+import { ProvisionOverlay } from "../../../features/onboarding/ProvisionOverlay";
 import { TitleBar } from "./TitleBar";
-import { useShortcut } from "../shared/interaction/shortcuts";
-import { ContextMenuHost } from "../shared/overlay/ContextMenuHost";
+import { useShortcut } from "../../interaction/shortcuts";
+import { ContextMenuHost } from "../../overlay/ContextMenuHost";
 import { Toaster } from "./Toaster";
-import { bootstrapMesh, prepareMesh } from "../store/connection";
-import { useConnection } from "../shared/hooks/useConnection";
-import { useActivityToasts } from "./useActivityToasts";
-import { useDesktopTray } from "./useDesktopTray";
-import { useEvents } from "../shared/hooks/useEvents";
-import { useLiveQueries } from "../shared/hooks/useLiveQueries";
-import { useDeviceRemote } from "./useDeviceRemote";
-import { useNeedsProvisioning } from "./useNeedsProvisioning";
-import { requestDock } from "../store/dock";
-import { usingMesh } from "../shared/api";
-import { ErrorBoundary } from "../shared/states/ErrorBoundary";
-import { logLine } from "../shared/lib/log";
+import { bootstrapMesh, prepareMesh } from "../../../contexts/connection";
+import { useConnection } from "../../hooks/useConnection";
+import { useActivityToasts } from "../../../features/chat/useActivityToasts";
+import { useDesktopTray } from "../../desktop/useDesktopTray";
+import { useEvents } from "../../hooks/useEvents";
+import { useLiveQueries } from "../../hooks/useLiveQueries";
+import { useDeviceRemote } from "../../desktop/useDeviceRemote";
+import { useNeedsProvisioning } from "../../../features/onboarding/useNeedsProvisioning";
+import { requestDock } from "../../../contexts/dock";
+import { usingMesh } from "../../api";
+import { ErrorBoundary } from "../../states/ErrorBoundary";
+import { logLine } from "../../lib/log";
 
 /** Settles launch's read of the saved setup code into a boot state. */
 function settleBoot(run: Promise<void>, set: (boot: BootState) => void): void {

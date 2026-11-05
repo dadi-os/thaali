@@ -10,7 +10,7 @@ import { GharTile } from "./GharTile";
 
 vi.mock("../../shared/api", () => ({ isMeshOnline: (state: string) => state === "connected", ghar: { createRoom: vi.fn(() => Promise.resolve({})) } }));
 vi.mock("../../shared/hooks/useConnection", () => ({ useConnection: () => ({ state: "connected" }) }));
-vi.mock("../../store/toasts", () => ({ pushToast: vi.fn() }));
+vi.mock("../../contexts/toasts", () => ({ pushToast: vi.fn() }));
 vi.mock("./useHouse", () => ({ useHouse: () => house }));
 vi.mock("../home/Tile", () => ({ Tile: ({ children }: TileProps) => <div>{children(geometry)}</div> }));
 

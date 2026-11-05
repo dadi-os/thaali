@@ -1,6 +1,6 @@
 import { copyText } from "../../shared/desktop/clipboard";
 import type { ActionList } from "../../shared/interaction/actions";
-import { openAgent } from "../../store/chat";
+import { openAgent } from "../../contexts/chat";
 import type { AgentRecord, ScheduledMessage } from "../../types/hath";
 
 /** What a schedule's actions need from its row. */

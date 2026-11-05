@@ -19,9 +19,9 @@ vi.mock("../../shared/api", () => ({
 vi.mock("../../shared/hooks/useEvents", () => ({
   AGENTS_QUERY_KEY: ["hath", "agents"],
 }));
-vi.mock("../../store/chat", () => ({ openAgent: vi.fn() }));
-vi.mock("../../store/dock", () => ({ requestDock: vi.fn() }));
-vi.mock("../../store/toasts", () => ({
+vi.mock("../../contexts/chat", () => ({ openAgent: vi.fn() }));
+vi.mock("../../contexts/dock", () => ({ requestDock: vi.fn() }));
+vi.mock("../../contexts/toasts", () => ({
   pushToast: vi.fn(),
   failureTarget: vi.fn(),
 }));

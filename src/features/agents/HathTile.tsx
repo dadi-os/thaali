@@ -11,7 +11,7 @@ import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { Skeleton } from "../../shared/ui/Skeleton";
-import { getRunning, subscribeRunning } from "../../store/running";
+import { getRunning, subscribeRunning } from "../../contexts/running";
 import type { AgentRecord } from "../../types/hath";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";

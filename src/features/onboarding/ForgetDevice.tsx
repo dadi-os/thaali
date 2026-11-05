@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { forgetDevice } from "../store/connection";
-import { ConfirmDialog } from "../shared/overlay/ConfirmDialog";
+import { forgetDevice } from "../../contexts/connection";
+import { ConfirmDialog } from "../../shared/overlay/ConfirmDialog";
 
 export interface ForgetDeviceDialogProps {
   /** Whether the confirmation is showing. */

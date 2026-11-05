@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { timeline } from "../../shared/api";
-import { openAgent } from "../../store/chat";
-import { requestDock } from "../../store/dock";
-import { DADI_DRAFT_KEY, saveDraft } from "../../store/drafts";
+import { openAgent } from "../../contexts/chat";
+import { requestDock } from "../../contexts/dock";
+import { DADI_DRAFT_KEY, saveDraft } from "../../contexts/drafts";
 import { RISE, stagger } from "../../shared/motion";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import type { AgentRecord } from "../../types/hath";

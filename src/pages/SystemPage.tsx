@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { PageHeader } from "../chrome/PageHeader";
+import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { isMeshOnline, nas } from "../shared/api";
 import type { NasStatus } from "../shared/api/nas";
 import { Badge } from "../shared/ui/Badge";

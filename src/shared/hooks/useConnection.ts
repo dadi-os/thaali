@@ -5,7 +5,7 @@ import {
   disconnectTransport,
   getConnectionState,
   subscribeConnection,
-} from "../../store/connection";
+} from "../../contexts/connection";
 
 export function useConnection(): {
   state: ConnectionState;

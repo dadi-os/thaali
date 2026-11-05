@@ -1,4 +1,4 @@
-import { useEffect, useEffectEvent, useRef, useState, useSyncExternalStore } from "react";
+import { useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { hath, isMeshOnline, nas } from "../../../shared/api";
 import type { NasTask } from "../../../shared/api/nas";
@@ -8,10 +8,11 @@ import { TaskView } from "../../../shared/components/Task/TaskView";
 import { Button } from "../../../shared/ui/Button";
 import { Dialog } from "../../../shared/overlay/Dialog";
 import { LargeDialog } from "../../../shared/overlay/LargeDialog";
-import { DialogOption } from "../../../shared/overlay/Overlay";
+import { DialogOption } from "../../../shared/overlay/DialogOption";
+import { useShortcut } from "../../../shared/interaction/shortcuts";
 import { useConnection } from "../../../shared/hooks/useConnection";
-import { pushToast } from "../../../store/toasts";
-import { getTakeover, setTakeover, subscribeTakeover } from "../../../store/takeover";
+import { pushToast } from "../../../contexts/toasts";
+import { getTakeover, setTakeover, subscribeTakeover } from "../../../contexts/takeover";
 import { TakeoverBanner, TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "./parts";
 
 /** Why a takeover call failed, as a toast Ankur can read. */
@@ -101,17 +102,11 @@ function OpenTakeover({ task, resource, open }: OpenTakeoverProps) {
     }
   };
 
-  const onKeyDown = useEffectEvent((e: KeyboardEvent) => {
-    if (open && driving && !handingBack && (e.metaKey || e.ctrlKey) && e.key === ".") {
-      e.preventDefault();
-      e.stopPropagation();
+  useShortcut("mod+.", () => {
+    if (open && driving && !handingBack) {
       setHandingBack(true);
     }
   });
-  useEffect(() => {
-    window.addEventListener("keydown", onKeyDown, true);
-    return () => window.removeEventListener("keydown", onKeyDown, true);
-  }, []);
 
   const info = { task: task.task, kind: task.kind, owner: task.owner, purpose: task.purpose, status: task.status, resource };
   const caption = task.kind === "browser" ? current : `${task.id} · ${resource}`;

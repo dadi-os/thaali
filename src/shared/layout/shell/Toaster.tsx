@@ -1,11 +1,11 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { TOAST } from "../shared/motion";
+import { TOAST } from "../../motion";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
-import { Toast } from "../shared/overlay/Toast";
-import { openAgent } from "../store/chat";
-import { requestDock } from "../store/dock";
-import { dismissToast, getToasts, removeToast, subscribeToasts, type ToastTarget } from "../store/toasts";
+import { Toast } from "../../overlay/Toast";
+import { openAgent } from "../../../contexts/chat";
+import { requestDock } from "../../../contexts/dock";
+import { dismissToast, getToasts, removeToast, subscribeToasts, type ToastTarget } from "../../../contexts/toasts";
 
 /** How long a toast stays up after its last push; hovering or focusing it holds the clock. */
 const VISIBLE_MS = 6_000;

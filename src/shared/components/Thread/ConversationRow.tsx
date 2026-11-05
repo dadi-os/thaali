@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from "motion/react";
-import type { Conversation } from "../../../store/chat";
+import type { Conversation } from "../../../contexts/chat";
 import { useContextActions } from "../../interaction/contextMenu";
 import { FADE, RISE } from "../../motion";
 import { AgentName } from "../../ui/AgentName";

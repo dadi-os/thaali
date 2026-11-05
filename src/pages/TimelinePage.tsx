@@ -1,7 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { PageHeader } from "../chrome/PageHeader";
+import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { CalendarDay } from "../features/timeline/CalendarDay";
 import {
   CalendarMonth,

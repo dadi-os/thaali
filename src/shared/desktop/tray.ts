@@ -20,10 +20,10 @@ import {
 } from "@tauri-apps/api/menu";
 import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { dispatchDesktopShell } from "../store/desktopShell";
-import { isTauriRuntime } from "../shared/desktop/runtime";
-import { LANE_LABEL } from "../shared/lib/ux/lanes";
-import unreadMarkUrl from "../assets/tray-unread.png";
+import { dispatchDesktopShell } from "../../contexts/desktopShell";
+import { isTauriRuntime } from "./runtime";
+import { LANE_LABEL } from "../lib/ux/lanes";
+import unreadMarkUrl from "../../assets/tray-unread.png";
 
 const TRAY_ID = "dadi-tray";
 

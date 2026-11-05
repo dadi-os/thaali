@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef } from "react";
 import { BrowserFrame } from "../../../features/agents/BrowserFrame";
 import { useTerminalCapture } from "../../../features/agents/terminalCapture";
-import { setTakeover } from "../../../store/takeover";
+import { setTakeover } from "../../../contexts/takeover";
 import { TaskPreview } from "./TaskPreview";
 
 /** Lines of a terminal's pane each variant reads: the previews read a few more than they show so the newest line is always at the bottom. */

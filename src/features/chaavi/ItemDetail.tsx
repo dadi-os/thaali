@@ -8,7 +8,7 @@ import { copyText } from "../../shared/desktop/clipboard";
 import { confirmOwner } from "../../shared/desktop/owner";
 import { openExternal } from "../../shared/desktop/open";
 import { formatClock, formatDay } from "../../shared/lib/ux/time";
-import { pushToast } from "../../store/toasts";
+import { pushToast } from "../../contexts/toasts";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
 import { copySecret } from "./clipboard";
 import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META, websiteUrl } from "./draft";

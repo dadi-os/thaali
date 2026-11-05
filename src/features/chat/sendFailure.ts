@@ -1,5 +1,5 @@
-import { copyText } from "../shared/desktop/clipboard";
-import { pushToast, type ToastTarget } from "../store/toasts";
+import { copyText } from "../../shared/desktop/clipboard";
+import { pushToast, type ToastTarget } from "../../contexts/toasts";
 
 /** What a message that did not send needs reported. */
 export type SendFailure = {

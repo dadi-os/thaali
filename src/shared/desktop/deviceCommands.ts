@@ -1,7 +1,7 @@
 /** Local execution of Hath device_* tools on this desktop. */
 
-import { isTauriRuntime } from "../shared/desktop/runtime";
-import { loadCredentials } from "../shared/api/credentials";
+import { isTauriRuntime } from "./runtime";
+import { loadCredentials } from "../api/credentials";
 
 /** Typed failure returned to Hath as a command error. */
 export class DeviceError extends Error {

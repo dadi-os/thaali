@@ -2,7 +2,7 @@ import { useEffect, useRef, type RefObject, type UIEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { FADE } from "../../../shared/motion";
 import type { AgentRecord } from "../../../types/hath";
-import { messageKey, type ChatMessage } from "../../../store/chat";
+import { messageKey, type ChatMessage } from "../../../contexts/chat";
 import { trackIncoming } from "../lanes";
 import { MessageBubble } from "../../../shared/components/Thread/Message";
 import { ThreadEmpty } from "./ThreadEmpty";

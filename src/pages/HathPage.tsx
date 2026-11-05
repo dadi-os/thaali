@@ -1,7 +1,7 @@
 import { useCallback, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
-import { PageHeader } from "../chrome/PageHeader";
+import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { AgentGraph2D } from "../features/agents/AgentGraph2D";
 import { AgentList } from "../features/agents/AgentList";
 import { isLive, keepsState, laneState, LANE_FILTERS, type LaneFilter } from "../features/agents/laneState";
@@ -22,7 +22,7 @@ import { Page } from "../shared/layout/Page";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
 import { agentsMatching, pickedMatch } from "../features/agents/search";
-import { getRunning, subscribeRunning } from "../store/running";
+import { getRunning, subscribeRunning } from "../contexts/running";
 import type { AgentRecord } from "../types/hath";
 
 /** More agents than this are drawn small, with only their roots named. */

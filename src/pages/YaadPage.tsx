@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { PageHeader } from "../chrome/PageHeader";
+import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { createMemorySimulation, KIND_TOKEN, mergeGraph, type GraphData } from "../features/memory/graph";
 import { MemoryGraph3D } from "../features/memory/MemoryGraph3D";
 import { NodeSheet } from "../features/memory/NodeSheet";

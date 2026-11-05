@@ -3,7 +3,7 @@ import { copyText } from "../../desktop/clipboard";
 import { saveFile } from "../../desktop/download";
 import type { ActionList } from "../../interaction/actions";
 import { isTextMediaType } from "../../lib/content/attachments";
-import { applyThreadRead, getChatState, seqToMark, type ChatMessage, type Conversation } from "../../../store/chat";
+import { applyThreadRead, getChatState, seqToMark, type ChatMessage, type Conversation } from "../../../contexts/chat";
 import type { AttachmentSummary } from "../../../types/hath";
 
 /** What a conversation's actions need from the surface that shows it. */

@@ -1,6 +1,6 @@
 import type { ActionList } from "../../interaction/actions";
 import { copyText } from "../../desktop/clipboard";
-import { setTakeover } from "../../../store/takeover";
+import { setTakeover } from "../../../contexts/takeover";
 
 /** What the task actions need to know about a task. */
 export type TaskActionTarget = {

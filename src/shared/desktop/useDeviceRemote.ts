@@ -1,15 +1,15 @@
 import { useEffect } from "react";
-import { HATH_URL, hath, transport, usingMesh } from "../shared/api";
-import { loadCredentials } from "../shared/api/credentials";
-import type { ConnectionState } from "../shared/api/transport";
+import { HATH_URL, hath, transport, usingMesh } from "../api";
+import { loadCredentials } from "../api/credentials";
+import type { ConnectionState } from "../api/transport";
 import {
   APP_VERSION,
   DeviceError,
   executeDeviceTool,
   type DeviceLocalTool,
 } from "./deviceCommands";
-import { subscribeConnection } from "../store/connection";
-import { logLine } from "../shared/lib/log";
+import { subscribeConnection } from "../../contexts/connection";
+import { logLine } from "../lib/log";
 
 const PRESENCE_INTERVAL_MS = 15_000;
 const INITIAL_BACKOFF_MS = 1000;

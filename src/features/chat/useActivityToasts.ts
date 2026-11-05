@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ghar, timeline } from "../shared/api";
-import { GHAR_DEVICES_KEY } from "../shared/api/ghar";
-import { useConnection } from "../shared/hooks/useConnection";
-import { pushToast } from "../store/toasts";
-import { formatTime } from "../features/timeline/dates";
-import { isMultiDay, itemKey, spanOf } from "../features/timeline/plans";
+import { ghar, timeline } from "../../shared/api";
+import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
+import { useConnection } from "../../shared/hooks/useConnection";
+import { pushToast } from "../../contexts/toasts";
+import { formatTime } from "../timeline/dates";
+import { isMultiDay, itemKey, spanOf } from "../timeline/plans";
 
 /** How often the upcoming-plans query refreshes and the plan clock ticks. */
 const PLAN_POLL_MS = 60_000;

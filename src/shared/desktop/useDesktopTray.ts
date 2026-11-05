@@ -1,24 +1,24 @@
 import { useEffect, useEffectEvent, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { hath, isMeshOnline } from "../shared/api";
-import { useConnection } from "../shared/hooks/useConnection";
+import { hath, isMeshOnline } from "../api";
+import { useConnection } from "../hooks/useConnection";
 import { useDesktopUpdate } from "./useDesktopUpdate";
-import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
+import { AGENTS_QUERY_KEY } from "../hooks/useEvents";
 import {
   syncDesktopTray,
   type TrayListState,
   type TraySnapshot,
 } from "./tray";
-import { logLine } from "../shared/lib/log";
-import { getChatState, openAgent, subscribeChat } from "../store/chat";
-import { subscribeDesktopShell } from "../store/desktopShell";
+import { logLine } from "../lib/log";
+import { getChatState, openAgent, subscribeChat } from "../../contexts/chat";
+import { subscribeDesktopShell } from "../../contexts/desktopShell";
 import {
   getRunning,
   seedRunningFromAgents,
   subscribeRunning,
   type RunningMap,
-} from "../store/running";
+} from "../../contexts/running";
 
 /**
  * Map a React Query result into an explicit tray list state (no silent empty arrays).

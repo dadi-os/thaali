@@ -5,7 +5,7 @@ import { IconButton } from "../../ui/Button";
 import { RISE } from "../../motion";
 import { useContextActions } from "../../interaction/contextMenu";
 import { formatAbsolute } from "../../lib/ux/time";
-import type { ChatMessage } from "../../../store/chat";
+import type { ChatMessage } from "../../../contexts/chat";
 import { MarkdownBody } from "../Markdown";
 import { messageActions } from "./actions";
 import { formatMessageTime } from "./format";

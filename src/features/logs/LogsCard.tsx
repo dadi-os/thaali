@@ -53,8 +53,8 @@ function ServiceMenu({ services, selected, onToggle, onClear }: ServiceMenuProps
   const [only] = selected;
   const summary = selected.size === 0 ? "All services" : selected.size === 1 && only !== undefined ? only : `${selected.size} services`;
   const actions: ActionList = [
-    { id: "service.all", label: "All services", icon: "server", selected: selected.size === 0, run: onClear },
-    ...services.map((name) => ({ id: `service.${name}`, label: name, icon: "server" as const, selected: selected.has(name), run: () => onToggle(name) })),
+    { id: "service.all", label: "All services", icon: "server", selected: selected.size === 0, keepOpen: true, run: onClear },
+    ...services.map((name) => ({ id: `service.${name}`, label: name, icon: "server" as const, selected: selected.has(name), keepOpen: true, run: () => onToggle(name) })),
   ];
   return (
     <>

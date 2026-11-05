@@ -16,6 +16,8 @@ export type Action = {
   disabledReason?: string;
   /** The row shows a check: the current choice of a few. */
   selected?: boolean;
+  /** The menu stays open after the row is chosen, for a menu of toggles. */
+  keepOpen?: boolean;
   /** Runs the action. A rejected promise reaches the person as a toast. */
   run: () => void | Promise<void>;
 };

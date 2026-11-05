@@ -10,6 +10,7 @@ import {
 import { createPortal } from "react-dom";
 import { AnimatePresence, animate, motion, useMotionValue } from "motion/react";
 import { EASE, SLOW_S, SLOWER_S } from "../../motion";
+import { useDismiss } from "../../interaction/dismiss";
 import { inHoverZone } from "./zone";
 
 export type PopoverAnchor = {
@@ -213,37 +214,7 @@ export function Popover({
     };
   }, [open, hoverable, anchor.x, anchor.y, anchor.radius, containerRef]);
 
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") {
-        onClose();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  useEffect(() => {
-    if (!open) {
-      return;
-    }
-    const onDown = (e: MouseEvent) => {
-      const el = panelRef.current;
-      if (el && !el.contains(e.target as Node)) {
-        onClose();
-      }
-    };
-    const t = window.setTimeout(() => {
-      document.addEventListener("mousedown", onDown);
-    }, 0);
-    return () => {
-      window.clearTimeout(t);
-      document.removeEventListener("mousedown", onDown);
-    };
-  }, [open, onClose]);
+  useDismiss({ open, onDismiss: onClose, surface: panelRef, outside: true });
 
   const bridge = (() => {
     if (!hoverable || !pos) {

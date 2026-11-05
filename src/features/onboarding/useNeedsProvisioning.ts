@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from "react";
-import { transport } from "../shared/api";
+import { transport } from "../../shared/api";
 
 /** Mesh-only provisioning surface; absent on BrowserTransport. */
 type ProvisioningTransport = {

@@ -15,7 +15,7 @@ vi.mock("../../shared/desktop/clipboard", () => ({
   },
 }));
 
-import { getToasts } from "../../store/toasts";
+import { getToasts } from "../../contexts/toasts";
 import { CLIPBOARD_CLEAR_MS, copySecret } from "./clipboard";
 
 describe("copying a secret", () => {

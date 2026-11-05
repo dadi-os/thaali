@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
-import { PageHeader } from "../chrome/PageHeader";
+import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { deviceActions } from "../features/ghar/deviceActions";
 import { Inspector, type InspectorPick } from "../features/ghar/Inspector";
 import {

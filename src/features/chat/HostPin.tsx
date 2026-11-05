@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import { TaskView } from "../../shared/components/Task/TaskView";
 import { REVEAL, RISE } from "../../shared/motion";
-import type { PinnedTask } from "../../features/agents/sessions";
+import type { PinnedTask } from "../agents/sessions";
 
 export type HostPinProps = {
   /** The agent's newest live browser task, or null when it has none. */

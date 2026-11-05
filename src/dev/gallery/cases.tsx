@@ -5,8 +5,8 @@ import { agentTasks, nasTasks } from "../fixtures/tasks";
 import { terminalCapture } from "../fixtures/nas";
 import { Badge } from "../../shared/ui/Badge";
 import { Button, ButtonGroup, IconButton, Pill, type ButtonSize, type ButtonTone } from "../../shared/ui/Button";
-import { Dialog, DialogOption, Modal } from "../../shared/overlay/Overlay";
-import { MenuItem, MenuPanel, PopoverPanel } from "../../shared/overlay/Floating";
+import { Dialog } from "../../shared/overlay/Dialog";
+import { DialogOption } from "../../shared/overlay/DialogOption";
 import { TaskPreview } from "../../shared/components/Task/TaskPreview";
 import { TaskRow } from "../../shared/components/Task/TaskRow";
 import { TooltipBubble } from "../../shared/overlay/Tooltip";
@@ -152,57 +152,32 @@ CASES["toast.error"] = () => <Toast kind="error" title="Not sent, copied to your
 CASES["toast.ok.open"] = () => <Toast kind="ok" title="Password copied" body="It is cleared from the clipboard in 30 seconds." open />;
 CASES["toast.info.hover"] = () => <Toast kind="info" title="finance-specialist" body="Both pending charges are expected: Spotify and the gym." />;
 
-/** The services the log menu lists. */
-const SERVICES = ["hath", "nas", "yaad", "ghar", "chaavi", "dwar"];
-/** The log-service menu the design draws: a chosen first row and a row per service. */
-const services = () => (
-  <MenuPanel>
-    <MenuItem label="All services" icon="grid" check on />
-    {SERVICES.map((name) => (
-      <MenuItem key={name} label={name} icon="server" />
-    ))}
-  </MenuPanel>
-);
-CASES["menu.panel"] = services;
-CASES["menu.item.hover"] = services;
-CASES["popover.panel"] = () => (
-  <PopoverPanel>
-    <span style={{ fontFamily: "var(--font-numeric)", fontSize: 12.5 }}>task/browser/3f2a91</span>
-    <Clamp text="Read only. Chase checking and Sapphire card: October statement, then the two pending charges." lines={3} style={{ fontSize: 13.5, lineHeight: "19px" }} />
-    <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-      <Badge status="working" />
-      <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>3 minutes ago</span>
-    </div>
-  </PopoverPanel>
-);
 CASES["tooltip.bubble"] = () => (
   <div style={{ position: "relative", width: 260, height: 60 }}>
     <TooltipBubble style={{ position: "absolute", top: 8, left: 8 }}>application-manager-archive-1010</TooltipBubble>
   </div>
 );
 CASES["dialog.resume"] = () => (
-  <Dialog
-    title="Hand it back?"
-    subtitle="finance-specialist’s helper is paused on chase.com/accounts/statements/october."
-    zIndex={5}
-    footer={
-      <>
-        <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--ink-muted)", lineHeight: "16px" }}>Either way the helper first sees the page and its own last step, not your keystrokes.</span>
-        <Button tone="quiet" size="md">
-          Keep driving
-        </Button>
-      </>
-    }
-  >
-    <DialogOption tone="fill" title="Resume the loop" detail="It continues from where it paused, with the page as it is now." onClick={noop} />
-    <DialogOption tone="outline" title="Hand back with a note" detail="It is told what you did and where things stand, then continues." onClick={noop} />
-    <DialogOption tone="danger" title="Stop the task" detail="It goes to sleep and finance-specialist is told it was stopped." onClick={noop} />
-  </Dialog>
-);
-CASES["modal.shell"] = () => (
-  <Modal label="Browser 3f2a91" width={420} height={280} origin="50% 50%">
-    <div style={{ padding: 24, fontSize: 14 }}>Header, page and footer go here</div>
-  </Modal>
+  <div style={{ position: "relative", width: 640, height: 420 }}>
+    <Dialog
+      open
+      onClose={noop}
+      title="Hand it back?"
+      subtitle="finance-specialist’s helper is paused on chase.com/accounts/statements/october."
+      footer={
+        <>
+          <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--ink-muted)", lineHeight: "16px" }}>Either way the helper first sees the page and its own last step, not your keystrokes.</span>
+          <Button tone="quiet" size="md">
+            Keep driving
+          </Button>
+        </>
+      }
+    >
+      <DialogOption tone="fill" title="Resume the loop" detail="It continues from where it paused, with the page as it is now." onClick={noop} />
+      <DialogOption tone="outline" title="Hand back with a note" detail="It is told what you did and where things stand, then continues." onClick={noop} />
+      <DialogOption tone="danger" title="Stop the task" detail="It goes to sleep and finance-specialist is told it was stopped." onClick={noop} />
+    </Dialog>
+  </div>
 );
 
 /** The fixture tasks the cases draw, by the state the case names. */

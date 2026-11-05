@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { hath } from "../../shared/api";
-import { applyThreadRead, seqToMark, type ChatMessage } from "../../store/chat";
-import { failureTarget, pushToast } from "../../store/toasts";
+import { applyThreadRead, seqToMark, type ChatMessage } from "../../contexts/chat";
+import { failureTarget, pushToast } from "../../contexts/toasts";
 import { logLine } from "../../shared/lib/log";
 
 function windowVisible(): boolean {

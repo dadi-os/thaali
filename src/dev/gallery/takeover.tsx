@@ -2,7 +2,9 @@ import type { CSSProperties, ReactNode } from "react";
 import { terminalCapture } from "../fixtures/nas";
 import { agentTasks, nasTasks } from "../fixtures/tasks";
 import { Button } from "../../shared/ui/Button";
-import { Dialog, DialogOption, Modal } from "../../shared/overlay/Overlay";
+import { Dialog } from "../../shared/overlay/Dialog";
+import { DialogOption } from "../../shared/overlay/DialogOption";
+import { LargeDialog } from "../../shared/overlay/LargeDialog";
 import { TakeoverBanner, TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "../../features/agents/takeover/parts";
 import { CASES } from "./cases";
 
@@ -55,7 +57,7 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
   const info = { task, kind: nas.kind, owner: nas.owner, purpose: nas.purpose, status: nas.status, resource: nas.resource };
   return (
     <div style={{ position: "relative", width, height }}>
-      <Modal label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`} width="min(1120px, calc(100% - 96px))" height="min(780px, calc(100% - 96px))">
+      <LargeDialog open onClose={noop} label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`}>
         <TakeoverHeader task={info} driving={driving} onClose={noop} />
         <TakeoverBanner owner={nas.owner} driving={driving} />
         {nas.kind === "browser" ? (
@@ -84,11 +86,11 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
           </TakeoverTerminal>
         )}
         <TakeoverFooter kind={nas.kind} resource={nas.resource} driving={driving} />
-        {handingBack ? (
-          <Dialog
+        <Dialog
+            open={handingBack}
+            onClose={noop}
             title="Hand it back?"
             subtitle={`${nas.owner}’s helper is paused on ${row.current}.`}
-            zIndex={5}
             footer={
               <>
                 <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--ink-muted)", lineHeight: "16px" }}>Either way the helper first sees the page and its own last step, not your keystrokes.</span>
@@ -102,8 +104,7 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
             <DialogOption tone="outline" title="Hand back with a note" detail="It is told what you did and where things stand, then continues." onClick={noop} />
             <DialogOption tone="danger" title="Stop the task" detail={`It goes to sleep and ${nas.owner} is told it was stopped.`} onClick={noop} />
           </Dialog>
-        ) : null}
-      </Modal>
+      </LargeDialog>
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { useEffect, useRef, type KeyboardEvent } from "react";
 import { motion } from "motion/react";
-import { pushToast } from "../../store/toasts";
+import { pushToast } from "../../contexts/toasts";
 import { Icon } from "../ui/Icon";
 import { Truncate } from "../ui/Truncate";
 import { tidyActions, type Action, type ActionList } from "../interaction/actions";
@@ -94,7 +94,9 @@ export function MenuSurface({ actions, onChosen, origin = "top left", width = 22
             className={["menu-item", row.selected ? "menu-item-on" : "", "ui-trans", "ui-hover-fill"].join(" ")}
             style={row.destructive ? { color: "var(--error)" } : undefined}
             onClick={() => {
-              onChosen();
+              if (row.keepOpen !== true) {
+                onChosen();
+              }
               runAction(row);
             }}
           >

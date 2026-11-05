@@ -15,7 +15,7 @@ import { FADE } from "../../shared/motion";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { HostPin } from "./HostPin";
-import { pickLiveTasks } from "../../features/agents/sessions";
+import { pickLiveTasks } from "../agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
@@ -37,17 +37,17 @@ import {
   setHistoryState,
   subscribeChat,
   type MessageAttachment,
-} from "../../store/chat";
-import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../store/drafts";
-import { getDockRequests, subscribeDock } from "../../store/dock";
-import { failureTarget, pushToast } from "../../store/toasts";
+} from "../../contexts/chat";
+import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../contexts/drafts";
+import { getDockRequests, subscribeDock } from "../../contexts/dock";
+import { failureTarget, pushToast } from "../../contexts/toasts";
 import {
   getRunning,
   isRouting,
   seedRunningFromAgents,
   setLocalSend,
   subscribeRunning,
-} from "../../store/running";
+} from "../../contexts/running";
 import {
   filesToDraftAttachments,
   MAX_ATTACHMENTS,
@@ -57,7 +57,7 @@ import {
 } from "../../shared/lib/content/attachments";
 import { logLine } from "../../shared/lib/log";
 import { hydrateHistory } from "../../shared/hooks/useEvents";
-import { reportSendFailure } from "../sendFailure";
+import { reportSendFailure } from "./sendFailure";
 import { Composer } from "../../shared/components/Thread/Composer";
 import { ThreadHeader } from "../../shared/components/Thread/ThreadHeader";
 import {

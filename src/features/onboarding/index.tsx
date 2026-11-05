@@ -26,9 +26,9 @@ import { FieldBloom } from "../../shared/layout/FieldBloom";
 import { Wordmark } from "../../shared/layout/Wordmark";
 import { IconCamera, IconPower, IconRetry } from "../../shared/ui/IconButton";
 import { EASE, SLOWER_S } from "../../shared/motion";
-import { dispatchDesktopShell } from "../../store/desktopShell";
-import { QrScanner } from "../QrScanner";
-import { useNeedsProvisioning } from "../useNeedsProvisioning";
+import { dispatchDesktopShell } from "../../contexts/desktopShell";
+import { QrScanner } from "./QrScanner";
+import { useNeedsProvisioning } from "./useNeedsProvisioning";
 import { failureMessage, onboardingStage, type BootState, type OnboardingStage } from "./stage";
 
 export type { BootState } from "./stage";

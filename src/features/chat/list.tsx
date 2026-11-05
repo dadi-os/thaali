@@ -7,8 +7,8 @@ import { FADE } from "../../shared/motion";
 import { StateView } from "../../shared/states/ModuleState";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
-import type { Conversation, HistoryStatus } from "../../store/chat";
-import type { RunningMap } from "../../store/running";
+import type { Conversation, HistoryStatus } from "../../contexts/chat";
+import type { RunningMap } from "../../contexts/running";
 
 /** The rail width from which a row shows two lines of its last message. */
 export const WIDE_ROW_PX = 440;
