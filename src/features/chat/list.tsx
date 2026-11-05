@@ -13,8 +13,9 @@ import type { RunningMap } from "../../contexts/running";
 /** The rail width from which a row shows two lines of its last message. */
 export const WIDE_ROW_PX = 440;
 
-/** The mask that fades the list out behind the dock. */
-const FADE_MASK = "linear-gradient(180deg,#000 calc(100% - 110px),transparent 100%)";
+/** Room the rows keep clear of the floating search above them and the dock below, so the first and last rows can scroll fully into view. */
+const SEARCH_CLEAR_PX = 68;
+const DOCK_CLEAR_PX = 96;
 
 export type ConversationListProps = {
   /** Thread-agent conversations, newest first. */
@@ -43,8 +44,8 @@ export type ConversationListProps = {
  * The conversation list: a search over agent names, then the conversations under the day of
  * their last message. Before the first load it holds skeleton rows in the rows' shape; a
  * failed first load or an empty list says so in the middle of the list; the rows stay, dimmed,
- * while the mesh is out of reach. The router dock sits over the list's bottom, so the list
- * leaves room for it and fades out behind it.
+ * while the mesh is out of reach. The search and the router dock float as glass over the list,
+ * which runs the full height beneath them: rows scroll under both and show through the glass.
  */
 export function ConversationList({
   conversations,
@@ -67,12 +68,11 @@ export function ConversationList({
   const none = conversations.length === 0;
   const loading = none && (historyStatus === "idle" || historyStatus === "loading");
   const failed = none && historyStatus === "error";
-  const notice = failed || (none && !loading) || (shown.length === 0 && !none);
   const state = loading ? "loading" : failed ? "failed" : none ? "none" : shown.length === 0 ? "no-match" : "rows";
 
   return (
-    <>
-      <div className="flex-none px-3.5 pt-3.5 pb-2">
+    <div className="relative min-h-0 flex-1">
+      <div className="absolute inset-x-0 top-0 z-10 px-3.5 pt-3.5">
         <label className="search-field">
           <Icon name="search" size={15} />
           <input
@@ -93,9 +93,10 @@ export function ConversationList({
         </label>
       </div>
       <div
-        className={`scroll flex min-h-0 flex-1 flex-col transition-[opacity,filter] duration-slow ease-dadi ${offline ? "opacity-[.62] saturate-[.7]" : ""} ${notice ? "" : "pb-24"}`}
+        data-edge-fade="off"
+        className={`scroll absolute inset-0 flex flex-col overflow-y-auto transition-[opacity,filter] duration-slow ease-dadi ${offline ? "opacity-[.62] saturate-[.7]" : ""}`}
         onClick={onDismissKeyboard}
-        style={{ maskImage: FADE_MASK, WebkitMaskImage: FADE_MASK }}
+        style={{ paddingTop: SEARCH_CLEAR_PX, paddingBottom: DOCK_CLEAR_PX }}
       >
         <AnimatePresence mode="wait" initial={false}>
           <motion.div key={state} {...FADE} className="flex min-h-0 flex-1 flex-col">
@@ -113,15 +114,15 @@ export function ConversationList({
                 ))}
               </div>
             ) : state === "failed" ? (
-              <div className="flex min-h-[300px] flex-1 items-center justify-center px-5 pb-24">
+              <div className="flex min-h-[300px] flex-1 items-center justify-center px-5">
                 <StateView kind="error" title="Can’t load conversations" detail={historyError ?? undefined} onRetry={onRetry} />
               </div>
             ) : state === "none" ? (
-              <div className="flex min-h-[300px] flex-1 items-center justify-center px-5 pb-24">
+              <div className="flex min-h-[300px] flex-1 items-center justify-center px-5">
                 <StateView kind="empty" title="No conversations yet" detail="Talk to Dadi to start one." />
               </div>
             ) : state === "no-match" ? (
-              <div className="flex min-h-[300px] flex-1 items-center justify-center px-5 pb-24">
+              <div className="flex min-h-[300px] flex-1 items-center justify-center px-5">
                 <StateView kind="empty" title="No agent matches" detail={`Nothing is called “${query.trim()}”.`} />
               </div>
             ) : (
@@ -149,6 +150,6 @@ export function ConversationList({
           </motion.div>
         </AnimatePresence>
       </div>
-    </>
+    </div>
   );
 }

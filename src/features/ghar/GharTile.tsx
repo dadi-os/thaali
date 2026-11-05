@@ -1,18 +1,16 @@
-import { useEffect, useState, type MouseEvent } from "react";
+import { useEffect, type MouseEvent } from "react";
 import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { RISE } from "../../shared/motion";
-import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Switch } from "../../shared/ui/Switch";
 import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
-import { ghar } from "../../shared/api";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { pushToast } from "../../contexts/toasts";
 import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
-import { isLight, isOn, lightColor, sectionSwitch, switchCommand } from "./model";
+import { isLight, isOn, lightColor, roomTitle, sectionSwitch, switchCommand, UNASSIGNED_ROOM } from "./model";
 import { useHouse, type House } from "./useHouse";
 
 const ROOM_HEIGHT = 72;
@@ -25,24 +23,15 @@ function swallow(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-/** Creates a room named `name` (when it holds a name) and says so; a refusal reaches Ankur through the house's failure. */
-async function createRoom(house: House, name: string): Promise<void> {
-  const trimmed = name.trim();
-  if (trimmed.length === 0) {
-    return;
-  }
-  if (await house.write(`Creating ${trimmed}`, () => ghar.createRoom(trimmed))) {
-    pushToast({ key: "ghar:room", tone: "ok", title: `Created ${trimmed}`, body: "It shows here once it has a light." });
-  }
-}
-
-/** The lights grouped by the room they are in, rooms in the order their first light appears. */
+/** The lights grouped by the room they are in: rooms with a light on first, the rest after, and the lights that belong to no room last. */
 function roomsOf(lights: GharDevice[]): Room[] {
   const names = [...new Set(lights.map((light) => light.room.name))];
-  return names.map((name) => {
+  const rooms = names.map((name) => {
     const own = lights.filter((light) => light.room.name === name);
     return { name, lights: own, on: own.filter(isOn).length };
   });
+  const rank = (room: Room) => (room.name === UNASSIGNED_ROOM ? 2 : room.on > 0 ? 0 : 1);
+  return rooms.map((room, index) => ({ room, index })).sort((a, b) => rank(a.room) - rank(b.room) || a.index - b.index).map((entry) => entry.room);
 }
 
 type LightProps = {
@@ -80,19 +69,19 @@ type RoomsProps = {
   house: House;
 };
 
-/** A tile per room with how many of its lights are on and, when the tile is tall enough, the lights themselves, then a tile to add a room. */
+/** A card per room with how many of its lights are on and, when the card is tall enough, the lights themselves; rooms that do not fit collapse into a last card that opens the Ghar page. */
 function Rooms({ lights, geometry, house }: RoomsProps) {
   const navigate = useNavigate();
-  const [naming, setNaming] = useState(false);
   const rooms = roomsOf(lights);
-  const columns = geometry.iw >= 640 ? 4 : geometry.iw >= 440 ? 3 : 2;
+  const maxColumns = geometry.iw >= 640 ? 4 : geometry.iw >= 440 ? 3 : 2;
+  const columns = Math.max(1, Math.min(maxColumns, rooms.length));
   const rowsFit = Math.max(1, Math.floor((geometry.bh + 8) / ROOM_HEIGHT));
   const slots = columns * rowsFit;
-  const shown = rooms.length + 1 <= slots ? rooms : rooms.slice(0, slots - 1);
+  const shown = rooms.length <= slots ? rooms : rooms.slice(0, slots - 1);
   const extra = rooms.length - shown.length;
-  const cell = (geometry.bh - 8 * (rowsFit - 1)) / rowsFit;
-  const listed = Math.max(0, Math.min(4, Math.floor((cell - 66) / 22)));
-  const tileClass = "flex min-h-0 items-center justify-center gap-2 rounded-[14px] border border-dashed border-sage-line text-[14px] text-sage-text";
+  const rows = Math.ceil((shown.length + (extra > 0 ? 1 : 0)) / columns);
+  const cell = (geometry.bh - 8 * (rows - 1)) / rows;
+  const listed = Math.max(0, Math.min(4, Math.floor((cell - 62) / 22)));
   return (
     <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
       <AnimatePresence initial={false}>
@@ -105,7 +94,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
             tabIndex={0}
             aria-pressed={room.on > 0}
             className={`ui-hover-card ui-trans flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${room.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
-            title={`Switch ${room.on > 0 ? "off" : "on"} ${room.name}`}
+            title={`Switch ${room.on > 0 ? "off" : "on"} ${roomTitle(room.name)}`}
             onClick={(event) => {
               swallow(event);
               void house.run(sectionSwitch(room.lights));
@@ -119,7 +108,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
             }}
           >
             <div className="flex min-w-0 text-[14px] font-semibold">
-              <NameTruncate name={room.name} />
+              <NameTruncate name={roomTitle(room.name)} />
             </div>
             <span className="text-[13px] text-ink-muted tabular-nums">{`${room.on} of ${room.lights.length} on`}</span>
             <div className="flex-1" />
@@ -140,50 +129,19 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
           </motion.div>
         ))}
       </AnimatePresence>
-      {naming ? (
-        <div onClick={swallow} className={`${tileClass} px-3`}>
-          <Icon name="plus" size={14} />
-          <input
-            type="text"
-            className="cinp text-[14px] text-ink"
-            placeholder="Room name"
-            aria-label="New room name"
-            autoComplete="off"
-            spellCheck={false}
-            autoFocus
-            onBlur={(event) => {
-              setNaming(false);
-              void createRoom(house, event.currentTarget.value);
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") {
-                event.currentTarget.blur();
-              } else if (event.key === "Escape") {
-                event.currentTarget.value = "";
-                event.currentTarget.blur();
-              }
-            }}
-          />
-        </div>
-      ) : (
+      {extra > 0 ? (
         <button
           type="button"
-          disabled={!house.connected}
-          aria-label={extra > 0 ? "Show all rooms" : "New room"}
-          className={`ui-hover-fill ui-trans ${tileClass} font-medium`}
+          aria-label="Show all rooms"
+          className="ui-hover-fill ui-trans flex min-h-0 items-center justify-center gap-2 rounded-[14px] border border-dashed border-sage-line text-[14px] font-medium text-sage-text"
           onClick={(event) => {
             swallow(event);
-            if (extra > 0) {
-              navigate("/ghar");
-            } else {
-              setNaming(true);
-            }
+            navigate("/ghar");
           }}
         >
-          <Icon name="plus" size={14} />
-          <span className="tabular-nums">{extra > 0 ? `${extra} more` : "New room"}</span>
+          <span className="tabular-nums">{`${extra} more`}</span>
         </button>
-      )}
+      ) : null}
     </div>
   );
 }

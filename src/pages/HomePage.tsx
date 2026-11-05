@@ -3,7 +3,7 @@ import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharTile } from "../features/ghar/GharTile";
 import { YaadTile } from "../features/memory/YaadTile";
 import { SystemTile } from "../features/system/SystemTile";
-import { WeekTile } from "../features/timeline/WeekTile";
+import { DayTile } from "../features/timeline/DayTile";
 
 /**
  * Home: six tiles in the named areas of `.home-grid` (Hath 2 x 2, Timeline 2 x 2, Yaad 2 x 1, Ghar 2 x 1, Chaavi
@@ -16,7 +16,7 @@ export function HomePage() {
       <div className="home-grid min-h-0 flex-1">
         <HathTile order={0} />
         <YaadTile order={1} />
-        <WeekTile order={2} />
+        <DayTile order={2} />
         <GharTile order={3} />
         <ChaaviTile order={4} />
         <SystemTile order={5} />

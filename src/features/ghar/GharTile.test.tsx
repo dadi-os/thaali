@@ -4,11 +4,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { devices } from "../../dev/fixtures/ghar";
-import { ghar } from "../../shared/api";
 import type { TileProps } from "../home/Tile";
 import { GharTile } from "./GharTile";
 
-vi.mock("../../shared/api", () => ({ isMeshOnline: (state: string) => state === "connected", ghar: { createRoom: vi.fn(() => Promise.resolve({})) } }));
+vi.mock("../../shared/api", () => ({ isMeshOnline: (state: string) => state === "connected" }));
 vi.mock("../../shared/hooks/useConnection", () => ({ useConnection: () => ({ state: "connected" }) }));
 vi.mock("../../contexts/toasts", () => ({ pushToast: vi.fn() }));
 vi.mock("./useHouse", () => ({ useHouse: () => house }));
@@ -45,31 +44,17 @@ function mount() {
 }
 
 describe("Home Ghar controls", () => {
-  it("creates a named room on Enter and keeps the Home route", async () => {
+  it("has no way to start a room, and lists a room's lights when its card is tall enough", () => {
     mount();
-    act(() => (host.querySelector("[aria-label='New room']") as HTMLButtonElement).click());
-    const input = host.querySelector<HTMLInputElement>("[aria-label='New room name']")!;
-    input.value = "  Reading room  ";
-    await act(async () => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Enter", bubbles: true })));
-    expect(ghar.createRoom).toHaveBeenCalledExactlyOnceWith("Reading room");
-    expect(host.querySelector("output")!.textContent).toBe("/");
-  });
-
-  it("cancels room creation on Escape", () => {
-    mount();
-    act(() => (host.querySelector("[aria-label='New room']") as HTMLButtonElement).click());
-    const input = host.querySelector<HTMLInputElement>("[aria-label='New room name']")!;
-    input.value = "Cancel this";
-    act(() => input.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-    expect(ghar.createRoom).not.toHaveBeenCalled();
+    expect(host.querySelector("[aria-label='New room']")).toBeNull();
     expect(host.querySelector("input")).toBeNull();
+    expect(host.querySelectorAll("button[aria-pressed]").length).toBeGreaterThan(0);
   });
 
-  it("opens Ghar for overflow rooms instead of starting a room creation", () => {
+  it("opens Ghar from the overflow card", () => {
     geometry = { iw: 320, bh: 65, tw: 354, th: 135 };
     mount();
     act(() => (host.querySelector("[aria-label='Show all rooms']") as HTMLButtonElement).click());
     expect(host.querySelector("output")!.textContent).toBe("/ghar");
-    expect(ghar.createRoom).not.toHaveBeenCalled();
   });
 });

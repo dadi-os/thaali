@@ -1,19 +1,22 @@
 import { useQuery } from "@tanstack/react-query";
 import { chaavi, isMeshOnline } from "../../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../shared/api/chaavi";
+import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
-import { ChipRow, Meter, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
+import { Meter, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
-import { TYPE_META } from "./draft";
+import { ITEM_TYPES, TYPE_META } from "./draft";
+import { buildFolderTree, type FolderNode } from "./folders";
 
-/** The room the tile's blocks take: the label above the categories, the gap between blocks and the label above the folders. */
-const CHIP_HEIGHT = 32;
+const STRIP_HEIGHT = 28;
 const FOLDER_ROW = 28;
+/** How far each folder level steps in. */
+const INDENT = 14;
 
 type BodyProps = {
   items: ChaaviItem[];
@@ -21,69 +24,56 @@ type BodyProps = {
   geometry: TileGeometry;
 };
 
-/** A chip for each kind of item the vault holds with how many, the folders that hold items with a bar each, and how many passkeys and one-time codes the logins carry. */
+type FlatFolder = { node: FolderNode; depth: number };
+
+/** The tree in reading order, every level open, leaving out folders that hold nothing. */
+function flatten(nodes: FolderNode[], depth = 0): FlatFolder[] {
+  return nodes.filter((node) => node.count > 0).flatMap((node) => [{ node, depth }, ...flatten(node.children, depth + 1)]);
+}
+
+/** The folder tree with subfolders indented under their parent, over a footer of what the vault holds by kind (a distinct glyph and a count each) that scrolls sideways. */
 function Body({ items, folders, geometry }: BodyProps) {
   const types = new Map<ChaaviItemType, number>();
   for (const item of items) {
     types.set(item.type, (types.get(item.type) ?? 0) + 1);
   }
-  const inFolders = folders.map((folder) => ({ ...folder, count: items.filter((item) => item.folderId === folder.id).length })).filter((folder) => folder.count > 0);
-  const passkeys = items.reduce((sum, item) => sum + (item.type === "login" ? item.login.passkeys.length : 0), 0);
-  const codes = items.filter((item) => item.type === "login" && item.login.hasTotp).length;
-  const widest = Math.max(...inFolders.map((folder) => folder.count), 1);
-  const chipWidths = [...types].map(([type, count]) => (count === 1 ? TYPE_META[type].one : TYPE_META[type].many).length * 6.6 + 46);
-  let chipRows = 1;
-  let used = 0;
-  for (const width of chipWidths) {
-    if (used > 0 && used + width > geometry.iw) {
-      chipRows++;
-      used = 0;
-    }
-    used += width + 8;
-  }
-  const categories = 24 + 8 + chipRows * CHIP_HEIGHT + (chipRows - 1) * 8;
-  const footer = 12 + 1 + 12 + 20;
-  const room = geometry.bh - categories - 12 - 24;
-  const showFooter = room - FOLDER_ROW >= footer + FOLDER_ROW || room >= footer + 4 * FOLDER_ROW;
-  const rows = Math.max(1, Math.min(inFolders.length, Math.floor((room - (showFooter ? footer : 0)) / FOLDER_ROW)));
+  const rows = flatten(buildFolderTree(folders, items));
+  const room = Math.max(1, Math.floor((geometry.bh - STRIP_HEIGHT - 13 - 24) / FOLDER_ROW));
+  const widest = Math.max(...rows.filter((row) => row.depth === 0).map((row) => row.node.count), 1);
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
-      <div className="flex flex-none flex-col gap-2">
-        <SectionHeader title="Categories" />
-        <ChipRow wrap>
-          {[...types].map(([type, count]) => {
-            const name = count === 1 ? TYPE_META[type].one : TYPE_META[type].many;
-            return (
-              <StatusChip key={type} dot={false} title={`${count} ${name}`}>
-                <span className="truncate">{name}</span>
-                <span className="font-semibold text-ink tabular-nums">{count}</span>
-              </StatusChip>
-            );
-          })}
-        </ChipRow>
-      </div>
-      <div className="flex min-h-0 flex-none flex-col">
-        <SectionHeader title="Folders" />
-        <TileList>
-          {inFolders.slice(0, rows).map((folder) => (
-            <TileRow key={folder.id} size="sm" ruled={false} trail={<><Meter percent={(folder.count / widest) * 100} width={56} /><span className="min-w-[3ch] flex-none text-right text-[13px] text-ink-muted tabular-nums">{folder.count}</span></>}>
-              <Truncate text={folder.name} />
-            </TileRow>
-          ))}
-        </TileList>
-      </div>
+      <TileList>
+        {rows.slice(0, room).map(({ node, depth }) => (
+          <TileRow
+            key={node.path}
+            size="sm"
+            ruled={false}
+            lead={<span className="flex flex-none text-ink-muted" style={{ marginLeft: depth * INDENT }}><Icon name="folder" size={14} /></span>}
+            trail={<>{depth === 0 ? <Meter percent={(node.count / widest) * 100} width={56} /> : null}<span className="min-w-[3ch] flex-none text-right text-[13px] text-ink-muted tabular-nums">{node.count}</span></>}
+          >
+            <Truncate text={node.name} className={depth === 0 ? "" : "text-ink-muted"} />
+          </TileRow>
+        ))}
+      </TileList>
       <div className="flex-1" />
-      {showFooter ? (
-        <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-1 border-t border-rule pt-3 text-[13px] whitespace-nowrap text-ink-muted tabular-nums">
-          <span>{`${passkeys} ${passkeys === 1 ? "passkey" : "passkeys"}`}</span>
-          <span>{`${codes} one-time ${codes === 1 ? "code" : "codes"}`}</span>
-        </div>
-      ) : null}
+      <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: STRIP_HEIGHT + 13 }} onClick={(event) => event.preventDefault()}>
+        {ITEM_TYPES.filter((type) => types.has(type)).map((type) => {
+          const count = types.get(type)!;
+          const name = count === 1 ? TYPE_META[type].one : TYPE_META[type].many;
+          return (
+            <span key={type} title={`${count} ${name}`} className="flex flex-none items-center gap-1.5 rounded-full bg-sage-fill px-2.5 py-1 text-[13px] whitespace-nowrap text-ink-muted">
+              <Icon name={TYPE_META[type].icon} size={14} />
+              <span className="font-semibold text-ink tabular-nums">{count}</span>
+              <span>{name}</span>
+            </span>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-/** Home's Chaavi tile: what the vault holds by kind and folder, and how many passkeys and one-time codes it keeps. */
+/** Home's Chaavi tile: what the vault holds by kind and the folders it is filed in. */
 export function ChaaviTile({ order }: { order: number }) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
@@ -115,9 +105,9 @@ export function ChaaviTile({ order }: { order: number }) {
       }
       skeleton={() => (
         <div className="flex min-w-0 flex-1 flex-col justify-between gap-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex items-center gap-4">
             {Array.from({ length: 3 }, (_, i) => (
-              <Skeleton key={i} width={88 + i * 16} height={32} radius={999} />
+              <Skeleton key={i} width={64 + i * 12} height={16} />
             ))}
           </div>
           <div className="flex flex-col gap-3">
@@ -129,10 +119,6 @@ export function ChaaviTile({ order }: { order: number }) {
                 <Skeleton width={16} height={16} />
               </div>
             ))}
-          </div>
-          <div className="flex items-center gap-4">
-            <Skeleton width={72} height={12} />
-            <Skeleton width={92} height={12} />
           </div>
         </div>
       )}

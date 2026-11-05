@@ -15,6 +15,8 @@ export interface ThreadViewProps {
   composerPad: number;
   /** A host pin sits above the pane; dissolve messages as they scroll under it. */
   fadeTop: boolean;
+  /** Space kept clear at the top for the floating header, which messages scroll under. */
+  headerPad: number;
   settledMessages: ChatMessage[];
   queuedMessages: ChatMessage[];
   onRetry: (msg: ChatMessage) => void;
@@ -39,6 +41,7 @@ export function ThreadView({
   onDismissKeyboard,
   composerPad,
   fadeTop,
+  headerPad,
   settledMessages,
   queuedMessages,
   onRetry,
@@ -108,10 +111,11 @@ export function ThreadView({
         ref={scrollRef}
         onScroll={onScroll}
         onClick={onDismissKeyboard}
-        className={`scroll h-full overflow-y-auto overscroll-contain px-3.5 py-4 ${
+        data-edge-fade="off"
+        className={`scroll h-full overflow-y-auto overscroll-contain px-3.5 pb-4 ${
           fadeTop ? "thread-fade-top" : ""
         }`}
-        style={{ paddingBottom: composerPad }}
+        style={{ paddingTop: headerPad + 16, paddingBottom: composerPad }}
       >
         <div className="flex flex-col gap-4">
           <AnimatePresence initial={false}>

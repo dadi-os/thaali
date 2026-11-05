@@ -37,7 +37,7 @@ import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
 import { useRetained } from "../shared/hooks/useRetained";
 import { failureProps } from "../shared/lib/ux/moduleState";
-import { formatRelative, formatZone } from "../shared/lib/ux/time";
+import { formatRelative } from "../shared/lib/ux/time";
 import type { TimelineItem, TimelineViewName } from "../types/timeline";
 
 /** The main column is wider than this before the day view shows its side panel, in px. */
@@ -352,11 +352,13 @@ export function TimelinePage() {
             />
             <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", flexWrap: "nowrap" }}>
               <Truncate text={title} style={{ flex: "0 1 auto", minWidth: 0, fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em" }} />
-              {someday ? null : (
+              {someday || (change === null && !other?.time_zone) ? null : (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-                  <Chip size="md" tone={change === null ? "sage" : "due"}>
-                    {change === null ? formatZone(noon.toISOString(), zone) : `${change.from} → ${change.to}`}
-                  </Chip>
+                  {change === null ? null : (
+                    <Chip size="md" tone="due">
+                      {`${change.from} → ${change.to}`}
+                    </Chip>
+                  )}
                   {other?.time_zone ? (
                     <Chip size="md" tone="tide">
                       {Math.abs(difference)} h {difference < 0 ? "behind" : "ahead of"} {other.time_zone.split("/").pop()!.replace(/_/g, " ")}

@@ -100,7 +100,9 @@
     bottom: 14px;
     height: 62px;
     border-radius: 22px;
-    background: rgba(250, 250, 247, 0.9);
+    background: color-mix(in srgb, var(--bone) 62%, transparent);
+    -webkit-backdrop-filter: blur(22px) saturate(1.15);
+    backdrop-filter: blur(22px) saturate(1.15);
     border: 1px solid var(--glass-border);
     box-shadow: var(--shadow-deep);
     overflow: hidden;
@@ -401,9 +403,12 @@
     gap: 10px;
     height: 40px;
     padding: 0 13px;
-    border-radius: 12px;
-    background: rgba(250, 250, 247, 0.85);
+    border-radius: 14px;
+    background: color-mix(in srgb, var(--bone) 62%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(1.15);
+    backdrop-filter: blur(18px) saturate(1.15);
     border: 1px solid var(--glass-border);
+    box-shadow: 0 1px 2px rgb(92 107 82 / 0.06);
     width: 100%;
     flex: none;
     color: var(--ink-muted);

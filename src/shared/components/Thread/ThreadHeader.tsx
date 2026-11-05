@@ -3,6 +3,9 @@ import { FADE } from "../../motion";
 import { AgentName } from "../../ui/AgentName";
 import { IconButton } from "../../ui/Button";
 
+/** Height the header's glass takes from the top of the pane, which what runs under it clears. */
+export const THREAD_HEADER_PX = 56;
+
 /** Props of {@link ThreadHeader}. */
 export type ThreadHeaderProps = {
   /** Back to the conversation list. */
@@ -15,13 +18,17 @@ export type ThreadHeaderProps = {
   onOpenDetails?: () => void;
 };
 
-/** Top of an open thread: back on the left and the agent's full name, wrapping if it must, as a centered glass bubble that opens the agent in Hath. */
+/**
+ * Top of an open thread, floating over it: back as a glass circle on the left and the agent's full name, wrapping if it
+ * must, as a centered glass bubble that opens the agent in Hath. Nothing sits behind them, so messages scroll under both
+ * and show through the glass.
+ */
 export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: ThreadHeaderProps) {
   const bubble = "pane-bubble max-w-full rounded-full px-3.5 py-1 text-center text-[14px] leading-tight font-medium";
   return (
-    <div className="relative z-10 grid min-h-14 shrink-0 grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-(--chat-edge) px-2.5 py-1.5">
-      <IconButton icon="back" label="Back to conversations" size={32} iconSize={14} onClick={onBack} />
-      <div className="flex min-w-0 justify-center">
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid shrink-0 grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-center gap-2 px-3 pt-3">
+      <IconButton icon="back" label="Back to conversations" size={36} iconSize={14} onClick={onBack} className="pane-bubble pointer-events-auto rounded-full" />
+      <div className="pointer-events-auto flex min-w-0 justify-center">
         <AnimatePresence mode="wait" initial={false}>
           {error !== null ? (
             <motion.span key="error" {...FADE} role="alert" title={error} className={`${bubble} text-error`}>

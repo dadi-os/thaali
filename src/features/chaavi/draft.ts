@@ -24,9 +24,9 @@ export const TYPE_META: Record<ChaaviItemType, { one: string; many: string; icon
   note: { one: "Secure note", many: "Secure notes", icon: "note" },
   card: { one: "Card", many: "Cards", icon: "card" },
   identity: { one: "Identity", many: "Identities", icon: "user" },
-  sshKey: { one: "SSH key", many: "SSH keys", icon: "key" },
-  bankAccount: { one: "Bank account", many: "Bank accounts", icon: "card" },
-  driversLicense: { one: "Driver's license", many: "Licenses", icon: "card" },
+  sshKey: { one: "SSH key", many: "SSH keys", icon: "terminal" },
+  bankAccount: { one: "Bank account", many: "Bank accounts", icon: "drive" },
+  driversLicense: { one: "Driver's license", many: "Licenses", icon: "qr" },
   passport: { one: "Passport", many: "Passports", icon: "doc" },
 };
 

@@ -5,8 +5,7 @@ import { Badge } from "../../shared/ui/Badge";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { AgentName } from "../../shared/ui/AgentName";
-import { Truncate } from "../../shared/ui/Truncate";
-import { ChipRow, MeterRow, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
+import { MeterRow, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
@@ -45,26 +44,22 @@ type BodyProps = {
   geometry: TileGeometry;
 };
 
-/** A chip per module, as many meters as fit, the helper tasks that fit, and the devices on dadi when the tile is tall. */
+/** "All healthy", or the names of the modules that are down: "Gmail down", "Gmail, Chaavi down". */
+export function healthSummary(status: NasStatus): string {
+  const down = status.services.filter((service) => !service.healthy).map((service) => service.name);
+  return down.length === 0 ? "All healthy" : `${down.join(", ")} down`;
+}
+
+/** As many meters as fit, the helper tasks that fit after them, and the devices on dadi in a footer that scrolls sideways. */
 function Body({ status, tasks, clients, geometry }: BodyProps) {
   const meters = metersOf(status);
-  const columns = geometry.iw >= 300 ? 3 : 2;
-  const serviceRows = Math.ceil(status.services.length / columns);
-  const servicesHeight = 32 * serviceRows + 8 * (serviceRows - 1);
-  const withDevices = geometry.bh >= 300;
-  const available = geometry.bh - servicesHeight - 12 - (withDevices ? 32 + 12 : 0);
+  const footer = 32 + 13;
+  const available = geometry.bh - footer - 16;
   const count = Math.max(1, Math.min(meters.length, Math.floor((available + 12) / 42)));
-  const left = available - (count * 30 + (count - 1) * 12) - 12 - 24;
-  const taskRows = tasks.length > 0 ? Math.max(0, Math.min(3, Math.floor(left / 28))) : 0;
+  const left = available - (count * 30 + (count - 1) * 12) - 24;
+  const taskRows = tasks.length > 0 ? Math.max(0, Math.min(6, Math.floor(left / 28))) : 0;
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col justify-between gap-3">
-      <div className="grid flex-none gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
-        {status.services.map((service) => (
-          <StatusChip key={service.name} fill tone={service.healthy ? "sage" : "error"} title={service.healthy ? `${service.name} is healthy` : `${service.name} is down`}>
-            <Truncate text={service.name} />
-          </StatusChip>
-        ))}
-      </div>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-4">
       <div className="flex flex-none flex-col gap-3">
         {meters.slice(0, count).map((meter) => (
           <MeterRow key={meter.name} label={meter.name} value={`${Math.round(meter.percent)}%`} percent={meter.percent} />
@@ -85,15 +80,14 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
           </TileList>
         </div>
       ) : null}
-      {withDevices ? (
-        <ChipRow wrap>
-          {clients.map((client) => (
-            <StatusChip key={client.node_name} tone={client.online ? "sage" : client.pending ? "clay" : "quiet"} title={`${client.node_name}: ${client.online ? "online" : client.pending ? "waiting to join" : "offline"}`}>
-              {client.node_name}
-            </StatusChip>
-          ))}
-        </ChipRow>
-      ) : null}
+      <div className="flex-1" />
+      <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: footer }} onClick={(event) => event.preventDefault()}>
+        {clients.map((client) => (
+          <StatusChip key={client.node_name} tone={client.online ? "sage" : client.pending ? "clay" : "quiet"} title={`${client.node_name}: ${client.online ? "online" : client.pending ? "waiting to join" : "offline"}`}>
+            <span className="whitespace-nowrap">{client.node_name}</span>
+          </StatusChip>
+        ))}
+      </div>
     </div>
   );
 }
@@ -116,25 +110,19 @@ export function SystemTile({ order }: { order: number }) {
   const failed = reads.find((read) => read.state.kind === "error" || read.state.kind === "module-offline");
   const shown = failed ?? reads[0]!;
   const ready = statusState.kind === "ready" && clientsState.kind === "ready" && tasksState.kind === "ready";
-  const down = statusState.kind === "ready" ? statusState.data.services.filter((service) => !service.healthy).length : 0;
   return (
     <Tile
       area="system"
       title="System"
       to="/system"
       order={order}
-      summary={ready ? (down === 0 ? "All healthy" : `${down} down`) : undefined}
+      summary={statusState.kind === "ready" && ready ? healthSummary(statusState.data) : undefined}
       loading={failed === undefined && !ready && shown.state.kind === "loading"}
       notice={failed === undefined && !ready && shown.state.kind === "loading" ? null : tileNotice(shown.state, { name: "Nas", request: shown.request, empty: ["Nothing reported", ""] }, () => void shown.query.refetch())}
       skeleton={(g) => (
         <div className="flex min-w-0 flex-1 flex-col gap-3">
-          <div className="grid grid-cols-3 gap-2">
-            {Array.from({ length: 6 }, (_, i) => (
-              <Skeleton key={i} width="100%" height={32} radius={999} />
-            ))}
-          </div>
           <div className="flex flex-col gap-3">
-            {Array.from({ length: Math.max(3, Math.min(5, Math.floor((g.bh - 130) / 36))) }, (_, i) => (
+            {Array.from({ length: Math.max(3, Math.min(5, Math.floor((g.bh - 40) / 36))) }, (_, i) => (
               <div key={i} className="flex flex-col gap-1">
                 <Skeleton width="100%" height={16} />
                 <Skeleton width="100%" height={6} />

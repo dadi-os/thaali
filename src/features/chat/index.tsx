@@ -59,7 +59,7 @@ import { logLine } from "../../shared/lib/log";
 import { hydrateHistory } from "../../shared/hooks/useEvents";
 import { reportSendFailure } from "./sendFailure";
 import { Composer } from "../../shared/components/Thread/Composer";
-import { ThreadHeader } from "../../shared/components/Thread/ThreadHeader";
+import { THREAD_HEADER_PX, ThreadHeader } from "../../shared/components/Thread/ThreadHeader";
 import {
   COMPOSER_GAP,
   HISTORY_LOG_LIMIT,
@@ -654,7 +654,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
             error={openAgentView?.kind === "error" ? openAgentView.message : null}
             onOpenDetails={openAgentId === null ? undefined : () => navigate({ pathname: "/hath", search: `?agent=${openAgentId}` })}
           />
-          <div className="relative flex min-h-0 flex-1 flex-col">
+          <div className="relative flex min-h-0 flex-1 flex-col" style={{ paddingTop: showHostPin ? THREAD_HEADER_PX : 0 }}>
             <HostPin browser={liveBrowser} terminal={liveTerminal} />
             <div className="relative min-h-0 flex-1">
               <AnimatePresence initial={false}>
@@ -692,6 +692,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                   onDismissKeyboard={dismissKeyboard}
                   composerPad={composerPad}
                   fadeTop={showHostPin}
+                  headerPad={showHostPin ? 0 : THREAD_HEADER_PX}
                   settledMessages={settledMessages}
                   queuedMessages={queuedMessages}
                   onRetry={(msg) => {
