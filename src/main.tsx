@@ -1,7 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import { initApi } from "./shared/api";
-import { prepareTarget } from "./target";
+import { prepareTarget } from "./shared/desktop/os";
 import "./styles/index.css";
 
 async function boot(): Promise<void> {

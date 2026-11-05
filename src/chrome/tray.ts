@@ -21,7 +21,7 @@ import {
 import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { dispatchDesktopShell } from "../store/desktopShell";
-import { isTauriRuntime } from "../shared/api/runtime";
+import { isTauriRuntime } from "../shared/desktop/runtime";
 import { LANE_LABEL } from "../shared/lib/ux/lanes";
 import unreadMarkUrl from "../assets/tray-unread.png";
 

@@ -12,11 +12,3 @@ export function isTauriRuntime(): boolean {
   };
   return Boolean(g.isTauri) || "__TAURI_INTERNALS__" in g;
 }
-
-/** Which Transport implementation {@link createTransport} will construct. */
-export type TransportKind = "mesh" | "browser";
-
-/** Sync selection used by tests and boot. */
-export function selectTransportKind(): TransportKind {
-  return isTauriRuntime() ? "mesh" : "browser";
-}

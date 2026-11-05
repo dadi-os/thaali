@@ -2,7 +2,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
-import { isTauriRuntime } from "../../shared/api/runtime";
+import { isTauriRuntime } from "../../shared/desktop/runtime";
 import { Button, ButtonGroup } from "../../shared/components/Button";
 import { Icon } from "../../shared/components/Icon";
 import { Segmented } from "../../shared/components/Segmented";

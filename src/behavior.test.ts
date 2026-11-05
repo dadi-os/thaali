@@ -1125,43 +1125,16 @@ describe("ghar client", () => {
 });
 
 describe("runtime outside Tauri", () => {
-  it("selects browser transport", async () => {
-    const { isTauriRuntime, selectTransportKind } = await import(
-      "./shared/api/runtime"
-    );
-    expect(isTauriRuntime()).toBe(false);
-    expect(selectTransportKind()).toBe("browser");
-  });
-
   it("detectDesktopOs is null outside Tauri", async () => {
-    const { detectDesktopOs } = await import("./target");
+    const { detectDesktopOs } = await import("./shared/desktop/os");
     expect(detectDesktopOs()).toBeNull();
   });
 });
 
 describe("transport selection", () => {
-  it("initApi wires BrowserTransport outside Tauri", async () => {
+  it("initApi refuses to start outside Tauri without a fixtures scenario", async () => {
     const api = await import("./shared/api");
-    await api.initApi();
-    expect(api.usingMesh).toBe(false);
-    expect(api.selectTransportKind()).toBe("browser");
-    expect(api.transport.connectionState()).toBe("disconnected");
-    expect(typeof api.chaavi.getHealth).toBe("function");
-    expect(typeof api.ghar.listDevices).toBe("function");
-  });
-
-  it("selects the mesh transport when Tauri globals are present", async () => {
-    const g = globalThis as typeof globalThis & { isTauri?: boolean };
-    g.isTauri = true;
-    try {
-      const { selectTransportKind, isTauriRuntime } = await import(
-        "./shared/api/runtime"
-      );
-      expect(isTauriRuntime()).toBe(true);
-      expect(selectTransportKind()).toBe("mesh");
-    } finally {
-      delete g.isTauri;
-    }
+    await expect(api.initApi()).rejects.toThrow(/desktop app/);
   });
 });
 

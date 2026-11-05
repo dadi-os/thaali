@@ -9,7 +9,7 @@ import {
   type DeviceLocalTool,
 } from "./deviceCommands";
 import { subscribeConnection } from "../store/connection";
-import { logLine } from "../shared/lib/platform/log";
+import { logLine } from "../shared/lib/log";
 
 const PRESENCE_INTERVAL_MS = 15_000;
 const INITIAL_BACKOFF_MS = 1000;

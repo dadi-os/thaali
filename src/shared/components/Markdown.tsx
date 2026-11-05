@@ -18,7 +18,7 @@ import type { ThemeInput } from "@streamdown/code";
 import { createMathPlugin } from "@streamdown/math";
 import type { MermaidConfig, createMermaidPlugin } from "@streamdown/mermaid";
 import { normalizeMathDelimiters } from "../lib/content/math";
-import { logLine } from "../lib/platform/log";
+import { logLine } from "../lib/log";
 import { CopyButton } from "./CopyButton";
 
 export interface MarkdownBodyProps {

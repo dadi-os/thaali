@@ -3,8 +3,7 @@ import { createHathClient, type HathClient } from "./hath";
 import { createGharClient, type GharClient } from "./ghar";
 import { createNasClient, type NasClient } from "./nas";
 import { CHAAVI, HATH, GHAR, NAS, YAAD } from "./constants";
-import { BrowserTransport } from "./browser-transport";
-import { selectTransportKind } from "./runtime";
+import { isTauriRuntime } from "../desktop/runtime";
 import type { Transport } from "./transport";
 import { createTimelineClient, type TimelineClient } from "./timeline";
 import { createYaadClient, type YaadClient } from "./yaad";
@@ -21,8 +20,7 @@ export {
   GHAR as GHAR_URL,
 } from "./constants";
 export { CHAAVI, CHAAVI_VAULT, HATH, YAAD, NAS, GHAR } from "./constants";
-export { isTauriRuntime, selectTransportKind } from "./runtime";
-export type { TransportKind } from "./runtime";
+export { isTauriRuntime } from "../desktop/runtime";
 export type { Transport, ConnectionState } from "./transport";
 export { isMeshOnline } from "./transport";
 
@@ -52,8 +50,7 @@ export let ghar!: GharClient;
 
 /**
  * Select and wire the Transport + domain clients.
- * MeshTransport (and Rust invoke) load only when Tauri is present so they stay out of
- * the browser entry chunk. A dev server URL with `?fixtures=<scenario>` wires the fixture
+ * Tauri loads MeshTransport. A dev server URL with `?fixtures=<scenario>` wires the fixture
  * transport instead (dev builds in a window only; production bundles drop the branch, and
  * a test environment without a window has no URL to read).
  */
@@ -66,13 +63,12 @@ export async function initApi(): Promise<void> {
     const { FixtureTransport } = await import("../../dev/fixtureTransport");
     transport = new FixtureTransport(fixtures);
     usingMesh = false;
-  } else if (selectTransportKind() === "mesh") {
+  } else if (isTauriRuntime()) {
     const { MeshTransport } = await import("./mesh-transport");
     transport = new MeshTransport();
     usingMesh = true;
   } else {
-    transport = new BrowserTransport();
-    usingMesh = false;
+    throw new Error("Thaali runs in the dadi desktop app; for development open the dev server with ?fixtures=<scenario>");
   }
   hath = createHathClient(transport, HATH);
   yaad = createYaadClient(transport, YAAD);

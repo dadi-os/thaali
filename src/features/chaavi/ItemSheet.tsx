@@ -2,7 +2,7 @@ import { useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { Button, ButtonGroup, IconButton } from "../../shared/components/Button";
 import { Icon } from "../../shared/components/Icon";
-import { confirmOwner } from "../../shared/lib/platform/owner";
+import { confirmOwner } from "../../shared/desktop/owner";
 import { pushToast } from "../../store/toasts";
 import type { ChaaviFolder, ChaaviItemType, ChaaviReveal } from "../../types/chaavi";
 import {

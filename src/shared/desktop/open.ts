@@ -1,6 +1,6 @@
 /** Open a link in the person's own browser. */
 
-import { isTauriRuntime } from "../../api/runtime";
+import { isTauriRuntime } from "./runtime";
 
 /**
  * Open `url` outside the app: Tauri hands it to the system's default browser, a browser tab opens it

@@ -3,7 +3,7 @@ import {
   requestPermission,
   sendNotification,
 } from "@tauri-apps/plugin-notification";
-import { isTauriRuntime } from "../../api/runtime";
+import { isTauriRuntime } from "./runtime";
 
 /**
  * Raise a native notification for an agent's message to you while the dadi window is

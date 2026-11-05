@@ -1,6 +1,6 @@
 /** The computer's owner check before a Chaavi secret is shown or copied. */
 
-import { isTauriRuntime } from "../../api/runtime";
+import { isTauriRuntime } from "./runtime";
 
 /** How long one confirmation covers further reveals, so opening a few secrets in a row asks once. */
 const CONFIRMED_FOR_MS = 60_000;

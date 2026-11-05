@@ -1,6 +1,6 @@
 /** Local execution of Hath device_* tools on this desktop. */
 
-import { isTauriRuntime } from "../shared/api/runtime";
+import { isTauriRuntime } from "../shared/desktop/runtime";
 import { loadCredentials } from "../shared/api/credentials";
 
 /** Typed failure returned to Hath as a command error. */

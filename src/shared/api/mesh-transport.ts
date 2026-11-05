@@ -7,7 +7,7 @@ import {
 import { ApiError, NotProvisionedError } from "./errors";
 import type { ConnectionState, Transport } from "./transport";
 import { consumeSseBuffer } from "./sse";
-import { logLine } from "../lib/platform/log";
+import { logLine } from "../lib/log";
 
 export { NotProvisionedError } from "./errors";
 

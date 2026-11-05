@@ -8,7 +8,7 @@ import { Glider } from "../../../shared/components/Glider";
 import { IconCheck, IconDismiss, IconUpdate } from "../../../shared/components/IconButton";
 import { MarkdownBody } from "../../../shared/components/Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../../shared/lib/content/attachments";
-import { saveFile } from "../../../shared/lib/platform/download";
+import { saveFile } from "../../../shared/desktop/download";
 import { EASE, SLOW_S } from "../../../shared/lib/ux/motion";
 import type { AttachmentSummary } from "../../../types/hath";
 

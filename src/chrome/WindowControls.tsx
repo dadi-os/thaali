@@ -1,6 +1,6 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isTauriRuntime } from "../shared/api/runtime";
+import { isTauriRuntime } from "../shared/desktop/runtime";
 
 /**
  * Frameless window controls for Windows/Linux. Mac keeps native traffic lights.

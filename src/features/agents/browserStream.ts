@@ -10,7 +10,7 @@
 
 import { nas } from "../../shared/api";
 import { ApiError } from "../../shared/api/errors";
-import { logLine } from "../../shared/lib/platform/log";
+import { logLine } from "../../shared/lib/log";
 import { H264Splitter } from "./h264";
 
 /** How a view wants its stream: `fps` frames a second, `width` pixels wide, `kbps` H.264 bitrate. */

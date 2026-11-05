@@ -1,4 +1,4 @@
-import { copyText } from "../shared/lib/platform/clipboard";
+import { copyText } from "../shared/desktop/clipboard";
 import { pushToast, type ToastTarget } from "../store/toasts";
 
 /** What a message that did not send needs reported. */

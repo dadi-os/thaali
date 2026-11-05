@@ -1,6 +1,6 @@
 /** Save a file Ankur downloads from the app. */
 
-import { isTauriRuntime } from "../../api/runtime";
+import { isTauriRuntime } from "./runtime";
 
 /**
  * Save `blob` as `filename`. Tauri writes it into the Downloads folder (numbering a taken

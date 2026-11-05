@@ -1,6 +1,6 @@
 /** Copy text to the system clipboard and read it back. */
 
-import { isTauriRuntime } from "../../api/runtime";
+import { isTauriRuntime } from "./runtime";
 
 /**
  * Write `text` to the clipboard.

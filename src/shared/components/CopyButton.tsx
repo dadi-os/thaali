@@ -1,6 +1,6 @@
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useState } from "react";
-import { copyText } from "../lib/platform/clipboard";
+import { copyText } from "../desktop/clipboard";
 import { EASE, SLOW_S } from "../lib/ux/motion";
 import { IconCheck, IconCopy } from "./IconButton";
 

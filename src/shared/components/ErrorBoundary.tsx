@@ -1,6 +1,6 @@
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { ApiError } from "../api/errors";
-import { logLine } from "../lib/platform/log";
+import { logLine } from "../lib/log";
 import { failureFacts } from "./states/failure";
 import { StateView } from "./ModuleState";
 

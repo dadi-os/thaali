@@ -1,4 +1,4 @@
-import { isTauriRuntime } from "./shared/api/runtime";
+import { isTauriRuntime } from "./runtime";
 
 /** Desktop OS family for chrome layout (null in the browser). */
 export type DesktopOs = "macos" | "windows" | "linux";

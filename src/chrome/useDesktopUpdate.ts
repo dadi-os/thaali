@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { isTauriRuntime } from "../shared/api/runtime";
-import { logLine } from "../shared/lib/platform/log";
+import { isTauriRuntime } from "../shared/desktop/runtime";
+import { logLine } from "../shared/lib/log";
 
 /** Desktop platforms that support Tauri's updater plugin. */
 const DESKTOP_OS = new Set(["linux", "windows", "macos"]);

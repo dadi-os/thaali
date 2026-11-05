@@ -25,8 +25,8 @@ import {
   startRouterRun,
 } from "../../store/running";
 import { pushToast } from "../../store/toasts";
-import { logLine } from "../lib/platform/log";
-import { notifyAgentMessage } from "../lib/platform/notify";
+import { logLine } from "../lib/log";
+import { notifyAgentMessage } from "../desktop/notify";
 
 const INITIAL_BACKOFF_MS = 1000;
 const MAX_BACKOFF_MS = 30_000;

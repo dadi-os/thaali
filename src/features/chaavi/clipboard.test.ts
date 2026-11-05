@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const clipboard = vi.hoisted(() => ({ text: "", writes: [] as string[], readFails: false }));
 
-vi.mock("../../shared/lib/platform/clipboard", () => ({
+vi.mock("../../shared/desktop/clipboard", () => ({
   copyText: async (value: string) => {
     clipboard.text = value;
     clipboard.writes.push(value);

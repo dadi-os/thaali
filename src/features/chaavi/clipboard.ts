@@ -1,6 +1,6 @@
 /** Copying a Chaavi secret: it leaves the clipboard again after a while. */
 
-import { readText, copyText } from "../../shared/lib/platform/clipboard";
+import { readText, copyText } from "../../shared/desktop/clipboard";
 import { pushToast } from "../../store/toasts";
 
 /** How long a copied secret stays on the clipboard, in ms. */

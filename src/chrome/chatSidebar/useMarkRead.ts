@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { hath } from "../../shared/api";
 import { applyThreadRead, seqToMark, type ChatMessage } from "../../store/chat";
 import { failureTarget, pushToast } from "../../store/toasts";
-import { logLine } from "../../shared/lib/platform/log";
+import { logLine } from "../../shared/lib/log";
 
 function windowVisible(): boolean {
   return document.visibilityState === "visible";

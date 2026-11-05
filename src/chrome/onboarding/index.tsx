@@ -20,7 +20,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { decodeProvisioningBundle, saveCredentials, type Credentials } from "../../shared/api/credentials";
 import { transport } from "../../shared/api";
-import { isTauriRuntime } from "../../shared/api/runtime";
+import { isTauriRuntime } from "../../shared/desktop/runtime";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { FieldBloom } from "../../shared/components/FieldBloom";
 import { Wordmark } from "../../shared/components/Wordmark";

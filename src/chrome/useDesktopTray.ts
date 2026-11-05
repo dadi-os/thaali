@@ -10,7 +10,7 @@ import {
   type TrayListState,
   type TraySnapshot,
 } from "./tray";
-import { logLine } from "../shared/lib/platform/log";
+import { logLine } from "../shared/lib/log";
 import { getChatState, openAgent, subscribeChat } from "../store/chat";
 import { subscribeDesktopShell } from "../store/desktopShell";
 import {

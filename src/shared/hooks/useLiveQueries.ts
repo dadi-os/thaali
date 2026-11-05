@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { useQueryClient, type QueryClient } from "@tanstack/react-query";
 import { CHAAVI_URL, GHAR_URL, NAS_URL, YAAD_URL, isMeshOnline, transport } from "../api";
-import { logLine } from "../lib/platform/log";
+import { logLine } from "../lib/log";
 import { pushToast } from "../../store/toasts";
 import { useConnection } from "./useConnection";
 

@@ -54,7 +54,7 @@ import {
   toMessageAttachments,
   type DraftAttachment,
 } from "../../shared/lib/content/attachments";
-import { logLine } from "../../shared/lib/platform/log";
+import { logLine } from "../../shared/lib/log";
 import { hydrateHistory } from "../../shared/hooks/useEvents";
 import { reportSendFailure } from "../sendFailure";
 import { FloatingComposer } from "./composer";
