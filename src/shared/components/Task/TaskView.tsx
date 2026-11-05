@@ -43,13 +43,13 @@ function TerminalOutput({ terminalId, variant }: { terminalId: string; variant: 
   const text = capture.isError ? capture.error.message : (capture.data ?? (live ? "Attaching…" : "Paused while hidden"));
   if (variant === "full") {
     return (
-      <pre ref={paneRef} data-selectable className="scroll m-0 min-h-0 flex-1 overflow-auto bg-[#23271f] px-4 py-3.5 font-numeric text-[12.5px] leading-[18px] break-words whitespace-pre-wrap text-[#dfe6d6]">
+      <pre ref={paneRef} data-selectable className="scroll m-0 min-h-0 flex-1 overflow-auto bg-[#23271f] px-4 py-3.5 font-numeric text-[13px] leading-[18px] break-words whitespace-pre-wrap text-[#dfe6d6]">
         {text}
       </pre>
     );
   }
   return (
-    <pre data-selectable className={`m-0 flex flex-col justify-end overflow-hidden px-3 py-2.5 font-numeric text-[11.5px] leading-[17px] break-words whitespace-pre-wrap ${HEIGHT[variant].terminal}`}>
+    <pre data-selectable className={`m-0 flex flex-col justify-end overflow-hidden px-3 py-2.5 font-numeric text-[12px] leading-[17px] break-words whitespace-pre-wrap ${HEIGHT[variant].terminal}`}>
       <div>{text}</div>
     </pre>
   );

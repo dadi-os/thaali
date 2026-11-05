@@ -23,7 +23,7 @@ export function PageHeader({ title, meta, trailing }: PageHeaderProps) {
         to="/"
         aria-label="Back to home"
         className="ui-trans ui-hover-fill"
-        style={{ width: 32, height: 32, borderRadius: 9, border: "1px dashed var(--sage-line)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sage-deep)", flex: "none" }}
+        style={{ width: 32, height: 32, borderRadius: 10, border: "1px dashed var(--sage-line)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--sage-deep)", flex: "none" }}
       >
         <Icon name="back" size={14} />
       </Link>

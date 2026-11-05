@@ -28,7 +28,7 @@ function shortId(task: string): string {
 
 /** A keyboard shortcut as the footer names it. */
 function Kbd({ children }: { children: string }) {
-  return <span className="rounded-[5px] border border-sage-line px-[5px] py-px font-numeric text-[11px] text-ink-muted">{children}</span>;
+  return <span className="rounded-[6px] border border-sage-line px-[5px] py-px font-numeric text-[11px] text-ink-muted">{children}</span>;
 }
 
 export type TakeoverHeaderProps = {
@@ -50,11 +50,11 @@ export function TakeoverHeader({ task, driving, onClose }: TakeoverHeaderProps) 
           <Truncate text={shortId(task.task)} className="flex-none font-numeric text-ink" />
           <AgentName name={task.owner} className="flex-1 text-ink-muted" />
         </div>
-        <Clamp text={task.purpose} lines={1} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />
+        <Clamp text={task.purpose} lines={1} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
       </div>
       <AnimatePresence mode="wait" initial={false}>
         {driving ? (
-          <motion.span key="driving" {...FADE} className="inline-flex h-7 flex-none items-center gap-[7px] rounded-full bg-sage-deep px-3 text-[12.5px] font-semibold whitespace-nowrap text-bone">
+          <motion.span key="driving" {...FADE} className="inline-flex h-7 flex-none items-center gap-[7px] rounded-full bg-sage-deep px-3 text-[13px] font-semibold whitespace-nowrap text-bone">
             <span className="dot size-1.5 bg-bone" />
             You are driving
           </motion.span>
@@ -107,7 +107,7 @@ export type TakeoverFooterProps = {
 /** The modal's footer: the shortcut that leaves, and where the task runs. */
 export function TakeoverFooter({ kind, resource, driving }: TakeoverFooterProps) {
   return (
-    <div className="flex h-11 flex-none items-center gap-3.5 border-t border-rule px-4 text-[12.5px] text-ink-muted">
+    <div className="flex h-11 flex-none items-center gap-3.5 border-t border-rule px-4 text-[13px] text-ink-muted">
       <div className="flex items-center gap-1.5">
         <Kbd>{driving ? "⌘ ." : "Esc"}</Kbd>
         {driving ? "Hand back" : "Close"}

@@ -98,8 +98,8 @@ function ItemRow({ item, selected, dragging, drag, actions, onSelect }: ItemRowP
       >
         <Avatar name={item.name} size={36} />
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-          <Truncate text={item.name} style={{ fontSize: 14.5, fontWeight: 600 }} />
-          <Truncate text={itemSubtitle(item)} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />
+          <Truncate text={item.name} style={{ fontSize: 15, fontWeight: 600 }} />
+          <Truncate text={itemSubtitle(item)} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--ink-muted)", flex: "none" }}>
           {item.favorite ? (

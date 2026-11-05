@@ -58,7 +58,7 @@ function flipped(set: Set<string>, key: string): Set<string> {
   return next;
 }
 
-const MONO_TEXT = { fontFamily: MONO, fontSize: 11.5, lineHeight: "16px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" } as const;
+const MONO_TEXT = { fontFamily: MONO, fontSize: 12, lineHeight: "16px", whiteSpace: "pre-wrap", overflowWrap: "anywhere" } as const;
 
 type ToolRowProps = {
   tool: ActivityTool;
@@ -112,7 +112,7 @@ function ToolRow({ tool, partKey, live, calledAt, open, flip }: ToolRowProps) {
                 const key = `${partKey}:${name}`;
                 return (
                   <div key={name} style={{ display: "flex", alignItems: "flex-start", borderRadius: 6, overflow: "hidden", background: "rgba(250, 250, 247, 0.7)" }}>
-                    <span style={{ flex: "none", fontFamily: MONO, fontSize: 10.5, lineHeight: "16px", padding: "4px 6px", color: "var(--ink-muted)", background: "rgba(44, 48, 42, 0.06)" }}>{name}</span>
+                    <span style={{ flex: "none", fontFamily: MONO, fontSize: 11, lineHeight: "16px", padding: "4px 6px", color: "var(--ink-muted)", background: "rgba(44, 48, 42, 0.06)" }}>{name}</span>
                     <div style={{ flex: 1, minWidth: 0, padding: "4px 6px", color: "var(--ink)" }}>
                       <Expand lines={5} lineHeight={16} open={open.expanded.has(key)} onToggle={() => flip("expanded", key)}>
                         <span data-selectable style={{ display: "block", ...MONO_TEXT }}>{prettyValue(value)}</span>
@@ -123,7 +123,7 @@ function ToolRow({ tool, partKey, live, calledAt, open, flip }: ToolRowProps) {
               })}
             </div>
           ) : (
-            <span style={{ fontSize: 11.5, fontStyle: "italic", color: "var(--ink-muted)" }}>no parameters</span>
+            <span style={{ fontSize: 12, fontStyle: "italic", color: "var(--ink-muted)" }}>no parameters</span>
           )}
           {result !== null && result.content.trim() !== "" ? (
             <Expand lines={8} lineHeight={16} open={open.expanded.has(`${partKey}:result`)} onToggle={() => flip("expanded", `${partKey}:result`)}>
@@ -239,7 +239,7 @@ function WakeCard({ wake, steps, live, open, isOpen, onToggle, flip, now }: Wake
   const meta = [wake.toolCount > 0 ? `${wake.toolCount} ${countNoun(wake.toolCount, "tool call")}` : null, span >= 1000 ? formatSpan(span) : null].filter((part) => part !== null);
   const line = isOpen ? null : preview(steps[0]!);
   return (
-    <div style={{ display: "flex", flexDirection: "column", borderRadius: 11, background: "var(--sage-fill)", padding: "9px 11px" }}>
+    <div style={{ display: "flex", flexDirection: "column", borderRadius: 12, background: "var(--sage-fill)", padding: "9px 11px" }}>
       <button type="button" className="ui-trans" aria-expanded={isOpen} onClick={onToggle} style={{ display: "flex", flexDirection: "column", gap: 3, width: "100%", textAlign: "left" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, width: "100%" }}>
           <span style={{ display: "flex", gap: 3, flex: "none" }}>
@@ -247,8 +247,8 @@ function WakeCard({ wake, steps, live, open, isOpen, onToggle, flip, now }: Wake
               <LaneDot key={lane} lane={lane} />
             ))}
           </span>
-          <Truncate text={wakeTitle(wake)} style={{ flex: 1, minWidth: 0, fontSize: 12.5, fontWeight: 600 }} />
-          <span style={{ flex: "none", fontSize: 11.5, color: live ? "var(--sage-text)" : "var(--ink-muted)" }}>{live ? "now" : formatRelative(wake.at, now)}</span>
+          <Truncate text={wakeTitle(wake)} style={{ flex: 1, minWidth: 0, fontSize: 13, fontWeight: 600 }} />
+          <span style={{ flex: "none", fontSize: 12, color: live ? "var(--sage-text)" : "var(--ink-muted)" }}>{live ? "now" : formatRelative(wake.at, now)}</span>
         </div>
         {meta.length > 0 || wake.errorCount > 0 ? (
           <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>

@@ -62,7 +62,7 @@ function Services({ status, onPick }: ServicesProps) {
               >
                 <span className={`size-[9px] flex-none rounded-full ${service.healthy ? "bg-sage" : "bg-error"}`} />
                 <Truncate text={capitalize(service.name)} className="min-w-0 flex-1 text-[15px] font-semibold" />
-                <span className={`text-[12.5px] whitespace-nowrap ${service.healthy ? "text-ink-muted" : "text-error"}`}>{service.healthy ? "Healthy" : "Offline"}</span>
+                <span className={`text-[13px] whitespace-nowrap ${service.healthy ? "text-ink-muted" : "text-error"}`}>{service.healthy ? "Healthy" : "Offline"}</span>
               </button>
             ))}
       </div>
@@ -91,15 +91,15 @@ function Drives({ status }: { status: NasStatus | null }) {
           : disks.map((disk) => (
               <motion.div key={disk.mount} {...RISE} className="flex min-w-0 flex-col gap-2 rounded-2xl border border-glass-border bg-glass-veil px-4 py-3.5 shadow-widget">
                 <div className="flex items-center gap-2">
-                  <span className="text-[14.5px] font-semibold">{diskName(disk.mount)}</span>
+                  <span className="text-[15px] font-semibold">{diskName(disk.mount)}</span>
                   <div className="flex-1" />
-                  <Truncate text={`${formatGb(disk.free_bytes)} free of ${formatGb(disk.total_bytes)}`} className="max-w-[62%] text-[12.5px] text-ink-muted" />
+                  <Truncate text={`${formatGb(disk.free_bytes)} free of ${formatGb(disk.total_bytes)}`} className="max-w-[62%] text-[13px] text-ink-muted" />
                 </div>
-                <span className="block h-1.5 overflow-hidden rounded-[3px] bg-rule">
-                  <span className="block h-full rounded-[3px]" style={{ width: `${disk.used_percent}%`, background: loadTone(disk.used_percent) }} />
+                <span className="block h-1.5 overflow-hidden rounded-[4px] bg-rule">
+                  <span className="block h-full rounded-[4px]" style={{ width: `${disk.used_percent}%`, background: loadTone(disk.used_percent) }} />
                 </span>
                 <span data-selectable className="min-w-0">
-                  <Truncate text={[disk.model, disk.transport, disk.mount].filter((part) => part !== undefined).join(" · ")} className="ui-mono text-[11.5px]" />
+                  <Truncate text={[disk.model, disk.transport, disk.mount].filter((part) => part !== undefined).join(" · ")} className="ui-mono text-[12px]" />
                 </span>
               </motion.div>
             ))}
@@ -128,7 +128,7 @@ function Devices() {
     body = clients.map((client, i) => (
       <motion.div key={client.node_name} {...RISE} className={`flex min-h-12 items-center gap-3 py-2 ${i > 0 ? "border-t border-rule" : ""}`}>
         <span className={`size-[9px] flex-none rounded-full ${client.online ? "bg-sage" : client.pending ? "bg-clay" : "bg-ink-ghost"}`} />
-        <span data-selectable title={client.node_name} className="max-w-[40%] min-w-0 flex-none text-[14.5px] font-semibold [overflow-wrap:anywhere]">
+        <span data-selectable title={client.node_name} className="max-w-[40%] min-w-0 flex-none text-[15px] font-semibold [overflow-wrap:anywhere]">
           {client.node_name}
         </span>
         <span data-selectable className="min-w-0 flex-1">
@@ -137,14 +137,14 @@ function Devices() {
         {client.pending ? (
           <Badge status="idle" label="pending" />
         ) : (
-          <span className={`text-[12.5px] whitespace-nowrap ${client.online ? "font-semibold text-sage-text" : "text-ink-muted"}`}>
+          <span className={`text-[13px] whitespace-nowrap ${client.online ? "font-semibold text-sage-text" : "text-ink-muted"}`}>
             {client.online ? "Online" : client.last_seen === null ? "Offline" : `Seen ${formatAge(client.last_seen)} ago`}
           </span>
         )}
       </motion.div>
     ));
   } else if (state.kind === "empty") {
-    body = <div className="py-3.5 text-[13.5px] text-ink-muted">No devices have joined dadi yet.</div>;
+    body = <div className="py-3.5 text-[14px] text-ink-muted">No devices have joined dadi yet.</div>;
   } else if (state.kind === "offline") {
     body = <StateView kind="offline" title="dadi is unreachable" detail="Waiting for the mesh to reconnect" />;
   } else {
@@ -152,7 +152,7 @@ function Devices() {
   }
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span className="text-[12.5px] text-ink-muted">{`${clients.filter((client) => client.online).length} online`}</span> : null}>Devices on dadi</SectionLabel>
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[13px] text-ink-muted">{`${clients.filter((client) => client.online).length} online`}</span> : null}>Devices on dadi</SectionLabel>
       <Card style={{ padding: "4px 16px", borderRadius: 16 }}>{body}</Card>
     </>
   );

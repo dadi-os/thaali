@@ -215,8 +215,8 @@
   .btn-sm {
     height: 28px;
     padding: 0 12px;
-    border-radius: 9px;
-    font-size: 12.5px;
+    border-radius: 10px;
+    font-size: 13px;
   }
 
   .btn-md {
@@ -230,7 +230,7 @@
     height: 36px;
     padding: 0 16px;
     border-radius: 10px;
-    font-size: 13.5px;
+    font-size: 14px;
   }
 
   .btn-xl {
@@ -318,7 +318,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 9px;
+    border-radius: 10px;
     color: var(--ink-muted);
     flex: none;
   }
@@ -362,7 +362,7 @@
     min-width: 44px;
     padding: 0 14px;
     border-radius: 999px;
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 500;
     background: transparent;
     color: var(--ink-muted);
@@ -458,7 +458,7 @@
     height: 36px;
     padding: 0 12px;
     border-radius: 8px;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 500;
   }
 
@@ -478,7 +478,7 @@
     border-radius: 8px;
     background: var(--ink);
     color: var(--bone);
-    font-size: 12.5px;
+    font-size: 13px;
     box-shadow: var(--shadow-deep);
     animation: fade 180ms var(--ease) both;
     white-space: nowrap;

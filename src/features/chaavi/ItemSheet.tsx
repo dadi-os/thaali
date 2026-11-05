@@ -115,7 +115,7 @@ type SheetFieldProps = {
 function SheetField({ label, tall = false, children, extra }: SheetFieldProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span className="ui-label" style={{ fontSize: 10.5 }}>
+      <span className="ui-label" style={{ fontSize: 11 }}>
         {label}
       </span>
       <div
@@ -276,7 +276,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
             placeholder={placeholder}
             value={value.value}
             onChange={(event) => update((next) => field.set(next, { value: event.target.value, dirty: true }))}
-            style={{ fontSize: 14.5, color: "var(--ink)", resize: "none", lineHeight: "20px", ...(masked ? { WebkitTextSecurity: visible || !loaded ? "none" : "disc" } : {}) }}
+            style={{ fontSize: 15, color: "var(--ink)", resize: "none", lineHeight: "20px", ...(masked ? { WebkitTextSecurity: visible || !loaded ? "none" : "disc" } : {}) }}
           />
         ) : (
           <input
@@ -288,7 +288,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
             placeholder={placeholder}
             value={value.value}
             onChange={(event) => update((next) => field.set(next, { value: event.target.value, dirty: true }))}
-            style={{ fontSize: 14.5, color: "var(--ink)" }}
+            style={{ fontSize: 15, color: "var(--ink)" }}
           />
         )}
       </SheetField>
@@ -310,7 +310,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
             maxLength={field.numeric ? 4 : undefined}
             value={field.get(draft)}
             onChange={(event) => update((next) => field.set(next, event.target.value))}
-            style={{ fontSize: 14.5, color: "var(--ink)" }}
+            style={{ fontSize: 15, color: "var(--ink)" }}
           />
         </SheetField>
       );
@@ -318,7 +318,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
     if (field.kind === "choice") {
       return (
         <SheetField key={`${draft.type}-${field.label}`} label={field.label} extra={<Icon name="chevDown" size={14} />}>
-          <select className="cinp" aria-label={field.label} value={field.get(draft)} onChange={(event) => update((next) => field.set(next, event.target.value))} style={{ fontSize: 14.5, color: "var(--ink)", appearance: "none" }}>
+          <select className="cinp" aria-label={field.label} value={field.get(draft)} onChange={(event) => update((next) => field.set(next, event.target.value))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
             {field.options.map(([value, name]) => (
               <option key={value} value={value}>
                 {name}
@@ -331,13 +331,13 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
     if (field.kind === "websites") {
       return (
         <div key="websites" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-          <span className="ui-label" style={{ fontSize: 10.5 }}>
+          <span className="ui-label" style={{ fontSize: 11 }}>
             Websites
           </span>
           <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
             {draft.login.uris.map((entry, i) => (
               <Box key={entry.key}>
-                <input className="cinp" type="text" aria-label={`Website ${i + 1}`} autoComplete="off" spellCheck={false} placeholder="https://" value={entry.uri} onChange={(event) => update((next) => void (next.login.uris[i]!.uri = event.target.value))} style={{ fontSize: 14.5, color: "var(--ink)" }} />
+                <input className="cinp" type="text" aria-label={`Website ${i + 1}`} autoComplete="off" spellCheck={false} placeholder="https://" value={entry.uri} onChange={(event) => update((next) => void (next.login.uris[i]!.uri = event.target.value))} style={{ fontSize: 15, color: "var(--ink)" }} />
                 <select
                   className="cinp"
                   aria-label={`Website ${i + 1} match`}
@@ -375,15 +375,15 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
     return (
       <div key={field.key} style={{ display: "flex", flexDirection: "column", gap: 8, padding: 10, borderRadius: 14, background: "rgba(250,250,247,.8)", border: "1px solid var(--glass-border)" }}>
         <Box>
-          <span className="ui-label" style={{ fontSize: 10.5, width: 56, flex: "none" }}>
+          <span className="ui-label" style={{ fontSize: 11, width: 56, flex: "none" }}>
             {field.type}
           </span>
-          <input className="cinp" type="text" aria-label={`Field ${i + 1} name`} autoComplete="off" spellCheck={false} placeholder="Name" value={field.name} onChange={(event) => update((next) => void (next.fields[i]!.name = event.target.value))} style={{ fontSize: 14.5, color: "var(--ink)" }} />
+          <input className="cinp" type="text" aria-label={`Field ${i + 1} name`} autoComplete="off" spellCheck={false} placeholder="Name" value={field.name} onChange={(event) => update((next) => void (next.fields[i]!.name = event.target.value))} style={{ fontSize: 15, color: "var(--ink)" }} />
           <IconButton icon="close" label={`Remove field ${i + 1}`} size={28} iconSize={14} onClick={() => update((next) => void next.fields.splice(i, 1))} />
         </Box>
         {field.type === "text" ? (
           <Box>
-            <input className="cinp" type="text" aria-label={`Field ${i + 1} value`} autoComplete="off" spellCheck={false} value={field.value.value} onChange={(event) => update((next) => void (next.fields[i]!.value = { value: event.target.value, dirty: true }))} style={{ fontSize: 14.5, color: "var(--ink)" }} />
+            <input className="cinp" type="text" aria-label={`Field ${i + 1} value`} autoComplete="off" spellCheck={false} value={field.value.value} onChange={(event) => update((next) => void (next.fields[i]!.value = { value: event.target.value, dirty: true }))} style={{ fontSize: 15, color: "var(--ink)" }} />
           </Box>
         ) : null}
         {field.type === "hidden" ? (
@@ -397,7 +397,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
               placeholder={stored !== null ? "Leave blank to keep it" : undefined}
               value={field.value.value}
               onChange={(event) => update((next) => void (next.fields[i]!.value = { value: event.target.value, dirty: true }))}
-              style={{ fontSize: 14.5, color: "var(--ink)" }}
+              style={{ fontSize: 15, color: "var(--ink)" }}
             />
             <Eye
               name={`field ${i + 1}`}
@@ -411,12 +411,12 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
         {field.type === "boolean" ? (
           <Box>
             <input type="checkbox" aria-label={`Field ${i + 1} value`} checked={field.bool} onChange={(event) => update((next) => void (next.fields[i]!.bool = event.target.checked))} style={{ width: 16, height: 16, margin: 0, accentColor: "var(--sage)", flex: "none" }} />
-            <span style={{ fontSize: 14.5, flex: 1 }}>{field.bool ? "Yes" : "No"}</span>
+            <span style={{ fontSize: 15, flex: 1 }}>{field.bool ? "Yes" : "No"}</span>
           </Box>
         ) : null}
         {field.type === "linked" ? (
           <Box>
-            <select className="cinp" aria-label={`Field ${i + 1} links to`} value={field.linkedTo ?? ""} onChange={(event) => update((next) => void (next.fields[i]!.linkedTo = (event.target.value || null) as FieldDraft["linkedTo"]))} style={{ fontSize: 14.5, color: "var(--ink)", appearance: "none" }}>
+            <select className="cinp" aria-label={`Field ${i + 1} links to`} value={field.linkedTo ?? ""} onChange={(event) => update((next) => void (next.fields[i]!.linkedTo = (event.target.value || null) as FieldDraft["linkedTo"]))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
               <option value="">Links to…</option>
               {targets.map((target) => (
                 <option key={target.id} value={target.id}>
@@ -440,7 +440,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
         </div>
         {editing ? null : (
           <SheetField label="Kind" extra={<Icon name="chevDown" size={14} />}>
-            <select className="cinp" aria-label="Kind" value={draft.type} onChange={(event) => setDraft((current) => retype(current, event.target.value as ChaaviItemType))} style={{ fontSize: 14.5, color: "var(--ink)", appearance: "none" }}>
+            <select className="cinp" aria-label="Kind" value={draft.type} onChange={(event) => setDraft((current) => retype(current, event.target.value as ChaaviItemType))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
               {KINDS.map((type) => (
                 <option key={type} value={type}>
                   {TYPE_META[type].one}
@@ -451,12 +451,12 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
         )}
         <div className="scroll" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 16, padding: 2, margin: -2 }}>
           <SheetField label="Name">
-            <input className="cinp" type="text" aria-label="Name" autoComplete="off" spellCheck={false} autoFocus value={draft.name} onChange={(event) => update((next) => void (next.name = event.target.value))} style={{ fontSize: 14.5, color: "var(--ink)" }} />
+            <input className="cinp" type="text" aria-label="Name" autoComplete="off" spellCheck={false} autoFocus value={draft.name} onChange={(event) => update((next) => void (next.name = event.target.value))} style={{ fontSize: 15, color: "var(--ink)" }} />
           </SheetField>
           {fieldsFor(draft.type).map(renderField)}
           {renderSecret(notesField)}
           <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-            <span className="ui-label" style={{ fontSize: 10.5 }}>
+            <span className="ui-label" style={{ fontSize: 11 }}>
               Custom fields
             </span>
             <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
@@ -471,7 +471,7 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
             </div>
           </div>
           <SheetField label="Folder" extra={<Icon name="chevDown" size={14} />}>
-            <select className="cinp" aria-label="Folder" value={draft.folderId ?? ""} onChange={(event) => update((next) => void (next.folderId = event.target.value === "" ? null : event.target.value))} style={{ fontSize: 14.5, color: "var(--ink)", appearance: "none" }}>
+            <select className="cinp" aria-label="Folder" value={draft.folderId ?? ""} onChange={(event) => update((next) => void (next.folderId = event.target.value === "" ? null : event.target.value))} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }}>
               <option value="">No folder</option>
               {folders.map((folder) => (
                 <option key={folder.id} value={folder.id}>

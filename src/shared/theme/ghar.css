@@ -184,7 +184,7 @@
 .ghar-switch__knob {
   width: 26px;
   height: 26px;
-  border-radius: 13px;
+  border-radius: 12px;
   background: #ffffff;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   transition:

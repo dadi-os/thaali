@@ -36,9 +36,9 @@ export function SessionCard({ block, settled }: SessionCardProps) {
           {block.place.address ? ` · ${block.place.address}` : ""}
         </p>
       ) : null}
-      {block.body ? <p className="mt-2 text-[12.5px] leading-relaxed text-ink-muted">{block.body}</p> : null}
+      {block.body ? <p className="mt-2 text-[13px] leading-relaxed text-ink-muted">{block.body}</p> : null}
       {block.notes.map((note) => (
-        <p key={note.id} className="mt-2 text-[12.5px] leading-relaxed text-ink">
+        <p key={note.id} className="mt-2 text-[13px] leading-relaxed text-ink">
           {note.title}
         </p>
       ))}

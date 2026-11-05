@@ -15,7 +15,7 @@ import { canSave, changesOf, draftOf, REPEAT_PRESETS, repeatLabel, type Schedule
 function Field({ name, tall = false, children }: { name: string; tall?: boolean; children: ReactNode }) {
   return (
     <div className="flex flex-col gap-[5px]">
-      <span className="ui-label" style={{ fontSize: 10.5 }}>
+      <span className="ui-label" style={{ fontSize: 11 }}>
         {name}
       </span>
       <div className={`flex gap-2 rounded-[10px] border border-glass-border bg-sage-fill px-3 ${tall ? "items-start py-2" : "h-9 items-center"}`}>{children}</div>
@@ -79,7 +79,7 @@ export function ScheduleRow({ schedule, agentId, position, onSave, onCancel }: S
 
   const head = (
     <div className="flex items-start gap-2">
-      <span className="text-[12.5px] text-ink-muted">{outgoing ? "To" : "From"}</span>
+      <span className="text-[13px] text-ink-muted">{outgoing ? "To" : "From"}</span>
       <AgentName name={other} className="flex-1 text-[13px] font-semibold" />
       {editing ? null : (
         <Button tone="quiet" size="sm" aria-label={`Edit schedule ${position}`} onClick={edit}>
@@ -91,17 +91,17 @@ export function ScheduleRow({ schedule, agentId, position, onSave, onCancel }: S
   const options = REPEAT_PRESETS.some(([value]) => value === String(schedule.interval_minutes ?? "once")) ? REPEAT_PRESETS : [...REPEAT_PRESETS, [String(schedule.interval_minutes), repeatLabel(schedule.interval_minutes)] as const];
   const savable = canSave(schedule, draft) && !pending;
   return (
-    <div {...context} className={`flex flex-col gap-2 rounded-[11px] border px-[11px] py-[9px] transition-colors duration-slow ease-dadi ${editing ? "border-sage-line bg-bone" : "border-transparent bg-sage-fill"}`}>
+    <div {...context} className={`flex flex-col gap-2 rounded-[12px] border px-[11px] py-[9px] transition-colors duration-slow ease-dadi ${editing ? "border-sage-line bg-bone" : "border-transparent bg-sage-fill"}`}>
       {head}
       <AnimatePresence initial={false} mode="wait">
         {editing ? (
           <motion.div key="edit" {...REVEAL} className="overflow-hidden">
             <div className="flex flex-col gap-2">
               <Field name="Next run">
-                <input className="cinp text-[13.5px] text-ink tabular-nums" type="datetime-local" aria-label="Next run" value={draft.runAt} onChange={(event) => setDraft({ ...draft, runAt: event.target.value })} />
+                <input className="cinp text-[14px] text-ink tabular-nums" type="datetime-local" aria-label="Next run" value={draft.runAt} onChange={(event) => setDraft({ ...draft, runAt: event.target.value })} />
               </Field>
               <Field name="Repeat">
-                <select className="cinp appearance-none text-[13.5px] text-ink" aria-label="Repeat" value={draft.repeat} onChange={(event) => setDraft({ ...draft, repeat: event.target.value })}>
+                <select className="cinp appearance-none text-[14px] text-ink" aria-label="Repeat" value={draft.repeat} onChange={(event) => setDraft({ ...draft, repeat: event.target.value })}>
                   {options.map(([value, text]) => (
                     <option key={value} value={value}>
                       {text}
@@ -111,16 +111,16 @@ export function ScheduleRow({ schedule, agentId, position, onSave, onCancel }: S
                 <Icon name="chevDown" size={14} />
               </Field>
               <Field name="Message" tall>
-                <textarea className="cinp resize-none text-[13.5px] leading-[19px] text-ink" aria-label="Message" rows={3} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} />
+                <textarea className="cinp resize-none text-[14px] leading-[19px] text-ink" aria-label="Message" rows={3} value={draft.content} onChange={(event) => setDraft({ ...draft, content: event.target.value })} />
               </Field>
               <AnimatePresence initial={false}>
                 {confirm ? (
-                  <motion.span key="confirm" {...FADE} className="text-[12.5px] text-ink-muted">
+                  <motion.span key="confirm" {...FADE} className="text-[13px] text-ink-muted">
                     This schedule will not run again.
                   </motion.span>
                 ) : null}
                 {error === null ? null : (
-                  <motion.span key="error" {...FADE} data-selectable className="text-[12.5px] text-error">
+                  <motion.span key="error" {...FADE} data-selectable className="text-[13px] text-error">
                     {error}
                   </motion.span>
                 )}
@@ -144,7 +144,7 @@ export function ScheduleRow({ schedule, agentId, position, onSave, onCancel }: S
             <span data-selectable className="text-[13px]">
               <Clamp text={schedule.content} lines={2} />
             </span>
-            <span className="text-[12.5px] text-ink-muted">{`${formatDay(schedule.run_at)}, ${formatClock(schedule.run_at)} · ${repeatLabel(schedule.interval_minutes)}`}</span>
+            <span className="text-[13px] text-ink-muted">{`${formatDay(schedule.run_at)}, ${formatClock(schedule.run_at)} · ${repeatLabel(schedule.interval_minutes)}`}</span>
           </motion.div>
         )}
       </AnimatePresence>

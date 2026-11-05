@@ -77,7 +77,7 @@ function Body({ nodes, counts, geometry }: BodyProps) {
             <div key={node.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 36, borderTop: "1px solid var(--rule)" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: nodeInk(node.kind), flex: "none" }} />
               <Truncate text={node.title} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
-              <span style={{ fontSize: 12.5, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", fontVariantNumeric: "tabular-nums" }}>{`${node.access_count} uses`}</span>
+              <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", fontVariantNumeric: "tabular-nums" }}>{`${node.access_count} uses`}</span>
             </div>
           ))}
         </div>

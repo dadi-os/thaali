@@ -38,7 +38,7 @@ function Gauge({ name, percent, detail }: GaugeProps) {
         </svg>
         <span className="absolute inset-0 flex items-center justify-center text-[18px] font-semibold tabular-nums">{`${Math.round(percent)}%`}</span>
       </div>
-      <span className="text-[13.5px] font-medium">{name}</span>
+      <span className="text-[14px] font-medium">{name}</span>
       <span data-selectable className="max-w-full min-w-0">
         <Truncate text={detail} className="text-center text-[12px] text-ink-muted" />
       </span>
@@ -111,7 +111,7 @@ export function HealthCard({ status }: HealthCardProps) {
         </span>
         <div className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="text-[24px] font-semibold tracking-[-0.02em]">{down > 0 ? `${down} ${down === 1 ? "service needs" : "services need"} attention` : "dadi is healthy"}</span>
-          <span className="text-[13.5px] text-ink-muted">{`Up ${formatUptime(status.uptime_seconds)}`}</span>
+          <span className="text-[14px] text-ink-muted">{`Up ${formatUptime(status.uptime_seconds)}`}</span>
         </div>
       </div>
       <div className="flex items-start gap-2">

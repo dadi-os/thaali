@@ -100,14 +100,14 @@ function LogLine({ line, pinned, onPin, onFilterService }: LogLineProps) {
           {entry.service}
         </span>
         <span data-selectable className="min-w-0 flex-1">
-          <Truncate text={entry.msg} className={`text-[13.5px] ${entry.level === "error" ? "text-error" : "text-ink"}`} />
+          <Truncate text={entry.msg} className={`text-[14px] ${entry.level === "error" ? "text-error" : "text-ink"}`} />
         </span>
       </button>
       <AnimatePresence initial={false}>
         {pinned && entry.raw !== undefined ? (
           <motion.div key="raw" {...REVEAL} className="overflow-hidden">
             <div className="px-2.5 pt-0.5 pb-3">
-              <pre data-selectable className="ui-mono m-0 rounded-[10px] border border-rule bg-bone px-3 py-2.5 text-[11.5px] leading-[17px] break-words whitespace-pre-wrap">
+              <pre data-selectable className="ui-mono m-0 rounded-[10px] border border-rule bg-bone px-3 py-2.5 text-[12px] leading-[17px] break-words whitespace-pre-wrap">
                 {prettyRaw(entry.raw)}
               </pre>
             </div>
@@ -279,7 +279,7 @@ export function LogsCard({ focus, flat = false }: LogsCardProps) {
           {body}
         </motion.div>
       </AnimatePresence>
-      <div className="flex h-[38px] flex-none items-center gap-2 border-t border-rule px-[18px] text-[12.5px] text-ink-muted">
+      <div className="flex h-[38px] flex-none items-center gap-2 border-t border-rule px-[18px] text-[13px] text-ink-muted">
         {showing ? (
           <>
             {`${listed.length} lines`}

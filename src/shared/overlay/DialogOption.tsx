@@ -19,7 +19,7 @@ export function DialogOption({ tone, title, detail, onClick }: DialogOptionProps
   return (
     <button type="button" className={`dialog-option dialog-option-${tone} ui-trans ${HOVER[tone]}`} onClick={onClick}>
       <span style={{ fontSize: 14, fontWeight: 600 }}>{title}</span>
-      <span style={{ fontSize: 12.5, lineHeight: "17px", opacity: tone === "fill" ? 0.9 : 1, color: tone === "outline" ? "var(--ink-muted)" : "inherit" }}>{detail}</span>
+      <span style={{ fontSize: 13, lineHeight: "17px", opacity: tone === "fill" ? 0.9 : 1, color: tone === "outline" ? "var(--ink-muted)" : "inherit" }}>{detail}</span>
     </button>
   );
 }

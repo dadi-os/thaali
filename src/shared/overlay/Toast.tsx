@@ -58,11 +58,11 @@ export function Toast({ kind = "info", title, body, open = false, width = 340, v
           <Icon name={look.mark} size={14} />
         </span>
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
-          <Truncate text={title} style={{ fontSize: 13.5, fontWeight: 600, lineHeight: "26px" }} />
+          <Truncate text={title} style={{ fontSize: 14, fontWeight: 600, lineHeight: "26px" }} />
           {body ? (
             <div className="rv">
               <div>
-                <Clamp text={body} lines={3} style={{ fontSize: 12.5, lineHeight: "17px", color: "var(--ink-muted)", paddingBottom: 3 }} />
+                <Clamp text={body} lines={3} style={{ fontSize: 13, lineHeight: "17px", color: "var(--ink-muted)", paddingBottom: 3 }} />
               </div>
             </div>
           ) : null}

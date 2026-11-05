@@ -91,7 +91,7 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
   const head =
     kind === "room" ? (
       ui.rename ? (
-        <div style={{ display: "flex", alignItems: "center", height: 32, width: 220, padding: "0 12px", borderRadius: 9, border: "1px solid var(--sage-line)", background: "var(--bone)" }}>
+        <div style={{ display: "flex", alignItems: "center", height: 32, width: 220, padding: "0 12px", borderRadius: 10, border: "1px solid var(--sage-line)", background: "var(--bone)" }}>
           <input
             className="cinp"
             aria-label="Room name"
@@ -122,7 +122,7 @@ export function RoomSection({ section, elsewhere, ui, onUi, selectedId, busy, di
           aria-label={`${title} options`}
           disabled={disabled}
           onClick={(event) => setMenuAnchor(event.currentTarget.getBoundingClientRect())}
-          style={{ display: "flex", alignItems: "center", gap: 8, height: 32, padding: "0 8px", borderRadius: 9, fontSize: 17, fontWeight: 600, ...(disabled ? { opacity: 0.45 } : {}) }}
+          style={{ display: "flex", alignItems: "center", gap: 8, height: 32, padding: "0 8px", borderRadius: 10, fontSize: 17, fontWeight: 600, ...(disabled ? { opacity: 0.45 } : {}) }}
         >
           {title}
           <span style={{ display: "flex", color: "var(--ink-muted)", transform: menuAnchor !== null ? "rotate(180deg)" : undefined, transition: "transform var(--slow) var(--ease)" }}>

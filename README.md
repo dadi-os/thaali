@@ -1,6 +1,6 @@
 # Thaali
 
-The desktop app for dadi: macOS, Windows, and Linux, plus a browser build. Thaali is its internal name; people see **dadi** (app name, window title, wordmark). Future modules ship as pages inside Thaali; the iPhone has its own native client (Khisso). Thaali has no application-level authentication — reaching mesh services requires a provisioned tailnet node (Tauri) or mesh-reachable browser (dev web).
+The desktop app for dadi: macOS, Windows, and Linux. Thaali is its internal name; people see **dadi** (app name, window title, wordmark). Future modules ship as pages inside Thaali; the iPhone has its own native client (Khisso). Thaali has no application-level authentication — reaching mesh services requires a provisioned tailnet node.
 
 ## Dependencies
 
@@ -15,45 +15,48 @@ The desktop app for dadi: macOS, Windows, and Linux, plus a browser build. Thaal
 
 ## Layout
 
+A page is a composition of shared parts: a fix in `shared/` reaches every page. `pages/` and `features/` hold what is specific to one place.
+
 ```
 thaali/
   src/
-    pages/                 route construction sites
-    features/<domain>/     home (the Tile frame every Home tile is drawn in, and what a tile says when it cannot show content), agents, memory, timeline, ghar, chaavi, system (incl. the Tasks list), logs
-      agents/              the flat agent graph (AgentGraph2D, graph2d, laneState), the agent list, sheet/ (the agent's docked sheet: index.tsx reads the agent, its schedule, its newest wakes and Nas's tasks and keeps what is open, Panel.tsx draws it, workLine.ts says what the work lane is doing, wakes.ts groups the logs), TaskLive.tsx (a task's preview: its browser's picture or its terminal's tail, which a click opens in the modal), takeover/ (the modal: parts.tsx draws it, index.tsx runs it), sessions.ts (maps Hath's tasks to Nas's resources; only the newest working task shows its preview at once, the rest on expand)
-      memory/              graph forces + connections, the 3D network, the node sheet
-    chrome/                AppShell, TitleBar, chatSidebar/, shell hooks (tray, updater, device commands, provisioning)
-      chatSidebar/         portable unit (index = construction site)
-        thread/ message/ list.tsx composer.tsx
-        format.ts lanes.ts constants.ts ActivityPulse.tsx
-    dev/                   dev-only fixture transport, typed fixtures and the gallery the fidelity gate renders (never in the production bundle)
+    App.tsx, main.tsx       routes + boot (installs the interaction layer)
+    pages/                  route construction sites: Page + a header + nouns
+    features/<domain>/      data hooks, derivations and flows owned by one place: agents, chat (the chat rail), chaavi, ghar, home (the Tile frame), logs, memory, onboarding (setup code, provisioning, forget device), system, timeline
+    contexts/               app-wide state every layer assumes: connection, running lanes, chat, drafts, toasts, takeover, dock requests, the desktop shell
     shared/
-      api/                 transport + domain clients (hath/, yaad/, nas/)
-        constants.ts       mesh URLs (no env fallbacks)
-        transport.ts       Transport + ConnectionState
-        browser-transport.ts  fetch + EventSource (web / nas compose)
-        mesh-transport.ts     MeshTransport / the dadi network (Tauri; dynamic import)
-        runtime.ts         isTauriRuntime / transport kind
-        sse.ts / credentials.ts
-        hath/ yaad/ nas/ chaavi/ ghar/ portable client modules
-      lib/
-        platform/          logging, clipboard, notifications, downloads
-        content/           attachments, branded QR
-        ux/                motion (incl. REVEAL preset), poll intervals, time formatting
-      components/          the primitives (Icon, Button, Segmented, Badge, Card, Skeleton, Truncate, ModuleState, OfflineNotice, Toast, Floating, Tooltip, Overlay, Disclosure, TaskPreview, TaskRow), Popover/ (index + hover zone), ForceGraph/, and the old IconButton and states/ until the pages that use them are rebuilt
-      hooks/               useConnection, useEvents, useLiveQueries, useThemeTokens
-    store/                 chat, connection, drafts, running, desktopShell
-    types/                 API contracts per service (hath, yaad, chaavi, ghar) + d3-force-3d.d.ts
-    styles/
-  src-tauri/               Rust shell + logutil
-  net/                     Tailscale CLI build for the desktop mesh
-  visual/                  the visual loop (WKWebView snapshot tool, DOM checks, runner) and fidelity/, the gate that holds the app to the design
-  Dockerfile               web container (dev Vite / production static)
+      ui/                   primitives with no domain knowledge: Button, IconButton, Pill, Segmented, Chip, Switch, Icon (the one icon set), Card, Badge, Skeleton, Truncate, AgentName, Disclosure, CopyButton
+      overlay/              everything that floats, on one dismiss stack: Dialog, ConfirmDialog, LargeDialog, Sheet, MenuSurface (the one menu), AnchoredMenu, ContextMenuHost, Popover, Tooltip, Toast
+      interaction/          the desktop input system: scroll edge fades, scoped select all, the one context menu (useContextActions), Action lists, shortcuts, the dismiss stack
+      motion/               the only place a duration, easing, spring or enter/exit shape is chosen
+      layout/               Page (frame, side panel dock or drawer), Measured, shell/ (AppShell, TitleBar, WindowControls, PageHeader, OfflinePill, Toaster), Wordmark, FieldBloom
+      states/               loading, offline, module-offline, error, empty and stale views, ErrorBoundary
+      components/           domain nouns drawn once and varied by props: Task (TaskView, TaskRow, TaskStatus), Thread (conversation list, messages, composer), Graph, Markdown
+      desktop/              every operating-system call: clipboard, opener, downloads, notifications, owner check, tray, updater, device remote, OS detection
+      api/                  transport + domain clients (hath/, yaad/, nas/, chaavi/, ghar/, timeline/); mesh-transport.ts is the production transport
+      hooks/ lib/           shared hooks and pure TypeScript (content, ux helpers, time)
+      theme/                the only CSS: tokens, base (input policy), scroll fades, primitives and a file per module
+    dev/                    dev-only fixture transport, typed fixtures and the gallery the fidelity gate renders (never in the production bundle)
+    types/                  API contracts per service (hath, yaad, chaavi, ghar, timeline) + d3-force-3d.d.ts
+  src-tauri/                Rust shell + logutil
+  net/                      Tailscale CLI build for the desktop mesh
+  visual/                   the visual loop (WKWebView snapshot tool, DOM checks, runner) and fidelity/, the gate that holds the app to the design
+  Dockerfile                web container (dev Vite / production static): scheduled for removal with the browser build
 ```
+
+### Rules the structure keeps (src/architecture.test.ts holds the mechanical ones)
+
+- The window is chrome: text is not selectable unless it is marked `data-selectable` (content people read or copy) or is a text field. Select all selects the region under the pointer, never the interface.
+- Every control gets its pointer, hover, focus and pressed state from `theme/base.css`; no component re-implements them.
+- A right-click menu is offered only through `useContextActions`; each noun declares its actions once (`planActions`, `deviceActions`, `itemActions`, `taskActions`, `agentActions`) and the same list serves the context menu and any click menu.
+- Escape and outside presses close only the topmost overlay, through `useDismiss`.
+- Anything that appears or disappears after the first paint animates through the presets in `shared/motion`; no component writes a duration or easing.
+- No scrollbar draws; a scrolling region (`className="scroll"`) fades the edge that has more content.
+- The type scale is 11, 12, 13, 14, 15, 17, 20, 28, 34 px and radii are even.
 
 ## Config vs env
 
-Mesh addresses are **constants** in `shared/api/constants.ts` — no URL env fallbacks. The desktop OS (window chrome) comes from `@tauri-apps/plugin-os` inside Tauri; outside Tauri, `detectDesktopOs` returns null. Optional `THAALI_LOG_FILE` appends Rust JSON logs for Alloy (Tauri only).
+Mesh addresses are **constants** in `shared/api/constants.ts` — no URL env fallbacks. The desktop OS (window chrome) comes from `@tauri-apps/plugin-os`. Optional `THAALI_LOG_FILE` appends Rust JSON logs for Alloy (Tauri only).
 
 Signing / release secrets live in `.env.github` for CI only — not application runtime.
 
@@ -66,15 +69,6 @@ Prerequisites once: `npm install`, then `cd net && ./build-tailscale.sh && cd ..
 ```sh
 npm run tauri dev
 ```
-
-### Web (Vite only)
-
-```sh
-npm run dev
-# → http://localhost:8080 (or http://thaali.dadi if that host resolves here)
-```
-
-Browser transport — no mesh join. Mesh services must already be reachable from the machine.
 
 `device_get_location`: macOS asks for Always (`NSLocationAlwaysAndWhenInUseUsageDescription` in [src-tauri/Info.plist](src-tauri/Info.plist)); Windows uses WinRT Geolocator (coords + coarse civic address, no Maps API key).
 
@@ -162,7 +156,7 @@ macOS and Linux get the dadi menu bar (Edit is macOS-only); Windows, which has n
 
 ## Transport / the dadi network
 
-Service data stays fresh from event streams, not timers: Hath's `/events` refetches agents and schedules (`useEvents`), and each service in `LIVE_SOURCES` (`shared/hooks/useLiveQueries.ts`; Yaad, Chaavi, Ghar and Nas) has its stream say `changed`, which refetches the queries under its keys, with a refetch on every reopen and when the window becomes visible again since the streams have no replay. Chaavi and Ghar are followed the same way, and Nas announces only its browser and terminal lists; the System page's status, clients and logs, a busy agent's activity and the live terminal capture are live readings and still poll. All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the browser loads `BrowserTransport` (fetch + EventSource, Nas `/health` for ONLINE/OFFLINE). Media the webview loads itself (attachment images) takes its URL from `Transport.mediaUrl` (the `/@host` proxy under Tauri). Nas's H.264 browser stream is read through `Transport.openStream` (Tauri's HTTP client, so it never queues behind the webview's per-host connection limit) by `features/agents/browserStream.ts`: one watched connection per browser and profile shared by every view with it (960 px at 5 fps to watch, 1280 px at 30 fps in the expanded view), split into frames by `features/agents/h264.ts`, decoded with WebCodecs (macOS and Windows webviews; Linux WebKitGTK may not decode it, and then the preview shows the error) and drawn on canvases, reconnecting on a logged, bounded backoff when it errors, ends or stalls. Browser Thaali is for Nas compose on-box UI only — it does not join Headscale.
+Service data stays fresh from event streams, not timers: Hath's `/events` refetches agents and schedules (`useEvents`), and each service in `LIVE_SOURCES` (`shared/hooks/useLiveQueries.ts`; Yaad, Chaavi, Ghar and Nas) has its stream say `changed`, which refetches the queries under its keys, with a refetch on every reopen and when the window becomes visible again since the streams have no replay. Chaavi and Ghar are followed the same way, and Nas announces only its browser and terminal lists; the System page's status, clients and logs, a busy agent's activity and the live terminal capture are live readings and still poll. All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the dev server's `?fixtures=` mode loads the fixture transport for the visual loop, and any other start outside Tauri fails loudly. Media the webview loads itself (attachment images) takes its URL from `Transport.mediaUrl` (the `/@host` proxy under Tauri). Nas's H.264 browser stream is read through `Transport.openStream` (Tauri's HTTP client, so it never queues behind the webview's per-host connection limit) by `features/agents/browserStream.ts`: one watched connection per browser and profile shared by every view with it (960 px at 5 fps to watch, 1280 px at 30 fps in the expanded view), split into frames by `features/agents/h264.ts`, decoded with WebCodecs (macOS and Windows webviews; Linux WebKitGTK may not decode it, and then the preview shows the error) and drawn on canvases, reconnecting on a logged, bounded backoff when it errors, ends or stalls.
 
 Lifecycle (Tauri):
 
@@ -174,7 +168,7 @@ Lifecycle (Tauri):
 - Leave → `tailscale down`; mesh names stop resolving
 - Forget this device (Dadi menu on macOS/Linux, the tray on Windows, and the can't-connect screen; always confirmed) → `mesh_forget`: `tailscale down` through thaali's own socket, the proxy stops and `credentials.json` is deleted, so onboarding asks for a fresh setup code. It never runs `tailscale logout`, which asks the control server and fails for a node the box already deleted; the next join's `up --force-reauth --reset` replaces the old identity. A `down` that fails is shown on the confirmation and nothing is cleared.
 
-The title bar's notice reads Reconnecting to dadi… while the mesh reconnects, and dadi unreachable when a browser build's connection drops.
+The title bar's notice reads Reconnecting to dadi… while the mesh reconnects,.
 
 Connect on desktop is device-wide: after join, a normal terminal `ssh user@os.dadi` works.
 

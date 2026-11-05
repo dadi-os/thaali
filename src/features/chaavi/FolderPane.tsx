@@ -38,13 +38,13 @@ function ScopeRow({ icon, name, count, selected, drop, hot = false, onClick }: S
       data-drop={drop}
       aria-current={selected ? "true" : "false"}
       onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", height: 38, flex: "none", padding: "0 12px", borderRadius: 11, background: selected ? "var(--sage-active)" : "transparent", fontWeight: selected ? 600 : 500, ...(hot ? HOT_STYLE : {}) }}
+      style={{ display: "flex", alignItems: "center", gap: 10, width: "100%", height: 38, flex: "none", padding: "0 12px", borderRadius: 12, background: selected ? "var(--sage-active)" : "transparent", fontWeight: selected ? 600 : 500, ...(hot ? HOT_STYLE : {}) }}
     >
       <span style={{ display: "flex", color: selected ? "var(--sage-text)" : "var(--ink-muted)" }}>
         <Icon name={icon} size={15} />
       </span>
       <Truncate text={name} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
-      <span style={{ fontSize: 12.5, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>{count}</span>
+      <span style={{ fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>{count}</span>
     </button>
   );
 }
@@ -52,7 +52,7 @@ function ScopeRow({ icon, name, count, selected, drop, hot = false, onClick }: S
 /** The label above a group of rows. */
 function GroupLabel({ children }: { children: string }) {
   return (
-    <span className="ui-label" style={{ padding: "14px 12px 6px", fontSize: 10.5 }}>
+    <span className="ui-label" style={{ padding: "14px 12px 6px", fontSize: 11 }}>
       {children}
     </span>
   );
@@ -76,7 +76,7 @@ function NameRow({ depth, initial, save, onSubmit, onCancel }: NameRowProps) {
     }
   };
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "none", height: 38, padding: `0 8px 0 ${12 + depth * 16}px`, borderRadius: 11, background: "var(--sage-active)" }}>
+    <div style={{ display: "flex", alignItems: "center", gap: 6, flex: "none", height: 38, padding: `0 8px 0 ${12 + depth * 16}px`, borderRadius: 12, background: "var(--sage-active)" }}>
       <input
         className="cinp"
         type="text"
@@ -129,7 +129,7 @@ function FolderRow({ node, depth, on, open, hot, dropKey, busy, onScope, onToggl
       {...context}
       className="frow ui-trans ui-hover-fill"
       data-drop={dropKey}
-      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", height: 38, flex: "none", padding: `0 8px 0 ${6 + depth * 16}px`, borderRadius: 11, background: on ? "var(--sage-active)" : "transparent", ...(hot ? HOT_STYLE : {}) }}
+      style={{ display: "flex", alignItems: "center", gap: 6, width: "100%", height: 38, flex: "none", padding: `0 8px 0 ${6 + depth * 16}px`, borderRadius: 12, background: on ? "var(--sage-active)" : "transparent", ...(hot ? HOT_STYLE : {}) }}
     >
       {node.children.length > 0 ? (
         <button
@@ -159,7 +159,7 @@ function FolderRow({ node, depth, on, open, hot, dropKey, busy, onScope, onToggl
         </span>
         <Truncate text={node.name} style={{ flex: 1, minWidth: 0, fontSize: 14, color: node.id === null ? "var(--ink-muted)" : "var(--ink)" }} />
       </button>
-      <span className="fcount" style={{ fontSize: 12.5, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
+      <span className="fcount" style={{ fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
         {node.count}
       </span>
       <span className="fact" style={{ gap: 0 }}>
@@ -229,8 +229,8 @@ export function FolderPane({ items, folders, scope, busy, hot, onScope, onCreate
       }
       if (editing?.mode === "delete" && editing.path === node.path && node.id !== null) {
         return [
-          <div key={node.path} style={{ display: "flex", flexDirection: "column", flex: "none", gap: 8, padding: `10px 10px 10px ${12 + depth * 16}px`, borderRadius: 11, background: "var(--error-fill)" }}>
-            <span style={{ fontSize: 12.5, lineHeight: "18px", overflowWrap: "anywhere" }}>
+          <div key={node.path} style={{ display: "flex", flexDirection: "column", flex: "none", gap: 8, padding: `10px 10px 10px ${12 + depth * 16}px`, borderRadius: 12, background: "var(--error-fill)" }}>
+            <span style={{ fontSize: 13, lineHeight: "18px", overflowWrap: "anywhere" }}>
               {`Delete ${node.name}? Its ${node.own} ${node.own === 1 ? "item moves" : "items move"} to No folder${node.children.length > 0 ? "; the folders inside it stay." : "."}`}
             </span>
             <ButtonGroup>

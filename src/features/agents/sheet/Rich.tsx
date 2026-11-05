@@ -90,7 +90,7 @@ export function Expand({ lines, lineHeight, open, onToggle, children }: ExpandPr
         <div ref={inner}>{children}</div>
       </div>
       {overflows ? (
-        <button type="button" className="ui-trans" aria-expanded={open} onClick={onToggle} style={{ alignSelf: "flex-start", fontSize: 11.5, fontWeight: 600, color: "var(--sage-text)" }}>
+        <button type="button" className="ui-trans" aria-expanded={open} onClick={onToggle} style={{ alignSelf: "flex-start", fontSize: 12, fontWeight: 600, color: "var(--sage-text)" }}>
           {open ? "Show less" : "Show all"}
         </button>
       ) : null}

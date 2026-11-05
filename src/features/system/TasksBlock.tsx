@@ -116,7 +116,7 @@ export function TasksBlock() {
       body = <StateView kind="error" title="Nas couldn’t list the tasks" {...failureProps(state.error)} detail="GET /tasks failed; the rest of this page is current." onRetry={() => void tasksQuery.refetch()} />;
       break;
     case "empty":
-      body = <div className="px-4 py-5 text-[13.5px] text-ink-muted">None in flight. Tasks appear here while an agent’s browser or terminal helper is running.</div>;
+      body = <div className="px-4 py-5 text-[14px] text-ink-muted">None in flight. Tasks appear here while an agent’s browser or terminal helper is running.</div>;
       break;
     case "ready":
       body = (
@@ -131,7 +131,7 @@ export function TasksBlock() {
   const waiting = counts.Waiting;
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span className="text-[12.5px] text-ink-muted">{`${tasks.length} · ${waiting} waiting on an agent`}</span> : null}>Tasks</SectionLabel>
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[13px] text-ink-muted">{`${tasks.length} · ${waiting} waiting on an agent`}</span> : null}>Tasks</SectionLabel>
       {state.kind === "ready" ? (
         <div className="flex flex-wrap items-center gap-2">
           {TASK_FILTERS.map((name) => (

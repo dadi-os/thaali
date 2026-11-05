@@ -48,7 +48,7 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
             .then(() => setCopied(true))
             .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
         }}
-        className={`inline-flex size-6 items-center justify-center rounded-[7px] transition-colors duration-fast ease-dadi hover:bg-sage-active/50 [&_svg]:size-[13px] ${
+        className={`inline-flex size-6 items-center justify-center rounded-[8px] transition-colors duration-fast ease-dadi hover:bg-sage-active/50 [&_svg]:size-[13px] ${
           copied ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
         }`}
       >

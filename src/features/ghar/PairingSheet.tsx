@@ -64,7 +64,7 @@ export type PairingViewProps = {
 function Field({ name, children }: { name: string; children: ReactNode }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-      <span className="ui-label" style={{ fontSize: 10.5 }}>
+      <span className="ui-label" style={{ fontSize: 11 }}>
         {name}
       </span>
       {children}
@@ -147,18 +147,18 @@ export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, 
             </Field>
             {radio === "nearby" ? (
               <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-                <span style={{ fontSize: 12.5, color: "var(--ink-muted)", lineHeight: "18px" }}>{radioNote}</span>
+                <span style={{ fontSize: 13, color: "var(--ink-muted)", lineHeight: "18px" }}>{radioNote}</span>
                 <Box>
-                  <input className="cinp" aria-label="Wi-Fi name" placeholder="Wi-Fi name" value={ssid} autoComplete="off" spellCheck={false} style={{ fontSize: 14.5, color: "var(--ink)" }} onChange={(event) => onSsid(event.target.value)} />
+                  <input className="cinp" aria-label="Wi-Fi name" placeholder="Wi-Fi name" value={ssid} autoComplete="off" spellCheck={false} style={{ fontSize: 15, color: "var(--ink)" }} onChange={(event) => onSsid(event.target.value)} />
                 </Box>
                 <Box>
-                  <input className="cinp" type="password" aria-label="Wi-Fi password" placeholder="Wi-Fi password" value={password} autoComplete="off" spellCheck={false} style={{ fontSize: 14.5, color: "var(--ink)" }} onChange={(event) => onPassword(event.target.value)} />
+                  <input className="cinp" type="password" aria-label="Wi-Fi password" placeholder="Wi-Fi password" value={password} autoComplete="off" spellCheck={false} style={{ fontSize: 15, color: "var(--ink)" }} onChange={(event) => onPassword(event.target.value)} />
                 </Box>
               </div>
             ) : null}
             <Field name="Room">
               <Box>
-                <select className="cinp" aria-label="Room" value={room} style={{ fontSize: 14.5, color: "var(--ink)", appearance: "none" }} onChange={(event) => onRoom(event.target.value)}>
+                <select className="cinp" aria-label="Room" value={room} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }} onChange={(event) => onRoom(event.target.value)}>
                   <option value="">Unassigned</option>
                   {rooms.map((option) => (
                     <option key={option.id} value={option.id}>

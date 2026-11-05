@@ -98,7 +98,7 @@ export function Dock({
           <span className="dring" />દ
         </span>
         <span className="flex min-w-0 flex-1 flex-col gap-px text-left">
-          <span className="text-[14.5px] leading-[19px] font-semibold">Talk to Dadi</span>
+          <span className="text-[15px] leading-[19px] font-semibold">Talk to Dadi</span>
           <span title={sub} className="truncate text-[13px] leading-[17px] text-ink-muted">
             {sub}
           </span>

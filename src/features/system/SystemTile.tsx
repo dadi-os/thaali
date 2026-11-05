@@ -68,12 +68,12 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
       <div style={{ display: "flex", flexDirection: "column", gap: 11, flex: "none" }}>
         {meters.slice(0, count).map((meter) => (
           <div key={meter.name} style={{ display: "flex", flexDirection: "column", gap: 5 }}>
-            <div style={{ display: "flex", alignItems: "center", fontSize: 13.5 }}>
+            <div style={{ display: "flex", alignItems: "center", fontSize: 14 }}>
               <span style={{ flex: 1, minWidth: 0 }}>{meter.name}</span>
               <span style={{ fontVariantNumeric: "tabular-nums", fontWeight: 500 }}>{`${Math.round(meter.percent)}%`}</span>
             </div>
-            <span style={{ display: "block", height: 5, borderRadius: 3, background: "var(--rule)", overflow: "hidden" }}>
-              <span style={{ display: "block", height: "100%", width: `${Math.min(100, meter.percent)}%`, background: meter.percent > 75 ? "var(--clay)" : "var(--sage)", borderRadius: 3, transformOrigin: "left", animation: "grow 550ms var(--ease) both" }} />
+            <span style={{ display: "block", height: 5, borderRadius: 4, background: "var(--rule)", overflow: "hidden" }}>
+              <span style={{ display: "block", height: "100%", width: `${Math.min(100, meter.percent)}%`, background: meter.percent > 75 ? "var(--clay)" : "var(--sage)", borderRadius: 4, transformOrigin: "left", animation: "grow 550ms var(--ease) both" }} />
             </span>
           </div>
         ))}
@@ -89,14 +89,14 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
                 <span style={{ color: "var(--ink-muted)", display: "flex" }}>
                   <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />
                 </span>
-                <AgentName name={task.owner} selectable={false} className="flex-1 truncate text-[13.5px]" />
+                <AgentName name={task.owner} selectable={false} className="flex-1 truncate text-[14px]" />
                 <Badge status={task.status} />
               </div>
             ))}
         </div>
       ) : null}
       {withDevices ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 12, height: 24, flex: "none", fontSize: 12.5, color: "var(--ink-muted)", overflow: "hidden" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 12, height: 24, flex: "none", fontSize: 13, color: "var(--ink-muted)", overflow: "hidden" }}>
           {clients.map((client) => (
             <div key={client.node_name} style={{ display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
               <span style={{ width: 7, height: 7, borderRadius: "50%", background: client.online ? "var(--sage)" : client.pending ? "var(--clay)" : "var(--ink-ghost)", flex: "none" }} />

@@ -17,7 +17,7 @@ export type ThreadHeaderProps = {
 
 /** Top of an open thread: back on the left and the agent's full name, wrapping if it must, as a centered glass bubble that opens the agent in Hath. */
 export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: ThreadHeaderProps) {
-  const bubble = "pane-bubble max-w-full rounded-full px-3.5 py-1 text-center text-[13.5px] leading-tight font-medium";
+  const bubble = "pane-bubble max-w-full rounded-full px-3.5 py-1 text-center text-[14px] leading-tight font-medium";
   return (
     <div className="relative z-10 grid min-h-14 shrink-0 grid-cols-[2rem_minmax(0,1fr)_2rem] items-center gap-2 border-b border-(--chat-edge) px-2.5 py-1.5">
       <IconButton icon="back" label="Back to conversations" size={32} iconSize={14} onClick={onBack} />

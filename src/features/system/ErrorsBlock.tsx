@@ -37,14 +37,14 @@ function ErrorItem({ card, onOpen }: { card: ErrorCard; onOpen: () => void }) {
     >
       <span className="flex items-center gap-2">
         <span className="size-2 flex-none rounded-full bg-error" />
-        <Truncate text={capitalize(card.service)} className="flex-[0_1_auto] text-[13.5px] font-semibold" />
-        {card.code === null ? null : <span className="ui-mono flex-none rounded-full bg-error-fill px-2 text-[11.5px] leading-5 text-error">{card.code}</span>}
+        <Truncate text={capitalize(card.service)} className="flex-[0_1_auto] text-[14px] font-semibold" />
+        {card.code === null ? null : <span className="ui-mono flex-none rounded-full bg-error-fill px-2 text-[12px] leading-5 text-error">{card.code}</span>}
         <span className="ml-auto flex-none text-[12px] whitespace-nowrap text-ink-muted tabular-nums">{formatClock(card.time)}</span>
       </span>
       <Clamp text={card.title} lines={3} style={{ fontSize: 14, lineHeight: "20px", fontWeight: 500, color: "var(--ink)" }} />
-      {card.context === null ? null : <Truncate text={card.context} className="text-[12.5px] text-ink-muted" />}
-      {card.request === null ? null : <Truncate text={card.request} className="ui-mono text-[11.5px]" />}
-      <span className="mt-0.5 flex items-center gap-1 text-[12.5px] font-semibold text-sage-text">
+      {card.context === null ? null : <Truncate text={card.context} className="text-[13px] text-ink-muted" />}
+      {card.request === null ? null : <Truncate text={card.request} className="ui-mono text-[12px]" />}
+      <span className="mt-0.5 flex items-center gap-1 text-[13px] font-semibold text-sage-text">
         Open in logs
         <Icon name="chevron" size={13} />
       </span>
@@ -104,7 +104,7 @@ export function ErrorsBlock({ onOpen }: ErrorsBlockProps) {
     case "empty":
       body = (
         <Card style={{ borderRadius: 16 }}>
-          <div className="px-4 py-5 text-[13.5px] text-ink-muted">No errors in the last hour.</div>
+          <div className="px-4 py-5 text-[14px] text-ink-muted">No errors in the last hour.</div>
         </Card>
       );
       break;
@@ -120,7 +120,7 @@ export function ErrorsBlock({ onOpen }: ErrorsBlockProps) {
   }
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span className="text-[12.5px] text-ink-muted">{`${cards.length} · last hour`}</span> : null}>Errors</SectionLabel>
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[13px] text-ink-muted">{`${cards.length} · last hour`}</span> : null}>Errors</SectionLabel>
       <AnimatePresence mode="wait" initial={false}>
         <motion.div key={state.kind} {...FADE}>
           {body}

@@ -112,7 +112,7 @@ export function CalendarWeek({ days, now, items, onOpen }: CalendarViewsProps) {
                       flex: "none",
                       gap: 2,
                       padding: "7px 9px",
-                      borderRadius: 11,
+                      borderRadius: 12,
                       ...SHEET,
                       textAlign: "left",
                       minWidth: 0,
@@ -132,7 +132,7 @@ export function CalendarWeek({ days, now, items, onOpen }: CalendarViewsProps) {
                       />
                       <span
                         style={{
-                          fontSize: 11.5,
+                          fontSize: 12,
                           color:
                             item.start_at === null && item.due_at !== null
                               ? "var(--due-ink)"
@@ -303,7 +303,7 @@ export function CalendarMonth({
                     style={{
                       flex: 1,
                       minWidth: 0,
-                      fontSize: 11.5,
+                      fontSize: 12,
                       color: "var(--ink-muted)",
                     }}
                   />
@@ -314,7 +314,7 @@ export function CalendarMonth({
                   type="button"
                   onClick={() => onDay(day)}
                   style={{
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color: "var(--ink-muted)",
                     textAlign: "left",
                   }}

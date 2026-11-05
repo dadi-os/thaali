@@ -99,7 +99,7 @@ function Choice({ text, kind, checked, disabled, onClick }: ChoiceProps) {
       className="ui-trans ui-hover-fill"
       disabled={disabled}
       onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 10, height: 32, padding: "0 10px", borderRadius: 9, fontSize: 13.5 }}
+      style={{ display: "flex", alignItems: "center", gap: 10, height: 32, padding: "0 10px", borderRadius: 10, fontSize: 14 }}
     >
       <span
         style={{
@@ -192,7 +192,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
       <div style={{ display: "flex", alignItems: "flex-start", gap: 12, padding: "18px 18px 12px" }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 4 }}>
           {renaming ? (
-            <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", margin: "0 -10px", borderRadius: 9, border: "1px solid var(--sage-line)", background: "var(--bone)" }}>
+            <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", margin: "0 -10px", borderRadius: 10, border: "1px solid var(--sage-line)", background: "var(--bone)" }}>
               <input
                 className="cinp"
                 aria-label="Device name"
@@ -217,7 +217,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
             </button>
           )}
           <Truncate text={[roomTitle(device.room.name), device.product_name].filter(Boolean).join(" · ")} selectable style={{ fontSize: 13, color: "var(--ink-muted)" }} />
-          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 12.5, color: device.online ? "var(--sage-text)" : "var(--error)", marginTop: 2 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: device.online ? "var(--sage-text)" : "var(--error)", marginTop: 2 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: device.online ? "var(--sage)" : "var(--error)", flex: "none" }} />
             {device.online ? (device.bridge_name ? `Online · via ${device.bridge_name}` : "Online") : "Offline"}
             {device.last_seen_at ? <span style={{ color: "var(--ink-muted)" }}>{`· seen ${formatRelative(device.last_seen_at)}`}</span> : null}
@@ -229,8 +229,8 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
         {isSwitchable(device) ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--sage-fill)", flex: "none" }}>
             <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-              <span style={{ fontSize: 14.5, fontWeight: 600 }}>Power</span>
-              <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${on ? "On" : "Off"} since ${changedAt ? formatClock(changedAt) : "—"}`}</span>
+              <span style={{ fontSize: 15, fontWeight: 600 }}>Power</span>
+              <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`${on ? "On" : "Off"} since ${changedAt ? formatClock(changedAt) : "—"}`}</span>
             </div>
             <Switch on={on} label={`${device.name} power`} disabled={dis} onChange={(next) => onSend(switchCommand(next))} />
           </div>
@@ -267,7 +267,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
                   disabled={dis}
                   className="ui-trans ui-hover-fill"
                   onClick={() => onSend(presetCommand(preset))}
-                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64, padding: "6px 0", borderRadius: 10, fontSize: 11.5, color: "var(--ink-muted)", minWidth: 0, ...(dis ? { opacity: 0.45 } : {}) }}
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 6, width: 64, padding: "6px 0", borderRadius: 10, fontSize: 12, color: "var(--ink-muted)", minWidth: 0, ...(dis ? { opacity: 0.45 } : {}) }}
                 >
                   <span
                     style={{ width: 28, height: 28, borderRadius: "50%", background: preset.swatch, border: `2px solid ${active === preset.name ? "var(--sage-deep)" : "var(--glass-border)"}`, boxShadow: active === preset.name ? "0 0 0 3px rgba(92,107,82,.15)" : "none" }}
@@ -314,8 +314,8 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
         ) : null}
         {device.kind === "occupancy" ? (
           <div style={{ display: "flex", alignItems: "center", gap: 12, padding: "12px 14px", borderRadius: 14, background: "var(--sage-fill)", flex: "none" }}>
-            <span style={{ flex: 1, minWidth: 0, fontSize: 14.5, fontWeight: 600 }}>{state.occupied?.value === true ? "Occupied" : "Not occupied"}</span>
-            <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`since ${state.occupied ? formatClock(state.occupied.changed_at) : "—"}`}</span>
+            <span style={{ flex: 1, minWidth: 0, fontSize: 15, fontWeight: 600 }}>{state.occupied?.value === true ? "Occupied" : "Not occupied"}</span>
+            <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`since ${state.occupied ? formatClock(state.occupied.changed_at) : "—"}`}</span>
           </div>
         ) : null}
         <Picker name="Room" value={roomTitle(device.room.name)} open={pick === "room"} onToggle={() => onPick(pick === "room" ? null : "room")}>
@@ -329,7 +329,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
           {groups.map((name) => (
             <Choice key={name} text={name} kind="checkbox" checked={tagged.includes(name)} disabled={disabled} onClick={() => onTags(tagged.includes(name) ? tagged.filter((tag) => tag !== name) : [...tagged, name])} />
           ))}
-          <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", marginTop: 2, borderRadius: 9, border: "1px dashed var(--sage-line)" }}>
+          <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", marginTop: 2, borderRadius: 10, border: "1px dashed var(--sage-line)" }}>
             <input
               className="cinp"
               placeholder="New group"
@@ -337,7 +337,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
               autoComplete="off"
               spellCheck={false}
               disabled={disabled}
-              style={{ fontSize: 13.5, color: "var(--ink)" }}
+              style={{ fontSize: 14, color: "var(--ink)" }}
               onKeyDown={(event) => {
                 const name = event.currentTarget.value.trim();
                 if (event.key === "Enter" && name.length > 0) {

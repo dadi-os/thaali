@@ -106,7 +106,7 @@ export function CalendarDay({
     `${Math.floor(min / 60) ? `${Math.floor(min / 60)} h ` : ""}${Math.round(min % 60) ? `${Math.round(min % 60)} min` : ""}`.trim() ||
     "0 min";
   const label: CSSProperties = {
-    fontSize: 10.5,
+    fontSize: 11,
     fontWeight: 600,
     letterSpacing: 2.5,
     color: "var(--ink-muted)",
@@ -152,7 +152,7 @@ export function CalendarDay({
                     top: -8,
                     left: 0,
                     background: "transparent",
-                    fontSize: 11.5,
+                    fontSize: 12,
                     color:
                       change !== null && change.minute === m
                         ? change.kind === "spring"
@@ -189,7 +189,7 @@ export function CalendarDay({
                   alignItems: "center",
                   justifyContent: "center",
                   zIndex: 0,
-                  fontSize: 12.5,
+                  fontSize: 13,
                   fontWeight: 600,
                   color:
                     change.kind === "spring" ? "var(--due-ink)" : "#2b4450",
@@ -296,7 +296,7 @@ export function CalendarDay({
                         ) : item.outcome === "missed" ? (
                           <span
                             style={{
-                              fontSize: 11.5,
+                              fontSize: 12,
                               fontWeight: 600,
                               color: "var(--error)",
                             }}
@@ -321,7 +321,7 @@ export function CalendarDay({
                         <Truncate
                           text={there}
                           style={{
-                            fontSize: 11.5,
+                            fontSize: 12,
                             color: "var(--ink-muted)",
                             paddingLeft: 17,
                             fontFamily: "var(--font-mono)",
@@ -421,7 +421,7 @@ export function CalendarDay({
                 <div
                   style={{
                     height: 6,
-                    borderRadius: 3,
+                    borderRadius: 4,
                     background: "var(--rule)",
                     overflow: "hidden",
                   }}
@@ -435,7 +435,7 @@ export function CalendarDay({
                     }}
                   />
                 </div>
-                <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>
+                <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
                   {Math.round(
                     (Date.parse(current.end_at!) - now.getTime()) / 60_000,
                   )}{" "}
@@ -473,7 +473,7 @@ export function CalendarDay({
             <div
               style={{
                 height: 6,
-                borderRadius: 3,
+                borderRadius: 4,
                 background: "var(--rule)",
                 overflow: "hidden",
               }}
@@ -487,7 +487,7 @@ export function CalendarDay({
                 }}
               />
             </div>
-            <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>
+            <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
               {span(Math.round(done))} done
             </span>
           </Card>

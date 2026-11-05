@@ -41,9 +41,9 @@ export function ConversationRow({ conversation, unread, working, selected, wide,
         </div>
         <div className={`flex gap-2 ${wide ? "items-start" : "items-center"}`}>
           {wide ? (
-            <Clamp text={preview} lines={2} style={{ flex: 1, minWidth: 0, fontSize: 13.5, lineHeight: "19px", color: "var(--ink-muted)" }} />
+            <Clamp text={preview} lines={2} style={{ flex: 1, minWidth: 0, fontSize: 14, lineHeight: "19px", color: "var(--ink-muted)" }} />
           ) : (
-            <Truncate text={preview} className="min-w-0 flex-1 text-[13.5px] text-ink-muted" />
+            <Truncate text={preview} className="min-w-0 flex-1 text-[14px] text-ink-muted" />
           )}
           <AnimatePresence initial={false}>
             {unread > 0 ? (

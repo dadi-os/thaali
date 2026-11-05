@@ -113,7 +113,7 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
             {message.content ? (
               <div
                 data-selectable
-                className={`rounded-[20px] px-3.5 py-2.5 text-[14.5px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere] ${
+                className={`rounded-[20px] px-3.5 py-2.5 text-[15px] leading-[1.55] whitespace-pre-wrap [overflow-wrap:anywhere] ${
                   failed ? "border border-error-line bg-error-fill text-ink" : queued ? "border border-dashed border-sage-line/50 bg-sage-fill/25 text-ink/60" : "bg-sage-active text-ink"
                 }`}
               >
@@ -138,7 +138,7 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
 /** Left-aligned agent row: the reply as rendered markdown from the first frame, with its time and a copy button under it. */
 function AgentBubble({ message, live }: { message: ChatMessage; live: boolean }) {
   return (
-    <MessageRow message={message} live={live} className="group/msg flex max-w-[min(96%,40rem)] flex-col gap-1 text-[14.5px] leading-[1.65] text-ink [overflow-anchor:none]">
+    <MessageRow message={message} live={live} className="group/msg flex max-w-[min(96%,40rem)] flex-col gap-1 text-[15px] leading-[1.65] text-ink [overflow-anchor:none]">
       <div data-selectable>
         <SettledMarkdown content={message.content} />
       </div>

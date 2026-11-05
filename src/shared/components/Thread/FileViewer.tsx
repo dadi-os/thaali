@@ -167,7 +167,7 @@ function Sheet({ file, onClose }: SheetProps) {
     >
       <header className="flex h-12 shrink-0 items-center gap-3 border-b border-rule/70 pr-2 pl-4">
         <div className="min-w-0 flex-1">
-          <p data-selectable className="truncate text-[13.5px] leading-tight font-medium text-ink" title={file.filename}>
+          <p data-selectable className="truncate text-[14px] leading-tight font-medium text-ink" title={file.filename}>
             {file.filename}
           </p>
           <p className="truncate text-[11px] leading-tight text-ink-ghost">{meta.join(" · ")}</p>
@@ -272,7 +272,7 @@ function DownloadButton({ file, text }: DownloadButtonProps) {
         title={state === "saved" ? "Saved" : "Download"}
         disabled={state === "saving"}
         onClick={() => void save()}
-        className={`inline-flex size-6 items-center justify-center rounded-[7px] transition-colors duration-fast ease-dadi hover:bg-sage-active/50 [&_svg]:size-[14px] ${
+        className={`inline-flex size-6 items-center justify-center rounded-[8px] transition-colors duration-fast ease-dadi hover:bg-sage-active/50 [&_svg]:size-[14px] ${
           state === "saved" ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
         } ${state === "saving" ? "animate-breath" : ""}`}
       >

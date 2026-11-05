@@ -67,7 +67,7 @@ export function StateView({ kind, title, detail, service, status, requestId, onR
       <div role={role} style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8, textAlign: "center", padding: "6px 12px", minHeight: 0, flex: 1, animation: ARRIVE }}>
         <Mark kind={kind} size={36} />
         <Truncate text={title} style={{ fontSize: 14, fontWeight: 600, maxWidth: "100%" }} />
-        {retry ?? (detail ? <Truncate text={detail} style={{ fontSize: 12.5, color: "var(--ink-muted)", maxWidth: "100%" }} /> : null)}
+        {retry ?? (detail ? <Truncate text={detail} style={{ fontSize: 13, color: "var(--ink-muted)", maxWidth: "100%" }} /> : null)}
       </div>
     );
   }
@@ -77,7 +77,7 @@ export function StateView({ kind, title, detail, service, status, requestId, onR
         <Mark kind={kind} size={36} />
         <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", gap: 2 }}>
           <Truncate text={title} style={{ fontSize: 14, fontWeight: 600 }} />
-          {detail ? <Truncate text={detail} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} /> : null}
+          {detail ? <Truncate text={detail} style={{ fontSize: 13, color: "var(--ink-muted)" }} /> : null}
         </div>
         {retry}
       </div>
@@ -89,10 +89,10 @@ export function StateView({ kind, title, detail, service, status, requestId, onR
       <span style={{ fontSize: 15, fontWeight: 600 }}>{title}</span>
       {detail ? <span style={{ fontSize: 13, color: "var(--ink-muted)", lineHeight: "19px", maxWidth: 320 }}>{detail}</span> : null}
       {service || status || requestId ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center", fontFamily: "var(--font-numeric)", fontSize: 11.5, color: "var(--ink-muted)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", justifyContent: "center", fontFamily: "var(--font-numeric)", fontSize: 12, color: "var(--ink-muted)" }}>
           {service ? <span>{service}</span> : null}
           {status ? <span>{`HTTP ${status}`}</span> : null}
-          {requestId ? <Truncate text={requestId} style={{ maxWidth: 200, fontFamily: "var(--font-numeric)", fontSize: 11.5 }} /> : null}
+          {requestId ? <Truncate text={requestId} style={{ maxWidth: 200, fontFamily: "var(--font-numeric)", fontSize: 12 }} /> : null}
         </div>
       ) : null}
       {retry}

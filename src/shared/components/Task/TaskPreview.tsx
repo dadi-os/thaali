@@ -44,7 +44,7 @@ export function TaskPreview({ kind, caption, label, children, paused = false, on
           </div>
         </div>
       ) : (
-        <div className="flex h-10 items-center gap-2 bg-[#1b1e18] px-3 font-numeric text-[11.5px] text-[#a9b3a0]">
+        <div className="flex h-10 items-center gap-2 bg-[#1b1e18] px-3 font-numeric text-[12px] text-[#a9b3a0]">
           <Icon name="terminal" size={12} />
           <Truncate text={caption} className="min-w-0 flex-1" />
         </div>

@@ -160,9 +160,9 @@ function FieldRow({ label, value, mono = false, multiline = false, extra, reveal
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 3 }}>
         <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{label}</span>
         {multiline ? (
-          <span data-selectable style={{ fontSize: 14.5, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value}</span>
+          <span data-selectable style={{ fontSize: 15, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value}</span>
         ) : (
-          <Truncate selectable text={value} style={mono ? { fontFamily: MONO, fontSize: 13.5, letterSpacing: value.includes("•") ? "2px" : "0" } : { fontSize: 14.5 }} />
+          <Truncate selectable text={value} style={mono ? { fontFamily: MONO, fontSize: 14, letterSpacing: value.includes("•") ? "2px" : "0" } : { fontSize: 15 }} />
         )}
       </div>
       {extra}
@@ -227,7 +227,7 @@ function TotpRow({ itemId }: TotpRowProps) {
               <circle cx="14" cy="14" r="11" fill="none" stroke="#e8ece2" strokeWidth="3" />
               <circle cx="14" cy="14" r="11" fill="none" stroke="#8fa382" strokeWidth="3" strokeLinecap="round" strokeDasharray={circumference.toFixed(1)} strokeDashoffset={(circumference * (1 - left / totp.period)).toFixed(1)} transform="rotate(-90 14 14)" />
             </svg>
-            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 10.5, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{left}</span>
+            <span style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{left}</span>
           </span>
         ) : undefined
       }
@@ -322,7 +322,7 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
         <Avatar name={item.name} size={52} />
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 4 }}>
           <Truncate text={item.name} style={{ fontSize: 22, fontWeight: 600, letterSpacing: "-0.015em" }} />
-          <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} style={{ fontSize: 13.5, color: "var(--ink-muted)" }} />
+          <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} style={{ fontSize: 14, color: "var(--ink-muted)" }} />
         </div>
         <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} style={{ color: item.favorite ? "var(--clay)" : "var(--ink-muted)" }} />
         <Button tone="outline" disabled={busy} onClick={onEdit} style={{ color: "var(--sage-text)", fontWeight: 600 }}>
@@ -342,7 +342,7 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
                 label={field.label}
                 value={field.value}
                 mono={field.mono}
-                extra={field.note ? <span style={{ fontSize: 12.5, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{field.note}</span> : undefined}
+                extra={field.note ? <span style={{ fontSize: 13, color: "var(--ink-muted)", whiteSpace: "nowrap" }}>{field.note}</span> : undefined}
                 onOpen={field.open ? () => openExternal(websiteUrl(field.value)).catch((err: unknown) => reportFailure("Couldn't open the website", err)) : undefined}
                 onCopy={field.copy === false ? undefined : () => copyPlainField(field)}
               />
@@ -362,7 +362,7 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
             />
           );
         })}
-        {changed ? <span style={{ fontSize: 12.5, color: "var(--ink-muted)", padding: "6px 4px 0" }}>{`Changed ${formatDay(changed)}, ${formatClock(changed)}`}</span> : null}
+        {changed ? <span style={{ fontSize: 13, color: "var(--ink-muted)", padding: "6px 4px 0" }}>{`Changed ${formatDay(changed)}, ${formatClock(changed)}`}</span> : null}
       </div>
     </Card>
   );

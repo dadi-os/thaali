@@ -69,7 +69,7 @@ function Entry({ item, index, onOpen }: EntryProps) {
       >
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-[14px] font-semibold text-ink">{item.title}</span>
-          <span className={`truncate text-[12.5px] ${line ? "text-[var(--clay)]" : "text-ink-ghost"}`}>{line ?? "Anytime"}</span>
+          <span className={`truncate text-[13px] ${line ? "text-[var(--clay)]" : "text-ink-ghost"}`}>{line ?? "Anytime"}</span>
         </span>
       </PlanButton>
     </motion.li>
@@ -100,7 +100,7 @@ export function SomedayRail({ onOpen }: SomedayProps) {
   const query = useSomeday();
   return (
     <aside className="flex w-[min(264px,28%)] shrink-0 flex-col rounded-[18px] border border-(--glass-border) bg-(--glass-veil) p-3.5 shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)] portrait:max-h-[24%] portrait:w-full">
-      <span className="mb-2.5 flex items-baseline justify-between px-0.5 text-[10.5px] font-semibold tracking-[2.5px] text-ink-ghost">
+      <span className="mb-2.5 flex items-baseline justify-between px-0.5 text-[11px] font-semibold tracking-[2.5px] text-ink-ghost">
         NEEDS A TIME
         {query.data ? <span className="text-[12px] font-semibold tracking-normal text-sage-deep">{query.data.length}</span> : null}
       </span>
@@ -182,7 +182,7 @@ function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
           soon ? "bg-[color-mix(in_srgb,var(--clay)_16%,transparent)] text-[color-mix(in_srgb,var(--clay)_70%,var(--ink))]" : "bg-sage-fill text-sage-text"
         }`}
       >
-        <span className="text-[10.5px] font-semibold uppercase tracking-[1px]">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "open"}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-[1px]">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "open"}</span>
         <span className="text-[18px] font-semibold leading-tight tabular-nums">{due ? due.getDate() : "—"}</span>
       </span>
       <PlanButton
@@ -214,7 +214,7 @@ export function NeedsATime({ onOpen }: SomedayProps) {
   const query = useSomeday();
   const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
   if (query.isError && !query.data) {
-    return <p className="text-[12.5px] text-error">{query.error.message}</p>;
+    return <p className="text-[13px] text-error">{query.error.message}</p>;
   }
   const tasks = query.data ? sorted(query.data).filter((item) => item.status !== "idea") : [];
   const ideas = query.data ? query.data.filter((item) => item.status === "idea") : [];
@@ -269,8 +269,8 @@ export function NeedsATime({ onOpen }: SomedayProps) {
                 className="rounded-[14px] border border-dashed border-sage-line px-4 py-3"
               >
                 <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[12.5px] font-semibold text-sage-deep">{group.keeper?.name ?? "No agent keeps these"}</span>
-                  <span className="text-[11.5px] text-ink-ghost">{group.items.length}</span>
+                  <span className="truncate text-[13px] font-semibold text-sage-deep">{group.keeper?.name ?? "No agent keeps these"}</span>
+                  <span className="text-[12px] text-ink-ghost">{group.items.length}</span>
                 </div>
                 <ul className="flex flex-col">
                   {group.items.map((idea) => (
@@ -285,7 +285,7 @@ export function NeedsATime({ onOpen }: SomedayProps) {
                       <button
                         type="button"
                         onClick={() => askAbout(idea, group.keeper)}
-                        className="shrink-0 text-[11.5px] font-semibold text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 focus-visible:opacity-100"
+                        className="shrink-0 text-[12px] font-semibold text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 focus-visible:opacity-100"
                       >
                         {group.keeper ? "Ask" : "Tell Dadi"}
                       </button>

@@ -272,7 +272,7 @@
     font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
     font-size: 11px;
     padding: 1px 5px;
-    border-radius: 5px;
+    border-radius: 6px;
     border: 1px solid var(--sage-line);
     color: var(--ink-muted);
     flex: none;
@@ -311,7 +311,7 @@
     width: 6px;
     height: 44px;
     margin-top: -22px;
-    border-radius: 3px;
+    border-radius: 4px;
     background: var(--bone);
     border: 1px solid var(--sage-line);
     box-shadow: 0 1px 3px rgba(44, 48, 42, 0.12);
@@ -374,7 +374,7 @@
     border-radius: 999px;
     background: var(--sage-deep);
     color: var(--bone);
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 600;
     display: flex;
     align-items: center;
@@ -400,7 +400,7 @@
   .rail-mark {
     width: 40px;
     height: 40px;
-    border-radius: 13px;
+    border-radius: 12px;
     display: flex;
     align-items: center;
     justify-content: center;

@@ -78,7 +78,7 @@ function GhostGraph({ width, height }: { width: number; height: number }) {
 function Legend() {
   return (
     <div style={{ padding: "12px 18px 14px", borderTop: "1px solid var(--rule)", flex: "none", background: "rgba(250, 250, 247, 0.5)" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "6px 18px", flexWrap: "wrap", fontSize: 12.5, color: "var(--ink-muted)" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "6px 18px", flexWrap: "wrap", fontSize: 13, color: "var(--ink-muted)" }}>
         {LEGEND.map(([name, mark]) => (
           <div key={name} style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
             <span style={{ width: 12, height: 12, borderRadius: "50%", boxShadow: "none", flex: "none", ...mark }} />

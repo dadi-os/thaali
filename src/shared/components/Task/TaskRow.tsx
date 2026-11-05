@@ -53,12 +53,12 @@ export function TaskRow({ task, owner, showOwner = false, question, open, onTogg
           <span className={`flex ${waiting ? "text-tide-ink" : "text-ink-muted"}`}>
             <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={15} />
           </span>
-          <Truncate text={shortId(task.id)} className="min-w-0 flex-1 font-numeric text-[12.5px] text-ink" />
-          {showOwner && owner ? <AgentName name={owner} selectable={false} className="max-w-[40%] text-[12.5px] text-ink-muted" /> : null}
+          <Truncate text={shortId(task.id)} className="min-w-0 flex-1 font-numeric text-[13px] text-ink" />
+          {showOwner && owner ? <AgentName name={owner} selectable={false} className="max-w-[40%] text-[13px] text-ink-muted" /> : null}
           <TaskStatus status={task.status} lastActivity={task.last_activity} now={now} />
         </div>
         <div className="pl-[45px]">
-          <Clamp text={task.purpose} lines={2} style={{ fontSize: 13.5, lineHeight: "19px" }} />
+          <Clamp text={task.purpose} lines={2} style={{ fontSize: 14, lineHeight: "19px" }} />
         </div>
         {!asleep && task.current ? (
           <div className="pl-[45px]">
@@ -67,9 +67,9 @@ export function TaskRow({ task, owner, showOwner = false, question, open, onTogg
         ) : null}
       </button>
       {waiting ? (
-        <div className="mt-0 mr-2.5 mb-2.5 ml-[45px] flex flex-col gap-1.5 rounded-[11px] border border-tide-line bg-bone px-3 py-2.5">
-          <span className="ui-label text-tide-ink" style={{ fontSize: 10.5 }}>{`Asked ${owner ?? "its agent"}`}</span>
-          <span data-selectable className="text-[13.5px] leading-[19px]">{question || task.current}</span>
+        <div className="mt-0 mr-2.5 mb-2.5 ml-[45px] flex flex-col gap-1.5 rounded-[12px] border border-tide-line bg-bone px-3 py-2.5">
+          <span className="ui-label text-tide-ink" style={{ fontSize: 11 }}>{`Asked ${owner ?? "its agent"}`}</span>
+          <span data-selectable className="text-[14px] leading-[19px]">{question || task.current}</span>
           <Truncate text={formatRelative(task.last_activity, now)} className="ui-mono" />
         </div>
       ) : null}

@@ -130,7 +130,7 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
       <div style={{ display: "flex", alignItems: "center", gap: 12, height: 24, flex: "none", padding: "0 2px" }}>
         <span style={{ fontSize: 16, fontWeight: 600, color: "var(--sage-text)", letterSpacing: "-0.005em", flex: "none" }}>{title}</span>
         <div style={{ flex: 1 }} />
-        {showSummary ? <Truncate text={summary} style={{ fontSize: 13.5, color: "var(--ink-muted)", maxWidth: "68%" }} /> : null}
+        {showSummary ? <Truncate text={summary} style={{ fontSize: 14, color: "var(--ink-muted)", maxWidth: "68%" }} /> : null}
         {right}
       </div>
       <div style={{ flex: 1, minHeight: 0, minWidth: 0, display: "flex", flexDirection: "column", overflow: "hidden" }}>

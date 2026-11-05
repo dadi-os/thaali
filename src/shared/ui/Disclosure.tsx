@@ -42,14 +42,14 @@ export function Disclosure({ title, summary, open, onToggle, children }: Disclos
         className="ui-trans ui-hover-fill"
         aria-expanded={open}
         onClick={onToggle}
-        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 40, padding: "0 4px", borderRadius: 9 }}
+        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 40, padding: "0 4px", borderRadius: 10 }}
       >
         <span style={{ display: "flex", color: "var(--ink-muted)" }}>
           <Chevron />
         </span>
         <span className="ui-label">{title}</span>
         <div style={{ flex: 1 }} />
-        <Truncate text={summary} style={{ fontSize: 12.5, color: "var(--ink-muted)", maxWidth: 190, textAlign: "right" }} />
+        <Truncate text={summary} style={{ fontSize: 13, color: "var(--ink-muted)", maxWidth: 190, textAlign: "right" }} />
       </button>
       <Reveal>
         <div style={{ padding: "2px 4px 12px 26px" }}>{children}</div>

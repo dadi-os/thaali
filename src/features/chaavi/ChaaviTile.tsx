@@ -51,7 +51,7 @@ function Body({ items, folders, geometry }: BodyProps) {
         <span className="ui-label" style={{ fontSize: 11 }}>Categories</span>
         <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
           {[...types].map(([type, count]) => (
-            <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, height: CHIP_HEIGHT, padding: "0 12px", borderRadius: 999, background: "var(--sage-fill)", fontSize: 13.5, whiteSpace: "nowrap", minWidth: 0 }}>
+            <div key={type} style={{ display: "flex", alignItems: "center", gap: 8, height: CHIP_HEIGHT, padding: "0 12px", borderRadius: 999, background: "var(--sage-fill)", fontSize: 14, whiteSpace: "nowrap", minWidth: 0 }}>
               <Truncate text={count === 1 ? TYPE_META[type].one : TYPE_META[type].many} style={{ fontWeight: 500, color: "var(--sage-text)" }} />
               <span style={{ fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{count}</span>
             </div>
@@ -63,7 +63,7 @@ function Body({ items, folders, geometry }: BodyProps) {
         {inFolders.slice(0, rows).map((folder) => (
           <div key={folder.id} style={{ display: "flex", alignItems: "center", gap: 10, height: 24 }}>
             <Truncate text={folder.name} style={{ flex: 1, minWidth: 0, fontSize: 14 }} />
-            <span style={{ width: 56, height: 5, borderRadius: 3, background: "var(--rule)", overflow: "hidden", flex: "none" }}>
+            <span style={{ width: 56, height: 5, borderRadius: 4, background: "var(--rule)", overflow: "hidden", flex: "none" }}>
               <span style={{ display: "block", height: "100%", width: `${(folder.count / widest) * 100}%`, background: "var(--sage)" }} />
             </span>
             <span style={{ minWidth: 20, textAlign: "right", fontSize: 13, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", flex: "none" }}>{folder.count}</span>
@@ -72,7 +72,7 @@ function Body({ items, folders, geometry }: BodyProps) {
       </div>
       <div style={{ flex: 1 }} />
       {showFooter ? (
-        <div style={{ display: "flex", alignItems: "center", gap: "4px 14px", flexWrap: "wrap", fontSize: 12.5, color: "var(--ink-muted)", flex: "none", whiteSpace: "nowrap", borderTop: "1px solid var(--rule)", paddingTop: 10 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "4px 14px", flexWrap: "wrap", fontSize: 13, color: "var(--ink-muted)", flex: "none", whiteSpace: "nowrap", borderTop: "1px solid var(--rule)", paddingTop: 10 }}>
           <span>{`${passkeys} ${passkeys === 1 ? "passkey" : "passkeys"}`}</span>
           <span>{`${codes} one-time ${codes === 1 ? "code" : "codes"}`}</span>
         </div>

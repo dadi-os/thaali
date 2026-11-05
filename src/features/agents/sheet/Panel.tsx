@@ -135,7 +135,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             <AgentName name={agent.name} className="text-[20px] font-semibold tracking-[-0.015em]" />
             <div className="flex flex-wrap items-center gap-1.5">
               {lanes.map((lane) => (
-                <span key={lane} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-sage-active px-2.5 text-[12.5px] font-semibold text-sage-text">
+                <span key={lane} className="inline-flex h-6 items-center gap-1.5 rounded-full bg-sage-active px-2.5 text-[13px] font-semibold text-sage-text">
                   <span className="dot dot-pulse size-1.5 bg-sage" />
                   {lane}
                 </span>
@@ -150,7 +150,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
       </div>
       <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-3 px-3.5 pt-3 pb-3.5">
         <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-3.5 py-3">
-          <span className="ui-label" style={{ fontSize: 10.5 }}>
+          <span className="ui-label" style={{ fontSize: 11 }}>
             Right now
           </span>
           <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
@@ -172,7 +172,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
               <div className="flex flex-col gap-0.5">
                 <div className="flex items-center px-1 pb-1">
                   <span className="ui-label">Helper tasks</span>
-                  <span className="ml-auto text-[12.5px] text-ink-muted">{`${tasks.length} · ${active} active`}</span>
+                  <span className="ml-auto text-[13px] text-ink-muted">{`${tasks.length} · ${active} active`}</span>
                 </div>
                 {tasks.map(({ task, question, preview }) => (
                   <TaskRow key={task.id} task={task} owner={agent.name} question={question} open={isTaskOpen(task.id)} onToggle={() => onToggleTask(task.id)} now={now}>
@@ -242,13 +242,13 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             )}
           </Disclosure>
         </div>
-        <div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 px-1 pt-1 text-[12.5px] text-ink-muted">
+        <div className="flex flex-wrap items-center gap-x-[18px] gap-y-1 px-1 pt-1 text-[13px] text-ink-muted">
           <span>
             Parent{" "}
             {parent === null ? (
               <span data-selectable>{agent.parent_agent_id ?? "none"}</span>
             ) : (
-              <button type="button" className="ui-trans ui-hover-fill -mx-1 inline rounded-[5px] px-1 font-semibold text-sage-text" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
+              <button type="button" className="ui-trans ui-hover-fill -mx-1 inline rounded-[6px] px-1 font-semibold text-sage-text" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
                 {parent.name}
               </button>
             )}

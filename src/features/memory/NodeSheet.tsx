@@ -39,7 +39,7 @@ function Cell({ name, value, note, selectable = false }: CellProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 3, padding: "10px 12px", borderRadius: 12, background: "var(--sage-fill)", minWidth: 0 }}>
       <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: "1.6px", textTransform: "uppercase", color: "var(--ink-muted)" }}>{name}</span>
       <span style={{ fontSize: 17, fontWeight: 600, fontVariantNumeric: "tabular-nums", lineHeight: "22px" }}>{value}</span>
-      {note ? <Truncate text={note} selectable={selectable} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} /> : null}
+      {note ? <Truncate text={note} selectable={selectable} style={{ fontSize: 13, color: "var(--ink-muted)" }} /> : null}
     </div>
   );
 }
@@ -57,7 +57,7 @@ function Section({ title, count, children }: SectionProps) {
     <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span className="ui-label">{title}</span>
-        <span style={{ marginLeft: "auto", fontSize: 12.5, color: "var(--ink-muted)" }}>{count}</span>
+        <span style={{ marginLeft: "auto", fontSize: 13, color: "var(--ink-muted)" }}>{count}</span>
       </div>
       {children}
     </div>
@@ -98,7 +98,7 @@ export function NodeSheet({ node, links, agentName, onSelect, onClose }: NodeShe
     <Card style={{ width: 344, flex: "none", background: "var(--glass-sheet)", minHeight: 0, maxWidth: "100%" }}>
       <div style={{ display: "flex", alignItems: "flex-start", gap: 10, padding: "18px 18px 10px" }}>
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 8 }}>
-          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 12.5, fontWeight: 600, color: "var(--sage-text)" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: 7, fontSize: 13, fontWeight: 600, color: "var(--sage-text)" }}>
             <span className="dot" style={{ width: 8, height: 8, background: `var(${KIND_TOKEN[node.kind]})` }} />
             {KIND_NAME[node.kind]}
           </span>
@@ -112,7 +112,7 @@ export function NodeSheet({ node, links, agentName, onSelect, onClose }: NodeShe
           <Section title="Coming up" count={comingUp.length}>
             {comingUp.map((connection) => (
               <ConnectionRow key={connection.id} onSelect={onSelect} connection={connection}>
-                <span style={{ flex: "none", fontSize: 12.5, fontWeight: 600, color: "var(--due-ink)", whiteSpace: "nowrap" }}>{`${formatDay(connection.node.occurred_at!)}, ${formatClock(connection.node.occurred_at!)}`}</span>
+                <span style={{ flex: "none", fontSize: 13, fontWeight: 600, color: "var(--due-ink)", whiteSpace: "nowrap" }}>{`${formatDay(connection.node.occurred_at!)}, ${formatClock(connection.node.occurred_at!)}`}</span>
                 <Truncate text={connection.node.title} style={{ flex: 1, fontSize: 14 }} />
               </ConnectionRow>
             ))}
@@ -129,7 +129,7 @@ export function NodeSheet({ node, links, agentName, onSelect, onClose }: NodeShe
                 style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 4, padding: "10px 12px", borderRadius: 12, background: "rgba(250, 250, 247, 0.8)", border: "1px solid var(--glass-border)", textAlign: "left" }}
               >
                 <span data-selectable><Clamp text={connection.node.title} lines={3} style={{ fontSize: 14, lineHeight: "20px" }} /></span>
-                <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${formatDay(connection.node.created_at)} · ${origin(connection.node)}`}</span>
+                <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`${formatDay(connection.node.created_at)} · ${origin(connection.node)}`}</span>
               </button>
             ))}
             {memories.length > MEMORIES_SHOWN && !allMemories ? (

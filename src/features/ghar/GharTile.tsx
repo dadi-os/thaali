@@ -63,7 +63,7 @@ function Light({ light, house }: LightProps) {
       title={`Switch ${on ? "off" : "on"} ${light.name}`}
       disabled={!house.connected || !light.online || house.pending.has(light.id)}
       onClick={flip}
-      style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% + 8px)", margin: "0 -4px", padding: "0 4px", height: 20, borderRadius: 6, textAlign: "left", fontSize: 12.5, color: on ? "var(--ink)" : "var(--ink-muted)", ...(light.online ? {} : { opacity: 0.45 }) }}
+      style={{ display: "flex", alignItems: "center", gap: 8, width: "calc(100% + 8px)", margin: "0 -4px", padding: "0 4px", height: 20, borderRadius: 6, textAlign: "left", fontSize: 13, color: on ? "var(--ink)" : "var(--ink-muted)", ...(light.online ? {} : { opacity: 0.45 }) }}
     >
       <span style={{ width: 9, height: 9, borderRadius: "50%", background: lightColor(light), border: on ? "none" : "1px solid var(--sage-line)", flex: "none" }} />
       <Truncate text={light.name} style={{ flex: 1, minWidth: 0 }} />
@@ -99,14 +99,14 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
           style={{ display: "flex", flexDirection: "column", gap: 3, padding: "12px 12px 10px", borderRadius: 14, textAlign: "left", minWidth: 0, minHeight: 0, background: room.on > 0 ? "rgba(240,168,104,.12)" : "var(--sage-fill)", border: `1px solid ${room.on > 0 ? "rgba(240,168,104,.45)" : "var(--glass-border)"}` }}
         >
           <NameTruncate name={room.name} style={{ fontSize: 14, fontWeight: 600 }} />
-          <span style={{ fontSize: 12.5, color: "var(--ink-muted)" }}>{`${room.on} of ${room.lights.length} on`}</span>
+          <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`${room.on} of ${room.lights.length} on`}</span>
           <div style={{ flex: 1 }} />
           {listed === 0 ? null : (
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               {room.lights.length <= listed
                 ? room.lights.map((light) => <Light key={light.id} light={light} house={house} />)
                 : listed === 1
-                  ? [<span key="count" style={{ fontSize: 12.5, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`${room.lights.length} lights`}</span>]
+                  ? [<span key="count" style={{ fontSize: 13, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`${room.lights.length} lights`}</span>]
                   : [
                       ...room.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
                       <span key="more" style={{ fontSize: 12, color: "var(--ink-muted)", height: 20, display: "flex", alignItems: "center" }}>{`+${room.lights.length - (listed - 1)} more`}</span>,
@@ -126,7 +126,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
             autoComplete="off"
             spellCheck={false}
             autoFocus
-            style={{ fontSize: 13.5, color: "var(--ink)" }}
+            style={{ fontSize: 14, color: "var(--ink)" }}
             onBlur={(event) => {
               setNaming(false);
               void createRoom(house, event.currentTarget.value);
@@ -155,7 +155,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
               setNaming(true);
             }
           }}
-          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", fontSize: 13.5, fontWeight: 500, minHeight: 0 }}
+          style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 7, borderRadius: 14, border: "1px dashed var(--sage-line)", color: "var(--sage-text)", fontSize: 14, fontWeight: 500, minHeight: 0 }}
         >
           <Icon name="plus" size={14} />
           {extra > 0 ? `${extra} more` : "New room"}

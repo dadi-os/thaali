@@ -121,7 +121,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
           {marks
             .filter((hour) => (hour - lo) * px + 8 <= areaHeight)
             .map((hour) => (
-              <span key={hour} style={{ position: "absolute", top: (hour - lo) * px - 7, left: 0, fontSize: 10.5, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
+              <span key={hour} style={{ position: "absolute", top: (hour - lo) * px - 7, left: 0, fontSize: 11, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>
                 {hourLabel(hour)}
               </span>
             ))}
@@ -149,7 +149,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
                       aria-expanded={opened === itemKey(item)}
                       onClick={(event) => open(event, item, onOpen)}
                       title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}`}
-                      style={{ position: "absolute", left: 3, right: 3, top: (hourOf(item.start_at!) - lo) * px, height: Math.max(7, (hourOf(item.end_at!) - hourOf(item.start_at!)) * px - 2), borderRadius: 5, background: wash, borderLeft: `3px solid ${ink}`, opacity: item.outcome === "done" ? 0.55 : 1, boxSizing: "border-box" }}
+                      style={{ position: "absolute", left: 3, right: 3, top: (hourOf(item.start_at!) - lo) * px, height: Math.max(7, (hourOf(item.end_at!) - hourOf(item.start_at!)) * px - 2), borderRadius: 6, background: wash, borderLeft: `3px solid ${ink}`, opacity: item.outcome === "done" ? 0.55 : 1, boxSizing: "border-box" }}
                     />
                   );
                 })}
@@ -163,7 +163,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
                     aria-expanded={opened === itemKey(item)}
                     onClick={(event) => open(event, item, onOpen)}
                     title={`${item.title} · due ${formatClock(item.due_at!)}`}
-                    style={{ position: "absolute", left: 3, right: 3, top: Math.min(areaHeight - 8, Math.max(0, (hourOf(item.due_at!) - lo) * px)), height: 6, borderRadius: 3, background: "var(--clay)" }}
+                    style={{ position: "absolute", left: 3, right: 3, top: Math.min(areaHeight - 8, Math.max(0, (hourOf(item.due_at!) - lo) * px)), height: 6, borderRadius: 4, background: "var(--clay)" }}
                   />
                 ))}
               {isToday ? <div style={{ position: "absolute", left: 0, right: 0, top: (nowHour - lo) * px, height: 2, background: "var(--sage-deep)", zIndex: 2 }} /> : null}
@@ -229,7 +229,7 @@ export function WeekTile({ order }: { order: number }) {
               {Array.from({ length: 7 }, (_, i) => (
                 <div key={i} style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column", minHeight: 0, gap: 8 }}>
                   {[1 + (i % 2), 2 + (i % 3), 1 + ((i + 1) % 2)].map((grow, j) => (
-                    <span key={j} className="sk" style={{ display: "block", flex: grow, minHeight: 0, borderRadius: 5 }} />
+                    <span key={j} className="sk" style={{ display: "block", flex: grow, minHeight: 0, borderRadius: 6 }} />
                   ))}
                 </div>
               ))}

@@ -98,7 +98,7 @@ function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow,
         </span>
         {showNow ? <Truncate text={nowOf(agent)} className="ui-mono min-w-0 flex-1 text-ink-muted" /> : null}
         <span className="w-[52px] flex-none text-right text-[13px] text-ink-muted tabular-nums">{tasks === 0 ? "–" : tasks}</span>
-        <span className="w-16 flex-none text-right text-[12.5px] text-ink-muted">{formatAge(agent.updated_at, now)}</span>
+        <span className="w-16 flex-none text-right text-[13px] text-ink-muted">{formatAge(agent.updated_at, now)}</span>
       </button>
     </motion.div>
   );

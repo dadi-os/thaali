@@ -27,7 +27,7 @@ const SIZE: Record<
   md: {
     box: "size-8",
     icon: "[&_svg]:size-4",
-    radius: "rounded-[7px]",
+    radius: "rounded-[8px]",
   },
   lg: {
     box: "size-9",
