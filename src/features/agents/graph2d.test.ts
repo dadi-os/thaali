@@ -34,18 +34,18 @@ describe("layoutForest", () => {
 });
 
 describe("viewForest", () => {
-  it("names only the roots of a large forest, once each, without their role suffix", () => {
+  it("names only the roots of a large forest, once each, by their whole name", () => {
     const all = agents("many").filter((agent) => agent.active);
     const view = viewForest(layoutForest(all, stateOf), { labels: "roots", width: 600, height: 300, nodeScale: 0.7 });
     for (const [node, label] of view.labels) {
       expect(node.depth).toBe(1);
       expect(label.name).toBe(graphName(node.agent.name));
-      expect(label.name).not.toMatch(/-(specialist|manager)$/);
     }
   });
 
-  it("cuts a long name to 22 characters", () => {
-    expect(graphName("application-and-recruiting-coordination-specialist")).toHaveLength(22);
-    expect(graphName("finance-specialist")).toBe("finance");
+  it("writes a name whole, with its role suffix and uncut", () => {
+    const long = "application-and-recruiting-coordination-specialist";
+    expect(graphName(long)).toBe(long);
+    expect(graphName("finance-specialist")).toBe("finance-specialist");
   });
 });

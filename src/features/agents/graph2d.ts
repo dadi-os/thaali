@@ -84,14 +84,9 @@ export type ViewOptions = {
   pad?: number;
 };
 
-/** A name cut to 22 characters. */
-function cut(name: string): string {
-  return name.length > 22 ? `${name.slice(0, 21)}…` : name;
-}
-
-/** An agent's name as the graph writes it: without its role suffix, and cut to 22 characters. */
+/** An agent's name as the graph writes it: whole, since the role suffix is part of who the agent is. */
 export function graphName(name: string): string {
-  return cut(name.replace(/-specialist$/, "").replace(/-manager$/, ""));
+  return name;
 }
 
 /** The radius of an agent's node in px, by its depth. */
@@ -149,7 +144,7 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
     const widest = (right: boolean) =>
       nodes
         .filter((n) => (Math.cos(n.ang) >= -0.05) === right && (labels === "all" || n.depth === 1 || isLive(n.state) || n.state === "waiting"))
-        .reduce((most, n) => Math.max(most, n.x * (right ? 1 : -1) + unit(18) + cut(n.agent.name.replace(/-(specialist|manager)$/, "")).length * letter * 0.6), -Infinity);
+        .reduce((most, n) => Math.max(most, n.x * (right ? 1 : -1) + unit(18) + graphName(n.agent.name).length * letter * 0.6), -Infinity);
     ext = { l: Math.max(0, widest(false) - -minX), r: Math.max(0, widest(true) - maxX) };
   }
   const priority = (n: ForestNode) => (isLive(n.state) ? 1 : n.state === "waiting" ? 2 : n.depth === 1 ? 3 : 4 + n.depth);

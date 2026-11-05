@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
 import { hath } from "../../../shared/api";
 import { CopyButton } from "../../../shared/ui/CopyButton";
-import { Glider } from "../../../shared/ui/Glider";
+import { Segmented } from "../../../shared/ui/Segmented";
 import { IconCheck, IconDismiss, IconUpdate } from "../../../shared/ui/IconButton";
 import { MarkdownBody } from "../../../shared/components/Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../../shared/lib/content/attachments";
@@ -188,7 +188,7 @@ function Sheet({ file, onClose }: SheetProps) {
           <p className="truncate text-[11px] leading-tight text-ink-ghost">{meta.join(" · ")}</p>
         </div>
         {kind === "markdown" ? (
-          <Glider options={MARKDOWN_MODES} value={mode} onChange={setMode} label="Markdown view" size="sm" />
+          <Segmented options={MARKDOWN_MODES} value={mode} onChange={setMode} label="Markdown view" size="sm" />
         ) : null}
         <div className="flex shrink-0 items-center gap-0.5">
           {textual && text.data !== undefined ? (

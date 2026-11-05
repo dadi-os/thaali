@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useSyncExternalStore } from "react";
+import { useCallback, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
@@ -11,11 +11,14 @@ import { Card } from "../shared/ui/Card";
 import { Icon } from "../shared/ui/Icon";
 import { StateView, StaleBanner } from "../shared/states/ModuleState";
 import { Pill } from "../shared/ui/Button";
+import { Segmented } from "../shared/ui/Segmented";
 import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
 import { useModuleState } from "../shared/hooks/useModuleState";
-import { useSize } from "../shared/hooks/useSize";
+import { useRetained } from "../shared/hooks/useRetained";
+import { Measured } from "../shared/layout/Measured";
+import { Page } from "../shared/layout/Page";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
 import { agentsMatching, pickedMatch } from "../features/agents/search";
@@ -24,15 +27,6 @@ import type { AgentRecord } from "../types/hath";
 
 /** More agents than this are drawn small, with only their roots named. */
 const MANY_AGENTS = 40;
-/** The sheet's width, and the gap between it and the graph. */
-const SHEET_WIDTH = 400;
-const SHEET_GAP = 16;
-/** The page is this wide, or wider, before the sheet sits beside the graph; narrower, it is a drawer over it. */
-const DOCK_ABOVE = 800;
-/** The page's sides, and what the page keeps above and below the graph's drawing (the header, the chips, the legend, the paddings and the gaps), in px. */
-const SIDES = 40;
-const CHROME = 190;
-
 /** The filter chips, in the order the page draws them. */
 const FILTER_NAMES = Object.keys(LANE_FILTERS) as LaneFilter[];
 
@@ -104,7 +98,6 @@ function Legend() {
 export function HathPage() {
   const { state: connection } = useConnection();
   const [params, setParams] = useSearchParams();
-  const [page, { width, height }] = useSize<HTMLDivElement>();
   const live = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
 
   const query = useQuery({
@@ -121,12 +114,11 @@ export function HathPage() {
   const selectedId = params.get("agent");
   const filter = FILTER_NAMES.find((name) => name === params.get("filter")) ?? "All";
   const sheeted = state.kind === "ready" && selectedId !== null && agents.some((agent) => agent.id === selectedId);
-  const docked = width > DOCK_ABOVE;
   const search = params.get("q") ?? "";
   const found = agentsMatching(agents, search);
   const dimmed = filter === "All" && found === null ? null : new Set(agents.filter((agent, i) => !keepsState(filter, states[i]!) || (found !== null && !found.includes(agent))).map((agent) => agent.id));
   const many = agents.length > MANY_AGENTS;
-  const room = { width: width - SIDES - (sheeted && docked ? SHEET_WIDTH + SHEET_GAP : 0), height: height - CHROME };
+  const shownAgent = useRetained(sheeted ? selectedId : null);
 
   const setParam = useCallback(
     (name: string, value: string | null) =>
@@ -146,26 +138,11 @@ export function HathPage() {
   );
   const pick = (agent: AgentRecord) => setParam("agent", agent.id);
 
-  useEffect(() => {
-    if (!sheeted || docked) {
-      return undefined;
-    }
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setParam("agent", null);
-      }
-    };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [sheeted, docked, setParam]);
-
   let content;
   if (state.kind === "loading") {
     content = (
       <Card style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-          <GhostGraph width={room.width} height={room.height} />
-        </div>
+        <Measured>{(size) => <GhostGraph width={size.width} height={size.height} />}</Measured>
         <div style={{ display: "flex", alignItems: "center", gap: 18, padding: "12px 18px 14px", borderTop: "1px solid var(--rule)", flex: "none", background: "rgba(250, 250, 247, 0.5)" }}>
           <Skeleton width={70} height={12} />
           <Skeleton width={86} height={12} />
@@ -197,31 +174,36 @@ export function HathPage() {
   } else {
     content = (
       <Card style={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <div style={{ flex: 1, minHeight: 0, position: "relative" }}>
-          <AgentGraph2D
-            agents={agents}
-            stateOf={stateOf}
-            width={room.width}
-            height={room.height}
-            labels={many ? "roots" : "all"}
-            nodeScale={many ? 0.75 : 1.1}
-            fontScale={1.05}
-            layout={{ r1: many ? 120 : 130, step: many ? 70 : 115 }}
-            selectedId={selectedId}
-            dimmed={dimmed}
-            onPick={pick}
-          />
-        </div>
+        <Measured>
+          {(size) => (
+            <AgentGraph2D
+              agents={agents}
+              stateOf={stateOf}
+              width={size.width}
+              height={size.height}
+              labels={many ? "roots" : "all"}
+              nodeScale={many ? 0.75 : 1.1}
+              fontScale={1.05}
+              layout={{ r1: many ? 120 : 130, step: many ? 70 : 115 }}
+              selectedId={selectedId}
+              dimmed={dimmed}
+              onPick={pick}
+            />
+          )}
+        </Measured>
         <Legend />
       </Card>
     );
   }
 
   const working = states.filter(isLive).length;
-  const sheet = sheeted ? <AgentSheet agentId={selectedId} onSelect={(id) => setParam("agent", id)} /> : null;
   return (
-    <div ref={page} data-page="hath" style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 16, padding: "18px 20px 20px", minHeight: 0 }}>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 12, minHeight: 0 }}>
+    <Page
+      name="hath"
+      aside={shownAgent === null ? undefined : <AgentSheet agentId={shownAgent} onSelect={(id) => setParam("agent", id)} />}
+      asideOpen={sheeted}
+      onAsideClose={() => setParam("agent", null)}
+    >
         <PageHeader
           title="Hath"
           meta={state.kind === "ready" ? `${working} working · ${agents.length} agents` : undefined}
@@ -250,27 +232,15 @@ export function HathPage() {
                   </label>
                 </div>
               ) : null}
-              <div style={{ display: "inline-flex", padding: 3, gap: 2, borderRadius: 999, background: "var(--sage-fill)", border: "1px solid var(--glass-border)" }}>
-              {(
-                [
-                  ["graph", "Graph"],
-                  ["list", "List"],
-                ] as const
-              ).map(([name, title]) => (
-                <button
-                  key={name}
-                  type="button"
-                  className="ui-trans"
-                  aria-label={`${title} view`}
-                  aria-pressed={name === view}
-                  title={`${title} view`}
-                  onClick={() => setParam("view", name === "list" ? "list" : null)}
-                  style={{ width: 44, height: 32, borderRadius: 999, display: "flex", alignItems: "center", justifyContent: "center", background: name === view ? "var(--bone)" : "transparent", color: name === view ? "var(--ink)" : "var(--ink-muted)", boxShadow: name === view ? "0 1px 2px rgba(92, 107, 82, 0.15)" : "none" }}
-                >
-                  <Icon name={name} size={16} />
-                </button>
-              ))}
-              </div>
+              <Segmented
+                label="Agents view"
+                options={[
+                  { value: "graph", icon: "graph", title: "Graph view" },
+                  { value: "list", icon: "list", title: "List view" },
+                ]}
+                value={view}
+                onChange={(next) => setParam("view", next === "list" ? "list" : null)}
+              />
             </div>
           }
         />
@@ -284,15 +254,7 @@ export function HathPage() {
             ))}
           </div>
         ) : null}
-        {width === 0 ? null : content}
-      </div>
-      {docked ? sheet : null}
-      {docked || sheet === null ? null : (
-        <>
-          <div onClick={() => setParam("agent", null)} style={{ position: "absolute", inset: 0, zIndex: 4 }} />
-          <div style={{ position: "absolute", top: 18, right: 20, bottom: 20, display: "flex", zIndex: 5 }}>{sheet}</div>
-        </>
-      )}
-    </div>
+        {content}
+    </Page>
   );
 }
