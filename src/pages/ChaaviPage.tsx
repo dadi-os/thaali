@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../chrome/PageHeader";
+import { itemActions } from "../features/chaavi/actions";
 import { draftFromItem, emptyDraft, createBody, inScope, searchItems, updateBody, type ItemDraft, type VaultScope } from "../features/chaavi/draft";
 import { dropChange, useItemDrag, type DropTarget } from "../features/chaavi/drag";
 import { FolderPane } from "../features/chaavi/FolderPane";
@@ -18,7 +19,7 @@ import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
 import { useRetained } from "../shared/hooks/useRetained";
-import { useSize } from "../shared/hooks/useSize";
+import { Page } from "../shared/layout/Page";
 import { ConfirmDialog } from "../shared/overlay/ConfirmDialog";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
@@ -106,7 +107,7 @@ export function ChaaviPage() {
   const connected = isMeshOnline(connection);
   const queryClient = useQueryClient();
   const [params] = useSearchParams();
-  const [page, { width }] = useSize<HTMLDivElement>();
+  const page = useRef<HTMLDivElement>(null);
   const [pickedId, setPickedId] = useState<string | null>(params.get("item"));
   const [scope, setScope] = useState<VaultScope>({ kind: "all" });
   const [query, setQuery] = useState("");
@@ -206,132 +207,145 @@ export function ChaaviPage() {
     },
   });
 
-  const narrow = width < FOLDER_PANE_FROM;
   const ready = state.kind === "ready";
   const canAdd = ready || state.kind === "empty";
-  const wideList = width >= WIDE_LIST_FROM;
 
-  let body;
-  if (unconfigured) {
-    body = (
-      <Card style={{ flex: 1, minWidth: 0 }}>
-        <StateView kind="empty" title="Vault unconfigured" detail="Set the vault account in Preferences → Chaavi" />
-      </Card>
-    );
-  } else if (state.kind === "loading" || (state.kind === "ready" && foldersState.kind === "loading")) {
-    body = <Loading narrow={narrow} wide={wideList} />;
-  } else if (state.kind === "offline") {
-    body = (
-      <Card style={{ flex: 1, minWidth: 0 }}>
-        <StateView kind="offline" title="dadi is unreachable" detail="Waiting for the mesh to reconnect" />
-      </Card>
-    );
-  } else if (state.kind === "module-offline") {
-    body = (
-      <Card style={{ flex: 1, minWidth: 0 }}>
-        <StateView kind="module-offline" title="Chaavi isn’t answering" detail="The vault service is down. Your other modules still work." service={`${state.error.service}.dadi`} status={state.error.status} onRetry={retry} />
-      </Card>
-    );
-  } else if (state.kind === "error") {
-    body = (
-      <Card style={{ flex: 1, minWidth: 0 }}>
-        <StateView kind="error" title="Chaavi failed to answer" {...failureProps(state.error)} onRetry={retry} />
-      </Card>
-    );
-  } else if (state.kind === "empty") {
-    body = (
-      <Card style={{ flex: 1, minWidth: 0 }}>
-        <StateView kind="empty" title="The vault is empty" detail="Create your first login or secure note." />
-      </Card>
-    );
-  } else {
-    const list = <ItemList items={listed} selectedId={selected?.id ?? null} query={query} onQuery={setQuery} onSelect={setPickedId} draggingId={drag.draggingId} drag={drag.handlers} width={narrow ? 300 : wideList ? 400 : 340} />;
-    const detail =
-      selected === null ? (
+  const itemMenu = (item: ChaaviItem) =>
+    itemActions(item, {
+      open: () => setPickedId(item.id),
+      edit: () => setOverlay({ kind: "edit", item }),
+      toggleFavorite: () => patch.mutate({ id: item.id, body: { favorite: !item.favorite } }),
+      remove: () => setOverlay({ kind: "delete", item }),
+    });
+
+  const renderBody = (width: number) => {
+    const narrow = width < FOLDER_PANE_FROM;
+    const wideList = width >= WIDE_LIST_FROM;
+    let body;
+    if (unconfigured) {
+      body = (
         <Card style={{ flex: 1, minWidth: 0 }}>
-          <StateView kind="empty" title="No item open" detail="Nothing in the list to open." />
+          <StateView kind="empty" title="Vault unconfigured" detail="Set the vault account in Preferences → Chaavi" />
         </Card>
-      ) : (
-        <ItemDetail
-          key={selected.id}
-          item={selected}
-          folders={folders}
-          busy={patch.isPending || remove.isPending}
-          onEdit={() => setOverlay({ kind: "edit", item: selected })}
-          onToggleFavorite={() => patch.mutate({ id: selected.id, body: { favorite: !selected.favorite } })}
-          onDelete={() => setOverlay({ kind: "delete", item: selected })}
-        />
       );
-    body = narrow ? (
-      <div style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 12, minHeight: 0 }}>
-        {list}
-        {detail}
-      </div>
-    ) : (
-      <div style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 14, minHeight: 0 }}>
-        <FolderPane
-          items={items}
-          folders={folders}
-          scope={activeScope}
-          busy={folderOp.isPending}
-          hot={drag.hot}
-          onScope={setScope}
-          onCreate={(path) => folderOp.mutate({ op: "create", path })}
-          onRename={(from, to) => {
-            if (activeScope.kind === "folder" && isWithin(activeScope.path, from)) {
-              setScope({ kind: "folder", path: to + activeScope.path.slice(from.length) });
-            }
-            folderOp.mutate({ op: "rename", from, to });
-          }}
-          onDelete={(id) => folderOp.mutate({ op: "delete", id })}
-        />
-        {list}
-        {detail}
-      </div>
-    );
-  }
+    } else if (state.kind === "loading" || (state.kind === "ready" && foldersState.kind === "loading")) {
+      body = <Loading narrow={narrow} wide={wideList} />;
+    } else if (state.kind === "offline") {
+      body = (
+        <Card style={{ flex: 1, minWidth: 0 }}>
+          <StateView kind="offline" title="dadi is unreachable" detail="Waiting for the mesh to reconnect" />
+        </Card>
+      );
+    } else if (state.kind === "module-offline") {
+      body = (
+        <Card style={{ flex: 1, minWidth: 0 }}>
+          <StateView kind="module-offline" title="Chaavi isn’t answering" detail="The vault service is down. Your other modules still work." service={`${state.error.service}.dadi`} status={state.error.status} onRetry={retry} />
+        </Card>
+      );
+    } else if (state.kind === "error") {
+      body = (
+        <Card style={{ flex: 1, minWidth: 0 }}>
+          <StateView kind="error" title="Chaavi failed to answer" {...failureProps(state.error)} onRetry={retry} />
+        </Card>
+      );
+    } else if (state.kind === "empty") {
+      body = (
+        <Card style={{ flex: 1, minWidth: 0 }}>
+          <StateView kind="empty" title="The vault is empty" detail="Create your first login or secure note." />
+        </Card>
+      );
+    } else {
+      const list = <ItemList items={listed} selectedId={selected?.id ?? null} query={query} onQuery={setQuery} onSelect={setPickedId} draggingId={drag.draggingId} drag={drag.handlers} actions={itemMenu} width={narrow ? 300 : wideList ? 400 : 340} />;
+      const detail =
+        selected === null ? (
+          <Card style={{ flex: 1, minWidth: 0 }}>
+            <StateView kind="empty" title="No item open" detail="Nothing in the list to open." />
+          </Card>
+        ) : (
+          <ItemDetail
+            key={selected.id}
+            item={selected}
+            folders={folders}
+            busy={patch.isPending || remove.isPending}
+            onEdit={() => setOverlay({ kind: "edit", item: selected })}
+            onToggleFavorite={() => patch.mutate({ id: selected.id, body: { favorite: !selected.favorite } })}
+            onDelete={() => setOverlay({ kind: "delete", item: selected })}
+          />
+        );
+      body = narrow ? (
+        <div style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 12, minHeight: 0 }}>
+          {list}
+          {detail}
+        </div>
+      ) : (
+        <div style={{ display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, gap: 14, minHeight: 0 }}>
+          <FolderPane
+            items={items}
+            folders={folders}
+            scope={activeScope}
+            busy={folderOp.isPending}
+            hot={drag.hot}
+            onScope={setScope}
+            onCreate={(path) => folderOp.mutate({ op: "create", path })}
+            onRename={(from, to) => {
+              if (activeScope.kind === "folder" && isWithin(activeScope.path, from)) {
+                setScope({ kind: "folder", path: to + activeScope.path.slice(from.length) });
+              }
+              folderOp.mutate({ op: "rename", from, to });
+            }}
+            onDelete={(id) => folderOp.mutate({ op: "delete", id })}
+          />
+          {list}
+          {detail}
+        </div>
+      );
+    }
+    return body;
+  };
 
   return (
-    <div ref={page} data-page="chaavi" style={{ flex: 1, minWidth: 0, position: "relative", display: "flex", flexDirection: "column", minHeight: 0 }}>
-      <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, padding: "18px 20px 20px", gap: 14, minHeight: 0 }}>
-        <PageHeader
-          title="Chaavi"
-          meta={ready ? `${items.length} items` : undefined}
-          trailing={
-            canAdd ? (
-              <Button tone="fill" size="lg" icon="plus" onClick={() => setOverlay({ kind: "create", draft: emptyDraft("login", activeScope.kind === "folder" ? (folders.find((folder) => folder.name === activeScope.path)?.id ?? null) : null) })}>
-                New item
-              </Button>
-            ) : undefined
-          }
-        />
-        {ready && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Chaavi reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={retry} /> : null}
-        {body}
-      </div>
-      {shown?.kind === "create" || shown?.kind === "edit" ? (
-        <ItemSheet
-          open={overlay !== null}
-          mode={shown.kind}
-          initial={shown.kind === "create" ? shown.draft : draftFromItem(shown.item)}
-          itemId={shown.kind === "edit" ? shown.item.id : null}
-          folders={folders}
-          pending={save.isPending}
-          onClose={close}
-          onSubmit={(draft) => save.mutate(shown.kind === "create" ? { mode: "create", draft } : { mode: "edit", item: shown.item, draft })}
-        />
-      ) : null}
-      {drag.ghost === null ? null : <DragGhost name={drag.ghost.item.name} x={drag.ghost.x} y={drag.ghost.y} />}
-      {shown?.kind === "delete" ? (
-        <ConfirmDialog
-          open={overlay !== null}
-          title={`Delete ${shown.item.name}?`}
-          detail="It moves to the vault’s trash on every device."
-          confirmLabel="Delete"
-          pending={remove.isPending}
-          onCancel={close}
-          onConfirm={() => remove.mutate(shown.item.id)}
-        />
-      ) : null}
-    </div>
+    <Page name="chaavi" ref={page}>
+      {(room) => (
+        <>
+          <PageHeader
+            title="Chaavi"
+            meta={ready ? `${items.length} items` : undefined}
+            trailing={
+              canAdd ? (
+                <Button tone="fill" size="lg" icon="plus" onClick={() => setOverlay({ kind: "create", draft: emptyDraft("login", activeScope.kind === "folder" ? (folders.find((folder) => folder.name === activeScope.path)?.id ?? null) : null) })}>
+                  New item
+                </Button>
+              ) : undefined
+            }
+          />
+          {ready && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Chaavi reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={retry} /> : null}
+          {renderBody(room.width)}
+          {shown?.kind === "create" || shown?.kind === "edit" ? (
+            <ItemSheet
+              open={overlay !== null}
+              mode={shown.kind}
+              initial={shown.kind === "create" ? shown.draft : draftFromItem(shown.item)}
+              itemId={shown.kind === "edit" ? shown.item.id : null}
+              folders={folders}
+              pending={save.isPending}
+              onClose={close}
+              onSubmit={(draft) => save.mutate(shown.kind === "create" ? { mode: "create", draft } : { mode: "edit", item: shown.item, draft })}
+            />
+          ) : null}
+          {drag.ghost === null ? null : <DragGhost name={drag.ghost.item.name} x={drag.ghost.x} y={drag.ghost.y} />}
+          {shown?.kind === "delete" ? (
+            <ConfirmDialog
+              open={overlay !== null}
+              title={`Delete ${shown.item.name}?`}
+              detail="It moves to the vault’s trash on every device."
+              confirmLabel="Delete"
+              pending={remove.isPending}
+              onCancel={close}
+              onConfirm={() => remove.mutate(shown.item.id)}
+            />
+          ) : null}
+        </>
+      )}
+    </Page>
   );
 }

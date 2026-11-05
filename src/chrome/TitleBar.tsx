@@ -36,7 +36,7 @@ export function TitleBar({ wordmark, notice, onHome }: TitleBarProps) {
   return (
     <div className="titlebar" data-tauri-drag-region onDoubleClick={frameless ? toggleMaximize : undefined}>
       {wordmark ? (
-        <button type="button" aria-label="Dadi home" onClick={onHome} style={{ display: "flex", alignItems: "center", height: "100%" }}>
+        <button type="button" aria-label="Dadi home" onClick={onHome} style={{ display: "flex", alignItems: "center", height: "100%", padding: "0 14px" }}>
           <span aria-hidden="true" className="titlebar-mark">
             દાદી
           </span>

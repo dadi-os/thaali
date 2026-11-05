@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { chaavi } from "../../shared/api";
 import { Button, IconButton } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
+import { useContextActions } from "../../shared/interaction/contextMenu";
 import { Truncate } from "../../shared/ui/Truncate";
 import { copyText } from "../../shared/desktop/clipboard";
 import { confirmOwner } from "../../shared/desktop/owner";
@@ -149,14 +150,19 @@ type FieldRowProps = {
 /** One field of an item: its name over its value, with the controls the field has. */
 function FieldRow({ label, value, mono = false, multiline = false, extra, reveal, onCopy, onOpen }: FieldRowProps) {
   const name = label.toLowerCase();
+  const context = useContextActions(() => [
+    ...(onCopy ? [{ id: "copy", label: `Copy ${name}`, icon: "copy" as const, run: onCopy }] : []),
+    ...(reveal ? [{ id: "reveal", label: `${reveal.shown ? "Hide" : "Reveal"} ${name}`, icon: "eye" as const, disabledReason: reveal.pending ? "Working" : undefined, run: reveal.onToggle }] : []),
+    ...(onOpen ? [{ id: "open", label: "Open website", icon: "link" as const, run: onOpen }] : []),
+  ]);
   return (
-    <div style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 56, padding: "8px 14px", borderRadius: 14, background: "rgba(250,250,247,.8)", border: "1px solid var(--glass-border)" }}>
+    <div {...context} style={{ display: "flex", alignItems: "center", gap: 10, minHeight: 56, padding: "8px 14px", borderRadius: 14, background: "rgba(250,250,247,.8)", border: "1px solid var(--glass-border)" }}>
       <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 3 }}>
         <span style={{ fontSize: 12, color: "var(--ink-muted)" }}>{label}</span>
         {multiline ? (
-          <span style={{ fontSize: 14.5, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value}</span>
+          <span data-selectable style={{ fontSize: 14.5, minWidth: 0, whiteSpace: "pre-wrap", overflowWrap: "anywhere" }}>{value}</span>
         ) : (
-          <Truncate text={value} style={mono ? { fontFamily: MONO, fontSize: 13.5, letterSpacing: value.includes("•") ? "2px" : "0" } : { fontSize: 14.5 }} />
+          <Truncate selectable text={value} style={mono ? { fontFamily: MONO, fontSize: 13.5, letterSpacing: value.includes("•") ? "2px" : "0" } : { fontSize: 14.5 }} />
         )}
       </div>
       {extra}

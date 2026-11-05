@@ -1,4 +1,4 @@
-import type { ReactNode } from "react";
+import type { ReactNode, Ref } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSize, type Size } from "../hooks/useSize";
 import { useDismiss } from "../interaction/dismiss";
@@ -14,6 +14,8 @@ export type PageRoom = Size & {
 export type PageProps = {
   /** The page's name, on the root as `data-page`, for tests and the visual loop. */
   name: string;
+  /** The frame element, for a page whose gestures (a drag) are measured against it. */
+  ref?: Ref<HTMLDivElement>;
   /** The main column: usually a header, then the page's content. Give a function to be told the room. */
   children: ReactNode | ((room: PageRoom) => ReactNode);
   /** The side panel's content, shown while `asideOpen`; it plays an enter and exit as it comes and goes. */
@@ -37,8 +39,16 @@ const GAP = 16;
  * side panel that docks beside it on a wide window and floats over it as a drawer on a narrow one. The frame
  * measures itself, so a page sizes its content from the room it is given and never from numbers it subtracts by hand.
  */
-export function Page({ name, children, aside, asideOpen = false, onAsideClose, asideWidth = 400, dockAbove = 800 }: PageProps) {
+export function Page({ name, ref: outer, children, aside, asideOpen = false, onAsideClose, asideWidth = 400, dockAbove = 800 }: PageProps) {
   const [ref, size] = useSize<HTMLDivElement>();
+  const frame = (el: HTMLDivElement | null) => {
+    ref.current = el;
+    if (typeof outer === "function") {
+      outer(el);
+    } else if (outer) {
+      outer.current = el;
+    }
+  };
   const docked = size.width > dockAbove;
   const shown = aside !== undefined && asideOpen;
   useDismiss({ open: shown && !docked, onDismiss: () => onAsideClose?.() });
@@ -47,7 +57,7 @@ export function Page({ name, children, aside, asideOpen = false, onAsideClose, a
 
   return (
     <div
-      ref={ref}
+      ref={frame}
       data-page={name}
       style={{ position: "relative", display: "flex", alignItems: "stretch", flex: 1, minWidth: 0, minHeight: 0, gap: GAP, padding: `${PAD.top}px ${PAD.side}px ${PAD.bottom}px` }}
     >

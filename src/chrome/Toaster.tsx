@@ -1,4 +1,6 @@
-import { useSyncExternalStore } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { TOAST } from "../shared/motion";
 import { useNavigate, type NavigateFunction } from "react-router-dom";
 import { Toast } from "../shared/overlay/Toast";
 import { openAgent } from "../store/chat";
@@ -36,33 +38,43 @@ export function openTarget(target: ToastTarget, navigate: NavigateFunction): voi
 export function Toaster() {
   const toasts = useSyncExternalStore(subscribeToasts, getToasts);
   const navigate = useNavigate();
+  useEffect(() => {
+    for (const toast of toasts) {
+      if (toast.leaving) {
+        removeToast(toast.id);
+      }
+    }
+  }, [toasts]);
   return (
     <div
       role="region"
       aria-label="Notifications"
       style={{ position: "fixed", right: 20, bottom: 20, zIndex: "var(--z-toast)", display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 10, pointerEvents: "none" }}
     >
-      {toasts.map((toast) => (
-        <div key={toast.id} style={{ pointerEvents: "auto" }}>
-          <Toast
-            kind={toast.tone}
-            title={toast.count > 1 ? `${toast.title} ×${toast.count}` : toast.title}
-            body={toast.body}
-            leaving={toast.leaving}
-            visibleMs={VISIBLE_MS}
-            restartKey={toast.at}
-            onActivate={() => {
-              if (toast.target) {
-                openTarget(toast.target, navigate);
-              }
-              dismissToast(toast.id);
-            }}
-            onDismiss={() => dismissToast(toast.id)}
-            onExpire={() => dismissToast(toast.id)}
-            onLeft={() => removeToast(toast.id)}
-          />
-        </div>
-      ))}
+      <AnimatePresence mode="popLayout" initial={false}>
+        {toasts
+          .filter((toast) => !toast.leaving)
+          .map((toast) => (
+            <motion.div key={toast.id} layout style={{ pointerEvents: "auto" }} {...TOAST}>
+              <Toast
+                kind={toast.tone}
+                title={toast.count > 1 ? `${toast.title} ×${toast.count}` : toast.title}
+                body={toast.body}
+                visibleMs={VISIBLE_MS}
+                restartKey={toast.at}
+                style={{ animation: "none" }}
+                onActivate={() => {
+                  if (toast.target) {
+                    openTarget(toast.target, navigate);
+                  }
+                  dismissToast(toast.id);
+                }}
+                onDismiss={() => dismissToast(toast.id)}
+                onExpire={() => dismissToast(toast.id)}
+              />
+            </motion.div>
+          ))}
+      </AnimatePresence>
     </div>
   );
 }

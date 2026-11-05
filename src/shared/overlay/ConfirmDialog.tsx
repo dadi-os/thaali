@@ -18,6 +18,8 @@ export type ConfirmDialogProps = {
   icon?: IconName;
   /** The action is in flight: both buttons rest and the dialog cannot be dismissed. */
   pending?: boolean;
+  /** Why the last attempt failed, kept on the dialog until the next attempt. */
+  error?: string | null;
   /** Cancel, Escape or the scrim. */
   onCancel: () => void;
   /** The confirming button. */
@@ -25,7 +27,7 @@ export type ConfirmDialogProps = {
 };
 
 /** A yes or no before something that cannot be taken back or that costs: a mark, the question, what follows, Cancel and the confirming button. */
-export function ConfirmDialog({ open, title, detail, confirmLabel, tone = "danger", icon = "trash", pending = false, onCancel, onConfirm }: ConfirmDialogProps) {
+export function ConfirmDialog({ open, title, detail, confirmLabel, tone = "danger", icon = "trash", pending = false, error = null, onCancel, onConfirm }: ConfirmDialogProps) {
   return (
     <Dialog
       open={open}
@@ -50,6 +52,11 @@ export function ConfirmDialog({ open, title, detail, confirmLabel, tone = "dange
       }
     >
       <span style={{ fontSize: 14, color: "var(--ink-muted)", lineHeight: "20px" }}>{detail}</span>
+      {error === null ? null : (
+        <span role="alert" data-selectable style={{ fontSize: 13, color: "var(--error)", lineHeight: "18px", overflowWrap: "anywhere" }}>
+          {error}
+        </span>
+      )}
       <ButtonGroup justify="flex-end">
         <Button tone="quiet" size="xl" disabled={pending} onClick={onCancel}>
           Cancel

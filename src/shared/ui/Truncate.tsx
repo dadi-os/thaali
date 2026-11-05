@@ -4,12 +4,14 @@ export type TruncateProps = {
   text: string;
   className?: string;
   style?: CSSProperties;
+  /** The text is content a person may want to copy, so it can be selected. */
+  selectable?: boolean;
 };
 
 /** One line of text that ends in an ellipsis when it does not fit, with the whole text in `title`. */
-export function Truncate({ text, className, style }: TruncateProps) {
+export function Truncate({ text, className, style, selectable = false }: TruncateProps) {
   return (
-    <span className={["truncate-line", className ?? ""].filter(Boolean).join(" ")} title={text} style={style}>
+    <span className={["truncate-line", className ?? ""].filter(Boolean).join(" ")} title={text} style={style} data-selectable={selectable ? "" : undefined}>
       {text}
     </span>
   );

@@ -1,3 +1,7 @@
+import { AnimatePresence, motion } from "motion/react";
+import { useContextActions } from "../../shared/interaction/contextMenu";
+import type { ActionList } from "../../shared/interaction/actions";
+import { RISE } from "../../shared/motion";
 import { Card } from "../../shared/ui/Card";
 import { Icon } from "../../shared/ui/Icon";
 import { StateView } from "../../shared/states/ModuleState";
@@ -62,6 +66,55 @@ export type RowDragHandlers = {
   onPointerCancel: () => void;
 };
 
+type ItemRowProps = {
+  item: ChaaviItem;
+  selected: boolean;
+  /** The row is being dragged, so it shows lifted out. */
+  dragging: boolean;
+  drag: RowDragHandlers;
+  actions: (item: ChaaviItem) => ActionList;
+  onSelect: (id: string) => void;
+};
+
+/** One item of the list: its mark, name and public line, a star, passkey and one-time code glyph where it has them; draggable onto a folder, with the item's menu on right click. */
+function ItemRow({ item, selected, dragging, drag, actions, onSelect }: ItemRowProps) {
+  const context = useContextActions(() => actions(item));
+  return (
+    <motion.div layout="position" {...RISE} {...context}>
+      <button
+        type="button"
+        className="ui-trans ui-hover-fill"
+        aria-current={selected ? "true" : "false"}
+        onPointerDown={(event) => drag.onPointerDown(event, item)}
+        onPointerMove={drag.onPointerMove}
+        onPointerUp={drag.onPointerUp}
+        onPointerCancel={drag.onPointerCancel}
+        onClick={(event) => {
+          if (event.detail === 0) {
+            onSelect(item.id);
+          }
+        }}
+        style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", height: 56, padding: "0 10px", borderRadius: 12, background: selected ? "var(--sage-active)" : "transparent", cursor: "grab", touchAction: "none", ...(dragging ? { opacity: 0.35, scale: 0.97 } : {}) }}
+      >
+        <Avatar name={item.name} size={36} />
+        <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
+          <Truncate text={item.name} style={{ fontSize: 14.5, fontWeight: 600 }} />
+          <Truncate text={itemSubtitle(item)} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />
+        </div>
+        <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--ink-muted)", flex: "none" }}>
+          {item.favorite ? (
+            <span style={{ color: "var(--clay)", display: "flex" }}>
+              <Icon name="star" size={14} />
+            </span>
+          ) : null}
+          {item.type === "login" && item.login.passkeys.length > 0 ? <Icon name="key" size={14} /> : null}
+          {item.type === "login" && item.login.hasTotp ? <Icon name="clock" size={14} /> : null}
+        </div>
+      </button>
+    </motion.div>
+  );
+}
+
 export type ItemListProps = {
   /** The items to list, in the order to show them. */
   items: ChaaviItem[];
@@ -73,12 +126,14 @@ export type ItemListProps = {
   /** The row being dragged, which shows lifted out. */
   draggingId: string | null;
   drag: RowDragHandlers;
+  /** What a right click on a row offers. */
+  actions: (item: ChaaviItem) => ActionList;
   /** The card's width in px. */
   width: number;
 };
 
 /** The search box over the scrolling list of items: a mark, the name and one public line each, and a star, passkey and one-time code glyph where the item has them. */
-export function ItemList({ items, selectedId, query, onQuery, onSelect, draggingId, drag, width }: ItemListProps) {
+export function ItemList({ items, selectedId, query, onQuery, onSelect, draggingId, drag, actions, width }: ItemListProps) {
   return (
     <Card style={{ width, flex: "none", minHeight: 0 }}>
       <div style={{ padding: "12px 12px 8px", flex: "none" }}>
@@ -105,43 +160,11 @@ export function ItemList({ items, selectedId, query, onQuery, onSelect, dragging
         {items.length === 0 ? (
           <StateView kind="empty" title="No matches" detail="Nothing in the vault fits that." dense />
         ) : (
-          items.map((item) => {
-            const selected = item.id === selectedId;
-            return (
-              <div key={item.id}>
-                <button
-                  type="button"
-                  className="ui-trans ui-hover-fill"
-                  aria-current={selected ? "true" : "false"}
-                  onPointerDown={(event) => drag.onPointerDown(event, item)}
-                  onPointerMove={drag.onPointerMove}
-                  onPointerUp={drag.onPointerUp}
-                  onPointerCancel={drag.onPointerCancel}
-                  onClick={(event) => {
-                    if (event.detail === 0) {
-                      onSelect(item.id);
-                    }
-                  }}
-                  style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", height: 56, padding: "0 10px", borderRadius: 12, background: selected ? "var(--sage-active)" : "transparent", cursor: "grab", touchAction: "none", ...(item.id === draggingId ? { opacity: 0.35, transform: "scale(.97)" } : {}) }}
-                >
-                  <Avatar name={item.name} size={36} />
-                  <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
-                    <Truncate text={item.name} style={{ fontSize: 14.5, fontWeight: 600 }} />
-                    <Truncate text={itemSubtitle(item)} style={{ fontSize: 12.5, color: "var(--ink-muted)" }} />
-                  </div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, color: "var(--ink-muted)", flex: "none" }}>
-                    {item.favorite ? (
-                      <span style={{ color: "var(--clay)", display: "flex" }}>
-                        <Icon name="star" size={14} />
-                      </span>
-                    ) : null}
-                    {item.type === "login" && item.login.passkeys.length > 0 ? <Icon name="key" size={14} /> : null}
-                    {item.type === "login" && item.login.hasTotp ? <Icon name="clock" size={14} /> : null}
-                  </div>
-                </button>
-              </div>
-            );
-          })
+          <AnimatePresence initial={false}>
+            {items.map((item) => (
+              <ItemRow key={item.id} item={item} selected={item.id === selectedId} dragging={item.id === draggingId} drag={drag} actions={actions} onSelect={onSelect} />
+            ))}
+          </AnimatePresence>
         )}
       </div>
     </Card>

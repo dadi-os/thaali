@@ -8,6 +8,7 @@ import { OfflinePill } from "./OfflinePill";
 import { Onboarding, type BootState } from "./onboarding";
 import { ProvisionOverlay } from "./ProvisionOverlay";
 import { TitleBar } from "./TitleBar";
+import { useShortcut } from "../shared/interaction/shortcuts";
 import { ContextMenuHost } from "../shared/overlay/ContextMenuHost";
 import { Toaster } from "./Toaster";
 import { bootstrapMesh, prepareMesh } from "../store/connection";
@@ -66,16 +67,7 @@ export function AppShell() {
     settleBoot(bootstrapMesh(), setBoot);
   }, []);
 
-  useEffect(() => {
-    const onKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        requestDock();
-      }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  useShortcut("mod+k", requestDock);
 
   useEffect(() => {
     if (needsProvisioning) {

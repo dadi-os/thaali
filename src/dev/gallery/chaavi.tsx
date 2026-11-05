@@ -82,7 +82,7 @@ function dragCase(id: string, hot: string) {
     return (
       <div style={{ position: "relative", display: "flex", alignItems: "stretch", gap: 14, width: 1440, height: 900, padding: 20, background: "var(--bone)" }}>
         <FolderPane items={all} folders={folders("normal")} scope={{ kind: "all" }} busy={false} hot={hot} onScope={noop} onCreate={noop} onRename={noop} onDelete={noop} />
-        <ItemList items={[...all].sort((a, b) => a.name.localeCompare(b.name))} selectedId={dragged.id} query="" onQuery={noop} onSelect={noop} draggingId={dragged.id} drag={drag} width={340} />
+        <ItemList items={[...all].sort((a, b) => a.name.localeCompare(b.name))} selectedId={dragged.id} query="" onQuery={noop} onSelect={noop} draggingId={dragged.id} drag={drag} actions={() => []} width={340} />
         <DragGhost name={dragged.name} x={300} y={420} />
       </div>
     );
