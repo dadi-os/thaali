@@ -10,7 +10,7 @@ import {
 } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
 import { AnimatePresence, motion } from "motion/react";
-import { FADE, sheetMotion } from "../../shared/motion";
+import { FADE, SLOW_S, sheetMotion } from "../../shared/motion";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { AgentPopover } from "../agents/AgentPopover";
@@ -108,6 +108,9 @@ function resolveOpenAgent(
     : { kind: "error", message: `Hath has no agent ${agentId}` };
 }
 
+/** How long a thread's pane takes to slide in, plus a beat, in ms: what the thread holds is drawn after it. */
+const PANE_SLIDE_MS = Math.round(SLOW_S * 1000) + 40;
+
 export interface ChatSidebarProps {
   className?: string;
 }
@@ -146,6 +149,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   } | null>(null);
   /** Measured floating composer height; the thread pads by it so text clears it. */
   const [composerHeight, setComposerHeight] = useState(0);
+  /** The open thread's pane has finished sliding in. */
+  const [paneReady, setPaneReady] = useState(false);
   /** The agent whose details popover is open over the name pill. */
   const [details, setDetails] = useState<{ id: string; anchor: DOMRect } | null>(null);
   const refreshThreadRef = useRef<(() => void) | null>(null);
@@ -188,6 +193,15 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     openAgentId ? chat.readSeq[openAgentId] : undefined,
     connected,
   );
+
+  useEffect(() => {
+    setPaneReady(false);
+    if (openAgentId === null) {
+      return undefined;
+    }
+    const timer = window.setTimeout(() => setPaneReady(true), PANE_SLIDE_MS);
+    return () => window.clearTimeout(timer);
+  }, [openAgentId]);
 
   const draftKey = openAgentId ?? DADI_DRAFT_KEY;
   const draftKeyRef = useRef(draftKey);
@@ -711,6 +725,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                   agentName={openAgentRecord.name}
                   agent={openAgentRecord}
                   load={threadLoad?.agentId === openAgentId ? threadLoad : null}
+                  ready={paneReady}
                   onSuggest={(text) => {
                     setDraft(text);
                     requestAnimationFrame(() => {

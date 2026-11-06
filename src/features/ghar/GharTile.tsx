@@ -18,7 +18,7 @@ const COLUMN_MAX = 300;
 /** A light's row inside a tag's column, in px. */
 const LIGHT_ROW = 28;
 /** What a tag column spends on its header and padding, in px. */
-const CARD_CHROME = 48;
+const CARD_CHROME = 40;
 /** A lone light's pill, and the room its strip takes with its hairline and the gap above it, in px. */
 const PILL_HEIGHT = 30;
 const STRIP = PILL_HEIGHT + 13;
@@ -108,6 +108,7 @@ function Tags({ lights, geometry, house }: TagsProps) {
   const width = Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, cards.length === 0 ? COLUMN_MIN : (geometry.iw - 10 * (cards.length - 1)) / cards.length));
   const band = geometry.bh - (bare.length === 0 || cards.length === 0 ? 0 : STRIP + BAND_GAP);
   const rowsFit = Math.max(1, Math.floor((band - CARD_CHROME) / (LIGHT_ROW + 2)));
+  const kept = rowsFit < 2 ? 1 : rowsFit - 1;
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ gap: BAND_GAP }}>
       {cards.length === 0 ? (
@@ -135,12 +136,12 @@ function Tags({ lights, geometry, house }: TagsProps) {
                 </span>
                 <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
               </button>
-              {(card.lights.length <= rowsFit ? card.lights : card.lights.slice(0, Math.max(0, rowsFit - 1))).map((light) => (
+              {(card.lights.length <= rowsFit ? card.lights : card.lights.slice(0, kept)).map((light) => (
                 <LightRow key={light.id} light={light} house={house} />
               ))}
-              {card.lights.length <= rowsFit ? null : (
+              {card.lights.length <= rowsFit || rowsFit < 2 ? null : (
                 <span className="flex items-center px-2 text-[12.5px] text-ink-muted tabular-nums" style={{ height: LIGHT_ROW }}>
-                  {`+${card.lights.length - Math.max(0, rowsFit - 1)} more`}
+                  {`+${card.lights.length - kept} more`}
                 </span>
               )}
             </section>

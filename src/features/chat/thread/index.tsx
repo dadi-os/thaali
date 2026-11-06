@@ -34,6 +34,8 @@ export interface ThreadViewProps {
    * settled (`error` null) or failed with the server message.
    */
   load: { error: string | null } | null;
+  /** The pane has finished sliding in: until then a skeleton stands in for the messages, so drawing them never competes with the slide. */
+  ready: boolean;
   /** Fill the composer with an empty-state starter prompt. */
   onSuggest: (text: string) => void;
 }
@@ -53,6 +55,7 @@ export function ThreadView({
   agentName,
   agent,
   load,
+  ready,
   onSuggest,
 }: ThreadViewProps) {
   const knownRef = useRef<Set<string>>(new Set());
@@ -72,7 +75,7 @@ export function ThreadView({
       return;
     }
     el.scrollTop = el.scrollHeight;
-  }, [scrollRef]);
+  }, [scrollRef, ready]);
 
   const [shown, setShown] = useState(PAGE);
   const hidden = Math.max(0, settledMessages.length - shown);
@@ -83,7 +86,7 @@ export function ThreadView({
   return (
     <div className="absolute inset-0">
       <AnimatePresence initial={false}>
-        {isEmpty && load ? (
+        {ready && isEmpty && load ? (
           <motion.div
             key="empty"
             {...FADE}
@@ -99,7 +102,7 @@ export function ThreadView({
             )}
           </motion.div>
         ) : null}
-        {isEmpty && load === null ? (
+        {!ready || (isEmpty && load === null) ? (
           <ThreadSkeleton key="loading" label="Loading messages" bottomPad={composerPad + 16} />
         ) : null}
       </AnimatePresence>
@@ -113,8 +116,8 @@ export function ThreadView({
         }`}
         style={{ paddingTop: headerPad + 16, paddingBottom: composerPad }}
       >
-        <div className="flex flex-col gap-4">
-          {hidden > 0 ? (
+        <motion.div className="flex flex-col gap-4" initial={false} animate={{ opacity: ready ? 1 : 0 }} transition={{ duration: 0.22 }}>
+          {!ready ? null : hidden > 0 ? (
             <button type="button" className="ui-trans ui-hover-fill self-center rounded-full px-3.5 py-1.5 text-[13px] text-ink-muted" onClick={() => setShown((count) => count + PAGE)}>
               {`Show ${Math.min(PAGE, hidden)} earlier ${Math.min(PAGE, hidden) === 1 ? "message" : "messages"}`}
             </button>
@@ -144,7 +147,7 @@ export function ThreadView({
               />
             ))}
           </AnimatePresence>
-        </div>
+        </motion.div>
       </div>
     </div>
   );
