@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { AgentRecord } from "../../types/hath";
 import { Card } from "../../shared/ui/Card";
@@ -63,7 +63,7 @@ export type AgentListProps = {
   selectedId: string | null;
   /** The agents a filter leaves out, drawn faint. */
   dimmed: ReadonlySet<string> | null;
-  onPick: (agent: AgentRecord) => void;
+  onPick: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
 type AgentListRowProps = {
@@ -73,20 +73,22 @@ type AgentListRowProps = {
   dimmed: boolean;
   showNow: boolean;
   now: number;
-  onPick: (agent: AgentRecord) => void;
+  onPick: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
 /** One agent's row; right-click offers its thread, its Hath sheet and its name and id. */
 function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow, now, onPick }: AgentListRowProps) {
-  const context = useContextActions(() => agentActions(agent, { onOpenInHath: onPick }));
+  const ref = useRef<HTMLButtonElement>(null);
+  const context = useContextActions(() => agentActions(agent, { onShowDetails: () => onPick(agent, ref.current!.getBoundingClientRect()) }));
   const tasks = agent.sessions.tasks.length;
   return (
     <motion.div {...RISE} {...context}>
       <button
+        ref={ref}
         type="button"
         className={`agent-row ui-trans flex min-h-[46px] w-full items-center gap-3.5 border-b border-rule px-[18px] py-1.5 ${dimmed ? "opacity-40" : ""}`}
         aria-current={selected}
-        onClick={() => onPick(agent)}
+        onClick={(event) => onPick(agent, event.currentTarget.getBoundingClientRect())}
       >
         <div className="flex min-w-0 flex-1 items-center gap-2 text-left" style={{ paddingLeft: depth * INDENT }}>
           {depth > 0 ? <span className="-mt-1 size-2.5 flex-none rounded-bl-[4px] border-b border-l border-sage-line" /> : null}

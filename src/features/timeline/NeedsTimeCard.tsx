@@ -28,7 +28,7 @@ export function NeedsTimeCard({ onOpen }: NeedsTimeCardProps) {
         <>
           {tasks.slice(0, SHOWN).map((task) => (
             <button key={itemKey(task)} type="button" onClick={onOpen} className="ui-hover-fill ui-trans flex min-w-0 items-center gap-2 text-left">
-              <span className="w-12 flex-none text-[12px] text-ink-muted tabular-nums">{task.due_at ? formatDayShort(new Date(task.due_at)) : "open"}</span>
+              <span className="w-[3.75rem] flex-none whitespace-nowrap text-[12px] text-ink-muted tabular-nums">{task.due_at ? formatDayShort(new Date(task.due_at)) : "open"}</span>
               <Truncate text={task.title} className="min-w-0 flex-1 text-[13px]" />
             </button>
           ))}

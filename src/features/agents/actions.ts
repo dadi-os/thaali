@@ -26,15 +26,15 @@ export function scheduleActions(schedule: ScheduledMessage, deps: ScheduleAction
 
 /** What an agent's actions need from the surface that shows it. */
 export type AgentActionDeps = {
-  /** Open the agent in the Hath sheet (on the Hath page: select it; elsewhere: go there). */
-  onOpenInHath?: (agent: AgentRecord) => void;
+  /** Show the agent's details popover beside what was clicked. */
+  onShowDetails?: () => void;
 };
 
-/** The actions on an agent, declared once for its right-click menu on a graph node, a list row and a chip: open its thread, open it in the Hath sheet, copy its name or id. */
+/** The actions on an agent, declared once for its right-click menu on a graph node and a list row: open its thread, show its details, copy its name or id. */
 export function agentActions(agent: AgentRecord, deps: AgentActionDeps): ActionList {
   return [
     { id: "agent.thread", label: "Open thread", icon: "chevron", run: () => openAgent(agent.id) },
-    { id: "agent.hath", label: "Open in Hath sheet", icon: "graph", disabledReason: deps.onOpenInHath === undefined ? "This view cannot open the sheet" : undefined, run: () => deps.onOpenInHath?.(agent) },
+    { id: "agent.details", label: "Show details", icon: "info", disabledReason: deps.onShowDetails === undefined ? "This view has no details to show" : undefined, run: () => deps.onShowDetails?.() },
     "separator",
     { id: "agent.copy-name", label: "Copy name", icon: "copy", run: () => copyText(agent.name) },
     { id: "agent.copy-id", label: "Copy id", icon: "copy", run: () => copyText(agent.id) },

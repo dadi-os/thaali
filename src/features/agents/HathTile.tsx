@@ -1,6 +1,5 @@
-import { useSyncExternalStore } from "react";
+import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { hath, isMeshOnline } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
@@ -10,6 +9,7 @@ import type { AgentRecord } from "../../types/hath";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { AgentGraph2D } from "./AgentGraph2D";
+import { AgentPopover } from "./AgentPopover";
 import { isLive, laneState, type LaneState } from "./laneState";
 
 /** More agents than this are drawn small and only their roots are named. */
@@ -53,8 +53,8 @@ type BodyProps = {
   agents: AgentRecord[];
   stateOf: (agent: AgentRecord) => LaneState;
   geometry: TileGeometry;
-  /** A node was clicked: take Ankur to that agent on the Hath page. */
-  onPick: (agent: AgentRecord) => void;
+  /** A node was clicked: show that agent's details beside it. */
+  onPick: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
 /** The agent graph alone: live agents pulse in their state's colors and a click on a node opens it on the Hath page. */
@@ -67,9 +67,9 @@ function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   );
 }
 
-/** Home's Hath tile: the agents as a graph, who is running, and how many agents there are; a node opens its agent on the Hath page. */
+/** Home's Hath tile: the agents as a graph, who is running, and how many agents there are; a node opens the agent's details beside it. */
 export function HathTile({ order }: { order: number }) {
-  const navigate = useNavigate();
+  const [picked, setPicked] = useState<{ id: string; anchor: DOMRect } | null>(null);
   const { state: connection } = useConnection();
   const query = useQuery({
     queryKey: AGENTS_QUERY_KEY,
@@ -83,7 +83,8 @@ export function HathTile({ order }: { order: number }) {
   const agents = state.kind === "ready" ? state.data : [];
   const working = agents.filter((agent) => isLive(stateOf(agent))).length;
   return (
-    <Tile
+    <>
+      <Tile
       area="hath"
       title="Hath"
       to="/hath"
@@ -97,7 +98,9 @@ export function HathTile({ order }: { order: number }) {
         </div>
       )}
     >
-      {(g) => <Body agents={agents} stateOf={stateOf} geometry={g} onPick={(agent) => navigate(`/hath?agent=${encodeURIComponent(agent.id)}`)} />}
+      {(g) => <Body agents={agents} stateOf={stateOf} geometry={g} onPick={(agent, anchor) => setPicked({ id: agent.id, anchor })} />}
     </Tile>
+      <AgentPopover agentId={picked === null ? null : picked.id} anchor={picked === null ? null : picked.anchor} onSelect={(id) => setPicked((current) => (current === null ? null : { id, anchor: current.anchor }))} onClose={() => setPicked(null)} />
+    </>
   );
 }

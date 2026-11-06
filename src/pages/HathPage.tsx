@@ -1,11 +1,11 @@
-import { useCallback, useSyncExternalStore } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { AgentGraph2D } from "../features/agents/AgentGraph2D";
 import { AgentList } from "../features/agents/AgentList";
 import { isLive, keepsState, laneState, LANE_FILTERS, type LaneFilter } from "../features/agents/laneState";
-import { AgentSheet } from "../features/agents/sheet";
+import { AgentPopover } from "../features/agents/AgentPopover";
 import { hath, isMeshOnline } from "../shared/api";
 import { Card } from "../shared/ui/Card";
 import { Icon } from "../shared/ui/Icon";
@@ -16,7 +16,6 @@ import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
 import { useModuleState } from "../shared/hooks/useModuleState";
-import { useRetained } from "../shared/hooks/useRetained";
 import { Measured } from "../shared/layout/Measured";
 import { Page } from "../shared/layout/Page";
 import { failureProps } from "../shared/lib/ux/moduleState";
@@ -29,6 +28,11 @@ import type { AgentRecord } from "../types/hath";
 const MANY_AGENTS = 40;
 /** The filter chips, in the order the page draws them. */
 const FILTER_NAMES = Object.keys(LANE_FILTERS) as LaneFilter[];
+
+/** Where a popover opens for an agent chosen without a click on the page (a search, a link): the top middle of the window. */
+function fallbackAnchor(): DOMRect {
+  return new DOMRect(window.innerWidth / 2, 160, 0, 0);
+}
 
 /** How the page shows the agents: as the graph, or as a list. */
 type View = "graph" | "list";
@@ -118,7 +122,7 @@ export function HathPage() {
   const found = agentsMatching(agents, search);
   const dimmed = filter === "All" && found === null ? null : new Set(agents.filter((agent, i) => !keepsState(filter, states[i]!) || (found !== null && !found.includes(agent))).map((agent) => agent.id));
   const many = agents.length > MANY_AGENTS;
-  const shownAgent = useRetained(sheeted ? selectedId : null);
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
 
   const setParam = useCallback(
     (name: string, value: string | null) =>
@@ -136,7 +140,10 @@ export function HathPage() {
       ),
     [setParams],
   );
-  const pick = (agent: AgentRecord) => setParam("agent", agent.id);
+  const pick = (agent: AgentRecord, rect?: DOMRect) => {
+    setAnchor(rect ?? null);
+    setParam("agent", agent.id);
+  };
 
   let content;
   if (state.kind === "loading") {
@@ -198,12 +205,7 @@ export function HathPage() {
 
   const working = states.filter(isLive).length;
   return (
-    <Page
-      name="hath"
-      aside={shownAgent === null ? undefined : <AgentSheet agentId={shownAgent} onSelect={(id) => setParam("agent", id)} />}
-      asideOpen={sheeted}
-      onAsideClose={() => setParam("agent", null)}
-    >
+    <Page name="hath">
         <PageHeader
           title="Hath"
           meta={state.kind === "ready" ? `${working} working · ${agents.length} agents` : undefined}
@@ -255,6 +257,7 @@ export function HathPage() {
           </div>
         ) : null}
         {content}
+        <AgentPopover agentId={sheeted ? selectedId : null} anchor={anchor ?? fallbackAnchor()} onSelect={(id) => setParam("agent", id)} onClose={() => setParam("agent", null)} />
     </Page>
   );
 }

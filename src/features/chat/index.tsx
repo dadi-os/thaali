@@ -9,11 +9,11 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useQuery, useQueryClient, type UseQueryResult } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { FADE, sheetMotion } from "../../shared/motion";
 import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
+import { AgentPopover } from "../agents/AgentPopover";
 import { HostPin } from "./HostPin";
 import { pickLiveTasks } from "../agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -119,7 +119,6 @@ export interface ChatSidebarProps {
  */
 export function ChatSidebar({ className }: ChatSidebarProps) {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const chat = useSyncExternalStore(subscribeChat, getChatState, getChatState);
@@ -147,6 +146,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   } | null>(null);
   /** Measured floating composer height; the thread pads by it so text clears it. */
   const [composerHeight, setComposerHeight] = useState(0);
+  /** The agent whose details popover is open over the name pill. */
+  const [details, setDetails] = useState<{ id: string; anchor: DOMRect } | null>(null);
   const refreshThreadRef = useRef<(() => void) | null>(null);
 
   const routing = isRouting();
@@ -669,7 +670,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
             onBack={backToList}
             title={openAgentRecord ? openAgentRecord.name : null}
             error={openAgentView?.kind === "error" ? openAgentView.message : null}
-            onOpenDetails={openAgentId === null ? undefined : () => navigate({ pathname: "/hath", search: `?agent=${openAgentId}` })}
+            onOpenDetails={openAgentId === null ? undefined : (anchor) => setDetails({ id: openAgentId, anchor })}
           />
           <div className="relative flex min-h-0 flex-1 flex-col" style={{ paddingTop: showHostPin ? THREAD_HEADER_PX : 0 }}>
             <HostPin browser={liveBrowser} terminal={liveTerminal} />
@@ -778,6 +779,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
         </motion.div>
       )}
       </AnimatePresence>
+      <AgentPopover agentId={details === null ? null : details.id} anchor={details === null ? null : details.anchor} onSelect={(id) => setDetails((current) => (current === null ? null : { id, anchor: current.anchor }))} onClose={() => setDetails(null)} />
       <ResizeHandle rail={rail} />
 
     </aside>

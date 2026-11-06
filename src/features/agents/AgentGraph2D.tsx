@@ -1,4 +1,4 @@
-import { Fragment } from "react";
+import { Fragment, useRef } from "react";
 import type { AgentRecord } from "../../types/hath";
 import { layoutForest, nodeRadius, viewForest, type ForestLink, type ForestOptions, type GraphLabels } from "./graph2d";
 import { useContextActions } from "../../shared/interaction/contextMenu";
@@ -28,7 +28,7 @@ export type AgentGraph2DProps = {
   /** The agents a filter leaves out, drawn faint. */
   dimmed?: ReadonlySet<string> | null;
   /** Picks an agent; given, every node answers a click and grows under the pointer. */
-  onPick?: (agent: AgentRecord) => void;
+  onPick?: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
 /** The path of a link: a curve that bows a little away from the straight line. */
@@ -56,14 +56,16 @@ type AgentNodeProps = {
   stroke: string;
   strokeWidth: number;
   dimmed: boolean;
-  onPick?: (agent: AgentRecord) => void;
+  onPick?: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
 /** One agent's node: a circle that answers a click when the graph picks, and a right-click menu with the agent's actions. */
 function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onPick }: AgentNodeProps) {
-  const context = useContextActions(() => agentActions(agent, { onOpenInHath: onPick }));
+  const ref = useRef<SVGCircleElement>(null);
+  const context = useContextActions(() => agentActions(agent, { onShowDetails: onPick === undefined ? undefined : () => onPick(agent, ref.current!.getBoundingClientRect()) }));
   return (
     <circle
+      ref={ref}
       {...context}
       role={onPick === undefined ? undefined : "button"}
       tabIndex={onPick === undefined ? undefined : 0}
@@ -75,7 +77,7 @@ function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onPic
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 event.stopPropagation();
-                onPick(agent);
+                onPick(agent, event.currentTarget.getBoundingClientRect());
               }
             }
       }
@@ -87,7 +89,7 @@ function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onPic
           : (event) => {
               event.preventDefault();
               event.stopPropagation();
-              onPick(agent);
+              onPick(agent, event.currentTarget.getBoundingClientRect());
             }
       }
       cx={cx}

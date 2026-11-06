@@ -14,13 +14,13 @@ export type ThreadHeaderProps = {
   title: string | null;
   /** Why the name could not be loaded, shown in the bubble in place of it. */
   error?: string | null;
-  /** The bubble is pressed; it is static text without this. */
-  onOpenDetails?: () => void;
+  /** The bubble is pressed, with where it is drawn; it is static text without this. */
+  onOpenDetails?: (anchor: DOMRect) => void;
 };
 
 /**
  * Top of an open thread, floating over it: back as a glass circle on the left and the agent's full name, wrapping if it
- * must, as a centered glass bubble that opens the agent in Hath. Nothing sits behind them, so messages scroll under both
+ * must, as a centered glass bubble that opens the agent's details. Nothing sits behind them, so messages scroll under both
  * and show through the glass.
  */
 export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: ThreadHeaderProps) {
@@ -41,8 +41,8 @@ export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: Thr
               key="title"
               {...FADE}
               type="button"
-              onClick={onOpenDetails}
-              aria-label={`${title} in Hath`}
+              onClick={(event) => onOpenDetails(event.currentTarget.getBoundingClientRect())}
+              aria-label={`${title} details`}
               className={`${bubble} text-ink transition-colors duration-fast ease-dadi hover:bg-(--chat-hover)`}
             >
               <AgentName name={title} selectable={false} />

@@ -1,5 +1,5 @@
 import "katex/dist/katex.min.css";
-import { cloneElement, createElement, isValidElement } from "react";
+import { cloneElement, createElement, isValidElement, memo } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import type { ElementContent } from "hast";
 import type { Components as InlineComponents } from "react-markdown";
@@ -34,7 +34,7 @@ export interface MarkdownBodyProps {
  * link chips (favicon + domain). Replies reach thaali whole, so it renders in static
  * mode without repairing unterminated syntax.
  */
-export function MarkdownBody({ content, compact = false }: MarkdownBodyProps) {
+export const MarkdownBody = memo(function MarkdownBody({ content, compact = false }: MarkdownBodyProps) {
   return (
     <Streamdown
       className={compact ? "chat-md chat-md--compact space-y-0" : "chat-md space-y-0"}
@@ -49,7 +49,7 @@ export function MarkdownBody({ content, compact = false }: MarkdownBodyProps) {
       {normalizeMathDelimiters(content)}
     </Streamdown>
   );
-}
+});
 
 const DARK = "(prefers-color-scheme: dark)";
 

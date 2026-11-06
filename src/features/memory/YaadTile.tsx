@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { isMeshOnline, yaad } from "../../shared/api";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
@@ -55,16 +56,22 @@ type BodyProps = {
   geometry: TileGeometry;
 };
 
-/** How many of each kind Yaad holds, in four cells, and under them the nodes agents have recalled most when the tile is tall enough. */
+/** Whether the four cells sit in one row: the tile is wide and short. */
+function isOneRow(geometry: TileGeometry): boolean {
+  return geometry.iw >= 3 * geometry.bh;
+}
+
+/** How many of each kind Yaad holds, in four cells that each open the Yaad page filtered to that kind, and under them the nodes agents have recalled most when the tile is tall enough. */
 function Body({ nodes, counts, geometry }: BodyProps) {
+  const navigate = useNavigate();
   const used = nodes.filter((node) => node.access_count > 0).sort((a, b) => b.access_count - a.access_count);
-  const oneRow = geometry.iw >= 3 * geometry.bh;
+  const oneRow = isOneRow(geometry);
   const listed = oneRow ? 0 : Math.max(0, Math.min(3, Math.floor((geometry.bh - 174) / 36)));
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className={`grid min-h-0 flex-1 gap-2 ${oneRow ? "grid-cols-4 grid-rows-1" : "grid-cols-2 grid-rows-2"}`}>
         {CELLS.map(({ kind, name, ink }) => (
-          <Stat key={kind} value={counts.totals.get(kind) ?? 0} label={name} ink={ink} />
+          <Stat key={kind} value={counts.totals.get(kind) ?? 0} label={name} ink={ink} onClick={() => navigate(`/yaad?kind=${kind}`)} />
         ))}
       </div>
       {listed > 0 ? (
@@ -83,29 +90,32 @@ function Body({ nodes, counts, geometry }: BodyProps) {
   );
 }
 
-/** Home's Yaad tile: how many people, memories, places and plans Yaad holds (each kind counted from `POST /query`, with how many are new since Monday), and which it recalls most. */
+/** Home's Yaad tile: how many people, memories, places and plans Yaad holds (each kind counted from `POST /query`, a click on a kind opening the page filtered to it, and the total over all of them in the header), and which it recalls most. */
 export function YaadTile({ order }: { order: number }) {
   const { state: connection } = useConnection();
   const query = useQuery({ queryKey: ["yaad", "home"], queryFn: readHome, enabled: isMeshOnline(connection) });
   const state = useModuleState(query, (home) => home.nodes.length === 0);
-  const fresh = state.kind === "ready" ? state.data.counts.thisWeek : 0;
+  const things = state.kind === "ready" ? [...state.data.counts.totals.values()].reduce((sum, count) => sum + count, 0) : 0;
   return (
     <Tile
       area="yaad"
       title="Yaad"
       to="/yaad"
       order={order}
-      summary={fresh > 0 ? `+${fresh} this week` : undefined}
+      summary={things > 0 ? `${things.toLocaleString()} things` : undefined}
       loading={state.kind === "loading"}
       notice={tileNotice(state, { name: "Yaad", request: "POST /graph", empty: ["Nothing remembered yet", "Memories appear here as agents learn them."] }, () => void query.refetch())}
-      skeleton={() => (
-        <div className="grid min-w-0 flex-1 auto-rows-fr grid-cols-2 gap-2">
-          {Array.from({ length: 4 }, (_, i) => (
-            <div key={i} className="flex flex-col items-center justify-center gap-2 rounded-[14px] bg-sage-fill">
-              <Skeleton width={56} height={28} />
-              <Skeleton width={64} height={12} />
-            </div>
-          ))}
+      skeleton={(g) => (
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
+          <div className={`grid min-h-0 flex-1 gap-2 ${isOneRow(g) ? "grid-cols-4 grid-rows-1" : "grid-cols-2 grid-rows-2"}`}>
+            {CELLS.map(({ kind, ink }) => (
+              <div key={kind} className="relative flex min-h-0 flex-col items-center justify-center gap-1 rounded-[14px] bg-sage-fill">
+                <span className="dot absolute top-3 left-3 size-2 opacity-50" style={{ background: ink }} />
+                <Skeleton width={64} height={28} />
+                <Skeleton width={72} height={14} />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     >

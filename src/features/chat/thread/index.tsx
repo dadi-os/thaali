@@ -1,4 +1,4 @@
-import { useEffect, useRef, type RefObject, type UIEvent } from "react";
+import { useEffect, useRef, useState, type RefObject, type UIEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { FADE } from "../../../shared/motion";
 import type { AgentRecord } from "../../../types/hath";
@@ -7,6 +7,9 @@ import { trackIncoming } from "../lanes";
 import { MessageBubble } from "../../../shared/components/Thread/Message";
 import { ThreadEmpty } from "./ThreadEmpty";
 import { ThreadSkeleton } from "./ThreadSkeleton";
+
+/** Messages drawn when a thread opens, and added by each press on the button above them. */
+const PAGE = 40;
 
 export interface ThreadViewProps {
   scrollRef: RefObject<HTMLDivElement | null>;
@@ -71,6 +74,9 @@ export function ThreadView({
     el.scrollTop = el.scrollHeight;
   }, [scrollRef]);
 
+  const [shown, setShown] = useState(PAGE);
+  const hidden = Math.max(0, settledMessages.length - shown);
+  const drawn = hidden > 0 ? settledMessages.slice(hidden) : settledMessages;
   const isEmpty =
     settledMessages.length === 0 && queuedMessages.length === 0;
 
@@ -108,8 +114,13 @@ export function ThreadView({
         style={{ paddingTop: headerPad + 16, paddingBottom: composerPad }}
       >
         <div className="flex flex-col gap-4">
+          {hidden > 0 ? (
+            <button type="button" className="ui-trans ui-hover-fill self-center rounded-full px-3.5 py-1.5 text-[13px] text-ink-muted" onClick={() => setShown((count) => count + PAGE)}>
+              {`Show ${Math.min(PAGE, hidden)} earlier ${Math.min(PAGE, hidden) === 1 ? "message" : "messages"}`}
+            </button>
+          ) : null}
           <AnimatePresence initial={false}>
-            {settledMessages.map((msg) => (
+            {drawn.map((msg) => (
               <MessageBubble
                 key={messageKey(msg)}
                 message={msg}
