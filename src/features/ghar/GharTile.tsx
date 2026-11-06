@@ -12,17 +12,11 @@ import { Tile, type TileGeometry } from "../home/Tile";
 import { isLight, isOn, lightColor, sectionSwitch, switchCommand, tagLights, untaggedDevices } from "./model";
 import { useHouse, type House } from "./useHouse";
 
-/** A tag card's narrowest and widest, in px: a card keeps a card's shape however wide the tile is, and the band of cards scrolls sideways past what fits. */
-const CARD_MIN = 208;
-const CARD_MAX = 380;
-/** A light's pill: its height inside a card and as a lone light, the gap between pills and what a card spends on its own header and padding, in px. */
-const PILL_SMALL = 26;
-const PILL_LARGE = 30;
-const PILL_GAP = 6;
-const CARD_CHROME = 52;
-/** The strip of lone lights under the cards: the room it takes with its hairline, and its gap above the cards, in px. */
-const STRIP = PILL_LARGE + 13;
-const BAND_GAP = 12;
+/** A column's narrowest and widest, in px: a column keeps a card's shape however wide the tile is. */
+const COLUMN_MIN = 200;
+const COLUMN_MAX = 300;
+/** A light's row inside a column, in px. */
+const LIGHT_ROW = 30;
 
 /** Keeps a click inside a tile's control from following the tile's link. */
 function swallow(event: MouseEvent): void {
@@ -30,42 +24,13 @@ function swallow(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-/** The width a light's pill takes: its dot and name, capped. */
-function pillWidth(light: GharDevice): number {
-  return Math.min(176, 38 + light.name.length * 6);
-}
-
-/** The lights that fit in `rows` rows of pills `width` wide, in order, and how many were left out. */
-function pack(lights: GharDevice[], width: number, rows: number): { placed: GharDevice[]; left: number } {
-  const placed: GharDevice[] = [];
-  let row = 0;
-  let used = 0;
-  for (const light of lights) {
-    const w = pillWidth(light);
-    if (used > 0 && used + PILL_GAP + w > width) {
-      row += 1;
-      used = 0;
-    }
-    if (row >= rows) {
-      break;
-    }
-    used += (used > 0 ? PILL_GAP : 0) + w;
-    placed.push(light);
-  }
-  return { placed, left: lights.length - placed.length };
-}
-
-type PillProps = {
+type LightRowProps = {
   light: GharDevice;
   house: House;
-  /** The pill's height, in px. */
-  height: number;
-  /** The pill sits on a tag's card, whose own wash it lightens, and not on the tile. */
-  inCard?: boolean;
 };
 
-/** One light as a pill: its colour dot and name; a tap flips just this light, and the tile's link does not follow it. */
-function LightPill({ light, house, height, inCard = false }: PillProps) {
+/** One light as a row: its colour dot and name; a tap flips just this light, and the tile's link does not follow it. */
+function LightRow({ light, house }: LightRowProps) {
   const on = isOn(light);
   return (
     <motion.button
@@ -75,19 +40,15 @@ function LightPill({ light, house, height, inCard = false }: PillProps) {
       aria-pressed={on}
       title={`Switch ${on ? "off" : "on"} ${light.name}`}
       disabled={!house.connected || !light.online || house.pending.has(light.id)}
-      className={`ui-trans flex flex-none items-center gap-2 rounded-full border px-2.5 text-[12.5px] ${
-        on
-          ? `border-[rgba(240,168,104,.45)] ${inCard ? "bg-[rgba(255,255,255,.55)]" : "bg-[rgba(240,168,104,.12)]"} text-ink`
-          : `border-glass-border ${inCard ? "bg-[rgba(255,255,255,.4)]" : "bg-sage-fill"} text-ink-muted`
-      } hover:border-sage-line ${light.online ? "" : "opacity-45"}`}
-      style={{ height, maxWidth: 176 }}
+      className={`ui-trans ui-hover-fill flex w-full items-center gap-2.5 rounded-[10px] px-2 text-left text-[13px] ${on ? "text-ink" : "text-ink-muted"} ${light.online ? "" : "opacity-45"}`}
+      style={{ height: LIGHT_ROW }}
       onClick={(event) => {
         swallow(event);
         void house.run([{ id: light.id, command: switchCommand(!on) }]);
       }}
     >
       <span className={`dot size-2 flex-none ${on ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
-      <Truncate text={light.name} />
+      <Truncate text={light.name} className="min-w-0 flex-1" />
     </motion.button>
   );
 }
@@ -99,74 +60,54 @@ type TagsProps = {
 };
 
 /**
- * Two bands, the way the Chaavi and System tiles are built: the tags as cards in a row that scrolls sideways, each saying
- * how many of its lights are on (a tap switches the whole tag) and listing its lights as pills while it has the height; and
- * under them a strip that scrolls the same way for the lights that carry no tag, each one a pill of its own. A light is on
- * every card of a tag it carries.
+ * A row of columns that scrolls sideways: one per tag, headed by its name and how many of its lights are on (a tap on the
+ * header switches the whole tag), its lights stacked under it, one tap each; and a last, dashed column for the lights that
+ * carry no tag. A light is in every column of a tag it carries. A column is as tall as its lights, so the tile scrolls up and
+ * down when there are more than fit, and nothing is folded into a count.
  */
 function Tags({ lights, geometry, house }: TagsProps) {
   const cards = tagLights(lights);
   const bare = untaggedDevices(lights);
-  const bandHeight = Math.max(0, geometry.bh - (bare.length === 0 || cards.length === 0 ? 0 : STRIP + BAND_GAP));
-  const cardWidth = Math.min(CARD_MAX, Math.max(CARD_MIN, cards.length === 0 ? CARD_MIN : (geometry.iw - BAND_GAP * (cards.length - 1)) / cards.length));
-  const pillRows = Math.max(0, Math.floor((bandHeight - CARD_CHROME + PILL_GAP) / (PILL_SMALL + PILL_GAP)));
+  const count = cards.length + (bare.length > 0 ? 1 : 0);
+  const width = Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, count === 0 ? COLUMN_MIN : (geometry.iw - 10 * (count - 1)) / count));
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ gap: BAND_GAP }}>
-      {cards.length === 0 ? null : (
-        <div className="scroll flex min-h-0 flex-1 gap-2.5 overflow-x-auto">
-          {cards.map((card) => {
-            const { placed, left } = pack(card.lights, cardWidth - 28, pillRows);
-            return (
-              <div
-                key={card.key}
-                role="button"
-                tabIndex={0}
-                aria-pressed={card.on > 0}
-                title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
-                className={`ui-hover-card ui-trans flex min-h-0 flex-none cursor-pointer flex-col gap-2 rounded-[16px] border px-3.5 py-3 text-left ${card.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
-                style={{ width: cardWidth }}
-                onClick={(event) => {
-                  swallow(event);
-                  void house.run(sectionSwitch(card.lights));
-                }}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    void house.run(sectionSwitch(card.lights));
-                  }
-                }}
-              >
-                <div className="flex min-w-0 items-baseline justify-between gap-3">
-                  <span className="min-w-0 flex-1 text-[14px] font-semibold">
-                    <Truncate text={card.name} />
-                  </span>
-                  <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
-                </div>
-                {pillRows === 0 ? null : (
-                  <div className="flex flex-wrap content-start" style={{ gap: PILL_GAP }}>
-                    {placed.map((light) => (
-                      <LightPill key={light.id} light={light} house={house} height={PILL_SMALL} inCard />
-                    ))}
-                    {left > 0 ? (
-                      <span className="flex items-center px-1 text-[12px] text-ink-muted tabular-nums" style={{ height: PILL_SMALL }}>
-                        {`+${left}`}
-                      </span>
-                    ) : null}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {bare.length === 0 ? null : (
-        <div className={`scroll flex flex-none items-center gap-2 overflow-x-auto ${cards.length === 0 ? "" : "border-t border-rule pt-3"}`} style={{ height: cards.length === 0 ? undefined : STRIP }}>
-          {cards.length === 0 ? null : <span className="flex-none text-[12.5px] text-ink-muted">No tag</span>}
-          {bare.map((light) => (
-            <LightPill key={light.id} light={light} house={house} height={PILL_LARGE} />
+    <div className="scroll flex min-h-0 min-w-0 flex-1 items-start gap-2.5 overflow-auto">
+      {cards.map((card) => (
+        <section
+          key={card.key}
+          className={`flex flex-none flex-col gap-1 rounded-[16px] border p-2 ${card.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
+          style={{ width }}
+        >
+          <button
+            type="button"
+            aria-pressed={card.on > 0}
+            title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
+            className="ui-trans ui-hover-fill flex min-w-0 items-baseline justify-between gap-3 rounded-[10px] px-2 py-1.5 text-left"
+            onClick={(event) => {
+              swallow(event);
+              void house.run(sectionSwitch(card.lights));
+            }}
+          >
+            <span className="min-w-0 flex-1 text-[14px] font-semibold">
+              <Truncate text={card.name} />
+            </span>
+            <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
+          </button>
+          {card.lights.map((light) => (
+            <LightRow key={light.id} light={light} house={house} />
           ))}
-        </div>
+        </section>
+      ))}
+      {bare.length === 0 ? null : (
+        <section className="flex flex-none flex-col gap-1 rounded-[16px] border border-dashed border-sage-line p-2" style={{ width }}>
+          <div className="flex min-w-0 items-baseline justify-between gap-3 px-2 py-1.5">
+            <span className="text-[14px] font-semibold text-ink-muted">No tag</span>
+            <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${bare.length} ${bare.length === 1 ? "light" : "lights"}`}</span>
+          </div>
+          {bare.map((light) => (
+            <LightRow key={light.id} light={light} house={house} />
+          ))}
+        </section>
       )}
     </div>
   );

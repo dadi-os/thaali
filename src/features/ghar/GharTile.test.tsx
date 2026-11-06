@@ -45,29 +45,29 @@ function mount() {
 }
 
 describe("Home Ghar controls", () => {
-  it("has no way to start a tag, and lists a tag's lights when its card is tall enough", () => {
+  it("has no way to start a tag, and lists a tag's lights with its lights stacked under it", () => {
     mount();
     expect(host.querySelector("[aria-label='New tag']")).toBeNull();
     expect(host.querySelector("input")).toBeNull();
     expect(host.querySelectorAll("button[aria-pressed]").length).toBeGreaterThan(0);
   });
 
-  it("shows a card per tag with how many of its lights are on", () => {
+  it("shows a column per tag with how many of its lights are on", () => {
     mount();
-    const cards = [...host.querySelectorAll("[role='button'][title^='Switch']")].map((card) => card.textContent);
+    const cards = [...host.querySelectorAll("button[title^='Switch']")].map((card) => card.textContent);
     expect(cards.some((text) => text?.includes("all lights") && text.includes("3 of 5 on"))).toBe(true);
     expect(cards.some((text) => text?.startsWith("ankur's bed lights") && text.includes("0 of 1 on"))).toBe(true);
   });
 
-  it("switches the whole tag from its card without opening Ghar", () => {
+  it("switches the whole tag from its header without opening Ghar", () => {
     mount();
-    const card = [...host.querySelectorAll<HTMLElement>("[role='button'][title^='Switch']")].find((candidate) => candidate.textContent?.startsWith("ankur's bed lights"))!;
+    const card = [...host.querySelectorAll<HTMLElement>("button[title^='Switch']")].find((candidate) => candidate.textContent?.startsWith("ankur's bed lights"))!;
     act(() => card.click());
     expect(house.run).toHaveBeenCalledWith([{ id: expect.any(String), command: { capability: "on_off", command: "on" } }]);
     expect(host.querySelector("output")!.textContent).toBe("/");
   });
 
-  it("shows a light with no tag as a pill of its own under the tags, and a tap flips just that light", () => {
+  it("lists a light with no tag in a No tag column, and a tap flips just that light", () => {
     const [first] = devices("normal");
     house.devicesQuery.data.devices = [...devices("normal"), { ...first!, id: "porch", name: "Porch Light", tags: [] }];
     mount();
