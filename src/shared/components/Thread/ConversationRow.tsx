@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from "motion/react";
 import type { Conversation } from "../../../contexts/chat";
 import { useContextActions } from "../../interaction/contextMenu";
-import { FADE, RISE } from "../../motion";
+import { FADE } from "../../motion";
 import { AgentName } from "../../ui/AgentName";
 import { Clamp, Truncate } from "../../ui/Truncate";
 import { conversationActions, type ConversationActionDeps } from "./actions";
@@ -25,14 +25,15 @@ export type ConversationRowProps = {
 };
 
 /**
- * One conversation: the agent's full name, when it last spoke, the last message and the unread count. It
- * enters with RISE, and right-click offers open thread, open in Hath and mark read.
+ * One conversation: the agent's full name, when it last spoke, the last message and the unread count. It is a plain
+ * element, never a layout-tracked one, so a long list scrolls and paints without waiting on the animation engine; right-click
+ * offers open thread, open in Hath and mark read.
  */
 export function ConversationRow({ conversation, unread, working, selected, wide, now, onOpen, onOpenInHath }: ConversationRowProps) {
   const preview = (conversation.from_user ? "You: " : "") + plainPreview(conversation.last_message);
   const context = useContextActions(() => conversationActions(conversation, { unread, onOpenThread: onOpen, onOpenInHath }));
   return (
-    <motion.div {...RISE} {...context} layout="position">
+    <div {...context}>
       <button type="button" className="rail-row ui-trans ui-hover-fill" aria-current={selected ? "true" : undefined} onClick={onOpen}>
         <div className="flex items-start gap-2">
           <AnimatePresence initial={false}>{working ? <motion.span key="working" {...FADE} className="rail-dot mt-[7px]" /> : null}</AnimatePresence>
@@ -54,6 +55,6 @@ export function ConversationRow({ conversation, unread, working, selected, wide,
           </AnimatePresence>
         </div>
       </button>
-    </motion.div>
+    </div>
   );
 }

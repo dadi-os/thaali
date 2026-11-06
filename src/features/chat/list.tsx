@@ -101,7 +101,7 @@ export function ConversationList({
         style={{ paddingTop: SEARCH_CLEAR_PX, paddingBottom: DOCK_CLEAR_PX }}
       >
         <AnimatePresence mode="wait" initial={false}>
-          <motion.div key={state} {...FADE} className="flex min-h-0 flex-1 flex-col">
+          <motion.div key={state} {...FADE} className="flex min-h-full flex-none flex-col">
             {state === "loading" ? (
               <div role="status" aria-label="Loading conversations" className="flex flex-col gap-1 px-1">
                 <span className="ui-label px-3 pt-1 pb-1.5">Today</span>

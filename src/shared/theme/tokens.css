@@ -227,30 +227,18 @@
   inset: auto 0 0;
   height: 8.5rem;
   z-index: 0;
-  background: linear-gradient(
-    to top,
-    color-mix(in srgb, var(--composer-fade-solid) 72%, transparent) 0%,
-    color-mix(in srgb, var(--composer-fade-solid) 28%, transparent) 58%,
-    transparent 100%
-  );
-  -webkit-mask-image: linear-gradient(
-    to top,
-    #000 0%,
-    #000 34%,
-    transparent 100%
-  );
-  mask-image: linear-gradient(to top, #000 0%, #000 34%, transparent 100%);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
+  background: linear-gradient(to top, var(--rail-ground, #f7f8f3) 0%, var(--rail-ground, #f7f8f3) 48%, transparent 100%);
 }
 
+/* The composer: a solid card floating over the thread, so nothing shows through it. */
 .composer-glass {
   position: relative;
   border-radius: 22px;
-  border: 1px solid color-mix(in srgb, var(--sage-line) 42%, transparent);
-  background: color-mix(in srgb, var(--bone) 58%, transparent);
-  -webkit-backdrop-filter: blur(20px);
-  backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  background: var(--bone);
+  box-shadow:
+    0 1px 2px rgba(92, 107, 82, 0.08),
+    0 8px 24px rgba(44, 48, 42, 0.1);
 }
 
 .composer-glass--processing {
@@ -279,11 +267,9 @@
 }
 
 .lane-chip {
-  border: 1px solid color-mix(in srgb, var(--sage-line) 48%, transparent);
-  background: color-mix(in srgb, var(--bone) 72%, transparent);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 1px 2px rgb(92 107 82 / 0.06);
+  border: 1px solid color-mix(in srgb, var(--sage-line) 60%, transparent);
+  background: var(--bone);
+  box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
 }
 
 /*

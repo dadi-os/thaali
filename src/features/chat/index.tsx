@@ -666,6 +666,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       <AnimatePresence initial={false} mode="popLayout">
       {viewingThread ? (
         <motion.div key="thread" className="absolute inset-0 flex flex-col" {...sheetMotion("right")}>
+          <div className="rail-fade rail-fade--top" aria-hidden />
           <ThreadHeader
             onBack={backToList}
             title={openAgentRecord ? openAgentRecord.name : null}
