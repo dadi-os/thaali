@@ -1,83 +1,62 @@
-import { useState, type ReactNode } from "react";
-import { Button } from "../../shared/ui/Button";
+import { useEffect, useState, type ReactNode } from "react";
 import { Popover } from "../../shared/overlay/Popover";
 import { useRetained } from "../../shared/hooks/useRetained";
 import type { TimelineItem } from "../../types/timeline";
-import { NodePopover } from "./NodePopover";
 import { itemKey } from "./plans";
-import { isSettled } from "./planner/blocks";
 import { SessionCard } from "./planner/SessionCard";
 
-/** A session and where it was drawn when it was clicked. */
-type Shown = { item: TimelineItem; anchor: DOMRect };
+/** A session and the point it was opened from. */
+type Shown = { item: TimelineItem; x: number; y: number };
 
-/** The node whose connections the second popover lists, with the session it came from when it did. */
-type Connected = { id: string; anchor: DOMRect; session?: TimelineItem };
+/** How long after a click a popover still opens at that click, in ms. */
+const PRESS_FRESH_MS = 400;
+/** Radius kept clear around the point, so the card sits beside the pointer and never under it. */
+const POINTER_CLEARANCE = 8;
+
+/** Where the pointer last clicked and when; a click from the keyboard has no position and leaves it alone. */
+const lastPress = { x: 0, y: 0, at: 0 };
 
 /** What {@link useSessionPopover} gives back. */
 export type SessionPopover = {
-  /** Open the details popover of `item`, under `anchor` (where the item is drawn, in window coordinates). */
-  show: (item: TimelineItem, anchor: DOMRect) => void;
-  /** Open the connections popover of a node. */
-  showNode: (id: string, anchor: DOMRect, session?: TimelineItem) => void;
+  /** Open the details popover of `item`: beside the press that asked for it, or under `fallback` (where the item is drawn) when there was none just now. */
+  show: (item: TimelineItem, fallback: DOMRect) => void;
   /** Key of the session whose details are open, or null. */
   openKey: string | null;
-  /** The popovers; render them once, anywhere in the page. */
+  /** The popover; render it once, anywhere in the page. */
   popovers: ReactNode;
 };
 
 /**
- * A session's click popover: its card (kind, time, place, notes, status and the same actions the right-click menu
- * offers) under the session, with a button that goes on to the plan's connections. Both popovers close on Escape, a
- * press outside and when the page that owns them goes away.
+ * A session's click popover: its card (kind, time, place, notes, Mark done, Show in Yaad and Message) opening beside where
+ * the pointer pressed, kept clear of it. It closes on Escape, a press outside and when the page that owns it goes away.
  */
-export function useSessionPopover(now: Date): SessionPopover {
+export function useSessionPopover(): SessionPopover {
   const [details, setDetails] = useState<Shown | null>(null);
-  const [node, setNode] = useState<Connected | null>(null);
-  const shownDetails = useRetained(details);
-  const shownNode = useRetained(node);
-  const popovers = (
-    <>
-      {shownDetails === null ? null : (
-        <Popover
-          open={details !== null}
-          anchor={{ x: shownDetails.anchor.left, y: shownDetails.anchor.bottom, radius: 0 }}
-          aria-label={`${shownDetails.item.title} details`}
-          widthPx={300}
-          onClose={() => setDetails(null)}
-        >
-          <SessionCard block={shownDetails.item} settled={isSettled(shownDetails.item, now)} />
-          <Button
-            tone="quiet"
-            onClick={() => {
-              setNode({ id: shownDetails.item.id, session: shownDetails.item, anchor: shownDetails.anchor });
-              setDetails(null);
-            }}
-          >
-            Connections
-          </Button>
-        </Popover>
-      )}
-      {shownNode === null ? null : (
-        <NodePopover
-          open={node !== null}
-          nodeId={shownNode.id}
-          session={shownNode.session}
-          anchor={{ x: shownNode.anchor.left, y: shownNode.anchor.bottom, radius: 0 }}
-          onClose={() => setNode(null)}
-          onSelect={(id) => setNode({ id, anchor: shownNode.anchor })}
-        />
-      )}
-    </>
-  );
+  const shown = useRetained(details);
+  useEffect(() => {
+    const press = (event: MouseEvent) => {
+      if (event.detail === 0) {
+        return;
+      }
+      lastPress.x = event.clientX;
+      lastPress.y = event.clientY;
+      lastPress.at = performance.now();
+    };
+    document.addEventListener("click", press, true);
+    return () => document.removeEventListener("click", press, true);
+  }, []);
+  const popovers =
+    shown === null ? null : (
+      <Popover open={details !== null} anchor={{ x: shown.x, y: shown.y, radius: POINTER_CLEARANCE }} aria-label={`${shown.item.title} details`} widthPx={320} onClose={() => setDetails(null)}>
+        <div onClick={(event) => (event.target as Element).closest("button") !== null && setDetails(null)}>
+          <SessionCard block={shown.item} />
+        </div>
+      </Popover>
+    );
   return {
-    show: (item, anchor) => {
-      setNode(null);
-      setDetails({ item, anchor });
-    },
-    showNode: (id, anchor, session) => {
-      setDetails(null);
-      setNode({ id, anchor, session });
+    show: (item, fallback) => {
+      const fresh = performance.now() - lastPress.at < PRESS_FRESH_MS;
+      setDetails({ item, x: fresh ? lastPress.x : fallback.left, y: fresh ? lastPress.y : fallback.bottom });
     },
     openKey: details === null ? null : itemKey(details.item),
     popovers,

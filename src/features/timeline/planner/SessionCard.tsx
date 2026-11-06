@@ -9,22 +9,20 @@ import { KIND_LABEL } from "./kinds";
 export type SessionCardProps = {
   /** A planner session. */
   block: TimelineItem;
-  /** The session is completed, cancelled, or over. */
-  settled: boolean;
 };
 
 /** A session's card: its kind, title, when and where, what was noted, how it stands and what Ankur can do with it. */
-export function SessionCard({ block, settled }: SessionCardProps) {
-  const status =
-    block.state === "cancelled" ? "Cancelled" : block.outcome === "done" ? "Completed" : block.outcome === "missed" ? "Missed" : settled ? "Not marked" : "Upcoming";
+export function SessionCard({ block }: SessionCardProps) {
+  const status = block.state === "cancelled" ? "Cancelled" : block.outcome === "done" ? "Completed" : block.outcome === "missed" ? "Missed" : null;
   const where = block.place ? [block.place.title, block.place.room ? `room ${block.place.room}` : null, block.place.address].filter(Boolean).join(" · ") : null;
   return (
     <div data-selectable className="flex flex-col gap-3.5 px-5 pt-5 pb-5">
       <div className="flex items-center gap-2">
-        <span className="rounded-full bg-sage-fill px-2.5 py-0.5 text-[12px] font-semibold text-sage-text">{block.kind ? KIND_LABEL[block.kind] : "Plan"}</span>
-        {block.recurrence ? <span className="truncate text-[12.5px] text-ink-muted">{block.recurrence}</span> : null}
+        <span className="flex-none rounded-full bg-sage-fill px-2.5 py-0.5 text-[12px] font-semibold text-sage-text">{block.kind ? KIND_LABEL[block.kind] : "Plan"}</span>
+        {block.recurrence ? <span className="min-w-0 flex-1 truncate text-[12.5px] text-ink-muted">{block.recurrence}</span> : <span className="flex-1" />}
+        <SessionActions item={block} only={["mark-done"]} />
       </div>
-      <h3 className={`m-0 text-[19px] leading-7 font-semibold tracking-[-0.015em] text-ink ${block.state === "cancelled" || block.outcome === "done" ? "line-through decoration-ink-ghost" : ""}`}>{block.title}</h3>
+      <h3 className={`m-0 text-[19px] leading-7 font-semibold tracking-[-0.015em] text-ink ${block.state === "cancelled" || block.outcome === "done" ? "line-through decoration-sage-deep decoration-2" : ""}`}>{block.title}</h3>
       {block.start_at !== null && block.end_at !== null || where !== null ? (
         <div className="flex flex-col gap-1.5 text-[13.5px] text-ink-muted">
           {block.start_at !== null && block.end_at !== null ? (
@@ -46,15 +44,17 @@ export function SessionCard({ block, settled }: SessionCardProps) {
           ))}
         </div>
       ) : null}
-      <div className="flex items-center gap-2">
-        <Chip>{status}</Chip>
-        {block.series ? (
-          <span className="text-[12.5px] text-ink-muted">
-            Completed {block.series.completed} of {block.series.total}
-          </span>
-        ) : null}
-      </div>
-      <SessionActions item={block} />
+      {status !== null || block.series ? (
+        <div className="flex items-center gap-2">
+          {status === null ? null : <Chip>{status}</Chip>}
+          {block.series ? (
+            <span className="text-[12.5px] text-ink-muted">
+              Completed {block.series.completed} of {block.series.total}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
+      <SessionActions item={block} only={["show-in-yaad", "message"]} />
     </div>
   );
 }

@@ -118,7 +118,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
             aria-expanded={opened === itemKey(item)}
             onClick={(event) => open(event, item, onOpen)}
             title={timed ? `${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at ?? item.start_at!)}` : `${item.title} · due ${formatClock(item.due_at!)}`}
-            className={`ui-trans ui-hover-fill relative flex flex-none items-start gap-3 rounded-[12px] px-2 text-left ${live ? "bg-sage-active" : ""} ${over || done ? "opacity-55" : ""}`}
+            className={`ui-trans ui-hover-fill relative flex flex-none items-start gap-3 rounded-[12px] px-2 text-left ${live ? "bg-sage-active" : ""} ${over ? "opacity-55" : ""}`}
             style={{ height: row, paddingTop: ROW_TOP }}
           >
             <span className="flex flex-none flex-col items-end text-right" style={{ width: TIME_COL }}>
@@ -129,7 +129,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
               <span className={`dot size-2.5 ${live ? "dot-pulse" : ""} ${live ? "bg-sage-deep" : done ? "bg-sage" : over ? "bg-sage-line" : "border-2 border-sage-line bg-bone"}`} style={item.start_at === null ? { background: "var(--clay)", borderColor: "var(--clay)" } : tone(item) === "var(--tide)" && !live && !over && !done ? { borderColor: "var(--tide)" } : undefined} />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-1 pr-1">
-              <Truncate text={item.title} className={`text-[14px] leading-5 ${live ? "font-semibold" : "font-medium"} ${done ? "line-through decoration-ink-ghost" : ""}`} />
+              <Truncate text={item.title} className={`text-[14px] leading-5 ${live ? "font-semibold" : "font-medium"} ${done ? "text-ink-muted line-through decoration-sage-deep decoration-2" : ""}`} />
               <span className={`truncate text-[12.5px] leading-4 ${live || item === next ? "text-sage-text" : "text-ink-muted"} ${item.start_at === null ? "text-clay" : ""}`}>{detail}</span>
               {live ? (
                 <span className="mt-1 h-1 w-full overflow-hidden rounded-full bg-sage-line/50">
@@ -148,7 +148,7 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
 export function DayTile({ order }: { order: number }) {
   const { state: connection } = useConnection();
   const now = useNow(TICK_MS);
-  const popover = useSessionPopover(new Date(now));
+  const popover = useSessionPopover();
   const range = toIsoBounds(startOfDay(new Date(now)), endOfDay(new Date(now)));
   const query = useQuery({
     queryKey: ["yaad", "timeline", "tile", range.occurred_from, range.occurred_to],

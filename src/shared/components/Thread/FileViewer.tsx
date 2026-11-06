@@ -6,7 +6,6 @@ import { hath } from "../../api";
 import { CopyButton } from "../../ui/CopyButton";
 import { Segmented } from "../../ui/Segmented";
 import { IconButton } from "../../ui/Button";
-import { Icon } from "../../ui/Icon";
 import { MarkdownBody } from "../Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../lib/content/attachments";
 import { saveFile } from "../../desktop/download";
@@ -159,28 +158,28 @@ function Sheet({ file, onClose }: SheetProps) {
       role="dialog"
       aria-modal="true"
       aria-label={file.filename}
-      className={`file-sheet flex max-h-[88vh] flex-col overflow-hidden rounded-[18px] ${
+      className={`file-sheet flex max-h-[88vh] flex-col overflow-hidden rounded-[24px] ${
         wide ? "h-[min(88vh,820px)] w-[min(92vw,960px)]" : "max-w-[min(92vw,1200px)]"
       }`}
       {...DIALOG}
       onClick={(e) => e.stopPropagation()}
     >
-      <header className="flex h-12 shrink-0 items-center gap-3 border-b border-rule/70 pr-2 pl-4">
-        <div className="min-w-0 flex-1">
-          <p data-selectable className="truncate text-[14px] leading-tight font-medium text-ink" title={file.filename}>
+      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule pr-3 pl-6">
+        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 self-center">
+          <p data-selectable className="m-0 truncate text-[15px] leading-5 font-semibold text-ink" title={file.filename}>
             {file.filename}
           </p>
-          <p className="truncate text-[11px] leading-tight text-ink-ghost">{meta.join(" · ")}</p>
+          <p className="m-0 truncate text-[12.5px] leading-4 text-ink-muted">{meta.join(" · ")}</p>
         </div>
         {kind === "markdown" ? (
           <Segmented options={MARKDOWN_MODES} value={mode} onChange={setMode} label="Markdown view" size="sm" />
         ) : null}
-        <div className="flex shrink-0 items-center gap-0.5">
+        <div className="flex shrink-0 items-center gap-1">
           {textual && text.data !== undefined ? (
-            <CopyButton text={text.data} label={`Copy ${file.filename}`} />
+            <CopyButton text={text.data} label={`Copy ${file.filename}`} size={36} />
           ) : null}
           <DownloadButton file={file} text={text.data} />
-          <IconButton icon="close" label="Close" size={32} iconSize={13} onClick={onClose} />
+          <IconButton icon="close" label="Close" size={36} iconSize={15} onClick={onClose} />
         </div>
       </header>
 
@@ -201,15 +200,15 @@ function Sheet({ file, onClose }: SheetProps) {
             <p className="text-[12px] text-ink-ghost">Download it to open it on this computer.</p>
           </div>
         ) : text.isError ? (
-          <p data-selectable className="px-5 py-4 text-[13px] text-error">{text.error.message}</p>
+          <p data-selectable className="px-6 py-5 text-[13px] text-error">{text.error.message}</p>
         ) : text.data === undefined ? (
-          <div aria-label={`Loading ${file.filename}`} className="flex flex-col gap-2.5 px-5 py-5">
+          <div aria-label={`Loading ${file.filename}`} className="flex flex-col gap-2.5 px-6 py-6">
             {[72, 54, 88, 40, 66].map((width) => (
               <span key={width} className="h-2.5 animate-pulse rounded-full bg-rule/60" style={{ width: `${width}%` }} />
             ))}
           </div>
         ) : kind === "markdown" && mode === "rendered" ? (
-          <div data-selectable className="mx-auto max-w-[760px] px-7 py-6 text-[14px] leading-[1.65] text-ink">
+          <div data-selectable className="max-w-[780px] px-6 py-6 text-[15px] leading-[1.65] text-ink">
             <MarkdownBody content={text.data} />
           </div>
         ) : html.isError ? (
@@ -266,18 +265,15 @@ function DownloadButton({ file, text }: DownloadButtonProps) {
           Download failed: {error}
         </span>
       ) : null}
-      <button
-        type="button"
-        aria-label={`Download ${file.filename}`}
-        title={state === "saved" ? "Saved" : "Download"}
+      <IconButton
+        icon={state === "saved" ? "check" : "download"}
+        label={state === "saved" ? "Saved" : `Download ${file.filename}`}
+        size={36}
+        iconSize={15}
         disabled={state === "saving"}
         onClick={() => void save()}
-        className={`inline-flex size-6 items-center justify-center rounded-[8px] transition-colors duration-fast ease-dadi hover:bg-sage-active/50 [&_svg]:size-[14px] ${
-          state === "saved" ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
-        } ${state === "saving" ? "animate-breath" : ""}`}
-      >
-        <Icon name={state === "saved" ? "check" : "download"} size={14} />
-      </button>
+        className={state === "saved" ? "text-sage-deep" : error ? "text-error" : ""}
+      />
     </span>
   );
 }

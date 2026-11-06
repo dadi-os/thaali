@@ -40,7 +40,7 @@ import {
 } from "../../contexts/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../contexts/drafts";
 import { getDockRequests, subscribeDock } from "../../contexts/dock";
-import { asQuote, getReplyQuote, getReplyRequests, subscribeReply } from "../../contexts/reply";
+import { asQuote, getReplyRequests, getReplyText, subscribeReply } from "../../contexts/reply";
 import { failureTarget, pushToast } from "../../contexts/toasts";
 import {
   getRunning,
@@ -645,7 +645,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return;
     }
     const held = loadDraft(openAgentId);
-    setDraft(`${asQuote(getReplyQuote())}${held}`);
+    const reply = getReplyText();
+    setDraft(reply.quote ? `${asQuote(reply.text)}${held}` : `${reply.text}${held === "" ? "" : `\n${held}`}`);
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, [replyRequests, openAgentId]);
 

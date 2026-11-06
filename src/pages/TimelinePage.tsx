@@ -72,7 +72,7 @@ export function TimelinePage() {
   }));
   const { state: connection } = useConnection();
   const { now, zone } = clock;
-  const popover = useSessionPopover(now);
+  const popover = useSessionPopover();
   const requested = params.get("view");
   const view: View =
     requested === "week" ? "Week" : requested === "month" ? "Month" : "Day";
@@ -352,7 +352,7 @@ export function TimelinePage() {
             ) : null}
             {renderBody(room.width > WIDE_FROM)}
             <Sheet open={someday} onClose={() => navigate(view, anchor)} label="Needs a time" width={480}>
-              <NeedsATime onClose={() => navigate(view, anchor)} onOpen={(item, element) => popover.showNode(item.id, element.getBoundingClientRect(), item)} />
+              <NeedsATime onClose={() => navigate(view, anchor)} onOpen={(item, element) => popover.show(item, element.getBoundingClientRect())} />
             </Sheet>
           </>
         )}

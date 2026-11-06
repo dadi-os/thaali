@@ -5,6 +5,7 @@ import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import type { Action, ActionList } from "../../shared/interaction/actions";
 import { openAgent } from "../../contexts/chat";
 import { requestDock } from "../../contexts/dock";
+import { requestCompose } from "../../contexts/reply";
 import { failureTarget, pushToast } from "../../contexts/toasts";
 import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
@@ -66,7 +67,10 @@ export function usePlanActions(details?: (item: TimelineItem) => void): (item: T
           pushToast({ key: "timeline:outcome", tone: "error", title: "Yaad", body: error instanceof Error ? error.message : String(error), target: failureTarget(error) });
         }
       },
-      message: openAgent,
+      message: (agentId) => {
+        openAgent(agentId);
+        requestCompose(`I want to talk about "${item.title}"`);
+      },
       tellDadi: () => requestDock(`I want to talk about "${item.title}"`),
       showInYaad: (id) => navigate(`/yaad?focus=${id}`),
       details: details === undefined ? undefined : () => details(item),

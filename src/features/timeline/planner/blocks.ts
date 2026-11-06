@@ -134,15 +134,6 @@ export function nowAndNext(
   };
 }
 
-/** True once a session was completed, cancelled, or its time has passed. */
-export function isSettled(block: TimelineItem, now: Date): boolean {
-  return (
-    block.outcome === "done" ||
-    block.state === "cancelled" ||
-    (block.end_at !== null && new Date(block.end_at).getTime() <= now.getTime())
-  );
-}
-
 /** Minutes as "1 h 20 min", "45 min", or "2 h". */
 export function formatSpan(minutes: number): string {
   const h = Math.floor(minutes / 60);

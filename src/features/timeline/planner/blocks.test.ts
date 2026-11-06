@@ -6,7 +6,6 @@ import {
   formatRange,
   formatSpan,
   gapsBetween,
-  isSettled,
   nowAndNext,
   segmentsOn,
 } from "./blocks";
@@ -157,24 +156,6 @@ describe("planner segments", () => {
     expect(between.current).toBeNull();
     expect(between.next?.block.title).toBe("B");
     expect(nowAndNext(segments, 700)).toEqual({ current: null, next: null });
-  });
-
-  it("settles a session when it is completed, cancelled, or has ended", () => {
-    const now = new Date(2026, 9, 21, 12);
-    expect(isSettled(block("Past", at(9), at(10)), now)).toBe(true);
-    expect(isSettled(block("Ahead", at(13), at(14)), now)).toBe(false);
-    expect(
-      isSettled(block("Completed", at(13), at(14), { outcome: "done" }), now),
-    ).toBe(true);
-    expect(
-      isSettled(
-        block("Cancelled", at(13), at(14), { state: "cancelled" }),
-        now,
-      ),
-    ).toBe(true);
-    expect(
-      isSettled(block("Missed", at(13), at(14), { outcome: "missed" }), now),
-    ).toBe(false);
   });
 
   it("writes a range with the period once when both ends share it, and a compact clock", () => {

@@ -17,13 +17,15 @@ export type CopyButtonProps = {
   label: string;
   /** Extra classes, e.g. positioning or a hover reveal. */
   className?: string;
+  /** Width and height of the button in px. */
+  size?: number;
 };
 
 /**
  * Small icon button that copies `text`: the icon pops into a check for a moment, and a
  * failed copy shows the clipboard's error beside it until the next try.
  */
-export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
+export function CopyButton({ text, label, className = "", size = 32 }: CopyButtonProps) {
   const [copied, setCopied] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -48,8 +50,9 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
             .then(() => setCopied(true))
             .catch((err: unknown) => setError(err instanceof Error ? err.message : String(err)));
         }}
-        className={`ui-trans ui-hover-fill inline-flex size-8 items-center justify-center rounded-[8px] ${
-          copied ? "text-sage-deep" : error ? "text-error" : "text-ink-ghost hover:text-ink-muted"
+        style={{ width: size, height: size }}
+        className={`ui-trans ui-hover-fill inline-flex items-center justify-center rounded-[10px] ${
+          copied ? "text-sage-deep" : error ? "text-error" : "text-ink-muted hover:text-ink"
         }`}
       >
         <AnimatePresence initial={false}>
@@ -60,7 +63,7 @@ export function CopyButton({ text, label, className = "" }: CopyButtonProps) {
             animate={{ scale: 1, opacity: 1, rotate: 0 }}
             transition={{ duration: SLOW_S, ease: EASE }}
           >
-            <Icon name={copied ? "check" : "copy"} size={14} />
+            <Icon name={copied ? "check" : "copy"} size={size > 32 ? 15 : 14} />
           </motion.span>
         </AnimatePresence>
       </button>
