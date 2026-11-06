@@ -17,8 +17,15 @@ const CARD_HEIGHT = 72;
 /** A lone light's node: its height and the gap between nodes, in px. */
 const NODE_HEIGHT = 30;
 const NODE_GAP = 8;
-/** The most rows of lone-light nodes the tile gives up room to. */
+/** The most rows of lone-light nodes a tile that stacks them under its cards gives up room to. */
 const NODE_ROWS = 2;
+/** A tag card's narrowest and widest, in px: cards keep a card's shape however wide the tile is and sit side by side from the left. */
+const CARD_MIN = 176;
+const CARD_MAX = 232;
+/** The tile is at least this wide before the lone lights sit beside the cards instead of under them. */
+const SIDE_FROM = 520;
+/** The gap between the cards and the lone lights beside them, in px. */
+const SIDE_GAP = 16;
 
 /** Keeps a click inside a tile's control from following the tile's link. */
 function swallow(event: MouseEvent): void {
@@ -64,6 +71,8 @@ type TagsProps = {
 type NodesProps = {
   lights: GharDevice[];
   width: number;
+  /** The rows of nodes there is room for; the lights past them fold into a count. */
+  rows: number;
   house: House;
 };
 
@@ -72,8 +81,8 @@ function nodeWidth(light: GharDevice): number {
   return Math.min(168, 34 + light.name.length * 7);
 }
 
-/** The lights that carry no tag, each its own small node: a dot and its name, one tap flips just that light; the ones that do not fit in two rows fold into a count. */
-function Nodes({ lights, width, house }: NodesProps) {
+/** The lights that carry no tag, each its own small node: a dot and its name, one tap flips just that light; the ones that do not fit in the rows given fold into a count. */
+function Nodes({ lights, width, rows: roomRows, house }: NodesProps) {
   const navigate = useNavigate();
   const placed: GharDevice[] = [];
   let row = 0;
@@ -84,7 +93,7 @@ function Nodes({ lights, width, house }: NodesProps) {
       row += 1;
       used = 0;
     }
-    if (row >= NODE_ROWS) {
+    if (row >= roomRows) {
       break;
     }
     used += (used > 0 ? NODE_GAP : 0) + w;
@@ -132,11 +141,13 @@ function Tags({ lights, geometry, house }: TagsProps) {
   const navigate = useNavigate();
   const cards = tagLights(lights);
   const bare = untaggedDevices(lights);
-  const nodeRows = bare.length === 0 ? 0 : Math.min(NODE_ROWS, Math.max(1, Math.ceil(bare.reduce((sum, light) => sum + nodeWidth(light) + NODE_GAP, 0) / geometry.iw)));
-  const nodesHeight = nodeRows === 0 ? 0 : nodeRows * NODE_HEIGHT + (nodeRows - 1) * NODE_GAP + 8;
+  const beside = bare.length > 0 && cards.length > 0 && geometry.iw >= SIDE_FROM;
+  const sideWidth = beside ? Math.min(CARD_MAX, Math.max(168, Math.round(geometry.iw * 0.32))) : 0;
+  const cardsWidth = geometry.iw - (beside ? sideWidth + SIDE_GAP : 0);
+  const stackedRows = bare.length === 0 || beside || cards.length === 0 ? 0 : Math.min(NODE_ROWS, Math.max(1, Math.ceil(bare.reduce((sum, light) => sum + nodeWidth(light) + NODE_GAP, 0) / geometry.iw)));
+  const nodesHeight = stackedRows === 0 ? 0 : stackedRows * NODE_HEIGHT + (stackedRows - 1) * NODE_GAP + 8;
   const room = Math.max(0, geometry.bh - nodesHeight);
-  const maxColumns = geometry.iw >= 640 ? 4 : geometry.iw >= 440 ? 3 : 2;
-  const columns = Math.max(1, Math.min(maxColumns, cards.length));
+  const columns = Math.max(1, Math.min(Math.floor((cardsWidth + 8) / (CARD_MIN + 8)), cards.length));
   const rowsFit = Math.max(1, Math.floor((room + 8) / CARD_HEIGHT));
   const slots = columns * rowsFit;
   const shown = cards.length <= slots ? cards : cards.slice(0, slots - 1);
@@ -144,10 +155,11 @@ function Tags({ lights, geometry, house }: TagsProps) {
   const rows = Math.ceil((shown.length + (extra > 0 ? 1 : 0)) / columns);
   const cell = (room - 8 * (rows - 1)) / rows;
   const listed = Math.max(0, Math.min(4, Math.floor((cell - 62) / 22)));
+  const fullRows = Math.max(1, Math.floor((geometry.bh + NODE_GAP) / (NODE_HEIGHT + NODE_GAP)));
   return (
-    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
-    {cards.length === 0 ? <div className="flex-1" /> : (
-    <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
+    <div className={`flex min-h-0 min-w-0 flex-1 ${beside ? "flex-row" : "flex-col"}`} style={{ gap: beside ? SIDE_GAP : 8 }}>
+    {cards.length === 0 ? null : (
+    <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] content-start gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,${CARD_MAX}px))`, justifyContent: "start" }}>
       <AnimatePresence initial={false}>
         {shown.map((card) => (
           <motion.div
@@ -208,7 +220,13 @@ function Tags({ lights, geometry, house }: TagsProps) {
       ) : null}
     </div>
     )}
-    {bare.length > 0 ? <Nodes lights={bare} width={geometry.iw} house={house} /> : null}
+    {bare.length === 0 ? null : beside ? (
+      <div className="flex min-h-0 flex-none flex-col border-l border-rule pl-4" style={{ width: sideWidth }}>
+        <Nodes lights={bare} width={sideWidth - 17} rows={fullRows} house={house} />
+      </div>
+    ) : (
+      <Nodes lights={bare} width={geometry.iw} rows={cards.length === 0 ? fullRows : NODE_ROWS} house={house} />
+    )}
     </div>
   );
 }

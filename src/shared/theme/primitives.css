@@ -672,7 +672,7 @@
 
   .tst-x {
     position: absolute;
-    top: 6px;
+    bottom: 6px;
     right: 6px;
     width: 28px;
     height: 28px;

@@ -59,7 +59,7 @@ export function Toast({ kind = "info", module = null, title, body, open = false,
       }}
     >
       <button type="button" className="tst-hit" aria-label={title} title={title} onClick={onActivate} />
-      <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 12px", pointerEvents: "none" }}>
+      <div style={{ position: "relative", display: "flex", alignItems: "flex-start", gap: 10, padding: "9px 40px 9px 12px", pointerEvents: "none" }}>
         <span style={{ marginTop: 1, width: 24, height: 24, borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center", background: look.tint, color: look.ink, flex: "none" }}>
           <Icon name={module === null ? look.mark : MODULE_MARK[module]} size={14} />
         </span>
