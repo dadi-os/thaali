@@ -37,7 +37,7 @@ export function AgentPopover({ agentId, anchor, onSelect, onClose }: AgentPopove
       style={{ height: `min(${MAX_HEIGHT}px, calc(100vh - 32px))`, maxHeight: "none", padding: 0, outline: "none" }}
       onClose={onClose}
     >
-      <AgentSheet agentId={shownId} onSelect={onSelect} />
+      <AgentSheet agentId={shownId} onSelect={onSelect} onClose={onClose} />
     </Popover>
   );
 }

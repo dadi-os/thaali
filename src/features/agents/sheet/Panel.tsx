@@ -1,14 +1,14 @@
 import { useRef } from "react";
 import type { AgentRecord, AgentTask, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
-import { Button } from "../../../shared/ui/Button";
+import { Button, IconButton } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { Disclosure } from "../../../shared/ui/Disclosure";
 import { Icon } from "../../../shared/ui/Icon";
-import { ChipRow, KeyValue, SectionHeader, SheetHeader, StatusChip, TileList, TileRow } from "../../../shared/components/Module";
+import { SectionHeader, TileList, TileRow } from "../../../shared/components/Module";
 import { TaskRow } from "../../../shared/components/Task/TaskRow";
 import { AnimatePresence, motion } from "motion/react";
 import { AgentName } from "../../../shared/ui/AgentName";
-import { REVEAL, RISE } from "../../../shared/motion";
+import { RISE } from "../../../shared/motion";
 import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import { formatClock, formatDay, formatRelative } from "../../../shared/lib/ux/time";
 import type { ActivityWake } from "./activity";
@@ -53,6 +53,8 @@ export type AgentSheetPanelProps = {
   onToggle: (section: SheetSection) => void;
   /** Opens the agent's chat in the rail. */
   onOpenThread: () => void;
+  /** Closes the card it sits in; no close control is drawn without it. */
+  onClose?: () => void;
   /** The time the sheet's relative words are measured from. */
   now: number;
 };
@@ -114,7 +116,7 @@ function feedSummary<T>(feed: SheetFeed<T>, ready: (items: T[]) => string): stri
  * tasks it owns, and sections for its last calls, queued messages, schedule, charter and activity. It draws what it is
  * given; {@link AgentSheet} reads the data and holds the open sections.
  */
-export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, onOpenThread, now }: AgentSheetPanelProps) {
+export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, onOpenThread, onClose, now }: AgentSheetPanelProps) {
   const status = agent.running.status;
   const waiting = agent.running.waiting_on;
   const lanes = [agent.running.work ? "Working" : null, agent.running.process ? "Processing" : null].filter((lane) => lane !== null);
@@ -123,31 +125,36 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
   const pending = status?.pending ?? [];
   const who = (id: string | null) => (id === null ? "Ankur" : id);
   const scroll = useRef<HTMLDivElement>(null);
+  const live = lanes.length > 0;
+  const orb = agent.running.work ? "bg-sage" : agent.running.process ? "bg-tide" : "bg-ink-ghost";
+  const summary = [
+    lanes.length > 0 ? lanes.join(" + ") : waiting === null ? "Idle" : "Waiting on a task",
+    tasks.length > 0 ? `${tasks.length} helper ${tasks.length === 1 ? "task" : "tasks"}` : null,
+    formatRelative(agent.updated_at, now),
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
   return (
     <Card className="min-h-0 w-full flex-1" style={{ border: "none", background: "transparent", boxShadow: "none", borderRadius: 0 }}>
-      <SheetHeader
-        name={<AgentName name={agent.name} className="text-[20px] font-semibold tracking-[-0.015em]" />}
-        status={
-          <ChipRow wrap>
-            {lanes.map((lane) => (
-              <StatusChip key={lane} pulse>
-                {lane}
-              </StatusChip>
-            ))}
-            {lanes.length === 0 ? (
-              <StatusChip key="idle" tone="quiet">
-                {waiting === null ? "Idle" : "Waiting"}
-              </StatusChip>
-            ) : null}
-          </ChipRow>
-        }
-        action={
-          <Button tone="fill" onClick={onOpenThread}>
-            Open thread
-          </Button>
-        }
-      />
-      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-4 px-5 pt-2 pb-6">
+      <header className="flex flex-none flex-col gap-3.5 px-5 pt-5 pb-4">
+        <div className="flex items-start gap-3">
+          <span className="relative mt-[9px] flex size-2.5 flex-none">
+            {live ? <span className={`absolute inset-0 animate-ping rounded-full opacity-60 ${orb}`} /> : null}
+            <span className={`relative size-2.5 rounded-full ${orb}`} />
+          </span>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <AgentName name={agent.name} className="text-[19px] leading-7 font-semibold tracking-[-0.015em]" />
+            <span className="truncate text-[13px] text-ink-muted" title={summary}>
+              {summary}
+            </span>
+          </div>
+          {onClose ? <IconButton icon="close" label="Close" onClick={onClose} /> : null}
+        </div>
+        <Button tone="fill" onClick={onOpenThread} style={{ width: "100%" }}>
+          Open thread
+        </Button>
+      </header>
+      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-4 border-t border-rule px-5 pt-4 pb-6">
         <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-4 py-3">
           <SectionHeader title="Right now" />
           <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
@@ -163,18 +170,14 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             </div>
           ) : null}
         </div>
-        <AnimatePresence initial={false}>
-          {tasks.length > 0 ? (
-            <motion.div key="tasks" {...REVEAL} className="overflow-hidden">
-              <div className="flex flex-col gap-0.5">
-                <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
-                {tasks.map(({ task, question }) => (
-                  <TaskRow key={task.id} task={task} owner={agent.name} question={question} now={now} />
-                ))}
-              </div>
-            </motion.div>
-          ) : null}
-        </AnimatePresence>
+        {tasks.length > 0 ? (
+          <div className="flex flex-col gap-0.5">
+            <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
+            {tasks.map(({ task, question }) => (
+              <TaskRow key={task.id} task={task} owner={agent.name} question={question} now={now} />
+            ))}
+          </div>
+        ) : null}
         <div className="flex flex-col">
           {calls.length > 0 ? (
             <Disclosure title="Last calls" summary={`${calls.length} · ${calls[calls.length - 1]!.name}`} open={isOpen("calls")} onToggle={() => onToggle("calls")}>
@@ -235,19 +238,17 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             )}
           </Disclosure>
         </div>
-        <div className="flex flex-col px-1 pt-1">
-          <KeyValue label="Parent" selectable={parent === null}>
-            {parent === null ? (
-              (agent.parent_agent_id ?? "none")
-            ) : (
-              <button type="button" className="ui-trans ui-hover-fill -mx-1 inline rounded-[6px] px-1 font-semibold text-sage-text" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
+        <p className="m-0 px-1 text-[12.5px] leading-5 text-ink-muted">
+          {`Created ${formatDay(agent.created_at)}`}
+          {parent === null ? (agent.parent_agent_id === null ? "" : ` · child of ${agent.parent_agent_id}`) : (
+            <>
+              {" · child of "}
+              <button type="button" className="ui-trans font-semibold text-sage-text hover:underline" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
                 {parent.name}
               </button>
-            )}
-          </KeyValue>
-          <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>
-          <KeyValue label="Active">{formatRelative(agent.updated_at, now)}</KeyValue>
-        </div>
+            </>
+          )}
+        </p>
       </div>
     </Card>
   );

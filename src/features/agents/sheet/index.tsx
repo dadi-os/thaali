@@ -27,6 +27,8 @@ export type AgentSheetProps = {
   agentId: string;
   /** Selects another agent, as the sheet's parent link does. */
   onSelect: (agentId: string) => void;
+  /** Closes the surface the sheet is in; the sheet draws a close control when given. */
+  onClose?: () => void;
 };
 
 /**
@@ -34,7 +36,7 @@ export type AgentSheetProps = {
  * schedule, its newest wakes and the helper tasks Nas holds, keeps which sections and task rows are open, and hands the
  * panel what it draws. Nothing is drawn until the agent is in the list.
  */
-export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
+export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
   const queryClient = useQueryClient();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
@@ -99,6 +101,7 @@ export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
       isOpen={(section) => openSections[section] === true}
       onToggle={(section) => setOpenSections((open) => ({ ...open, [section]: open[section] !== true }))}
       onOpenThread={() => openAgent(agentId)}
+      onClose={onClose}
       now={now}
     />
   );
