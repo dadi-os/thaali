@@ -77,7 +77,7 @@ function Body({ items, folders, geometry }: BodyProps) {
             size="sm"
             ruled={false}
             lead={<Lead depth={depth} ends={ends} />}
-            trail={<>{depth === 0 ? <Meter percent={(node.count / widest) * 100} width={56} /> : null}<span className="min-w-[3ch] flex-none text-right text-[13px] text-ink-muted tabular-nums">{node.count}</span></>}
+            trail={<><Meter percent={(node.count / widest) * 100} width={56} /><span className="min-w-[3ch] flex-none text-right text-[13px] text-ink-muted tabular-nums">{node.count}</span></>}
           >
             <Truncate text={node.name} className={depth === 0 ? "" : "text-ink-muted"} />
           </TileRow>
