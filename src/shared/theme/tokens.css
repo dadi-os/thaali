@@ -256,6 +256,26 @@
   box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
 }
 
+/* Interactive glass, as on Khisso: it lifts a hair and brightens under the pointer, and presses in when pressed. */
+.pane-bubble--interactive {
+  transition:
+    transform 220ms var(--ease),
+    box-shadow 220ms var(--ease),
+    border-color 220ms var(--ease);
+}
+
+.pane-bubble--interactive:hover {
+  transform: translateY(-1px) scale(1.035);
+  border-color: var(--sage-line);
+  box-shadow: 0 1px 2px rgb(92 107 82 / 0.1), 0 10px 26px rgb(44 48 42 / 0.14);
+}
+
+.pane-bubble--interactive:active {
+  transform: scale(0.95);
+  box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 3px 10px rgb(44 48 42 / 0.1);
+  transition-duration: 90ms;
+}
+
 .pane-bubble--open {
   border-color: color-mix(in srgb, var(--sage) 46%, transparent);
   background: var(--sage-active);
