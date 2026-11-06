@@ -33,6 +33,7 @@ function Location() {
 beforeEach(() => {
   vi.clearAllMocks();
   geometry = { iw: 700, bh: 300, tw: 734, th: 370 };
+  house.devicesQuery.data.devices = devices("normal");
   host = document.createElement("div");
   document.body.appendChild(host);
   root = createRoot(host);
@@ -66,10 +67,14 @@ describe("Home Ghar controls", () => {
     expect(host.querySelector("output")!.textContent).toBe("/");
   });
 
-  it("opens Ghar from the overflow card", () => {
-    geometry = { iw: 320, bh: 65, tw: 354, th: 135 };
+  it("shows a light with no tag as a pill of its own under the tags, and a tap flips just that light", () => {
+    const [first] = devices("normal");
+    house.devicesQuery.data.devices = [...devices("normal"), { ...first!, id: "porch", name: "Porch Light", tags: [] }];
     mount();
-    act(() => (host.querySelector("[aria-label='Show all tags']") as HTMLButtonElement).click());
-    expect(host.querySelector("output")!.textContent).toBe("/ghar");
+    expect(host.textContent).toContain("No tag");
+    const pill = [...host.querySelectorAll<HTMLButtonElement>("button[aria-pressed]")].find((button) => button.textContent === "Porch Light")!;
+    act(() => pill.click());
+    expect(house.run).toHaveBeenCalledOnce();
+    expect(house.run.mock.calls[0]![0]).toEqual([expect.objectContaining({ id: "porch" })]);
   });
 });

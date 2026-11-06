@@ -30,7 +30,7 @@ export function TitleBar({ wordmark, notice, onHome }: TitleBarProps) {
           </span>
         </button>
       ) : null}
-      <div className="absolute inset-y-1 right-3 flex items-center gap-2">{notice}</div>
+      <div className={`absolute inset-y-1 flex items-center gap-2 ${frameless ? "right-[156px]" : "right-3"}`}>{notice}</div>
       {frameless ? <WindowControls /> : null}
     </div>
   );

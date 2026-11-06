@@ -68,7 +68,7 @@ type MessageMetaProps = {
  */
 function MessageMeta({ message, copyLabel, align }: MessageMetaProps) {
   return (
-    <div className={`flex items-center gap-0.5 px-1 text-[11px] text-ink-ghost ${align === "end" ? "flex-row-reverse" : ""}`}>
+    <div className={`flex items-center gap-0.5 px-1 text-[12px] text-ink-muted ${align === "end" ? "flex-row-reverse" : ""}`}>
       <time dateTime={message.at} title={formatAbsolute(message.at)}>
         {formatMessageTime(message.at)}
       </time>

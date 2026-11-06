@@ -1,6 +1,5 @@
 import { useEffect, type MouseEvent } from "react";
-import { useNavigate } from "react-router-dom";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { RISE } from "../../shared/motion";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Switch } from "../../shared/ui/Switch";
@@ -13,19 +12,17 @@ import { Tile, type TileGeometry } from "../home/Tile";
 import { isLight, isOn, lightColor, sectionSwitch, switchCommand, tagLights, untaggedDevices } from "./model";
 import { useHouse, type House } from "./useHouse";
 
-const CARD_HEIGHT = 72;
-/** A lone light's node: its height and the gap between nodes, in px. */
-const NODE_HEIGHT = 30;
-const NODE_GAP = 8;
-/** The most rows of lone-light nodes a tile that stacks them under its cards gives up room to. */
-const NODE_ROWS = 2;
-/** A tag card's narrowest and widest, in px: cards keep a card's shape however wide the tile is and sit side by side from the left. */
-const CARD_MIN = 176;
-const CARD_MAX = 232;
-/** The tile is at least this wide before the lone lights sit beside the cards instead of under them. */
-const SIDE_FROM = 520;
-/** The gap between the cards and the lone lights beside them, in px. */
-const SIDE_GAP = 16;
+/** A tag card's narrowest and widest, in px: a card keeps a card's shape however wide the tile is, and the band of cards scrolls sideways past what fits. */
+const CARD_MIN = 208;
+const CARD_MAX = 380;
+/** A light's pill: its height inside a card and as a lone light, the gap between pills and what a card spends on its own header and padding, in px. */
+const PILL_SMALL = 26;
+const PILL_LARGE = 30;
+const PILL_GAP = 6;
+const CARD_CHROME = 52;
+/** The strip of lone lights under the cards: the room it takes with its hairline, and its gap above the cards, in px. */
+const STRIP = PILL_LARGE + 13;
+const BAND_GAP = 12;
 
 /** Keeps a click inside a tile's control from following the tile's link. */
 function swallow(event: MouseEvent): void {
@@ -33,31 +30,64 @@ function swallow(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-type LightProps = {
+/** The width a light's pill takes: its dot and name, capped. */
+function pillWidth(light: GharDevice): number {
+  return Math.min(176, 38 + light.name.length * 6);
+}
+
+/** The lights that fit in `rows` rows of pills `width` wide, in order, and how many were left out. */
+function pack(lights: GharDevice[], width: number, rows: number): { placed: GharDevice[]; left: number } {
+  const placed: GharDevice[] = [];
+  let row = 0;
+  let used = 0;
+  for (const light of lights) {
+    const w = pillWidth(light);
+    if (used > 0 && used + PILL_GAP + w > width) {
+      row += 1;
+      used = 0;
+    }
+    if (row >= rows) {
+      break;
+    }
+    used += (used > 0 ? PILL_GAP : 0) + w;
+    placed.push(light);
+  }
+  return { placed, left: lights.length - placed.length };
+}
+
+type PillProps = {
   light: GharDevice;
   house: House;
+  /** The pill's height, in px. */
+  height: number;
+  /** The pill sits on a tag's card, whose own wash it lightens, and not on the tile. */
+  inCard?: boolean;
 };
 
-/** One light in a tag card: its colour dot and name, and a switch that flips just this light; the tile's link does not follow the click. */
-function Light({ light, house }: LightProps) {
-  const on = light.state.on?.value === true;
-  const flip = (event: MouseEvent) => {
-    swallow(event);
-    void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
-  };
+/** One light as a pill: its colour dot and name; a tap flips just this light, and the tile's link does not follow it. */
+function LightPill({ light, house, height, inCard = false }: PillProps) {
+  const on = isOn(light);
   return (
     <motion.button
       {...RISE}
       layout="position"
       type="button"
-      className={`ui-trans ui-hover-fill -mx-1 flex h-5 w-[calc(100%+8px)] items-center gap-2 rounded-[6px] px-1 text-left text-[13px] ${on ? "text-ink" : "text-ink-muted"} ${light.online ? "" : "opacity-45"}`}
       aria-pressed={on}
       title={`Switch ${on ? "off" : "on"} ${light.name}`}
       disabled={!house.connected || !light.online || house.pending.has(light.id)}
-      onClick={flip}
+      className={`ui-trans flex flex-none items-center gap-2 rounded-full border px-2.5 text-[12.5px] ${
+        on
+          ? `border-[rgba(240,168,104,.45)] ${inCard ? "bg-[rgba(255,255,255,.55)]" : "bg-[rgba(240,168,104,.12)]"} text-ink`
+          : `border-glass-border ${inCard ? "bg-[rgba(255,255,255,.4)]" : "bg-sage-fill"} text-ink-muted`
+      } hover:border-sage-line ${light.online ? "" : "opacity-45"}`}
+      style={{ height, maxWidth: 176 }}
+      onClick={(event) => {
+        swallow(event);
+        void house.run([{ id: light.id, command: switchCommand(!on) }]);
+      }}
     >
-      <span className={`dot size-2 ${on ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
-      <Truncate text={light.name} className="min-w-0 flex-1" />
+      <span className={`dot size-2 flex-none ${on ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
+      <Truncate text={light.name} />
     </motion.button>
   );
 }
@@ -68,165 +98,76 @@ type TagsProps = {
   house: House;
 };
 
-type NodesProps = {
-  lights: GharDevice[];
-  width: number;
-  /** The rows of nodes there is room for; the lights past them fold into a count. */
-  rows: number;
-  house: House;
-};
-
-/** The width a lone light's node takes: its dot and name, capped. */
-function nodeWidth(light: GharDevice): number {
-  return Math.min(168, 34 + light.name.length * 7);
-}
-
-/** The lights that carry no tag, each its own small node: a dot and its name, one tap flips just that light; the ones that do not fit in the rows given fold into a count. */
-function Nodes({ lights, width, rows: roomRows, house }: NodesProps) {
-  const navigate = useNavigate();
-  const placed: GharDevice[] = [];
-  let row = 0;
-  let used = 0;
-  for (const light of lights) {
-    const w = nodeWidth(light);
-    if (used > 0 && used + NODE_GAP + w > width) {
-      row += 1;
-      used = 0;
-    }
-    if (row >= roomRows) {
-      break;
-    }
-    used += (used > 0 ? NODE_GAP : 0) + w;
-    placed.push(light);
-  }
-  const left = lights.length - placed.length;
-  return (
-    <div className="flex flex-none flex-wrap content-start gap-2">
-      <AnimatePresence initial={false}>
-        {placed.map((light) => (
-          <motion.button
-            key={light.id}
-            {...RISE}
-            layout="position"
-            type="button"
-            aria-pressed={isOn(light)}
-            title={`Switch ${isOn(light) ? "off" : "on"} ${light.name}`}
-            disabled={!house.connected || !light.online || house.pending.has(light.id)}
-            className={`ui-hover-card ui-trans flex items-center gap-2 rounded-full border px-3 text-[13px] ${isOn(light) ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)] text-ink" : "border-glass-border bg-sage-fill text-ink-muted"} ${light.online ? "" : "opacity-45"}`}
-            style={{ height: NODE_HEIGHT, maxWidth: 168 }}
-            onClick={(event) => {
-              swallow(event);
-              void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
-            }}
-          >
-            <span className={`dot size-2 flex-none ${isOn(light) ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
-            <Truncate text={light.name} />
-          </motion.button>
-        ))}
-      </AnimatePresence>
-      {left > 0 ? (
-        <button type="button" className="ui-hover-fill ui-trans flex items-center rounded-full px-3 text-[13px] text-ink-muted tabular-nums" style={{ height: NODE_HEIGHT }} onClick={(event) => { swallow(event); navigate("/ghar"); }}>
-          {`+${left}`}
-        </button>
-      ) : null}
-    </div>
-  );
-}
-
 /**
- * A card per tag with how many of its lights are on and, when the card is tall enough, the lights themselves; a light is on every card
- * of a tag it carries, and the lights with no tag sit under the cards as small nodes of their own. Tags that do not fit collapse into a last card that opens the Ghar page.
+ * Two bands, the way the Chaavi and System tiles are built: the tags as cards in a row that scrolls sideways, each saying
+ * how many of its lights are on (a tap switches the whole tag) and listing its lights as pills while it has the height; and
+ * under them a strip that scrolls the same way for the lights that carry no tag, each one a pill of its own. A light is on
+ * every card of a tag it carries.
  */
 function Tags({ lights, geometry, house }: TagsProps) {
-  const navigate = useNavigate();
   const cards = tagLights(lights);
   const bare = untaggedDevices(lights);
-  const beside = bare.length > 0 && cards.length > 0 && geometry.iw >= SIDE_FROM;
-  const sideWidth = beside ? Math.min(CARD_MAX, Math.max(168, Math.round(geometry.iw * 0.32))) : 0;
-  const cardsWidth = geometry.iw - (beside ? sideWidth + SIDE_GAP : 0);
-  const stackedRows = bare.length === 0 || beside || cards.length === 0 ? 0 : Math.min(NODE_ROWS, Math.max(1, Math.ceil(bare.reduce((sum, light) => sum + nodeWidth(light) + NODE_GAP, 0) / geometry.iw)));
-  const nodesHeight = stackedRows === 0 ? 0 : stackedRows * NODE_HEIGHT + (stackedRows - 1) * NODE_GAP + 8;
-  const room = Math.max(0, geometry.bh - nodesHeight);
-  const columns = Math.max(1, Math.min(Math.floor((cardsWidth + 8) / (CARD_MIN + 8)), cards.length));
-  const rowsFit = Math.max(1, Math.floor((room + 8) / CARD_HEIGHT));
-  const slots = columns * rowsFit;
-  const shown = cards.length <= slots ? cards : cards.slice(0, slots - 1);
-  const extra = cards.length - shown.length;
-  const rows = Math.ceil((shown.length + (extra > 0 ? 1 : 0)) / columns);
-  const cell = (room - 8 * (rows - 1)) / rows;
-  const listed = Math.max(0, Math.min(4, Math.floor((cell - 62) / 22)));
-  const fullRows = Math.max(1, Math.floor((geometry.bh + NODE_GAP) / (NODE_HEIGHT + NODE_GAP)));
+  const bandHeight = Math.max(0, geometry.bh - (bare.length === 0 || cards.length === 0 ? 0 : STRIP + BAND_GAP));
+  const cardWidth = Math.min(CARD_MAX, Math.max(CARD_MIN, cards.length === 0 ? CARD_MIN : (geometry.iw - BAND_GAP * (cards.length - 1)) / cards.length));
+  const pillRows = Math.max(0, Math.floor((bandHeight - CARD_CHROME + PILL_GAP) / (PILL_SMALL + PILL_GAP)));
   return (
-    <div className={`flex min-h-0 min-w-0 flex-1 ${beside ? "flex-row" : "flex-col"}`} style={{ gap: beside ? SIDE_GAP : 8 }}>
-    {cards.length === 0 ? null : (
-    <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] content-start gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,${CARD_MAX}px))`, justifyContent: "start" }}>
-      <AnimatePresence initial={false}>
-        {shown.map((card) => (
-          <motion.div
-            key={card.key}
-            {...RISE}
-            layout="position"
-            role="button"
-            tabIndex={0}
-            aria-pressed={card.on > 0}
-            className={`ui-hover-card ui-trans flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${card.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
-            title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
-            onClick={(event) => {
-              swallow(event);
-              void house.run(sectionSwitch(card.lights));
-            }}
-            onKeyDown={(event) => {
-              if (event.key === "Enter" || event.key === " ") {
-                event.preventDefault();
-                event.stopPropagation();
-                void house.run(sectionSwitch(card.lights));
-              }
-            }}
-          >
-            <div className="flex min-w-0 text-[14px] font-semibold">
-              <Truncate text={card.name} />
-            </div>
-            <span className="text-[13px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
-            <div className="flex-1" />
-            {listed === 0 ? null : (
-              <div className="flex flex-col gap-0.5">
-                <AnimatePresence initial={false}>
-                  {card.lights.length <= listed
-                    ? card.lights.map((light) => <Light key={light.id} light={light} house={house} />)
-                    : listed === 1
-                      ? [<span key="count" className="flex h-5 items-center text-[13px] text-ink-muted tabular-nums">{`${card.lights.length} lights`}</span>]
-                      : [
-                          ...card.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
-                          <span key="more" className="flex h-5 items-center text-[12px] text-ink-muted tabular-nums">{`+${card.lights.length - (listed - 1)} more`}</span>,
-                        ]}
-                </AnimatePresence>
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ gap: BAND_GAP }}>
+      {cards.length === 0 ? null : (
+        <div className="scroll flex min-h-0 flex-1 gap-2.5 overflow-x-auto">
+          {cards.map((card) => {
+            const { placed, left } = pack(card.lights, cardWidth - 28, pillRows);
+            return (
+              <div
+                key={card.key}
+                role="button"
+                tabIndex={0}
+                aria-pressed={card.on > 0}
+                title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
+                className={`ui-hover-card ui-trans flex min-h-0 flex-none cursor-pointer flex-col gap-2 rounded-[16px] border px-3.5 py-3 text-left ${card.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
+                style={{ width: cardWidth }}
+                onClick={(event) => {
+                  swallow(event);
+                  void house.run(sectionSwitch(card.lights));
+                }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    event.stopPropagation();
+                    void house.run(sectionSwitch(card.lights));
+                  }
+                }}
+              >
+                <div className="flex min-w-0 items-baseline justify-between gap-3">
+                  <span className="min-w-0 flex-1 text-[14px] font-semibold">
+                    <Truncate text={card.name} />
+                  </span>
+                  <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
+                </div>
+                {pillRows === 0 ? null : (
+                  <div className="flex flex-wrap content-start" style={{ gap: PILL_GAP }}>
+                    {placed.map((light) => (
+                      <LightPill key={light.id} light={light} house={house} height={PILL_SMALL} inCard />
+                    ))}
+                    {left > 0 ? (
+                      <span className="flex items-center px-1 text-[12px] text-ink-muted tabular-nums" style={{ height: PILL_SMALL }}>
+                        {`+${left}`}
+                      </span>
+                    ) : null}
+                  </div>
+                )}
               </div>
-            )}
-          </motion.div>
-        ))}
-      </AnimatePresence>
-      {extra > 0 ? (
-        <button
-          type="button"
-          aria-label="Show all tags"
-          className="ui-hover-fill ui-trans flex min-h-0 items-center justify-center gap-2 rounded-[14px] border border-dashed border-sage-line text-[14px] font-medium text-sage-text"
-          onClick={(event) => {
-            swallow(event);
-            navigate("/ghar");
-          }}
-        >
-          <span className="tabular-nums">{`${extra} more`}</span>
-        </button>
-      ) : null}
-    </div>
-    )}
-    {bare.length === 0 ? null : beside ? (
-      <div className="flex min-h-0 flex-none flex-col border-l border-rule pl-4" style={{ width: sideWidth }}>
-        <Nodes lights={bare} width={sideWidth - 17} rows={fullRows} house={house} />
-      </div>
-    ) : (
-      <Nodes lights={bare} width={geometry.iw} rows={cards.length === 0 ? fullRows : NODE_ROWS} house={house} />
-    )}
+            );
+          })}
+        </div>
+      )}
+      {bare.length === 0 ? null : (
+        <div className={`scroll flex flex-none items-center gap-2 overflow-x-auto ${cards.length === 0 ? "" : "border-t border-rule pt-3"}`} style={{ height: cards.length === 0 ? undefined : STRIP }}>
+          {cards.length === 0 ? null : <span className="flex-none text-[12.5px] text-ink-muted">No tag</span>}
+          {bare.map((light) => (
+            <LightPill key={light.id} light={light} house={house} height={PILL_LARGE} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

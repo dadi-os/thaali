@@ -4,7 +4,8 @@ import { isTauriRuntime } from "../../desktop/runtime";
 import { Icon, type IconName } from "../../ui/Icon";
 
 /**
- * Frameless window controls for Windows/Linux. Mac keeps native traffic lights.
+ * Frameless window controls for Windows/Linux, pinned to the right edge of the title bar for the bar's full height. Mac keeps
+ * native traffic lights.
  */
 export function WindowControls() {
   const [maximized, setMaximized] = useState(false);
@@ -16,7 +17,7 @@ export function WindowControls() {
   }
 
   return (
-    <div className="window-controls flex shrink-0 items-stretch self-stretch">
+    <div className="window-controls absolute inset-y-0 right-0 flex items-stretch">
       <ControlButton label="Minimize" icon="minimize" onClick={() => void minimizeWindow()} />
       <ControlButton label={maximized ? "Restore" : "Maximize"} icon={maximized ? "restore" : "maximize"} onClick={() => void toggleMaximize()} />
       <ControlButton label="Close" icon="close" danger onClick={() => void closeWindow()} />
