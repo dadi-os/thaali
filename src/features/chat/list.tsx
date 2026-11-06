@@ -72,6 +72,8 @@ export function ConversationList({
 
   return (
     <div className="relative min-h-0 flex-1">
+      <div className="rail-fade rail-fade--top" aria-hidden />
+      <div className="rail-fade rail-fade--bottom" aria-hidden />
       <div className="absolute inset-x-0 top-0 z-10 px-3.5 pt-3.5">
         <label className="search-field">
           <Icon name="search" size={15} />

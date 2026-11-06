@@ -18,7 +18,6 @@ import {
   stateLine,
   tagGroups,
   tagLights,
-  UNTAGGED,
   untaggedDevices,
   warmthMireds,
   warmthPercent,
@@ -93,28 +92,26 @@ describe("grouping by tag", () => {
     ]);
   });
 
-  it("puts a device with no tag under Untagged only", () => {
+  it("finds the devices that carry no tag", () => {
     expect(untaggedDevices([desk, left, kettle]).map((device) => device.id)).toEqual(["d1", "d4"]);
     expect(tagGroups([desk, kettle])).toEqual([]);
   });
 
-  it("filters to every device, one tag or the untagged", () => {
+  it("filters to every device or one tag", () => {
     const devices = [desk, left, right, lamp, kettle];
     expect(devicesFor({ kind: "all" }, devices)).toEqual(devices);
     expect(devicesFor({ kind: "tag", name: "Nightstands" }, devices).map((device) => device.id)).toEqual(["d2", "d3", "d8"]);
     expect(devicesFor({ kind: "tag", name: "gone" }, devices)).toEqual([]);
-    expect(devicesFor({ kind: "untagged" }, devices).map((device) => device.id)).toEqual(["d1", "d4"]);
   });
 
-  it("orders the Home tile's cards: a tag with a light on first, the rest by name, Untagged last, a light on every card of its tags", () => {
+  it("orders the Home tile's cards: a tag with a light on first, the rest by name, a light on every card of its tags, none for a light with no tag", () => {
     const cards = tagLights([desk, left, right, lamp]);
-    expect(cards.map((card) => [card.name, card.on, card.lights.length, card.untagged])).toEqual([
-      ["all lights", 1, 1, false],
-      ["Nightstands", 2, 3, false],
-      ["reading", 1, 1, false],
-      [UNTAGGED, 1, 1, true],
+    expect(cards.map((card) => [card.name, card.on, card.lights.length])).toEqual([
+      ["all lights", 1, 1],
+      ["Nightstands", 2, 3],
+      ["reading", 1, 1],
     ]);
-    expect(tagLights([left, desk]).map((card) => card.name)).toEqual(["Nightstands", UNTAGGED]);
+    expect(tagLights([left, desk]).map((card) => card.name)).toEqual(["Nightstands"]);
     expect(tagLights([])).toEqual([]);
   });
 });

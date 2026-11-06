@@ -21,7 +21,7 @@ export const SECTION_SHUT: SectionUi = { mode: "none", rename: false };
 const CAP = 6;
 
 export type TagSectionProps = {
-  /** The tag's name, or what the view is called ("All devices", "Untagged"). */
+  /** The tag's name, or what the view is called ("All devices"). */
   title: string;
   /** The tag these devices are under; null for a view that is not one tag, which has a switch but no tag controls. */
   tag: GharTag | null;
@@ -67,7 +67,7 @@ const dashed = {
 } as const;
 
 /**
- * One view of the house: a tag, all devices, or the untagged. Its header is the name, how many lights are on and a switch; for a
+ * One view of the house: a tag or all devices. Its header is the name, how many lights are on and a switch; for a
  * tag the name opens its actions (rename, add devices, delete, the same list as a right-click on the header) and a brightness bar
  * sets every light under it. Below are the device tiles.
  */

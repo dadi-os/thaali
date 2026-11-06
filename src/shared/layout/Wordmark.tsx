@@ -11,6 +11,12 @@ export const GUJARATI_INK_LIFT = { word: 0.199, letter: 0.0525 } as const;
 /** દાદી as its two grapheme clusters, which resolve one after the other. */
 const CLUSTERS = ["દા", "દી"] as const;
 
+/**
+ * Room around each cluster so its blur and scale are drawn whole: the cluster's box is one line-height tall and the
+ * Gujarati ink (the ી above all) reaches past it, so a filter on the bare box cut the mark off while it resolved.
+ */
+const INK_ROOM = { y: "0.3em", x: "0.12em" } as const;
+
 /** One resolve: a smooth (unbouncy) spring of 0.9 s per cluster, 0.22 s apart. */
 const RESOLVE = { duration: 0.9, delay: 0.15, stagger: 0.22 } as const;
 
@@ -58,7 +64,7 @@ export function Wordmark({ size, resolve = false, breathe = false, className = "
           key={cluster}
           aria-hidden
           className="inline-block"
-          style={{ transformOrigin: "50% 100%" }}
+          style={{ transformOrigin: "50% 100%", padding: `${INK_ROOM.y} ${INK_ROOM.x}`, margin: `-${INK_ROOM.y} -${INK_ROOM.x}` }}
           initial={resolving ? { opacity: 0, filter: "blur(14px)", scale: 0.86, y: 10 } : false}
           animate={{ opacity: 1, filter: "blur(0px)", scale: 1, y: 0, transitionEnd: { filter: "none" } }}
           transition={{

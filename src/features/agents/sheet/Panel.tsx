@@ -124,7 +124,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
   const who = (id: string | null) => (id === null ? "Ankur" : id);
   const scroll = useRef<HTMLDivElement>(null);
   return (
-    <Card className="min-h-0 w-[400px] flex-none bg-glass-sheet shadow-deep">
+    <Card className="min-h-0 w-full flex-1" style={{ border: "none", background: "transparent", boxShadow: "none", borderRadius: 0 }}>
       <SheetHeader
         name={<AgentName name={agent.name} className="text-[20px] font-semibold tracking-[-0.015em]" />}
         status={
@@ -147,7 +147,7 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
           </Button>
         }
       />
-      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-3 px-4 pt-3 pb-4">
+      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-4 px-5 pt-2 pb-6">
         <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-4 py-3">
           <SectionHeader title="Right now" />
           <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>

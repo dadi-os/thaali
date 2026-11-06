@@ -4,16 +4,13 @@ import { formatDayShort } from "./dates";
 import { itemKey } from "./plans";
 import { useNeedsATime } from "./Someday";
 
-/** Tasks listed before the rest fold into a count. */
-const SHOWN = 4;
-
 /** Props of {@link NeedsTimeCard}. */
 export type NeedsTimeCardProps = {
   /** The card was pressed: open the Needs a time sheet. */
   onOpen: () => void;
 };
 
-/** The day view's side card for what has no time yet: the soonest-due tasks waiting for one, and a count of the rest and of the ideas; it opens the Needs a time sheet. */
+/** The day view's side card for what has no time yet: every task waiting for one, soonest due first, and a count of the ideas; it opens the Needs a time sheet. */
 export function NeedsTimeCard({ onOpen }: NeedsTimeCardProps) {
   const { tasks, ideas, pending } = useNeedsATime();
   return (
@@ -26,15 +23,15 @@ export function NeedsTimeCard({ onOpen }: NeedsTimeCardProps) {
         <span className="text-[13px] text-ink-muted">Nothing is waiting for a time.</span>
       ) : (
         <>
-          {tasks.slice(0, SHOWN).map((task) => (
+          {tasks.map((task) => (
             <button key={itemKey(task)} type="button" onClick={onOpen} className="ui-hover-fill ui-trans flex min-w-0 items-center gap-2 text-left">
               <span className="w-[3.75rem] flex-none whitespace-nowrap text-[12px] text-ink-muted tabular-nums">{task.due_at ? formatDayShort(new Date(task.due_at)) : "open"}</span>
               <Truncate text={task.title} className="min-w-0 flex-1 text-[13px]" />
             </button>
           ))}
-          {tasks.length > SHOWN || ideas.length > 0 ? (
+          {ideas.length > 0 ? (
             <button type="button" onClick={onOpen} className="text-left text-[12px] text-ink-muted">
-              {[tasks.length > SHOWN ? `+${tasks.length - SHOWN} more` : null, ideas.length > 0 ? `${ideas.length} ${ideas.length === 1 ? "idea" : "ideas"}` : null].filter(Boolean).join(" · ")}
+              {`${ideas.length} ${ideas.length === 1 ? "idea" : "ideas"}`}
             </button>
           ) : null}
         </>

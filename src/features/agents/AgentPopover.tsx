@@ -3,7 +3,7 @@ import { useRetained } from "../../shared/hooks/useRetained";
 import { AgentSheet } from "./sheet";
 
 /** The tallest the popover grows, in px, before its content scrolls. */
-const MAX_HEIGHT = 640;
+const MAX_HEIGHT = 620;
 
 /** Props of {@link AgentPopover}. */
 export type AgentPopoverProps = {
@@ -34,7 +34,7 @@ export function AgentPopover({ agentId, anchor, onSelect, onClose }: AgentPopove
       aria-label="Agent details"
       widthPx={400}
       contentKey={shownId}
-      style={{ maxHeight: `min(${MAX_HEIGHT}px, calc(100vh - 24px))`, padding: 0, display: "flex" }}
+      style={{ height: `min(${MAX_HEIGHT}px, calc(100vh - 32px))`, maxHeight: "none", padding: 0, outline: "none" }}
       onClose={onClose}
     >
       <AgentSheet agentId={shownId} onSelect={onSelect} />

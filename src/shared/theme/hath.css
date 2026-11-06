@@ -29,8 +29,29 @@
     background: var(--sage-fill);
   }
 
+  .agent-row {
+    position: relative;
+  }
+
+  .agent-row::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 8px;
+    bottom: 8px;
+    width: 3px;
+    border-radius: 0 3px 3px 0;
+    background: var(--sage-deep);
+    transform: scaleY(0);
+    transition: transform 260ms var(--ease);
+  }
+
+  .agent-row[aria-current="true"]::before {
+    transform: scaleY(1);
+  }
+
   .agent-row:active:not(:disabled) {
     background: var(--sage-active);
-    transform: scale(0.985);
+    scale: 1;
   }
 }

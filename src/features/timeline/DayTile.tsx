@@ -7,7 +7,7 @@ import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { formatClock } from "../../shared/lib/ux/time";
-import type { TimelineItem } from "../../types/timeline";
+import type { TimelineItem, TimelineViewName } from "../../types/timeline";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { endOfDay, startOfDay, toIsoBounds } from "./dates";
@@ -21,6 +21,8 @@ const TICK_MS = 60_000;
 const COURSE = new Set(["class", "lab", "exam"]);
 /** The least height a session's row takes, and the most it stretches to when the tile has room to spare. */
 const MIN_ROW = 56;
+/** The views of Yaad's timeline the tile reads: the planner's sessions and the tile's deadlines. */
+const VIEWS: TimelineViewName[] = ["planner", "tile"];
 const MAX_ROW = 84;
 /** Padding above a row's first line, the height of that line, and where the spine's dot sits so it is centred on it. */
 const ROW_TOP = 8;
@@ -155,7 +157,10 @@ export function DayTile({ order }: { order: number }) {
   const range = toIsoBounds(startOfDay(new Date(now)), endOfDay(new Date(now)));
   const query = useQuery({
     queryKey: ["yaad", "timeline", "tile", range.occurred_from, range.occurred_to],
-    queryFn: async () => (await timeline.query({ from: range.occurred_from, to: range.occurred_to, view: "tile" })).items,
+    queryFn: async () => {
+      const results = await Promise.all(VIEWS.map((view) => timeline.query({ from: range.occurred_from, to: range.occurred_to, view })));
+      return [...new Map(results.flatMap(({ items }) => items).map((item) => [itemKey(item), item])).values()];
+    },
     enabled: isMeshOnline(connection),
   });
   const state = useModuleState(query, () => false);

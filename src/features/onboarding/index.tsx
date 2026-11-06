@@ -212,7 +212,6 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
   );
 
   const { rootRef, slotRef, placement, onScroll } = useWordmarkSlots(stage);
-  const breathing = stage === "starting" || stage === "connecting";
 
   return (
     <motion.div
@@ -331,7 +330,7 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
       >
         <div className="-translate-x-1/2 -translate-y-1/2">
           <motion.div initial={false} animate={{ scale: placement?.scale ?? 1 }} transition={placement?.instant || reduce ? { duration: 0 } : GLIDE}>
-            <Wordmark size={MARK_SIZE} resolve breathe={breathing} className="text-sage-deep" />
+            <Wordmark size={MARK_SIZE} resolve breathe className="text-sage-deep" />
           </motion.div>
         </div>
       </motion.div>

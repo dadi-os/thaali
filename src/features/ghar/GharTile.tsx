@@ -4,16 +4,21 @@ import { AnimatePresence, motion } from "motion/react";
 import { RISE } from "../../shared/motion";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Switch } from "../../shared/ui/Switch";
-import { NameTruncate, Truncate } from "../../shared/ui/Truncate";
+import { Truncate } from "../../shared/ui/Truncate";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { pushToast } from "../../contexts/toasts";
 import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
-import { isLight, isOn, lightColor, sectionSwitch, switchCommand, tagLights } from "./model";
+import { isLight, isOn, lightColor, sectionSwitch, switchCommand, tagLights, untaggedDevices } from "./model";
 import { useHouse, type House } from "./useHouse";
 
 const CARD_HEIGHT = 72;
+/** A lone light's node: its height and the gap between nodes, in px. */
+const NODE_HEIGHT = 30;
+const NODE_GAP = 8;
+/** The most rows of lone-light nodes the tile gives up room to. */
+const NODE_ROWS = 2;
 
 /** Keeps a click inside a tile's control from following the tile's link. */
 function swallow(event: MouseEvent): void {
@@ -56,23 +61,92 @@ type TagsProps = {
   house: House;
 };
 
+type NodesProps = {
+  lights: GharDevice[];
+  width: number;
+  house: House;
+};
+
+/** The width a lone light's node takes: its dot and name, capped. */
+function nodeWidth(light: GharDevice): number {
+  return Math.min(168, 34 + light.name.length * 7);
+}
+
+/** The lights that carry no tag, each its own small node: a dot and its name, one tap flips just that light; the ones that do not fit in two rows fold into a count. */
+function Nodes({ lights, width, house }: NodesProps) {
+  const navigate = useNavigate();
+  const placed: GharDevice[] = [];
+  let row = 0;
+  let used = 0;
+  for (const light of lights) {
+    const w = nodeWidth(light);
+    if (used > 0 && used + NODE_GAP + w > width) {
+      row += 1;
+      used = 0;
+    }
+    if (row >= NODE_ROWS) {
+      break;
+    }
+    used += (used > 0 ? NODE_GAP : 0) + w;
+    placed.push(light);
+  }
+  const left = lights.length - placed.length;
+  return (
+    <div className="flex flex-none flex-wrap content-start gap-2">
+      <AnimatePresence initial={false}>
+        {placed.map((light) => (
+          <motion.button
+            key={light.id}
+            {...RISE}
+            layout="position"
+            type="button"
+            aria-pressed={isOn(light)}
+            title={`Switch ${isOn(light) ? "off" : "on"} ${light.name}`}
+            disabled={!house.connected || !light.online || house.pending.has(light.id)}
+            className={`ui-hover-card ui-trans flex items-center gap-2 rounded-full border px-3 text-[13px] ${isOn(light) ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)] text-ink" : "border-glass-border bg-sage-fill text-ink-muted"} ${light.online ? "" : "opacity-45"}`}
+            style={{ height: NODE_HEIGHT, maxWidth: 168 }}
+            onClick={(event) => {
+              swallow(event);
+              void house.run([{ id: light.id, command: switchCommand(!isOn(light)) }]);
+            }}
+          >
+            <span className={`dot size-2 flex-none ${isOn(light) ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
+            <Truncate text={light.name} />
+          </motion.button>
+        ))}
+      </AnimatePresence>
+      {left > 0 ? (
+        <button type="button" className="ui-hover-fill ui-trans flex items-center rounded-full px-3 text-[13px] text-ink-muted tabular-nums" style={{ height: NODE_HEIGHT }} onClick={(event) => { swallow(event); navigate("/ghar"); }}>
+          {`+${left}`}
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * A card per tag with how many of its lights are on and, when the card is tall enough, the lights themselves; a light is on every card
- * of a tag it carries. Tags that do not fit collapse into a last card that opens the Ghar page.
+ * of a tag it carries, and the lights with no tag sit under the cards as small nodes of their own. Tags that do not fit collapse into a last card that opens the Ghar page.
  */
 function Tags({ lights, geometry, house }: TagsProps) {
   const navigate = useNavigate();
   const cards = tagLights(lights);
+  const bare = untaggedDevices(lights);
+  const nodeRows = bare.length === 0 ? 0 : Math.min(NODE_ROWS, Math.max(1, Math.ceil(bare.reduce((sum, light) => sum + nodeWidth(light) + NODE_GAP, 0) / geometry.iw)));
+  const nodesHeight = nodeRows === 0 ? 0 : nodeRows * NODE_HEIGHT + (nodeRows - 1) * NODE_GAP + 8;
+  const room = Math.max(0, geometry.bh - nodesHeight);
   const maxColumns = geometry.iw >= 640 ? 4 : geometry.iw >= 440 ? 3 : 2;
   const columns = Math.max(1, Math.min(maxColumns, cards.length));
-  const rowsFit = Math.max(1, Math.floor((geometry.bh + 8) / CARD_HEIGHT));
+  const rowsFit = Math.max(1, Math.floor((room + 8) / CARD_HEIGHT));
   const slots = columns * rowsFit;
   const shown = cards.length <= slots ? cards : cards.slice(0, slots - 1);
   const extra = cards.length - shown.length;
   const rows = Math.ceil((shown.length + (extra > 0 ? 1 : 0)) / columns);
-  const cell = (geometry.bh - 8 * (rows - 1)) / rows;
+  const cell = (room - 8 * (rows - 1)) / rows;
   const listed = Math.max(0, Math.min(4, Math.floor((cell - 62) / 22)));
   return (
+    <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
+    {cards.length === 0 ? <div className="flex-1" /> : (
     <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
       <AnimatePresence initial={false}>
         {shown.map((card) => (
@@ -98,7 +172,7 @@ function Tags({ lights, geometry, house }: TagsProps) {
             }}
           >
             <div className="flex min-w-0 text-[14px] font-semibold">
-              <NameTruncate name={card.name} />
+              <Truncate text={card.name} />
             </div>
             <span className="text-[13px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
             <div className="flex-1" />
@@ -132,6 +206,9 @@ function Tags({ lights, geometry, house }: TagsProps) {
           <span className="tabular-nums">{`${extra} more`}</span>
         </button>
       ) : null}
+    </div>
+    )}
+    {bare.length > 0 ? <Nodes lights={bare} width={geometry.iw} house={house} /> : null}
     </div>
   );
 }

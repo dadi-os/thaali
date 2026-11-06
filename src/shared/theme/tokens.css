@@ -263,11 +263,9 @@
 
 /* Chat pane header: the name as a glass bubble that opens its details. */
 .pane-bubble {
-  border: 1px solid color-mix(in srgb, var(--sage-line) 48%, transparent);
-  background: color-mix(in srgb, var(--bone) 58%, transparent);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-  box-shadow: 0 1px 2px rgb(92 107 82 / 0.06);
+  border: 1px solid color-mix(in srgb, var(--sage-line) 60%, transparent);
+  background: var(--bone);
+  box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
 }
 
 .pane-bubble--open {

@@ -15,8 +15,6 @@ import {
   sectionSwitch,
   switchCommand,
   tagGroups,
-  UNTAGGED,
-  untaggedDevices,
   type Filter,
 } from "../features/ghar/model";
 import { PairingSheet } from "../features/ghar/PairingSheet";
@@ -81,9 +79,9 @@ function Loading() {
 }
 
 /**
- * Ghar: the house browsed by tag. A row of chips (All, each tag with its device count, Untagged) filters the device tiles; a tag's
+ * Ghar: the house browsed by tag. A row of chips (All, each tag with its device count) filters the device tiles; a tag's
  * view has a header with whole-tag controls (switch, brightness, rename, add devices, delete). A device is under every tag it
- * carries and shows them as chips; one with none is under Untagged. The selected device's inspector docks beside the tiles (a
+ * carries and shows them as chips; one with none carries no chip. The selected device's inspector docks beside the tiles (a
  * drawer over them when the page is narrow). A tile switches from its switch and is chosen for the inspector from its name; the
  * header's buttons switch everything off, set Evening and add a device. `?device=` (from a toast) selects that device; `?tag=`
  * opens the page filtered to a tag.
@@ -118,11 +116,10 @@ export function GharPage() {
   const devices = devicesQuery.data?.devices ?? [];
   const groups = tagGroups(devices);
   const tagNames = groups.map((group) => group.tag.name);
-  const untagged = untaggedDevices(devices);
-  const shown: Filter = (filter.kind === "tag" && !tagNames.includes(filter.name)) || (filter.kind === "untagged" && untagged.length === 0) ? { kind: "all" } : filter;
+  const shown: Filter = filter.kind === "tag" && !tagNames.includes(filter.name) ? { kind: "all" } : filter;
   const group = shown.kind === "tag" ? (groups.find((candidate) => candidate.tag.name === shown.name) ?? null) : null;
   const listed = devicesFor(shown, devices);
-  const title = shown.kind === "tag" ? shown.name : shown.kind === "untagged" ? UNTAGGED : "All devices";
+  const title = shown.kind === "tag" ? shown.name : "All devices";
   const { lights, on } = countLights(devices);
   const chosen = devices.find((device) => device.id === selectedId) ?? null;
   const inspected = closed ? null : docked ? (chosen ?? devices.find(isOn) ?? devices.find(isLight) ?? null) : chosen;
@@ -283,11 +280,6 @@ export function GharPage() {
                   {entry.tag.name}
                 </Pill>
               ))}
-              {untagged.length > 0 ? (
-                <Pill className="shrink-0" active={shown.kind === "untagged"} count={untagged.length} onClick={() => choose({ kind: "untagged" })}>
-                  {UNTAGGED}
-                </Pill>
-              ) : null}
             </div>
           ) : null}
           {state.kind === "ready" && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Ghar reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={retry} /> : null}

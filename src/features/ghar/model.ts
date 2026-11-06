@@ -22,7 +22,7 @@ export const SETPOINT_STEP = 0.5;
 export type DeviceCommand = { id: string; command: GharCommand };
 
 /** What the tag chips filter the page to: every device, the devices under one tag, or the devices with no tag. */
-export type Filter = { kind: "all" } | { kind: "tag"; name: string } | { kind: "untagged" };
+export type Filter = { kind: "all" } | { kind: "tag"; name: string };
 
 /** A tag with the devices that carry it. A device with several tags is in several groups. */
 export type TagGroup = { tag: GharTag; devices: GharDevice[] };
@@ -179,29 +179,17 @@ export function untaggedDevices(devices: GharDevice[]): GharDevice[] {
 
 /** The devices a filter shows, as Ghar lists them. */
 export function devicesFor(filter: Filter, devices: GharDevice[]): GharDevice[] {
-  if (filter.kind === "tag") {
-    return devices.filter((device) => device.tags.some((tag) => tag.name === filter.name));
-  }
-  return filter.kind === "untagged" ? untaggedDevices(devices) : devices;
+  return filter.kind === "tag" ? devices.filter((device) => device.tags.some((tag) => tag.name === filter.name)) : devices;
 }
 
-/** The name the devices with no tag are listed under. */
-export const UNTAGGED = "Untagged";
+/** One card of the Home tile: the lights under a tag and how many are on. */
+export type TagLights = { key: string; name: string; lights: GharDevice[]; on: number };
 
-/** One card of the Home tile: the lights under a tag (or under none) and how many are on. */
-export type TagLights = { key: string; name: string; untagged: boolean; lights: GharDevice[]; on: number };
-
-/**
- * The lights under each tag they carry, a light under every one of its tags: tags with a light on first, the rest after
- * in name order, and the lights with no tag last.
- */
+/** The lights under each tag they carry, a light under every one of its tags: tags with a light on first, the rest after in name order. */
 export function tagLights(lights: GharDevice[]): TagLights[] {
-  const entry = (key: string, name: string, untagged: boolean, own: GharDevice[]): TagLights => ({ key, name, untagged, lights: own, on: own.filter(isOn).length });
-  const tagged = tagGroups(lights).map((group) => entry(`tag:${group.tag.name}`, group.tag.name, false, group.devices));
-  const bare = untaggedDevices(lights);
+  const tagged = tagGroups(lights).map((group): TagLights => ({ key: `tag:${group.tag.name}`, name: group.tag.name, lights: group.devices, on: group.devices.filter(isOn).length }));
   const rank = (card: TagLights) => (card.on > 0 ? 0 : 1);
-  const ordered = tagged.map((card, index) => ({ card, index })).sort((a, b) => rank(a.card) - rank(b.card) || a.index - b.index).map((item) => item.card);
-  return bare.length > 0 ? [...ordered, entry("untagged", UNTAGGED, true, bare)] : ordered;
+  return tagged.map((card, index) => ({ card, index })).sort((a, b) => rank(a.card) - rank(b.card) || a.index - b.index).map((item) => item.card);
 }
 
 /** How many lights a set of devices holds and how many are on. */

@@ -6,7 +6,7 @@ import { isOn, isSwitchable } from "./model";
 export type DeviceActionDeps = {
   /** Ghar is unreachable: the actions that change the house show why they cannot run. */
   disabled: boolean;
-  /** The tag whose devices the page is showing; absent when it shows all of them or the untagged. */
+  /** The tag whose devices the page is showing; absent when it shows all of them. */
   inTag?: string;
   /** Switch the device on or off. */
   onToggle: (on: boolean) => void;
