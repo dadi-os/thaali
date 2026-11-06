@@ -9,7 +9,7 @@
 const SCROLLER = ".scroll, [data-scroll], .overflow-y-auto, .overflow-auto, .overflow-x-auto";
 
 /** How far from an edge counts as being at it, in px. */
-const EDGE_SLACK_PX = 1;
+const EDGE_SLACK_PX = 4;
 
 /** Set or clear one edge mark. */
 function mark(el: HTMLElement, name: string, on: boolean): void {

@@ -196,7 +196,7 @@
 @container (max-width: 951px) {
   .home-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: repeat(3, minmax(0, 1fr));
+    grid-template-rows: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
     grid-template-areas:
       "hath timeline"
       "yaad ghar"
@@ -207,7 +207,7 @@
 @media (orientation: portrait) {
   .home-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    grid-template-rows: minmax(0, 22fr) minmax(0, 34fr) minmax(0, 9fr) minmax(0, 8fr) minmax(0, 24fr);
+    grid-template-rows: minmax(190px, 20fr) minmax(230px, 26fr) minmax(150px, 9fr) minmax(236px, 15fr) minmax(250px, 22fr);
     grid-template-areas:
       "hath hath"
       "timeline timeline"

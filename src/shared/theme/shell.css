@@ -64,10 +64,9 @@
     background: var(--rail-ground);
   }
 
+  /* A scrolling region. No scrollbar draws on it (see base.css): Windows would show a bar that takes room and cuts into the content. */
   .scroll {
     overflow: auto;
-    scrollbar-width: thin;
-    scrollbar-color: rgba(143, 163, 130, 0.4) transparent;
   }
 
   .sfi {

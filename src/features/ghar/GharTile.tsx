@@ -17,6 +17,8 @@ const COLUMN_MIN = 200;
 const COLUMN_MAX = 300;
 /** A light's row inside a tag's column, in px. */
 const LIGHT_ROW = 28;
+/** What a tag column spends on its header and padding, in px. */
+const CARD_CHROME = 48;
 /** A lone light's pill, and the room its strip takes with its hairline and the gap above it, in px. */
 const PILL_HEIGHT = 30;
 const STRIP = PILL_HEIGHT + 13;
@@ -97,19 +99,21 @@ type TagsProps = {
 /**
  * Two bands. Above, a row of columns that scrolls sideways: one per tag, headed by its name and how many of its lights are on
  * (a tap on the header switches the whole tag), its lights stacked under it, one tap each; a light is in every column of a tag
- * it carries, and a column is as tall as its lights, so the band scrolls up and down when there are more than fit. Below, a strip
+ * it carries; a column shows the lights that fit its height and counts the rest. Below, a strip
  * that scrolls sideways for the lights that carry no tag, each one a pill of its own.
  */
 function Tags({ lights, geometry, house }: TagsProps) {
   const cards = tagLights(lights);
   const bare = untaggedDevices(lights);
   const width = Math.min(COLUMN_MAX, Math.max(COLUMN_MIN, cards.length === 0 ? COLUMN_MIN : (geometry.iw - 10 * (cards.length - 1)) / cards.length));
+  const band = geometry.bh - (bare.length === 0 || cards.length === 0 ? 0 : STRIP + BAND_GAP);
+  const rowsFit = Math.max(1, Math.floor((band - CARD_CHROME) / (LIGHT_ROW + 2)));
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ gap: BAND_GAP }}>
       {cards.length === 0 ? (
         <div className="flex-1" />
       ) : (
-        <div className="scroll flex min-h-0 flex-1 items-start gap-2.5 overflow-auto">
+        <div className="scroll flex min-h-0 flex-1 items-start gap-2.5 overflow-x-auto overflow-y-hidden">
           {cards.map((card) => (
             <section
               key={card.key}
@@ -131,9 +135,14 @@ function Tags({ lights, geometry, house }: TagsProps) {
                 </span>
                 <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
               </button>
-              {card.lights.map((light) => (
+              {(card.lights.length <= rowsFit ? card.lights : card.lights.slice(0, Math.max(0, rowsFit - 1))).map((light) => (
                 <LightRow key={light.id} light={light} house={house} />
               ))}
+              {card.lights.length <= rowsFit ? null : (
+                <span className="flex items-center px-2 text-[12.5px] text-ink-muted tabular-nums" style={{ height: LIGHT_ROW }}>
+                  {`+${card.lights.length - Math.max(0, rowsFit - 1)} more`}
+                </span>
+              )}
             </section>
           ))}
         </div>
