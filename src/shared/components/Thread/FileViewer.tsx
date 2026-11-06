@@ -13,6 +13,9 @@ import { useDismiss } from "../../interaction/dismiss";
 import { DIALOG, SCRIM } from "../../motion";
 import type { AttachmentSummary } from "../../../types/hath";
 
+/** The color themes the viewer highlights with, in light and dark. */
+const THEMES = { light: "github-light", dark: "github-dark" } as const;
+
 /** Longest text the viewer colors; past it the file shows as plain text, since highlighting would stall the window. */
 const HIGHLIGHT_MAX_CHARS = 400_000;
 
@@ -80,7 +83,7 @@ async function highlight(text: string, filename: string, mediaType: string): Pro
     EXT_LANG[ext] ?? (ext in bundledLanguages ? ext : (MEDIA_LANG[mediaType] ?? "text"));
   return codeToHtml(text, {
     lang,
-    themes: { light: "vitesse-light", dark: "vitesse-dark" },
+    themes: THEMES,
     defaultColor: false,
   });
 }
@@ -135,7 +138,7 @@ function Sheet({ file, onClose }: SheetProps) {
   });
   const colored = kind === "text" || (kind === "markdown" && mode === "source");
   const html = useQuery({
-    queryKey: ["attachment-html", file.id],
+    queryKey: ["attachment-html", THEMES.light, file.id],
     queryFn: () => {
       if (text.data === undefined) {
         throw new Error("file text not loaded");
@@ -214,7 +217,7 @@ function Sheet({ file, onClose }: SheetProps) {
         ) : html.isError ? (
           <p data-selectable className="px-5 py-4 text-[13px] text-error">Could not color this file: {html.error.message}</p>
         ) : html.data !== undefined ? (
-          <div data-selectable className="code-view font-mono" dangerouslySetInnerHTML={{ __html: html.data }} />
+          <div data-selectable className={`code-view font-mono ${kind === "markdown" ? "code-view--wrap" : ""}`} dangerouslySetInnerHTML={{ __html: html.data }} />
         ) : (
           <pre data-selectable className="code-view__plain font-mono">{text.data}</pre>
         )}

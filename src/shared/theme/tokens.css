@@ -449,7 +449,7 @@
   background-position: 0 0, 0 8px, 8px -8px, -8px 0;
 }
 
-/* Shiki output (dual vitesse themes as CSS variables) with a line-number gutter. */
+/* Shiki output (dual GitHub themes as CSS variables) with a line-number gutter. */
 .code-view pre,
 .code-view__plain {
   margin: 0;
@@ -498,10 +498,22 @@
   color: var(--shiki-light);
 }
 
-@media (prefers-color-scheme: dark) {
-  .code-view span {
-    color: var(--shiki-dark);
-  }
+/* Prose (a Markdown file's source): lines wrap, hanging under their number so the gutter stays one column. */
+.code-view--wrap code {
+  min-width: 0;
+  white-space: normal;
+}
+
+.code-view--wrap .line {
+  display: block;
+  padding-left: calc(5.25rem + 1px);
+  text-indent: calc(-5.25rem - 1px);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.code-view--wrap .line::before {
+  text-indent: 0;
 }
 
 /* Thread under a host pin: messages dissolve as they scroll up beneath it. */

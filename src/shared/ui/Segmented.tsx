@@ -14,11 +14,14 @@ export type SegmentedOption<Value extends string> = {
   title?: string;
 };
 
-/** Heights, type sizes and minimum widths of the three sizes. */
+/** The space between the track's edge and its thumb, in px. */
+const TRACK_PAD = 3;
+
+/** Heights, type sizes, minimum widths and corner radii (of the track; its thumb sits inside by {@link TRACK_PAD}) of the three sizes. */
 const SIZES = {
-  sm: { height: 24, font: 11.5, minWidth: 34, iconSize: 13 },
-  md: { height: 32, font: 12.5, minWidth: 44, iconSize: 16 },
-  lg: { height: 40, font: 14, minWidth: 64, iconSize: 18 },
+  sm: { height: 24, font: 11.5, minWidth: 34, iconSize: 13, radius: 8 },
+  md: { height: 32, font: 12.5, minWidth: 44, iconSize: 16, radius: 11 },
+  lg: { height: 40, font: 14, minWidth: 64, iconSize: 18, radius: 14 },
 } as const;
 
 /** Props of {@link Segmented}. */
@@ -47,7 +50,7 @@ export function Segmented<Value extends string>({ options, value, onChange, labe
       <div
         role="radiogroup"
         aria-label={label}
-        style={{ display: "inline-flex", flex: "none", alignItems: "center", gap: 2, padding: 3, borderRadius: 999, background: "var(--sage-fill)", border: "1px solid var(--glass-border)" }}
+        style={{ display: "inline-flex", flex: "none", alignItems: "center", gap: 2, padding: TRACK_PAD, borderRadius: look.radius, background: "var(--sage-fill)", border: "1px solid var(--glass-border)" }}
       >
         {options.map((entry) => {
           const option: SegmentedOption<Value> = typeof entry === "string" ? { value: entry, label: entry } : entry;
@@ -70,7 +73,7 @@ export function Segmented<Value extends string>({ options, value, onChange, labe
                 height: look.height,
                 minWidth: look.minWidth,
                 padding: option.label === undefined ? 0 : `0 ${size === "sm" ? 9 : 14}px`,
-                borderRadius: 999,
+                borderRadius: look.radius - TRACK_PAD,
                 fontSize: look.font,
                 fontWeight: on ? 600 : 500,
                 lineHeight: 1,
@@ -82,7 +85,7 @@ export function Segmented<Value extends string>({ options, value, onChange, labe
                 <motion.span
                   layoutId="segmented-thumb"
                   transition={SPRING_GLIDE}
-                  style={{ position: "absolute", inset: 0, borderRadius: 999, background: "var(--bone)", boxShadow: "0 1px 2px rgba(92, 107, 82, 0.15)" }}
+                  style={{ position: "absolute", inset: 0, borderRadius: look.radius - TRACK_PAD, background: "var(--bone)", boxShadow: "0 1px 2px rgba(92, 107, 82, 0.15)" }}
                 />
               ) : null}
               {option.icon === undefined ? null : (
