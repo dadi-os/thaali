@@ -168,6 +168,8 @@ export function Composer({
               <IconButton
                 icon="plus"
                 label="Attach"
+                title={undefined}
+                className="rounded-full"
                 size={36}
                 disabled={!connected}
                 aria-expanded={attachAnchor !== null}
@@ -204,7 +206,6 @@ export function Composer({
             <button
               type="submit"
               aria-label={processingMode ? "Queue message" : "Send"}
-              title={processingMode ? "Queue message" : "Send"}
               disabled={!canSubmit}
               className={`mb-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors duration-slow ease-dadi ${
                 canSubmit ? "bg-ink text-bone hover:opacity-90" : "bg-transparent text-ink-muted"

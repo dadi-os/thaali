@@ -58,6 +58,7 @@ export function Toaster() {
             <motion.div key={toast.id} layout style={{ pointerEvents: "auto" }} {...TOAST}>
               <Toast
                 kind={toast.tone}
+                module={toast.module}
                 title={toast.count > 1 ? `${toast.title} ×${toast.count}` : toast.title}
                 body={toast.body}
                 visibleMs={VISIBLE_MS}

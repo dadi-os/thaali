@@ -50,6 +50,21 @@ export function groupByDay<T extends { last_at: string }>(
   return groups;
 }
 
+/** A message's text as it reads once rendered: headings, emphasis, code marks, quote marks and link addresses dropped, lines and list items kept. */
+export function plainText(markdown: string): string {
+  return markdown
+    .replace(/^```.*$/gm, "")
+    .replace(/^#{1,6}\s+/gm, "")
+    .replace(/^>\s?/gm, "")
+    .replace(/!\[([^\]]*)\]\([^)]*\)/g, "$1")
+    .replace(/\[([^\]]+)\]\([^)]*\)/g, "$1")
+    .replace(/(\*\*|__)(.+?)\1/g, "$2")
+    .replace(/(^|[^*\w])\*([^*\n]+)\*(?!\*)/g, "$1$2")
+    .replace(/`([^`\n]+)`/g, "$1")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+}
+
 /** A message's text without its Markdown marks, on one line, for a list preview. */
 export function plainPreview(markdown: string): string {
   return markdown

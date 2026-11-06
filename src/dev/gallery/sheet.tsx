@@ -1,11 +1,10 @@
 import * as hath from "../fixtures/hath";
 import { nasTasks } from "../fixtures/tasks";
 import { AgentSheetPanel, type SheetSection } from "../../features/agents/sheet/Panel";
-import { autoLiveTaskId } from "../../features/agents/sessions";
 
 import { buildActivity } from "../../features/agents/sheet/activity";
 import type { Scenario } from "../scenario";
-import { CASES, previewOf } from "./cases";
+import { CASES } from "./cases";
 
 /** The agent sheet's cases: the docked card for an agent of the fixtures in the states of the design's Hath boards. */
 
@@ -26,13 +25,12 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
     throw new Error(`no fixture agent ${agentId}`);
   }
   const nas = nasTasks(scenario);
-  const autoId = autoLiveTaskId(agent.sessions.tasks);
   const tasks = agent.sessions.tasks.map((task) => {
     const live = nas.find((candidate) => candidate.task === task.id);
     if (live === undefined) {
       throw new Error(`no Nas task ${task.id}`);
     }
-    return { task: { ...task, status: live.status }, question: live.state, preview: previewOf(live, task, { paused: live.status === "paused" }) };
+    return { task: { ...task, status: live.status }, question: live.state };
   });
   return (
     <div style={{ display: "flex", width: 400, height: 822 }}>
@@ -47,8 +45,6 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
         onSelectParent={noop}
         isOpen={(section) => open.includes(section)}
         onToggle={noop}
-        isTaskOpen={(id) => id === autoId}
-        onToggleTask={noop}
         onOpenThread={noop}
         now={Date.now()}
       />

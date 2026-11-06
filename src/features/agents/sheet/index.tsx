@@ -7,8 +7,6 @@ import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
 import { POLL_MS } from "../../../shared/lib/ux/poll";
 import { openAgent } from "../../../contexts/chat";
 import { getRunning, subscribeRunning } from "../../../contexts/running";
-import { autoLiveTaskId, showsLiveView } from "../sessions";
-import { TaskView } from "../../../shared/components/Task/TaskView";
 import { AgentSheetPanel, type SheetFeed, type SheetSection, type SheetTask } from "./Panel";
 import { buildActivity, carryWakeKeys, type ActivityWake } from "./activity";
 
@@ -43,7 +41,6 @@ export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
   const running = useSyncExternalStore(subscribeRunning, getRunning);
   const [now, setNow] = useState(() => Date.now());
   const [openSections, setOpenSections] = useState<Partial<Record<SheetSection, boolean>>>({});
-  const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), TICK_MS);
@@ -51,7 +48,6 @@ export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
   }, []);
   useEffect(() => {
     setOpenSections({});
-    setTaskOverrides({});
   }, [agentId]);
 
   const agents = useQuery({ queryKey: AGENTS_QUERY_KEY, queryFn: async () => (await hath.listAgents()).agents, enabled: connected });
@@ -85,25 +81,9 @@ export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
     await hath.cancelSchedule(id);
     await refreshSchedules();
   };
-  const autoId = autoLiveTaskId(agent.sessions.tasks);
   const sheetTasks = agent.sessions.tasks.map((row): SheetTask => {
     const live = tasks.data?.find((candidate) => candidate.task === row.id);
-    const shortId = row.id.replace(/^task\//, "");
-    return {
-      task: live === undefined ? row : { ...row, status: live.status },
-      question: live?.state ?? "",
-      preview:
-        live?.resource === undefined || live.status === "asleep" ? null : (
-          <TaskView
-            task={row.id}
-            kind={row.kind}
-            resource={live.resource}
-            caption={row.kind === "browser" ? row.current : `${shortId} · ${live.resource}`}
-            paused={live.status === "paused"}
-            variant="compact"
-          />
-        ),
-    };
+    return { task: live === undefined ? row : { ...row, status: live.status }, question: live?.state ?? "" };
   });
 
   return (
@@ -118,8 +98,6 @@ export function AgentSheet({ agentId, onSelect }: AgentSheetProps) {
       onSelectParent={onSelect}
       isOpen={(section) => openSections[section] === true}
       onToggle={(section) => setOpenSections((open) => ({ ...open, [section]: open[section] !== true }))}
-      isTaskOpen={(taskId) => showsLiveView(taskId, autoId, taskOverrides)}
-      onToggleTask={(taskId) => setTaskOverrides((overrides) => ({ ...overrides, [taskId]: !showsLiveView(taskId, autoId, overrides) }))}
       onOpenThread={() => openAgent(agentId)}
       now={now}
     />

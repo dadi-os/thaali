@@ -7,8 +7,6 @@ import { Pill } from "../../shared/ui/Button";
 import { StateView } from "../../shared/states/ModuleState";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { TaskRow } from "../../shared/components/Task/TaskRow";
-import { TaskView } from "../../shared/components/Task/TaskView";
-import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { useModuleState } from "../../shared/hooks/useModuleState";
@@ -16,55 +14,29 @@ import { failureProps } from "../../shared/lib/ux/moduleState";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 import type { AgentTask } from "../../types/hath";
 import { SectionLabel } from "./SectionLabel";
-import { filterCounts, listedTasks, slotLabel, TASK_FILTERS, type TaskFilter } from "./taskList";
+import { filterCounts, listedTasks, TASK_FILTERS, type TaskFilter } from "./taskList";
 
 type TaskItemProps = {
   task: NasTask;
   /** Where the task is now, from its owner's session row in Hath. */
   current: string;
-  open: boolean;
-  onToggle: () => void;
 };
 
-/** One helper task as a row; its live view is mounted by the row only while it is open, since a mounted view holds a capture on the box. */
-function TaskItem({ task, current, open, onToggle }: TaskItemProps) {
+/** One helper task as a row; a click opens its live view. */
+function TaskItem({ task, current }: TaskItemProps) {
   const row: AgentTask = { id: task.task, kind: task.kind, status: task.status, purpose: task.purpose, current, last_activity: task.last_activity };
-  const slot = slotLabel(task);
-  return (
-    <TaskRow task={row} owner={task.owner} showOwner question={task.state} open={open} onToggle={onToggle}>
-      {task.resource !== undefined ? (
-        <>
-          {slot === null ? null : (
-            <div className="flex items-center gap-2.5 px-1">
-              <span data-selectable className="min-w-0 flex-1">
-                <Truncate text={slot} className="ui-mono" />
-              </span>
-            </div>
-          )}
-          <TaskView
-            task={task.task}
-            kind={task.kind}
-            resource={task.resource}
-            caption={task.kind === "browser" ? current : `${task.id} · ${task.resource}`}
-            paused={task.status === "paused"}
-            variant="tall"
-          />
-        </>
-      ) : undefined}
-    </TaskRow>
-  );
+  return <TaskRow task={row} owner={task.owner} showOwner question={task.state} />;
 }
 
 /**
  * Every browser and terminal helper task Nas holds: a filter chip row, then one row per task with its owner, status,
- * purpose and where it is now, and a tall live view when it is opened. A task waiting on its agent is listed first.
+ * purpose and where it is now; a click opens its live view. A task waiting on its agent is listed first.
  * Nas's list is refetched whenever it says its tasks changed.
  */
 export function TasksBlock() {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const [filter, setFilter] = useState<TaskFilter>("All");
-  const [openIds, setOpenIds] = useState<ReadonlySet<string>>(new Set());
 
   const tasksQuery = useQuery({ queryKey: ["nas", "tasks"], queryFn: () => nas.listTasks(), enabled: connected, refetchInterval: POLL_MS });
   const agentsQuery = useQuery({ queryKey: AGENTS_QUERY_KEY, queryFn: async () => (await hath.listAgents()).agents, enabled: connected });
@@ -79,15 +51,6 @@ export function TasksBlock() {
     }
     return "";
   };
-  const toggle = (id: string) =>
-    setOpenIds((open) => {
-      const next = new Set(open);
-      if (!next.delete(id)) {
-        next.add(id);
-      }
-      return next;
-    });
-
   const tasks = state.kind === "ready" ? state.data : [];
   const counts = filterCounts(tasks);
   let body: ReactNode;
@@ -122,7 +85,7 @@ export function TasksBlock() {
       body = (
         <div className="flex flex-col p-1.5">
           {listedTasks(tasks, filter).map((task) => (
-            <TaskItem key={task.task} task={task} current={currentOf(task.task)} open={openIds.has(task.task)} onToggle={() => toggle(task.task)} />
+            <TaskItem key={task.task} task={task} current={currentOf(task.task)} />
           ))}
         </div>
       );

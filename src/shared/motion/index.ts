@@ -90,6 +90,16 @@ export function sheetMotion(from: "left" | "right") {
   } as const;
 }
 
+/** A floating sheet: lifts off the edge it enters from, growing from slightly small to full size. */
+export function floatingSheetMotion(from: "left" | "right") {
+  const sign = from === "right" ? 1 : -1;
+  return {
+    initial: { opacity: 0, x: 48 * sign, scale: 0.97 },
+    animate: { opacity: 1, x: 0, scale: 1, transition: { type: "spring", stiffness: 380, damping: 34, mass: 0.9 } },
+    exit: { opacity: 0, x: 32 * sign, scale: 0.98, transition: { duration: LEAVE_S, ease: EASE_OUT } },
+  } as const;
+}
+
 /** A menu or popover surface opening at its anchor: grows from the anchor's corner. */
 export const MENU = {
   initial: { opacity: 0, scale: 0.96, y: -4 },

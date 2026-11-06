@@ -6,6 +6,9 @@ const MAX_TOASTS = 4;
 /** `ok` confirms something Ankur did; `info` reports something that happened; `error` reports a failure. */
 export type ToastTone = "info" | "error" | "ok";
 
+/** The part of dadi a toast is about; it picks the toast's mark. */
+export type ToastModule = "ghar" | "chaavi" | "yaad" | "hath" | "system" | "timeline" | "dadi";
+
 /** Where clicking a toast takes you. */
 export type ToastTarget =
   /** The agent's chat in the sidebar. */
@@ -35,6 +38,8 @@ export type Toast = {
   at: number;
   /** Where clicking the toast goes; null makes it a plain notice. */
   target: ToastTarget | null;
+  /** The part of dadi it is about; null for a notice that belongs to none. */
+  module: ToastModule | null;
   /** Set once it is on its way out; the Toaster removes it when the exit animation ends. */
   leaving: boolean;
 };
@@ -43,7 +48,40 @@ export type Toast = {
 export type ToastInput = Pick<Toast, "key" | "tone" | "title"> & {
   body?: string;
   target?: ToastTarget | null;
+  /** The part of dadi it is about; read from the key and target when left out. */
+  module?: ToastModule;
 };
+
+/** A log service's name as the module it belongs to. */
+const SERVICE_MODULE: Record<string, ToastModule> = { ghar: "ghar", chaavi: "chaavi", yaad: "yaad", hath: "hath", nas: "system" };
+
+/** The module a toast is about: the one it names, else the one its key starts with, else the one its target points at. */
+function moduleOf(input: ToastInput): ToastModule | null {
+  if (input.module !== undefined) {
+    return input.module;
+  }
+  for (const module of ["ghar", "chaavi", "timeline", "yaad"] as const) {
+    if (input.key.startsWith(module)) {
+      return module;
+    }
+  }
+  const target = input.target;
+  if (target === null || target === undefined) {
+    return null;
+  }
+  switch (target.kind) {
+    case "chat":
+      return "hath";
+    case "ghar":
+      return "ghar";
+    case "timeline":
+      return "timeline";
+    case "router":
+      return "dadi";
+    case "logs":
+      return SERVICE_MODULE[target.service] ?? "system";
+  }
+}
 
 type Listener = (toasts: Toast[]) => void;
 
@@ -78,6 +116,7 @@ export function pushToast(input: ToastInput, now: number = Date.now()): void {
     body: input.body ?? null,
     at: now,
     target: input.target ?? null,
+    module: moduleOf(input),
   };
   const existing = toasts.find((t) => t.key === input.key);
   if (existing) {

@@ -15,13 +15,10 @@ import {
   startOfMonth,
   weekDays,
 } from "../features/timeline/dates";
-import { NodePopover } from "../features/timeline/NodePopover";
 import { PlanDetailsContext } from "../features/timeline/PlanButton";
 import { itemKey, plansOn } from "../features/timeline/plans";
-import { SessionMenu } from "../features/timeline/SessionMenu";
+import { useSessionPopover } from "../features/timeline/useSessionPopover";
 import { NeedsATime } from "../features/timeline/Someday";
-import { isSettled } from "../features/timeline/planner/blocks";
-import { SessionCard } from "../features/timeline/planner/SessionCard";
 import { clockChange, zoneOffset } from "../features/timeline/zones";
 import { isMeshOnline, timeline } from "../shared/api";
 import { Button, IconButton } from "../shared/ui/Button";
@@ -29,13 +26,12 @@ import { Card } from "../shared/ui/Card";
 import { Chip } from "../shared/ui/Chip";
 import { Page } from "../shared/layout/Page";
 import { StaleBanner, StateView } from "../shared/states/ModuleState";
-import { Popover } from "../shared/overlay/Popover";
+import { Sheet } from "../shared/overlay/Sheet";
 import { Truncate } from "../shared/ui/Truncate";
 import { Segmented } from "../shared/ui/Segmented";
 import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
-import { useRetained } from "../shared/hooks/useRetained";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
 import type { TimelineItem, TimelineViewName } from "../types/timeline";
@@ -44,7 +40,6 @@ import type { TimelineItem, TimelineViewName } from "../types/timeline";
 const WIDE_FROM = 860;
 
 type View = "Day" | "Week" | "Month";
-type Opened = { item: TimelineItem; anchor: DOMRect };
 const OPTIONS = ["Day", "Week", "Month"] as const;
 
 /** The visible month's Sunday-first grid, including adjacent dates that fill its weeks. */
@@ -75,15 +70,9 @@ export function TimelinePage() {
     now: new Date(),
     zone: Intl.DateTimeFormat().resolvedOptions().timeZone,
   }));
-  const [opened, setOpened] = useState<Opened | null>(null);
-  const [details, setDetails] = useState<Opened | null>(null);
-  const [node, setNode] = useState<{
-    id: string;
-    anchor: DOMRect;
-    session?: TimelineItem;
-  } | null>(null);
   const { state: connection } = useConnection();
   const { now, zone } = clock;
+  const popover = useSessionPopover(now);
   const requested = params.get("view");
   const view: View =
     requested === "week" ? "Week" : requested === "month" ? "Month" : "Day";
@@ -99,10 +88,7 @@ export function TimelinePage() {
         ? monthDays(anchor)
         : [anchor];
   const from = days[0]!.toISOString();
-  const to = addDays(
-    days[days.length - 1]!,
-    view === "Day" ? 2 : 1,
-  ).toISOString();
+  const to = addDays(days[days.length - 1]!, 1).toISOString();
   const views: TimelineViewName[] =
     view === "Day"
       ? ["planner", "due"]
@@ -141,7 +127,7 @@ export function TimelinePage() {
         ).values(),
       ];
     },
-    enabled: isMeshOnline(connection) && !someday,
+    enabled: isMeshOnline(connection),
   });
   const onDay = (item: TimelineItem) => plansOn([item], anchor).length > 0;
   const state = useModuleState(
@@ -157,8 +143,6 @@ export function TimelinePage() {
       : [];
   const own = view === "Day" ? items.filter(onDay) : items;
   const navigate = (nextView: View, day: Date, needsTime = false) => {
-    setOpened(null);
-    setDetails(null);
     setParams((current) => {
       const next = new URLSearchParams(current);
       next.set("view", needsTime ? "someday" : nextView.toLowerCase());
@@ -175,8 +159,7 @@ export function TimelinePage() {
           ? addDays(anchor, step * 7)
           : new Date(anchor.getFullYear(), anchor.getMonth() + step, 1),
     );
-  const open = (item: TimelineItem, element: Element) =>
-    setOpened({ item, anchor: element.getBoundingClientRect() });
+  const open = (item: TimelineItem, element: Element) => popover.show(item, element.getBoundingClientRect());
   const changeDay =
     days.find((day) => clockChange(day, addDays(day, 1), zone) !== null) ??
     anchor;
@@ -191,9 +174,8 @@ export function TimelinePage() {
   const difference = other?.time_zone
     ? (zoneOffset(noon, zone) - zoneOffset(noon, other.time_zone)) / 60
     : 0;
-  const title = someday
-    ? "Needs a time"
-    : view === "Day"
+  const title =
+    view === "Day"
       ? new Intl.DateTimeFormat(undefined, {
           weekday: "long",
           month: "long",
@@ -215,19 +197,7 @@ export function TimelinePage() {
         : "this month";
   const renderBody = (wide: boolean): ReactNode => {
     let body: ReactNode;
-    if (someday)
-      body = (
-        <NeedsATime
-          onOpen={(item, element) =>
-            setNode({
-              id: item.id,
-              session: item,
-              anchor: element.getBoundingClientRect(),
-            })
-          }
-        />
-      );
-    else if (state.kind === "loading")
+    if (state.kind === "loading")
       body = (
         <div
           style={{
@@ -282,9 +252,10 @@ export function TimelinePage() {
             now={now}
             zone={zone}
             items={items}
-            selected={opened === null ? null : itemKey(opened.item)}
+            selected={popover.openKey}
             wide={wide}
             onOpen={open}
+            onNeedsTime={() => navigate(view, anchor, true)}
           />
         ) : view === "Week" ? (
           <CalendarWeek days={days} now={now} items={items} onOpen={open} />
@@ -334,25 +305,23 @@ export function TimelinePage() {
       );
     return body;
   };
-  const shownDetails = useRetained(details);
-  const shownNode = useRetained(node);
   return (
-    <PlanDetailsContext.Provider value={(item, rect) => setDetails({ item, anchor: rect })}>
+    <PlanDetailsContext.Provider value={popover.show}>
       <Page name="timeline">
         {(room) => (
           <>
             <PageHeader
               title="Timeline"
-              meta={!someday && state.kind === "ready" ? `${own.length} ${own.length === 1 ? "session" : "sessions"} ${when}` : undefined}
+              meta={state.kind === "ready" ? `${own.length} ${own.length === 1 ? "session" : "sessions"} ${when}` : undefined}
               trailing={
-                <Button tone="quiet" size="sm" onClick={() => navigate(view, anchor, !someday)}>
-                  {someday ? "Back to calendar" : "Needs a time"}
+                <Button tone="quiet" size="sm" onClick={() => navigate(view, anchor, true)}>
+                  Needs a time
                 </Button>
               }
             />
             <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", flexWrap: "nowrap" }}>
               <Truncate text={title} style={{ flex: "0 1 auto", minWidth: 0, fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em" }} />
-              {someday || (change === null && !other?.time_zone) ? null : (
+              {change === null && !other?.time_zone ? null : (
                 <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
                   {change === null ? null : (
                     <Chip size="md" tone="due">
@@ -367,8 +336,7 @@ export function TimelinePage() {
                 </div>
               )}
               <div style={{ flex: 1 }} />
-              {someday ? null : (
-                <>
+              <>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
                     <IconButton icon="back" label="Previous" onClick={() => move(-1)} />
                     <Button pill onClick={() => navigate(view, startOfDay(now))} style={{ fontWeight: 600 }}>
@@ -377,52 +345,19 @@ export function TimelinePage() {
                     <IconButton icon="chevron" label="Next" onClick={() => move(1)} />
                   </div>
                   <Segmented options={OPTIONS} value={view} onChange={(next) => navigate(next, anchor)} />
-                </>
-              )}
+              </>
             </div>
-            {!someday && state.kind === "ready" && state.stale !== null ? (
+            {state.kind === "ready" && state.stale !== null ? (
               <StaleBanner text={`Showing what Yaad reported ${formatRelative(new Date(state.stale.since).toISOString(), now.getTime())}`} onRetry={() => void query.refetch()} />
             ) : null}
             {renderBody(room.width > WIDE_FROM)}
+            <Sheet open={someday} onClose={() => navigate(view, anchor)} label="Needs a time" width={480}>
+              <NeedsATime onClose={() => navigate(view, anchor)} onOpen={(item, element) => popover.showNode(item.id, element.getBoundingClientRect(), item)} />
+            </Sheet>
           </>
         )}
       </Page>
-      <SessionMenu
-        item={opened === null ? null : opened.item}
-        anchor={opened === null ? null : opened.anchor}
-        onClose={() => setOpened(null)}
-        onDetails={opened === null ? undefined : () => setDetails(opened)}
-      />
-      {shownDetails === null ? null : (
-        <Popover
-          open={details !== null}
-          anchor={{ x: shownDetails.anchor.left, y: shownDetails.anchor.bottom, radius: 0 }}
-          aria-label={`${shownDetails.item.title} details`}
-          widthPx={300}
-          onClose={() => setDetails(null)}
-        >
-          <SessionCard block={shownDetails.item} settled={isSettled(shownDetails.item, now)} />
-          <Button
-            tone="quiet"
-            onClick={() => {
-              setNode({ id: shownDetails.item.id, session: shownDetails.item, anchor: shownDetails.anchor });
-              setDetails(null);
-            }}
-          >
-            Connections
-          </Button>
-        </Popover>
-      )}
-      {shownNode === null ? null : (
-        <NodePopover
-          open={node !== null}
-          nodeId={shownNode.id}
-          session={shownNode.session}
-          anchor={{ x: shownNode.anchor.left, y: shownNode.anchor.bottom, radius: 0 }}
-          onClose={() => setNode(null)}
-          onSelect={(id) => setNode({ id, anchor: shownNode.anchor })}
-        />
-      )}
+      {popover.popovers}
     </PlanDetailsContext.Provider>
   );
 }

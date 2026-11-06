@@ -1,4 +1,4 @@
-import type { AgentSessions, AgentTask } from "../../types/hath";
+import type { AgentSessions } from "../../types/hath";
 import type { NasTask } from "../../shared/api/nas";
 
 /** The live thing a task holds in Nas, which a view can show. */
@@ -50,26 +50,4 @@ export function pickLiveTasks(
     }
   }
   return { browser, terminal };
-}
-
-/**
- * The one task whose live view the agent sheet shows without being asked: the most recently active
- * task that is working. Every other task shows its status line and loads its view on expand.
- */
-export function autoLiveTaskId(tasks: AgentTask[]): string | null {
-  let newest: AgentTask | null = null;
-  for (const task of tasks) {
-    if (task.status === "working" && (newest === null || Date.parse(task.last_activity) > Date.parse(newest.last_activity))) {
-      newest = task;
-    }
-  }
-  return newest === null ? null : newest.id;
-}
-
-/**
- * Whether a task's live view is mounted (a mounted view holds a capture on the box): the
- * viewer's own expand or collapse wins, else only the auto-shown task has one.
- */
-export function showsLiveView(taskId: string, autoId: string | null, overrides: Readonly<Record<string, boolean>>): boolean {
-  return overrides[taskId] ?? taskId === autoId;
 }

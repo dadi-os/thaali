@@ -1,4 +1,4 @@
-import { useRef, type ReactNode } from "react";
+import { useRef } from "react";
 import type { AgentRecord, AgentTask, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
 import { Button } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -28,8 +28,6 @@ export type SheetTask = {
   task: AgentTask;
   /** The helper's own words when it is waiting on its agent. */
   question: string;
-  /** The task's {@link TaskPreview}; unused while the task sleeps. */
-  preview: ReactNode;
 };
 
 /** What a section that is read on its own can be showing. */
@@ -53,9 +51,6 @@ export type AgentSheetPanelProps = {
   /** Whether a section is open. */
   isOpen: (section: SheetSection) => boolean;
   onToggle: (section: SheetSection) => void;
-  /** Whether a task's row is open, showing its preview. */
-  isTaskOpen: (taskId: string) => boolean;
-  onToggleTask: (taskId: string) => void;
   /** Opens the agent's chat in the rail. */
   onOpenThread: () => void;
   /** The time the sheet's relative words are measured from. */
@@ -119,7 +114,7 @@ function feedSummary<T>(feed: SheetFeed<T>, ready: (items: T[]) => string): stri
  * tasks it owns, and sections for its last calls, queued messages, schedule, charter and activity. It draws what it is
  * given; {@link AgentSheet} reads the data and holds the open sections.
  */
-export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, isTaskOpen, onToggleTask, onOpenThread, now }: AgentSheetPanelProps) {
+export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, onOpenThread, now }: AgentSheetPanelProps) {
   const status = agent.running.status;
   const waiting = agent.running.waiting_on;
   const lanes = [agent.running.work ? "Working" : null, agent.running.process ? "Processing" : null].filter((lane) => lane !== null);
@@ -173,10 +168,8 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             <motion.div key="tasks" {...REVEAL} className="overflow-hidden">
               <div className="flex flex-col gap-0.5">
                 <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
-                {tasks.map(({ task, question, preview }) => (
-                  <TaskRow key={task.id} task={task} owner={agent.name} question={question} open={isTaskOpen(task.id)} onToggle={() => onToggleTask(task.id)} now={now}>
-                    {preview}
-                  </TaskRow>
+                {tasks.map(({ task, question }) => (
+                  <TaskRow key={task.id} task={task} owner={agent.name} question={question} now={now} />
                 ))}
               </div>
             </motion.div>

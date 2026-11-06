@@ -56,8 +56,7 @@ import {
 } from "./features/memory/graph";
 import { syncForceSimulation } from "./shared/components/Graph/ForceGraph";
 import { revealSchedule } from "./shared/components/Graph/ForceGraph/reveal";
-import { autoLiveTaskId, pickLiveTasks, showsLiveView, taskLiveView } from "./features/agents/sessions";
-import type { AgentTask } from "./types/hath";
+import { pickLiveTasks, taskLiveView } from "./features/agents/sessions";
 import type { NasTask } from "./shared/api/nas";
 import {
   addDays,
@@ -869,37 +868,6 @@ describe("agent tasks", () => {
   });
 });
 
-describe("agent sheet live views", () => {
-  const task = (id: string, status: AgentTask["status"], lastActivity: string): AgentTask => ({
-    id,
-    kind: "browser",
-    status,
-    purpose: "p",
-    current: "c",
-    last_activity: lastActivity,
-  });
-  const tasks = [
-    task("task/browser/1", "working", "2026-10-29T10:01:00Z"),
-    task("task/browser/2", "working", "2026-10-29T10:05:00Z"),
-    task("task/browser/3", "idle", "2026-10-29T10:09:00Z"),
-    task("task/browser/4", "asleep", "2026-10-29T09:00:00Z"),
-  ];
-
-  it("auto-shows only the newest working task", () => {
-    expect(autoLiveTaskId(tasks)).toBe("task/browser/2");
-    expect(autoLiveTaskId(tasks.filter((t) => t.status !== "working"))).toBeNull();
-    expect(autoLiveTaskId([])).toBeNull();
-    const shown = tasks.filter((t) => showsLiveView(t.id, "task/browser/2", {})).map((t) => t.id);
-    expect(shown).toEqual(["task/browser/2"]);
-  });
-
-  it("loads a view on expand and releases it on collapse, whatever the auto choice", () => {
-    expect(showsLiveView("task/browser/3", "task/browser/2", { "task/browser/3": true })).toBe(true);
-    expect(showsLiveView("task/browser/2", "task/browser/2", { "task/browser/2": false })).toBe(false);
-    expect(showsLiveView("task/browser/3", "task/browser/2", { "task/browser/3": false })).toBe(false);
-  });
-});
-
 describe("timeline dates", () => {
   it("weeks start Monday", () => {
     const wednesday = new Date(2026, 0, 7);
@@ -1056,7 +1024,7 @@ describe("ghar client", () => {
     ]);
   });
 
-  it("lists rooms, moves a device, and starts commissioning", async () => {
+  it("edits tags, renames a device, and starts commissioning", async () => {
     const calls: Array<{ path: string; method: string; body?: unknown }> = [];
     const transport = {
       request: async (opts: {
@@ -1069,12 +1037,6 @@ describe("ghar client", () => {
           method: opts.method,
           body: opts.body,
         });
-        if (opts.path === "/rooms" && opts.method === "GET") {
-          return { rooms: [] };
-        }
-        if (opts.path === "/rooms") {
-          return { id: "room-1", name: "kitchen" };
-        }
         if (opts.path === "/commission") {
           return { job_id: "job-1" };
         }
@@ -1094,32 +1056,30 @@ describe("ghar client", () => {
     } as unknown as Transport;
     const { createGharClient } = await import("./shared/api/ghar");
     const client = createGharClient(transport, GHAR);
-    await client.listRooms();
-    await client.createRoom("kitchen");
-    await client.renameRoom("room-1", "Kitchen");
-    await client.deleteRoom("room-1");
-    await client.moveDevice("dev-1", "room-1");
+    await client.renameTag("tag-1", "Reading");
+    await client.deleteTag("tag-1");
+    await client.addTagDevices("tag-1", ["dev-1"]);
+    await client.removeTagDevice("tag-1", "dev-1");
     await client.renameDevice("dev-1", "Desk lamp");
     await client.setDeviceTags("dev-1", ["Nightstands"]);
     await client.startCommission({
       code: "34970112332",
-      room_id: "room-1",
+      tags: ["Reading"],
       radio: "network",
     });
     await client.getCommission("job-1");
     await client.identify("dev-1");
     expect(calls.map((call) => [call.method, call.path, call.body])).toEqual([
-      ["GET", "/rooms", undefined],
-      ["POST", "/rooms", { name: "kitchen" }],
-      ["PATCH", "/rooms/room-1", { name: "Kitchen" }],
-      ["DELETE", "/rooms/room-1", undefined],
-      ["PATCH", "/devices/dev-1", { room: "room-1" }],
+      ["PATCH", "/tags/tag-1", { name: "Reading" }],
+      ["DELETE", "/tags/tag-1", undefined],
+      ["POST", "/tags/tag-1/devices", { device_ids: ["dev-1"] }],
+      ["DELETE", "/tags/tag-1/devices/dev-1", undefined],
       ["PATCH", "/devices/dev-1", { name: "Desk lamp" }],
       ["PATCH", "/devices/dev-1", { tags: ["Nightstands"] }],
       [
         "POST",
         "/commission",
-        { code: "34970112332", room_id: "room-1", radio: "network" },
+        { code: "34970112332", tags: ["Reading"], radio: "network" },
       ],
       ["GET", "/commission/job-1", undefined],
       ["POST", "/devices/dev-1/identify", undefined],

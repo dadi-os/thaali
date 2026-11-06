@@ -3,6 +3,8 @@ import { copyText } from "../../desktop/clipboard";
 import { saveFile } from "../../desktop/download";
 import type { ActionList } from "../../interaction/actions";
 import { isTextMediaType } from "../../lib/content/attachments";
+import { requestReply } from "../../../contexts/reply";
+import { plainText } from "./format";
 import { applyThreadRead, getChatState, seqToMark, type ChatMessage, type Conversation } from "../../../contexts/chat";
 import type { AttachmentSummary } from "../../../types/hath";
 
@@ -44,9 +46,15 @@ export function conversationActions(conversation: Conversation, deps: Conversati
   ];
 }
 
-/** The actions on a message, declared once for its right-click menu: copy its text. */
+/** The actions on a message, declared once for its right-click menu: reply to it, copy it as the text it reads as, or copy its Markdown source. */
 export function messageActions(message: ChatMessage): ActionList {
-  return [{ id: "message.copy", label: "Copy text", icon: "copy", disabledReason: message.content ? undefined : "This message has no text", run: () => copyText(message.content) }];
+  const empty = message.content ? undefined : "This message has no text";
+  return [
+    { id: "message.reply", label: "Reply", icon: "send", disabledReason: empty, run: () => requestReply(plainText(message.content)) },
+    "separator",
+    { id: "message.copy", label: "Copy text", icon: "copy", disabledReason: empty, run: () => copyText(plainText(message.content)) },
+    { id: "message.copy-markdown", label: "Copy as Markdown", icon: "doc", disabledReason: empty, run: () => copyText(message.content) },
+  ];
 }
 
 /** Save a stored file through the desktop save dialog. */

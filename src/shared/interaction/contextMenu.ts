@@ -141,11 +141,11 @@ export function installContextMenu(open: (request: ContextRequest) => void): () 
       return;
     }
     const selected = window.getSelection()?.toString() ?? "";
+    const actions = registeredActions(target);
     if (selected !== "" && target.closest("[data-selectable], .chat-md") !== null) {
-      open({ x: event.clientX, y: event.clientY, actions: selectionActions(selected) });
+      open({ x: event.clientX, y: event.clientY, actions: actions === null ? selectionActions(selected) : [...selectionActions(selected), "separator", ...actions] });
       return;
     }
-    const actions = registeredActions(target);
     if (actions !== null) {
       open({ x: event.clientX, y: event.clientY, actions });
     }

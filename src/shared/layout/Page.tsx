@@ -2,7 +2,7 @@ import type { ReactNode, Ref } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSize, type Size } from "../hooks/useSize";
 import { useDismiss } from "../interaction/dismiss";
-import { SCRIM, sheetMotion } from "../motion";
+import { floatingSheetMotion, SCRIM } from "../motion";
 
 /** What a page body is told about the room it has. */
 export type PageRoom = Size & {
@@ -33,6 +33,8 @@ export type PageProps = {
 /** The page's edge padding and the gap between its columns, in px. */
 const PAD = { top: 18, side: 20, bottom: 20 };
 const GAP = 16;
+/** The shadow that lifts the side panel off the page. */
+const LIFT = "0 2px 6px rgba(44,48,42,.07), 0 22px 60px rgba(44,48,42,.16)";
 
 /**
  * The frame every full page sits in: the same edge padding, a main column that takes the room, and an optional
@@ -66,7 +68,7 @@ export function Page({ name, ref: outer, children, aside, asideOpen = false, onA
       </div>
       <AnimatePresence>
         {shown && docked ? (
-          <motion.div key="docked" style={{ display: "flex", width: asideWidth, flex: "none", minHeight: 0 }} {...sheetMotion("right")}>
+          <motion.div key="docked" style={{ display: "flex", width: asideWidth, flex: "none", minHeight: 0, borderRadius: "var(--radius-card)", boxShadow: LIFT }} {...floatingSheetMotion("right")}>
             {aside}
           </motion.div>
         ) : null}
@@ -81,7 +83,7 @@ export function Page({ name, ref: outer, children, aside, asideOpen = false, onA
             style={{ position: "absolute", inset: 0, zIndex: "var(--z-scrim)" }}
             {...SCRIM}
           >
-            <motion.div style={{ position: "absolute", top: PAD.top, right: PAD.side, bottom: PAD.bottom, display: "flex", width: asideWidth, maxWidth: `calc(100% - ${PAD.side * 2}px)` }} {...sheetMotion("right")}>
+            <motion.div style={{ position: "absolute", top: PAD.top, right: PAD.side, bottom: PAD.bottom, display: "flex", width: asideWidth, maxWidth: `calc(100% - ${PAD.side * 2}px)`, borderRadius: "var(--radius-card)", boxShadow: LIFT }} {...floatingSheetMotion("right")}>
               {aside}
             </motion.div>
           </motion.div>

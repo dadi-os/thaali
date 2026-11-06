@@ -3,20 +3,25 @@ import { AnimatePresence, motion } from "motion/react";
 import { timeline } from "../../shared/api";
 import { openAgent } from "../../contexts/chat";
 import { requestDock } from "../../contexts/dock";
-import { DADI_DRAFT_KEY, saveDraft } from "../../contexts/drafts";
+import { saveDraft } from "../../contexts/drafts";
 import { RISE, stagger } from "../../shared/motion";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
+import { failureProps } from "../../shared/lib/ux/moduleState";
+import { StateView } from "../../shared/states/ModuleState";
+import { Button, IconButton } from "../../shared/ui/Button";
 import type { AgentRecord } from "../../types/hath";
 import type { TimelineItem } from "../../types/timeline";
 import { formatDayShort, startOfDay } from "./dates";
-import { Button } from "../../shared/ui/Button";
 import { PlanButton } from "./PlanButton";
 import { itemKey, keeperOf } from "./plans";
 
 /** Span of the someday query; the view reads its start as now and lists ideas and unscheduled tasks from there. */
 const SOMEDAY_DAYS = 1;
 
-/** Yaad's someday view: ideas, and tasks with a due or an open but no time yet. */
+/** A task this many days out or fewer is drawn in clay. */
+const SOON_DAYS = 3;
+
+/** Tasks that need a time first, soonest due first, and the ideas after them. */
 function useSomeday() {
   const from = startOfDay(new Date());
   return useQuery({
@@ -32,107 +37,21 @@ function useSomeday() {
   });
 }
 
-/** "Due Fri Oct 30 · opens Mon": when a task without a time is due and opens; null for an idea. */
-function needsLine(item: TimelineItem): string | null {
-  if (item.status === "idea") {
-    return null;
-  }
-  return [
-    item.due_at ? `Due ${formatDayShort(new Date(item.due_at))}` : "No due date",
-    item.opens_at ? `opens ${formatDayShort(new Date(item.opens_at))}` : null,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+/** When a task is due, as a time to sort by; a task with no due date goes last. */
+function dueTime(item: TimelineItem): number {
+  return item.due_at ? new Date(item.due_at).getTime() : Infinity;
 }
 
-type EntryProps = {
-  item: TimelineItem;
-  index: number;
-  onOpen: (item: TimelineItem, el: Element) => void;
-};
-
-/** One someday entry: a solid card for a task that needs a time, a dashed one for an idea. */
-function Entry({ item, index, onOpen }: EntryProps) {
-  const line = needsLine(item);
-  return (
-    <motion.li
-      layout
-      {...RISE}
-      transition={{ ...RISE.transition, delay: stagger(index) }}
-    >
-      <PlanButton
-        item={item}
-        onClick={(e) => onOpen(item, e.currentTarget)}
-        className={`flex w-full items-center gap-3 rounded-[12px] border px-3.5 py-2.5 text-left transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage hover:shadow-[var(--shadow)] ${
-          line ? "border-rule bg-[var(--glass-sheet)]" : "border-dashed border-sage-line"
-        }`}
-      >
-        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <span className="truncate text-[14px] font-semibold text-ink">{item.title}</span>
-          <span className={`truncate text-[13px] ${line ? "text-[var(--clay)]" : "text-ink-ghost"}`}>{line ?? "Anytime"}</span>
-        </span>
-      </PlanButton>
-    </motion.li>
-  );
-}
-
-export type SomedayProps = {
-  /** An entry was clicked: open it beside `el`. */
-  onOpen: (item: TimelineItem, el: Element) => void;
-};
-
-/** Skeleton rows while the someday view loads. */
-function SomedaySkeleton({ rows }: { rows: number }) {
-  return (
-    <div role="status" aria-label="Loading" className="flex flex-col gap-1.5">
-      {Array.from({ length: rows }, (_, i) => (
-        <span key={i} className="skeleton h-[58px] rounded-[12px]" />
-      ))}
-    </div>
-  );
-}
-
-/**
- * Side rail beside Week and Month: what needs a time (tasks with a due first) then ideas,
- * so agents' open work stays in view while you look at the calendar.
- */
-export function SomedayRail({ onOpen }: SomedayProps) {
+/** What Yaad holds that has no time: the tasks waiting for one (soonest due first) and the ideas, and whether the first answer is still on its way. */
+export function useNeedsATime() {
   const query = useSomeday();
-  return (
-    <aside className="flex w-[min(264px,28%)] shrink-0 flex-col rounded-[18px] border border-(--glass-border) bg-(--glass-veil) p-3.5 shadow-[0_1px_2px_rgba(92,107,82,0.05),0_10px_30px_rgba(44,48,42,0.05)] portrait:max-h-[24%] portrait:w-full">
-      <span className="mb-2.5 flex items-baseline justify-between px-0.5 text-[11px] font-semibold tracking-[2.5px] text-ink-ghost">
-        NEEDS A TIME
-        {query.data ? <span className="text-[12px] font-semibold tracking-normal text-sage-deep">{query.data.length}</span> : null}
-      </span>
-      {query.isError && !query.data ? (
-        <p className="text-[12px] text-error">{query.error.message}</p>
-      ) : query.isPending ? (
-        <SomedaySkeleton rows={5} />
-      ) : query.data.length === 0 ? (
-        <p className="text-[12px] text-ink-ghost">Nothing waiting for a time</p>
-      ) : (
-        <ul className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto overflow-x-hidden portrait:grid portrait:grid-cols-3 portrait:content-start">
-          <AnimatePresence>
-            {sorted(query.data).map((item, i) => (
-              <Entry key={itemKey(item)} item={item} index={i} onOpen={onOpen} />
-            ))}
-          </AnimatePresence>
-        </ul>
-      )}
-      <p className="m-0 shrink-0 px-0.5 pt-3 text-[12px] leading-relaxed text-ink-ghost portrait:hidden">
-        Agents place these into open time. Click one to see it or message its keeper.
-      </p>
-    </aside>
-  );
-}
-
-/** Tasks that need a time first, soonest due first; ideas after, in the view's order. */
-function sorted(items: TimelineItem[]): TimelineItem[] {
-  const due = (item: TimelineItem) => (item.due_at ? new Date(item.due_at).getTime() : Infinity);
-  return [
-    ...items.filter((item) => item.status !== "idea").sort((a, b) => due(a) - due(b)),
-    ...items.filter((item) => item.status === "idea"),
-  ];
+  const items = query.data ?? [];
+  return {
+    query,
+    tasks: items.filter((item) => item.status !== "idea").sort((a, b) => dueTime(a) - dueTime(b)),
+    ideas: items.filter((item) => item.status === "idea"),
+    pending: query.isPending,
+  };
 }
 
 /** Whole days from today to `at`, by calendar date. */
@@ -145,17 +64,37 @@ function dueIn(days: number): string {
   return days <= 0 ? "today" : days === 1 ? "tomorrow" : days < 14 ? `in ${days} days` : `in ${Math.round(days / 7)} weeks`;
 }
 
-/** Opens the keeper's chat (or Dadi's) with "About “title”: " waiting in the composer. */
-function askAbout(item: TimelineItem, keeper: AgentRecord | null) {
+/** Opens the keeper's chat (or Dadi's dock) with "About “title”: " waiting in the composer. */
+function askAbout(item: TimelineItem, keeper: AgentRecord | null): void {
   const due = item.due_at ? ` (due ${formatDayShort(new Date(item.due_at))})` : "";
   const text = `About “${item.title}”${due}: `;
   if (keeper) {
     saveDraft(keeper.id, text);
     openAgent(keeper.id);
   } else {
-    saveDraft(DADI_DRAFT_KEY, text);
-    requestDock();
+    requestDock(text);
   }
+}
+
+/** The shape of what is coming while the first answer is on its way. */
+function Skeleton({ rows }: { rows: number }) {
+  return (
+    <div role="status" aria-label="Loading" className="flex flex-col gap-2">
+      {Array.from({ length: rows }, (_, i) => (
+        <span key={i} className="sk h-[68px] rounded-[16px]" />
+      ))}
+    </div>
+  );
+}
+
+/** The label above one of the sheet's lists, with how many it holds. */
+function ListHead({ title, count }: { title: string; count: string }) {
+  return (
+    <div className="mb-2 flex items-baseline justify-between px-1">
+      <span className="ui-label">{title}</span>
+      <span className="text-[12px] text-ink-muted tabular-nums">{count}</span>
+    </div>
+  );
 }
 
 type PlaceRowProps = {
@@ -165,138 +104,128 @@ type PlaceRowProps = {
   onOpen: (item: TimelineItem, el: Element) => void;
 };
 
-/** One task that needs a time: when it is due, what it is and who keeps it, and a way to ask them to place it. */
+/** One task that needs a time: a day badge, what it is, when it is due and who keeps it, and a way to ask them to place it. */
 function PlaceRow({ item, keeper, index, onOpen }: PlaceRowProps) {
   const due = item.due_at ? new Date(item.due_at) : null;
   const days = due ? daysUntil(due) : null;
-  const soon = days !== null && days <= 3;
+  const soon = days !== null && days <= SOON_DAYS;
   return (
     <motion.li
       layout
       {...RISE}
       transition={{ ...RISE.transition, delay: stagger(index) }}
-      className="flex items-center gap-4 rounded-[14px] border border-rule bg-[var(--glass-sheet)] px-4 py-3 transition-[border-color,box-shadow] duration-slow ease-dadi hover:border-sage-line hover:shadow-[var(--shadow)]"
+      className="ui-trans flex items-center gap-3 rounded-[16px] border border-rule bg-glass-sheet p-2.5 pr-3 hover:border-sage-line hover:shadow-[var(--shadow)]"
     >
-      <span
-        className={`flex w-14 shrink-0 flex-col items-center rounded-[10px] py-1.5 ${
-          soon ? "bg-[color-mix(in_srgb,var(--clay)_16%,transparent)] text-[color-mix(in_srgb,var(--clay)_70%,var(--ink))]" : "bg-sage-fill text-sage-text"
-        }`}
-      >
-        <span className="text-[12px] font-semibold">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "open"}</span>
-        <span className="text-[18px] font-semibold leading-tight tabular-nums">{due ? due.getDate() : "—"}</span>
+      <span className={`flex size-12 flex-none flex-col items-center justify-center rounded-[12px] ${soon ? "bg-[color-mix(in_srgb,var(--clay)_16%,transparent)] text-[color-mix(in_srgb,var(--clay)_70%,var(--ink))]" : "bg-sage-fill text-sage-text"}`}>
+        <span className="text-[11px] leading-3 font-semibold">{due ? due.toLocaleDateString(undefined, { weekday: "short" }) : "Open"}</span>
+        <span className="text-[17px] leading-5 font-semibold tabular-nums">{due ? due.getDate() : "—"}</span>
       </span>
-      <PlanButton
-        item={item}
-        onClick={(e) => onOpen(item, e.currentTarget)}
-        className="flex min-w-0 flex-1 flex-col gap-0.5 text-left"
-      >
+      <PlanButton item={item} onClick={(e) => onOpen(item, e.currentTarget)} className="flex min-w-0 flex-1 flex-col gap-0.5 text-left">
         <span className="truncate text-[14px] font-medium text-ink">{item.title}</span>
-        <span className="truncate text-[12px] text-ink-ghost">
-          {days !== null ? <span className={soon ? "text-[var(--clay)]" : ""}>due {dueIn(days)}</span> : null}
-          {item.opens_at ? `${days !== null ? " · " : ""}opens ${formatDayShort(new Date(item.opens_at))}` : ""}
-          {keeper ? ` · ${keeper.name}` : ""}
+        <span className="truncate text-[12.5px] text-ink-muted">
+          {[days !== null ? `due ${dueIn(days)}` : "no due date", item.opens_at ? `opens ${formatDayShort(new Date(item.opens_at))}` : null, keeper?.name ?? null].filter(Boolean).join(" · ")}
         </span>
       </PlanButton>
       <Button tone="outline" size="sm" pill onClick={() => askAbout(item, keeper)} style={{ flex: "none" }}>
-        {keeper ? "Ask to place it" : "Tell Dadi"}
+        {keeper ? "Ask" : "Tell Dadi"}
       </Button>
     </motion.li>
   );
 }
 
+/** Props of {@link NeedsATime}. */
+export type NeedsATimeProps = {
+  /** An entry was clicked: open it beside `el`. */
+  onOpen: (item: TimelineItem, el: Element) => void;
+  /** The close control was pressed. */
+  onClose: () => void;
+};
+
 /**
- * The Needs a time view: what is still up in the air. On the left, tasks waiting for a time,
- * soonest due first, each with a day badge (clay when it is three days off or less) and a
- * button that opens its keeper's chat to ask them to place it. On the right, ideas grouped by
- * the agent that keeps them, so each group can be raised with that agent at once.
+ * The body of the Needs a time sheet: a header with what is waiting, then the tasks waiting for a time (soonest due
+ * first, each with a day badge that turns clay at three days out and a button that asks its keeper to place it), then the
+ * ideas grouped by the agent that keeps them so each group can be raised at once.
  */
-export function NeedsATime({ onOpen }: SomedayProps) {
-  const query = useSomeday();
+export function NeedsATime({ onOpen, onClose }: NeedsATimeProps) {
+  const { query, tasks, ideas, pending } = useNeedsATime();
   const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, enabled: false });
-  if (query.isError && !query.data) {
-    return <p className="text-[13px] text-error">{query.error.message}</p>;
-  }
-  const tasks = query.data ? sorted(query.data).filter((item) => item.status !== "idea") : [];
-  const ideas = query.data ? query.data.filter((item) => item.status === "idea") : [];
   const groups = new Map<string, { keeper: AgentRecord | null; items: TimelineItem[] }>();
   for (const idea of ideas) {
     const keeper = keeperOf(idea, agents.data);
-    const key = keeper?.id ?? "";
-    const group = groups.get(key) ?? { keeper, items: [] };
+    const group = groups.get(keeper?.id ?? "") ?? { keeper, items: [] };
     group.items.push(idea);
-    groups.set(key, group);
+    groups.set(keeper?.id ?? "", group);
   }
   const ideaGroups = [...groups.values()].sort((a, b) => b.items.length - a.items.length);
-
   return (
-    <div className="grid min-h-0 flex-1 grid-cols-[minmax(0,3fr)_minmax(0,2fr)] gap-8 overflow-hidden portrait:grid-cols-1 portrait:grid-rows-[auto_minmax(0,1fr)]">
-      <section className="flex min-h-0 flex-col">
-        <header className="mb-3 flex items-baseline justify-between px-1">
-          <span className="text-[15px] font-semibold text-ink">To place</span>
-          <span className="text-[12px] text-ink-ghost">{query.data ? `${tasks.length} waiting for a time · soonest first` : ""}</span>
-        </header>
-        {query.isPending ? (
-          <SomedaySkeleton rows={6} />
-        ) : tasks.length === 0 ? (
-          <p className="px-1 text-[13px] text-ink-ghost">Nothing is waiting for a time.</p>
+    <>
+      <header className="flex flex-none items-start justify-between gap-3 px-6 pt-5 pb-3">
+        <div className="flex min-w-0 flex-col gap-0.5">
+          <h2 className="m-0 text-[20px] leading-7 font-semibold tracking-[-0.015em]">Needs a time</h2>
+          <span className="text-[13px] text-ink-muted">{pending ? "Loading…" : `${tasks.length} ${tasks.length === 1 ? "task" : "tasks"} waiting · ${ideas.length} ${ideas.length === 1 ? "idea" : "ideas"}`}</span>
+        </div>
+        <IconButton icon="close" label="Close" onClick={onClose} />
+      </header>
+      <div className="scroll flex min-h-0 flex-1 flex-col gap-6 px-5 pb-6">
+        {query.isError && !query.data ? (
+          <StateView kind="error" title="Couldn’t load what needs a time" {...failureProps(query.error)} onRetry={() => void query.refetch()} />
+        ) : pending ? (
+          <Skeleton rows={5} />
+        ) : tasks.length === 0 && ideas.length === 0 ? (
+          <StateView kind="empty" title="Nothing needs a time" detail="Agents place tasks into open time as they find it." />
         ) : (
-          <ul className="flex min-h-0 flex-1 flex-col gap-2 overflow-y-auto overflow-x-hidden p-1">
-            <AnimatePresence>
-              {tasks.map((item, i) => (
-                <PlaceRow key={itemKey(item)} item={item} keeper={keeperOf(item, agents.data)} index={i} onOpen={onOpen} />
-              ))}
-            </AnimatePresence>
-          </ul>
-        )}
-      </section>
-
-      <section className="flex min-h-0 flex-col">
-        <header className="mb-3 flex items-baseline justify-between px-1">
-          <span className="text-[15px] font-semibold text-ink">Ideas</span>
-          <span className="text-[12px] text-ink-ghost">{query.data ? `${ideas.length} with no date yet` : ""}</span>
-        </header>
-        {query.isPending ? (
-          <SomedaySkeleton rows={4} />
-        ) : ideaGroups.length === 0 ? (
-          <p className="px-1 text-[13px] text-ink-ghost">No ideas yet.</p>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto overflow-x-hidden p-1">
-            {ideaGroups.map((group, g) => (
-              <motion.section
-                key={group.keeper?.id ?? "none"}
-                {...RISE}
-                transition={{ ...RISE.transition, delay: stagger(g + 2) }}
-                className="rounded-[14px] border border-dashed border-sage-line px-4 py-3"
-              >
-                <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                  <span className="truncate text-[13px] font-semibold text-sage-deep">{group.keeper?.name ?? "No agent keeps these"}</span>
-                  <span className="text-[12px] text-ink-ghost">{group.items.length}</span>
-                </div>
-                <ul className="flex flex-col">
-                  {group.items.map((idea) => (
-                    <li key={itemKey(idea)} className="group flex items-center gap-2">
-                      <PlanButton
-                        item={idea}
-                        onClick={(e) => onOpen(idea, e.currentTarget)}
-                        className="-mx-2 min-w-0 flex-1 truncate rounded-[8px] px-2 py-1.5 text-left text-[13px] text-ink transition-colors duration-slow ease-dadi hover:bg-sage-fill"
-                      >
-                        {idea.title}
-                      </PlanButton>
-                      <button
-                        type="button"
-                        onClick={() => askAbout(idea, group.keeper)}
-                        className="shrink-0 text-[12px] font-semibold text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 focus-visible:opacity-100"
-                      >
-                        {group.keeper ? "Ask" : "Tell Dadi"}
-                      </button>
-                    </li>
-                  ))}
+          <>
+            <section>
+              <ListHead title="To place" count="soonest due first" />
+              {tasks.length === 0 ? (
+                <p className="px-1 text-[13px] text-ink-muted">Nothing is waiting for a time.</p>
+              ) : (
+                <ul className="m-0 flex list-none flex-col gap-2 p-0">
+                  <AnimatePresence>
+                    {tasks.map((item, i) => (
+                      <PlaceRow key={itemKey(item)} item={item} keeper={keeperOf(item, agents.data)} index={i} onOpen={onOpen} />
+                    ))}
+                  </AnimatePresence>
                 </ul>
-              </motion.section>
-            ))}
-          </div>
+              )}
+            </section>
+            <section>
+              <ListHead title="Ideas" count="no date yet" />
+              {ideaGroups.length === 0 ? (
+                <p className="px-1 text-[13px] text-ink-muted">No ideas yet.</p>
+              ) : (
+                <div className="flex flex-col gap-2">
+                  {ideaGroups.map((group, g) => (
+                    <motion.section
+                      key={group.keeper?.id ?? "none"}
+                      {...RISE}
+                      transition={{ ...RISE.transition, delay: stagger(g + 2) }}
+                      className="rounded-[16px] border border-dashed border-sage-line px-4 py-3"
+                    >
+                      <div className="mb-1 flex items-baseline justify-between gap-2">
+                        <span className="truncate text-[13px] font-semibold text-sage-deep">{group.keeper?.name ?? "No agent keeps these"}</span>
+                        <span className="text-[12px] text-ink-muted tabular-nums">{group.items.length}</span>
+                      </div>
+                      <ul className="m-0 flex list-none flex-col p-0">
+                        {group.items.map((idea) => (
+                          <li key={itemKey(idea)} className="group flex items-center gap-2">
+                            <PlanButton item={idea} onClick={(e) => onOpen(idea, e.currentTarget)} className="ui-hover-fill ui-trans -mx-2 min-w-0 flex-1 truncate rounded-[8px] px-2 py-1.5 text-left text-[13px] text-ink">
+                              {idea.title}
+                            </PlanButton>
+                            <button type="button" onClick={() => askAbout(idea, group.keeper)} className="shrink-0 text-[12px] font-semibold text-sage-deep opacity-0 transition-opacity duration-slow ease-dadi group-hover:opacity-100 focus-visible:opacity-100">
+                              {group.keeper ? "Ask" : "Tell Dadi"}
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    </motion.section>
+                  ))}
+                </div>
+              )}
+            </section>
+          </>
         )}
-      </section>
-    </div>
+      </div>
+    </>
   );
 }

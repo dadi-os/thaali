@@ -9,6 +9,7 @@ import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";
 import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
 import { segmentsOn } from "./planner/blocks";
+import { NeedsTimeCard } from "./NeedsTimeCard";
 import { clockChange, plannedClock } from "./zones";
 
 const PPM = 56 / 60;
@@ -26,14 +27,16 @@ export type CalendarDayProps = {
   now: Date;
   /** Device IANA zone; session zones remain unchanged. */
   zone: string;
-  /** This day's and the next day's sessions and deadlines. */
+  /** This day's sessions and deadlines. */
   items: TimelineItem[];
-  /** Occurrence key of the session whose menu is open. */
+  /** Occurrence key of the session whose details are open. */
   selected: string | null;
   /** Show the side column when the measured page can accommodate it. */
   wide: boolean;
-  /** Open a session's menu anchored to the chosen control. */
+  /** Open a session's details under the chosen control. */
   onOpen: (item: TimelineItem, element: Element) => void;
+  /** Open the Needs a time sheet. */
+  onNeedsTime: () => void;
 };
 
 /** A day's wall-clock axis, with overlap lanes, clock-change bands, deadlines and an instant-based now/next summary. */
@@ -45,6 +48,7 @@ export function CalendarDay({
   selected,
   wide,
   onOpen,
+  onNeedsTime,
 }: CalendarDayProps) {
   const start = startOfDay(day);
   const change = clockChange(start, addDays(start, 1), zone);
@@ -97,7 +101,6 @@ export function CalendarDay({
       ? 0
       : (Date.parse(i.end_at) - Date.parse(i.start_at!)) / 60_000;
   const own = segments.map((s) => s.block);
-  const tomorrow = segmentsOn(timed, addDays(day, 1)).map((s) => s.block);
   const total = own.reduce((sum, i) => sum + duration(i), 0);
   const done = own
     .filter((i) => i.outcome === "done")
@@ -490,49 +493,7 @@ export function CalendarDay({
               {span(Math.round(done))} done
             </span>
           </Card>
-          {tomorrow.length === 0 ? null : (
-            <Card style={{ padding: 16, minWidth: 0, flex: "none", gap: 10 }}>
-              <span style={label}>
-                {new Intl.DateTimeFormat(undefined, { weekday: "long" }).format(
-                  addDays(day, 1),
-                )}
-              </span>
-              {tomorrow.slice(0, 4).map((item) => (
-                <button
-                  key={itemKey(item)}
-                  type="button"
-                  className="ui-hover-fill ui-trans"
-                  onClick={(event) => onOpen(item, event.currentTarget)}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    minWidth: 0,
-                    textAlign: "left",
-                  }}
-                >
-                  <span
-                    style={{
-                      fontSize: 12,
-                      color: "var(--ink-muted)",
-                      flex: "none",
-                    }}
-                  >
-                    {formatClock(item.start_at!)}
-                  </span>
-                  <Truncate
-                    text={item.title}
-                    style={{ flex: 1, minWidth: 0, fontSize: 13 }}
-                  />
-                </button>
-              ))}
-              {tomorrow.length <= 4 ? null : (
-                <span
-                  style={{ fontSize: 12, color: "var(--ink-muted)" }}
-                >{`+${tomorrow.length - 4} more`}</span>
-              )}
-            </Card>
-          )}
+          <NeedsTimeCard onOpen={onNeedsTime} />
         </div>
       ) : null}
     </div>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useLocation } from "react-router-dom";
 import { AnimatePresence } from "motion/react";
 import { tidyActions } from "../interaction/actions";
 import { installContextMenu, type ContextRequest } from "../interaction/contextMenu";
@@ -24,6 +25,8 @@ export function ContextMenuHost() {
   useEffect(() => installContextMenu(setRequest), []);
 
   const close = () => setRequest(null);
+  const { pathname } = useLocation();
+  useEffect(close, [pathname]);
   useDismiss({ open: request !== null, onDismiss: close, surface, outside: true });
 
   useEffect(() => {

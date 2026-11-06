@@ -13,7 +13,7 @@ import { Tile, type TileGeometry } from "../home/Tile";
 import { endOfDay, startOfDay, toIsoBounds } from "./dates";
 import { PlanButton } from "./PlanButton";
 import { itemKey } from "./plans";
-import { SessionMenu } from "./SessionMenu";
+import { useSessionPopover } from "./useSessionPopover";
 
 /** How often the tile moves on to what is next. */
 const TICK_MS = 60_000;
@@ -60,24 +60,21 @@ function useNow(ms: number): number {
   return now;
 }
 
-/** A session and where it was drawn when it was clicked. */
-type Opened = { item: TimelineItem; anchor: DOMRect };
-
 /** Hands a clicked session and where it is drawn to `onOpen`, and keeps the click from following the tile's link. */
-function open(event: MouseEvent<HTMLButtonElement>, item: TimelineItem, onOpen: (opened: Opened) => void): void {
+function open(event: MouseEvent<HTMLButtonElement>, item: TimelineItem, onOpen: (item: TimelineItem, anchor: DOMRect) => void): void {
   event.preventDefault();
   event.stopPropagation();
-  onOpen({ item, anchor: event.currentTarget.getBoundingClientRect() });
+  onOpen(item, event.currentTarget.getBoundingClientRect());
 }
 
 type BodyProps = {
   items: TimelineItem[];
   now: number;
   geometry: TileGeometry;
-  /** Key of the session the menu is open on, so its row says so. */
+  /** Key of the session whose details are open, so its row says so. */
   opened: string | null;
   /** A session was clicked. */
-  onOpen: (opened: Opened) => void;
+  onOpen: (item: TimelineItem, anchor: DOMRect) => void;
 };
 
 /** Today's sessions down a spine in time order: the one on now in a sage card with its progress, the next one counted down, what is over quiet, and what is left of the day first when the rows do not all fit. */
@@ -150,11 +147,11 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
   );
 }
 
-/** Home's Timeline tile: today's sessions in order with what is on now picked out; a session opens a menu to mark it done, message its keeper or show it in Yaad. */
+/** Home's Timeline tile: today's sessions in order with what is on now picked out; a session opens its details, and right-clicking it offers to mark it done, message its keeper or show it in Yaad. */
 export function DayTile({ order }: { order: number }) {
-  const [opened, setOpened] = useState<Opened | null>(null);
   const { state: connection } = useConnection();
   const now = useNow(TICK_MS);
+  const popover = useSessionPopover(new Date(now));
   const range = toIsoBounds(startOfDay(new Date(now)), endOfDay(new Date(now)));
   const query = useQuery({
     queryKey: ["yaad", "timeline", "tile", range.occurred_from, range.occurred_to],
@@ -191,9 +188,9 @@ export function DayTile({ order }: { order: number }) {
           </div>
         )}
       >
-        {(g) => <Body items={state.kind === "ready" ? state.data : []} now={now} geometry={g} opened={opened === null ? null : itemKey(opened.item)} onOpen={setOpened} />}
+        {(g) => <Body items={state.kind === "ready" ? state.data : []} now={now} geometry={g} opened={popover.openKey} onOpen={popover.show} />}
       </Tile>
-      <SessionMenu item={opened === null ? null : opened.item} anchor={opened === null ? null : opened.anchor} onClose={() => setOpened(null)} />
+      {popover.popovers}
     </>
   );
 }

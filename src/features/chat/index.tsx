@@ -40,6 +40,7 @@ import {
 } from "../../contexts/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../contexts/drafts";
 import { getDockRequests, subscribeDock } from "../../contexts/dock";
+import { asQuote, getReplyQuote, getReplyRequests, subscribeReply } from "../../contexts/reply";
 import { failureTarget, pushToast } from "../../contexts/toasts";
 import {
   getRunning,
@@ -74,6 +75,7 @@ import { ConversationList, WIDE_ROW_PX } from "./list";
 import { LaneChip } from "./LaneChip";
 import { ResizeHandle, useRailWidth } from "./ResizeHandle";
 import { ThreadView } from "./thread";
+import { ThreadSkeleton } from "./thread/ThreadSkeleton";
 import { useMarkRead } from "./useMarkRead";
 
 /** What the open thread can show of its agent, from GET /agents, the one source of its name and record. */
@@ -631,6 +633,21 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     setDockOpen(true);
   }, [dockRequests]);
 
+  const replyRequests = useSyncExternalStore(subscribeReply, getReplyRequests, getReplyRequests);
+  const seenReplyRequests = useRef(replyRequests);
+  useEffect(() => {
+    if (replyRequests === seenReplyRequests.current) {
+      return;
+    }
+    seenReplyRequests.current = replyRequests;
+    if (openAgentId === null) {
+      return;
+    }
+    const held = loadDraft(openAgentId);
+    setDraft(`${asQuote(getReplyQuote())}${held}`);
+    requestAnimationFrame(() => textareaRef.current?.focus());
+  }, [replyRequests, openAgentId]);
+
   const pickFiles = () => {
     const input = document.createElement("input");
     input.type = "file";
@@ -671,18 +688,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                   </motion.p>
                 ) : null}
                 {openAgentView?.kind === "loading" ? (
-                  <motion.div
-                    key="loading"
-                    {...FADE}
-                    role="status"
-                    aria-label="Loading this agent"
-                    className="absolute inset-0 flex flex-col justify-end gap-3 px-4"
-                    style={{ paddingBottom: composerPad + 16 }}
-                  >
-                    <span className="sk h-10 w-3/5 rounded-[14px]" />
-                    <span className="sk h-16 w-4/5 self-end rounded-[14px]" />
-                    <span className="sk h-12 w-2/3 rounded-[14px]" />
-                  </motion.div>
+                  <ThreadSkeleton key="loading" label="Loading this agent" bottomPad={composerPad + 16} />
                 ) : null}
               </AnimatePresence>
               {openAgentId && openAgentRecord ? (

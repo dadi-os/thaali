@@ -67,7 +67,7 @@ export function usePlanActions(details?: (item: TimelineItem) => void): (item: T
         }
       },
       message: openAgent,
-      tellDadi: requestDock,
+      tellDadi: () => requestDock(`I want to talk about "${item.title}"`),
       showInYaad: (id) => navigate(`/yaad?focus=${id}`),
       details: details === undefined ? undefined : () => details(item),
     });

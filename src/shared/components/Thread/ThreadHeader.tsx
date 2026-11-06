@@ -4,7 +4,7 @@ import { AgentName } from "../../ui/AgentName";
 import { IconButton } from "../../ui/Button";
 
 /** Height the header's glass takes from the top of the pane, which what runs under it clears. */
-export const THREAD_HEADER_PX = 56;
+export const THREAD_HEADER_PX = 68;
 
 /** Props of {@link ThreadHeader}. */
 export type ThreadHeaderProps = {
@@ -24,10 +24,10 @@ export type ThreadHeaderProps = {
  * and show through the glass.
  */
 export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: ThreadHeaderProps) {
-  const bubble = "pane-bubble max-w-full rounded-full px-3.5 py-1 text-center text-[14px] leading-tight font-medium";
+  const bubble = "pane-bubble max-w-full rounded-full px-4 py-2.5 text-center text-[15px] leading-tight font-medium";
   return (
-    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid shrink-0 grid-cols-[2.25rem_minmax(0,1fr)_2.25rem] items-center gap-2 px-3 pt-3">
-      <IconButton icon="back" label="Back to conversations" size={36} iconSize={14} onClick={onBack} className="pane-bubble pointer-events-auto rounded-full" />
+    <div className="pointer-events-none absolute inset-x-0 top-0 z-20 grid shrink-0 grid-cols-[2.75rem_minmax(0,1fr)_2.75rem] items-center gap-2 px-3 pt-3">
+      <IconButton icon="back" label="Back to conversations" size={44} iconSize={15} onClick={onBack} className="pane-bubble pointer-events-auto rounded-full" />
       <div className="pointer-events-auto flex min-w-0 justify-center">
         <AnimatePresence mode="wait" initial={false}>
           {error !== null ? (
@@ -35,7 +35,7 @@ export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: Thr
               {error}
             </motion.span>
           ) : title === null ? (
-            <motion.span key="loading" {...FADE} aria-label="Loading" className={`${bubble} animate-breath h-[26px] w-24`} />
+            <motion.span key="loading" {...FADE} aria-label="Loading" className={`${bubble} animate-breath h-[40px] w-28`} />
           ) : onOpenDetails ? (
             <motion.button
               key="title"

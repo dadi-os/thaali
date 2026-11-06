@@ -229,24 +229,18 @@ function preview(id: string, options: { tall?: boolean; paused?: boolean } = {})
   const { nas, row } = taskFacts(id);
   return previewOf(nas, row, options);
 }
-/** A task row for a fixture task, with its preview inside. */
-function row(id: string, { open = false, paused = false } = {}) {
+/** A task row for a fixture task. */
+function row(id: string, { paused = false } = {}) {
   const { nas, row: fact } = taskFacts(id);
   const task = paused ? { ...fact, status: "paused" as const } : fact;
-  return (
-    <TaskRow task={task} owner={nas.owner} showOwner question={nas.state} open={open} onToggle={noop}>
-      {preview(id, { paused })}
-    </TaskRow>
-  );
+  return <TaskRow task={task} owner={nas.owner} showOwner question={nas.state} />;
 }
-CASES["task.row.working.closed"] = () => row(TASKS.working);
-CASES["task.row.working.open"] = () => row(TASKS.working, { open: true });
-CASES["task.row.working.paused"] = () => row(TASKS.working, { open: true, paused: true });
-CASES["task.row.waiting.closed"] = () => row(TASKS.waiting);
-CASES["task.row.idle.open"] = () => row(TASKS.idle, { open: true });
-CASES["task.row.asleep.open"] = () => row(TASKS.asleep, { open: true });
+CASES["task.row.working"] = () => row(TASKS.working);
+CASES["task.row.working.paused"] = () => row(TASKS.working, { paused: true });
+CASES["task.row.waiting"] = () => row(TASKS.waiting);
+CASES["task.row.idle"] = () => row(TASKS.idle);
+CASES["task.row.asleep"] = () => row(TASKS.asleep);
 CASES["task.row.working.hover"] = () => row(TASKS.working);
-CASES["task.row.working.toggle"] = () => row(TASKS.working);
 CASES["task.preview.browser"] = () => preview(TASKS.working);
 CASES["task.preview.browser.hover"] = () => preview(TASKS.working);
 CASES["task.preview.browser.paused"] = () => preview(TASKS.working, { paused: true });
