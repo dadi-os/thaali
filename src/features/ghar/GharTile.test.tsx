@@ -67,7 +67,7 @@ describe("Home Ghar controls", () => {
     expect(host.querySelector("output")!.textContent).toBe("/");
   });
 
-  it("lists a light with no tag in a No tag column, and a tap flips just that light", () => {
+  it("lists a light with no tag as a pill in the No tag strip, and a tap flips just that light", () => {
     const [first] = devices("normal");
     house.devicesQuery.data.devices = [...devices("normal"), { ...first!, id: "porch", name: "Porch Light", tags: [] }];
     mount();
