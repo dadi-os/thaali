@@ -1,7 +1,6 @@
 import { useEffect, useState, type MouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, timeline } from "../../shared/api";
-import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -127,14 +126,10 @@ function Body({ items, now, geometry, opened, onOpen }: BodyProps) {
               {timed ? <span className="text-[12px] leading-4 text-ink-muted tabular-nums">{formatClock(item.end_at ?? item.start_at!)}</span> : null}
             </span>
             <span className="relative flex size-2.5 flex-none items-center justify-center" style={{ marginTop: (LINE - 10) / 2 }}>
-              {done ? (
-                <Icon name="check" size={12} />
-              ) : (
-                <span className={`dot size-2.5 ${live ? "dot-pulse" : ""} ${live ? "bg-sage-deep" : over ? "bg-sage-line" : "border-2 border-sage-line bg-bone"}`} style={item.start_at === null ? { background: "var(--clay)", borderColor: "var(--clay)" } : tone(item) === "var(--tide)" && !live && !over ? { borderColor: "var(--tide)" } : undefined} />
-              )}
+              <span className={`dot size-2.5 ${live ? "dot-pulse" : ""} ${live ? "bg-sage-deep" : done ? "bg-sage" : over ? "bg-sage-line" : "border-2 border-sage-line bg-bone"}`} style={item.start_at === null ? { background: "var(--clay)", borderColor: "var(--clay)" } : tone(item) === "var(--tide)" && !live && !over && !done ? { borderColor: "var(--tide)" } : undefined} />
             </span>
             <span className="flex min-w-0 flex-1 flex-col gap-1 pr-1">
-              <Truncate text={item.title} className={`text-[14px] leading-5 ${live ? "font-semibold" : "font-medium"}`} />
+              <Truncate text={item.title} className={`text-[14px] leading-5 ${live ? "font-semibold" : "font-medium"} ${done ? "line-through decoration-ink-ghost" : ""}`} />
               <span className={`truncate text-[12.5px] leading-4 ${live || item === next ? "text-sage-text" : "text-ink-muted"} ${item.start_at === null ? "text-clay" : ""}`}>{detail}</span>
               {live ? (
                 <span className="mt-1 h-1 w-full overflow-hidden rounded-full bg-sage-line/50">

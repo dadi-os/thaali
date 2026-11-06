@@ -27,7 +27,7 @@ export function Stat({ value, label, ink, onClick }: StatProps) {
               onClick();
             },
           })}
-      className={`relative flex min-h-0 min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] bg-sage-fill ${onClick === undefined ? "" : "ui-trans ui-hover-fill"}`}
+      className={`relative flex min-h-0 min-w-0 flex-col items-center justify-center gap-1 rounded-[14px] bg-sage-fill ${onClick === undefined ? "" : "stat-cell"}`}
     >
       {ink === undefined ? null : <span className="dot absolute top-3 left-3 size-2" style={{ background: ink }} />}
       <span className="min-w-[2ch] text-center text-[28px] leading-none font-medium tracking-[-0.02em] tabular-nums">{value}</span>
