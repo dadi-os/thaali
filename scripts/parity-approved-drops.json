@@ -3,5 +3,6 @@
   "ghar.deleteRoom": "Ghar dropped rooms and went tags-only; its /rooms routes are gone.",
   "ghar.listRooms": "Ghar dropped rooms and went tags-only; its /rooms routes are gone.",
   "ghar.moveDevice": "A device has no room to move to; tags replace it (setDeviceTags, addTagDevices, removeTagDevice).",
+  "yaad.getNode": "The session popover replaced the connections popover, which was the only reader of a node; a session now offers Show in Yaad instead.",
   "ghar.renameRoom": "Ghar dropped rooms and went tags-only; renameTag renames a tag."
 }
