@@ -1,36 +1,32 @@
 import { describe, expect, it } from "vitest";
-import type { GharDevice, GharRoom } from "../../types/ghar";
+import type { GharDevice } from "../../types/ghar";
 import {
   activePreset,
   allOff,
   applyCommand,
   coverCommand,
+  devicesFor,
   evening,
   eveningCommands,
   EVENING,
-  groupNames,
-  groupSection,
   liftCommand,
-  roomSections,
   sectionLevel,
   sectionLevelCommands,
   sectionMeta,
-  sectionsFor,
   sectionSwitch,
   setpointCommand,
   stateLine,
+  tagGroups,
+  tagLights,
+  UNTAGGED,
+  untaggedDevices,
   warmthMireds,
   warmthPercent,
 } from "./model";
 
 const AT = "2026-10-22T20:00:00.000Z";
 
-const bedroom: GharRoom = { id: "r1", name: "Ankur's room" };
-const kitchen: GharRoom = { id: "r2", name: "Kitchen" };
-const unplaced: GharRoom = { id: "r0", name: "unassigned" };
-
 type LightOptions = {
-  room?: GharRoom;
   on?: boolean;
   brightness?: number;
   white?: number;
@@ -62,7 +58,6 @@ function light(id: string, name: string, options: LightOptions = {}): GharDevice
     kind: "light",
     product_name: "Smart RGBTW Bulb",
     bridge_name: null,
-    room: options.room ?? bedroom,
     tags: (options.tags ?? []).map((tag) => ({ id: `t-${tag}`, name: tag })),
     capabilities: [
       { capability: "on_off", config: {} },
@@ -79,39 +74,48 @@ const desk = light("d1", "Desk Lamp", { on: true, brightness: 80, white: 357 });
 const left = light("d2", "Left Nightstand", { hue: [13, 124], tags: ["Nightstands"] });
 const right = light("d3", "Right Nightstand", { on: true, brightness: 60, hue: [13, 124], tags: ["Nightstands"] });
 const kettle: GharDevice = {
-  ...light("d4", "Kettle", { room: kitchen }),
+  ...light("d4", "Kettle"),
   kind: "plug",
   capabilities: [{ capability: "on_off", config: {} }],
   state: { on: { value: true, changed_at: AT } },
   tags: [],
 };
 
-describe("grouping by room and tag", () => {
-  it("lists every named room in Ghar's order, empty ones too, and Unassigned last only when it holds devices", () => {
-    const sections = roomSections([desk, kettle], [unplaced, kitchen, bedroom]);
-    expect(sections.map((section) => [section.title, section.kind, section.devices.length])).toEqual([["Kitchen", "room", 1], ["Ankur's room", "room", 1]]);
-    const placed = roomSections([desk, { ...kettle, room: unplaced }], [unplaced, bedroom]);
-    expect(placed.map((section) => section.title)).toEqual(["Ankur's room", "Unassigned"]);
-    expect(placed[1]?.kind).toBe("unassigned");
+describe("grouping by tag", () => {
+  const lamp = light("d8", "Reading Lamp", { on: true, tags: ["Nightstands", "all lights", "reading"] });
+
+  it("lists every tag any device carries by name, a device under each of its tags", () => {
+    const groups = tagGroups([desk, left, right, lamp, kettle]);
+    expect(groups.map((group) => [group.tag.name, group.devices.map((device) => device.id)])).toEqual([
+      ["all lights", ["d8"]],
+      ["Nightstands", ["d2", "d3", "d8"]],
+      ["reading", ["d8"]],
+    ]);
   });
 
-  it("keeps a room's devices in Ghar's order and brings in a room missing from the list", () => {
-    const sections = roomSections([right, left, kettle], [bedroom]);
-    expect(sections[0]?.devices.map((device) => device.name)).toEqual(["Right Nightstand", "Left Nightstand"]);
-    expect(sections.map((section) => section.title)).toContain("Kitchen");
+  it("puts a device with no tag under Untagged only", () => {
+    expect(untaggedDevices([desk, left, kettle]).map((device) => device.id)).toEqual(["d1", "d4"]);
+    expect(tagGroups([desk, kettle])).toEqual([]);
   });
 
-  it("collects groups from tags and shows a group across rooms", () => {
-    expect(groupNames([desk, left, right, kettle])).toEqual(["Nightstands"]);
-    const group = groupSection([desk, left, right, kettle], "Nightstands");
-    expect([group.kind, group.devices.map((device) => device.id)]).toEqual(["group", ["d2", "d3"]]);
+  it("filters to every device, one tag or the untagged", () => {
+    const devices = [desk, left, right, lamp, kettle];
+    expect(devicesFor({ kind: "all" }, devices)).toEqual(devices);
+    expect(devicesFor({ kind: "tag", name: "Nightstands" }, devices).map((device) => device.id)).toEqual(["d2", "d3", "d8"]);
+    expect(devicesFor({ kind: "tag", name: "gone" }, devices)).toEqual([]);
+    expect(devicesFor({ kind: "untagged" }, devices).map((device) => device.id)).toEqual(["d1", "d4"]);
   });
 
-  it("filters to one room or one group, hiding an Unassigned that holds nothing", () => {
-    const devices = [desk, left, kettle];
-    expect(sectionsFor({ kind: "everywhere" }, devices, [unplaced, bedroom, kitchen]).map((section) => section.title)).toEqual(["Ankur's room", "Kitchen"]);
-    expect(sectionsFor({ kind: "room", id: "r2" }, devices, [unplaced, bedroom, kitchen]).map((section) => section.title)).toEqual(["Kitchen"]);
-    expect(sectionsFor({ kind: "group", name: "Nightstands" }, devices, [bedroom])[0]?.devices).toEqual([left]);
+  it("orders the Home tile's cards: a tag with a light on first, the rest by name, Untagged last, a light on every card of its tags", () => {
+    const cards = tagLights([desk, left, right, lamp]);
+    expect(cards.map((card) => [card.name, card.on, card.lights.length, card.untagged])).toEqual([
+      ["all lights", 1, 1, false],
+      ["Nightstands", 2, 3, false],
+      ["reading", 1, 1, false],
+      [UNTAGGED, 1, 1, true],
+    ]);
+    expect(tagLights([left, desk]).map((card) => card.name)).toEqual(["Nightstands", UNTAGGED]);
+    expect(tagLights([])).toEqual([]);
   });
 });
 
@@ -141,7 +145,7 @@ describe("what a section and a device say", () => {
   });
 });
 
-describe("Evening and the room controls", () => {
+describe("Evening and the tag controls", () => {
   it("sets a warm white before the evening brightness, which turns the light on", () => {
     expect(eveningCommands(left)).toEqual([
       { capability: "color", command: "temperature", params: { mireds: EVENING.mireds } },
@@ -155,13 +159,13 @@ describe("Evening and the room controls", () => {
     expect(evening([light("d6", "Out", { online: false })])).toEqual([]);
   });
 
-  it("switches a room off when any light is on, else every light on", () => {
+  it("switches a tag off when any light is on, else every light on", () => {
     expect(sectionSwitch([desk, left]).map((c) => [c.id, c.command.command])).toEqual([["d1", "off"]]);
     expect(sectionSwitch([left, light("d7", "Other")]).map((c) => c.command.command)).toEqual(["on", "on"]);
     expect(allOff([desk, left, right]).map((c) => c.id)).toEqual(["d1", "d3"]);
   });
 
-  it("sets every dimmable light in a room to one brightness", () => {
+  it("sets every dimmable light under a tag to one brightness", () => {
     expect(sectionLevelCommands([desk, left, kettle], 30).map((c) => c.id)).toEqual(["d1", "d2"]);
   });
 });

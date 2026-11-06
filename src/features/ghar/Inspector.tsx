@@ -1,11 +1,9 @@
 import type { ReactNode } from "react";
-import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
+import { Button, ButtonGroup, IconButton, Pill } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
-import { Reveal } from "../../shared/ui/Disclosure";
-import { Icon } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock, formatRelative } from "../../shared/lib/ux/time";
-import type { GharCommand, GharDevice, GharRoom } from "../../types/ghar";
+import type { GharCommand, GharDevice } from "../../types/ghar";
 import { Switch } from "../../shared/ui/Switch";
 import { Slider, useDraft } from "./controls";
 import {
@@ -22,30 +20,20 @@ import {
   num,
   presetCommand,
   presetsFor,
-  roomTitle,
   setpointCommand,
   SETPOINT_STEP,
   switchCommand,
   temperatureCommand,
-  UNASSIGNED_ROOM,
   warmthMireds,
   warmthPercent,
 } from "./model";
 
-/** Which of the two pickers is open. */
-export type InspectorPick = "room" | "groups" | null;
-
 export type InspectorProps = {
   device: GharDevice;
-  /** Every room, for the room picker. */
-  rooms: GharRoom[];
-  /** Every group in the house, by name. */
-  groups: string[];
+  /** Every tag in the house, by name, for the tag editor. */
+  tags: string[];
   /** The card's width in px. */
   width: number;
-  /** The picker that is open. */
-  pick: InspectorPick;
-  onPick: (next: InspectorPick) => void;
   /** The name is an input. */
   renaming: boolean;
   onRenaming: (next: boolean) => void;
@@ -55,8 +43,7 @@ export type InspectorProps = {
   /** Send the device a command. */
   onSend: (command: GharCommand) => void;
   onRename: (name: string) => void;
-  onMove: (room: GharRoom) => void;
-  /** Set the groups the device carries. */
+  /** Set the tags the device carries, by name; a name Ghar has not seen creates the tag. */
   onTags: (names: string[]) => void;
   onIdentify: () => void;
 };
@@ -81,89 +68,12 @@ function Control({ name, reading, children }: ControlProps) {
   );
 }
 
-type ChoiceProps = {
-  text: string;
-  kind: "radio" | "checkbox";
-  checked: boolean;
-  disabled: boolean;
-  onClick: () => void;
-};
-
-/** One row of a picker: a radio or a checkbox mark and a name. */
-function Choice({ text, kind, checked, disabled, onClick }: ChoiceProps) {
-  return (
-    <button
-      type="button"
-      role={kind}
-      aria-checked={checked}
-      className="ui-trans ui-hover-fill"
-      disabled={disabled}
-      onClick={onClick}
-      style={{ display: "flex", alignItems: "center", gap: 10, height: 32, padding: "0 10px", borderRadius: 10, fontSize: 14 }}
-    >
-      <span
-        style={{
-          width: 16,
-          height: 16,
-          borderRadius: kind === "radio" ? "50%" : 5,
-          border: `1.5px solid ${checked ? "var(--sage-deep)" : "var(--sage-line)"}`,
-          background: checked ? "var(--sage-deep)" : "transparent",
-          color: "var(--bone)",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          flex: "none",
-        }}
-      >
-        {checked ? <Icon name="check" size={11} /> : null}
-      </span>
-      <Truncate text={text} style={{ flex: 1, minWidth: 0 }} />
-    </button>
-  );
-}
-
-type PickerProps = {
-  name: string;
-  /** The choice now, in words. */
-  value: string;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-};
-
-/** A row that reads the choice now and opens the choices under it. */
-function Picker({ name, value, open, onToggle, children }: PickerProps) {
-  return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
-      <span className="ui-label">{name}</span>
-      <div className={open ? "open" : undefined} style={{ display: "flex", flexDirection: "column" }}>
-        <button
-          type="button"
-          className="ui-trans ui-hover-fill"
-          aria-expanded={open}
-          aria-label={`${name}, ${value}`}
-          onClick={onToggle}
-          style={{ display: "flex", alignItems: "center", gap: 8, height: 36, padding: "0 12px", borderRadius: 10, border: "1px solid var(--glass-border)", fontSize: 14, fontWeight: 500 }}
-        >
-          <Truncate text={value} style={{ flex: 1, minWidth: 0 }} />
-          <span style={{ display: "flex", color: "var(--ink-muted)", transform: open ? "rotate(180deg)" : undefined, transition: "transform var(--slow) var(--ease)" }}>
-            <Icon name="chevDown" size={14} />
-          </span>
-        </button>
-        <Reveal>
-          <div style={{ display: "flex", flexDirection: "column", gap: 2, padding: "6px 0 2px" }}>{children}</div>
-        </Reveal>
-      </div>
-    </div>
-  );
-}
-
 /**
  * The inspector for one device: its name (click to rename), where it is and whether it answers, a power card, the controls its
  * capabilities offer (brightness, colour temperature, hue and saturation, presets, a cover's position and buttons, a thermostat's
- * setpoint), its room and group pickers, what it can do, and Identify. Every control sends one command on release.
+ * setpoint), its tag editor, what it can do, and Identify. Every control sends one command on release.
  */
-export function Inspector({ device, rooms, groups, width, pick, onPick, renaming, onRenaming, disabled, onClose, onSend, onRename, onMove, onTags, onIdentify }: InspectorProps) {
+export function Inspector({ device, tags, width, renaming, onRenaming, disabled, onClose, onSend, onRename, onTags, onIdentify }: InspectorProps) {
   const { state } = device;
   const dis = disabled || !device.online;
   const on = state.on?.value === true;
@@ -216,7 +126,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
               <Truncate text={device.name} selectable style={{ fontSize: 20, fontWeight: 600, letterSpacing: "-0.015em" }} />
             </button>
           )}
-          <Truncate text={[roomTitle(device.room.name), device.product_name].filter(Boolean).join(" · ")} selectable style={{ fontSize: 13, color: "var(--ink-muted)" }} />
+          <Truncate text={device.product_name ?? device.kind} selectable style={{ fontSize: 13, color: "var(--ink-muted)" }} />
           <div style={{ display: "flex", alignItems: "center", gap: 7, fontSize: 13, color: device.online ? "var(--sage-text)" : "var(--error)", marginTop: 2 }}>
             <span style={{ width: 7, height: 7, borderRadius: "50%", background: device.online ? "var(--sage)" : "var(--error)", flex: "none" }} />
             {device.online ? (device.bridge_name ? `Online · via ${device.bridge_name}` : "Online") : "Offline"}
@@ -318,22 +228,21 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
             <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{`since ${state.occupied ? formatClock(state.occupied.changed_at) : "—"}`}</span>
           </div>
         ) : null}
-        <Picker name="Room" value={roomTitle(device.room.name)} open={pick === "room"} onToggle={() => onPick(pick === "room" ? null : "room")}>
-          {[...rooms]
-            .sort((a, b) => Number(a.name === UNASSIGNED_ROOM) - Number(b.name === UNASSIGNED_ROOM))
-            .map((room) => (
-              <Choice key={room.id} text={roomTitle(room.name)} kind="radio" checked={room.id === device.room.id} disabled={disabled} onClick={() => onMove(room)} />
+        <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none" }}>
+          <span className="ui-label">Tags</span>
+          <div role="group" aria-label="Tags" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+            {tags.length === 0 ? <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>No tags yet</span> : null}
+            {tags.map((name) => (
+              <Pill key={name} active={tagged.includes(name)} disabled={disabled} onClick={() => onTags(tagged.includes(name) ? tagged.filter((tag) => tag !== name) : [...tagged, name])}>
+                {name}
+              </Pill>
             ))}
-        </Picker>
-        <Picker name="Groups" value={tagged.length > 0 ? tagged.join(", ") : "None"} open={pick === "groups"} onToggle={() => onPick(pick === "groups" ? null : "groups")}>
-          {groups.map((name) => (
-            <Choice key={name} text={name} kind="checkbox" checked={tagged.includes(name)} disabled={disabled} onClick={() => onTags(tagged.includes(name) ? tagged.filter((tag) => tag !== name) : [...tagged, name])} />
-          ))}
-          <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", marginTop: 2, borderRadius: 10, border: "1px dashed var(--sage-line)" }}>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", height: 32, padding: "0 10px", borderRadius: 10, border: "1px dashed var(--sage-line)" }}>
             <input
               className="cinp"
-              placeholder="New group"
-              aria-label="New group"
+              placeholder="New tag"
+              aria-label="New tag"
               autoComplete="off"
               spellCheck={false}
               disabled={disabled}
@@ -349,7 +258,7 @@ export function Inspector({ device, rooms, groups, width, pick, onPick, renaming
               }}
             />
           </div>
-        </Picker>
+        </div>
         <div style={{ display: "flex", flexDirection: "column", gap: 6, flex: "none" }}>
           <span className="ui-label">Capabilities</span>
           <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>

@@ -1,15 +1,15 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Action } from "../../shared/interaction/actions";
-import { devices, rooms } from "../../dev/fixtures/ghar";
+import { devices } from "../../dev/fixtures/ghar";
 import { deviceActions, type DeviceActionDeps } from "./deviceActions";
-import { roomActions } from "./roomActions";
+import { tagActions } from "./tagActions";
 
 const house = devices("normal");
 const lamp = house.find((device) => device.name === "Desk Lamp")!;
 
 /** The actions of `device` with every dependency a spy, by id. */
 function actionsOf(device = lamp, overrides: Partial<DeviceActionDeps> = {}) {
-  const deps: DeviceActionDeps = { rooms: rooms("normal"), disabled: false, onToggle: vi.fn(), onIdentify: vi.fn(), onRename: vi.fn(), onMove: vi.fn(), onInspect: vi.fn(), ...overrides };
+  const deps: DeviceActionDeps = { disabled: false, onToggle: vi.fn(), onIdentify: vi.fn(), onRename: vi.fn(), onRemoveFromTag: vi.fn(), onInspect: vi.fn(), ...overrides };
   const rows = deviceActions(device, deps).filter((row): row is Action => row !== "separator");
   return { deps, rows, byId: (id: string) => rows.find((row) => row.id === id) };
 }
@@ -23,13 +23,12 @@ describe("device actions", () => {
     expect(deps.onToggle).toHaveBeenCalledWith(lamp.state.on?.value !== true);
   });
 
-  it("moves to every other room and never to its own", () => {
-    const { rows, deps } = actionsOf();
-    const moves = rows.filter((row) => row.id.startsWith("move:"));
-    expect(moves.map((row) => row.id)).not.toContain(`move:${lamp.room.id}`);
-    expect(moves).toHaveLength(rooms("normal").filter((room) => room.id !== lamp.room.id).length);
-    void moves[0]!.run();
-    expect(deps.onMove).toHaveBeenCalledOnce();
+  it("offers to take a device out from under the tag being shown, and only then", () => {
+    expect(actionsOf().byId("remove-tag")).toBeUndefined();
+    const { byId, deps } = actionsOf(lamp, { inTag: "reading" });
+    expect(byId("remove-tag")!.label).toBe("Remove from reading");
+    void byId("remove-tag")!.run();
+    expect(deps.onRemoveFromTag).toHaveBeenCalledOnce();
   });
 
   it("says why it cannot act while Ghar is unreachable, but still opens the inspector", () => {
@@ -40,20 +39,20 @@ describe("device actions", () => {
   });
 });
 
-describe("room actions", () => {
-  const deps = { disabled: false, hasLights: true, opened: false, onToggleOptions: vi.fn(), onRename: vi.fn(), onMoveHere: vi.fn(), onAddHere: vi.fn(), onDelete: vi.fn() };
+describe("tag actions", () => {
+  const deps = { disabled: false, onRename: vi.fn(), onAddDevices: vi.fn(), onDelete: vi.fn() };
 
-  it("offers brightness only for a room with lights, and keeps delete last and destructive", () => {
-    const withLights = roomActions(deps).filter((row): row is Action => row !== "separator");
-    expect(withLights.map((row) => row.id)).toEqual(["brightness", "rename", "move-here", "add-here", "delete"]);
-    expect(withLights[withLights.length - 1]!.destructive).toBe(true);
-    const bare = roomActions({ ...deps, hasLights: false }).filter((row): row is Action => row !== "separator");
-    expect(bare.map((row) => row.id)).not.toContain("brightness");
+  it("renames, adds devices and deletes, with delete last and destructive", () => {
+    const list = tagActions(deps).filter((row): row is Action => row !== "separator");
+    expect(list.map((row) => row.id)).toEqual(["rename", "add-devices", "delete"]);
+    expect(list[list.length - 1]!.destructive).toBe(true);
   });
 
-  it("asks for the delete instead of performing it", () => {
-    const list = roomActions(deps).filter((row): row is Action => row !== "separator");
+  it("asks for the delete instead of performing it, and says why it cannot while Ghar is unreachable", () => {
+    const list = tagActions(deps).filter((row): row is Action => row !== "separator");
     void list.find((row) => row.id === "delete")!.run();
     expect(deps.onDelete).toHaveBeenCalledOnce();
+    const shut = tagActions({ ...deps, disabled: true }).filter((row): row is Action => row !== "separator");
+    expect(shut.every((row) => row.disabledReason !== undefined)).toBe(true);
   });
 });

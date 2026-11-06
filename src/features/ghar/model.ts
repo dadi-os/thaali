@@ -1,12 +1,9 @@
 /**
- * How the Ghar page and the Home tile read the house: rooms and groups as sections, what a device says
+ * How the Ghar page and the Home tile read the house: devices under their tags, what a device says
  * about itself, the commands the controls send, and the state Ghar holds once it accepts a command.
  */
 
-import type { GharCapabilityName, GharCommand, GharDevice, GharRoom } from "../../types/ghar";
-
-/** Ghar's seeded room for devices not placed in a room yet. */
-export const UNASSIGNED_ROOM = "unassigned";
+import type { GharCapabilityName, GharCommand, GharDevice, GharTag } from "../../types/ghar";
 
 /** The warm colour a light glows when it reports no colour of its own. */
 const WARM = "#f0a868";
@@ -24,29 +21,16 @@ export const SETPOINT_STEP = 0.5;
 /** One command for one device. */
 export type DeviceCommand = { id: string; command: GharCommand };
 
-/** What the chips filter the page to. */
-export type Filter = { kind: "everywhere" } | { kind: "room"; id: string } | { kind: "group"; name: string };
+/** What the tag chips filter the page to: every device, the devices under one tag, or the devices with no tag. */
+export type Filter = { kind: "all" } | { kind: "tag"; name: string } | { kind: "untagged" };
 
-/** A run of tiles under one header: a room, or a group (a Ghar tag) across rooms. */
-export type Section = {
-  /** `room` and `unassigned` are rooms (the second holds the devices nobody has placed); `group` crosses rooms. */
-  kind: "room" | "unassigned" | "group";
-  key: string;
-  title: string;
-  /** The room, for a room section; null for a group. */
-  room: GharRoom | null;
-  devices: GharDevice[];
-};
+/** A tag with the devices that carry it. A device with several tags is in several groups. */
+export type TagGroup = { tag: GharTag; devices: GharDevice[] };
 
 /** A one-tap colour for a light: its white (mireds) or its hue and saturation (each 0 to 254). */
 export type Preset =
   | { name: string; swatch: string; mode: "color_temp"; mireds: number }
   | { name: string; swatch: string; mode: "hue_sat"; hue: number; saturation: number };
-
-/** Human label for a room. The seeded room is the pile of devices nobody has placed. */
-export function roomTitle(name: string): string {
-  return name === UNASSIGNED_ROOM ? "Unassigned" : name;
-}
 
 /** Whether the device has a capability. */
 export function has(device: GharDevice, name: GharCapabilityName): boolean {
@@ -79,7 +63,7 @@ export function isOn(device: GharDevice): boolean {
   return device.online && device.state.on?.value === true;
 }
 
-/** True for a light the quick actions and room controls can reach. */
+/** True for a light the quick actions and tag controls can reach. */
 export function isReachableLight(device: GharDevice): boolean {
   return device.online && isLight(device) && has(device, "on_off");
 }
@@ -175,51 +159,49 @@ export function presetCommand(preset: Preset): GharCommand {
 
 const byName = (a: string, b: string) => a.localeCompare(b, undefined, { sensitivity: "base" });
 
-/**
- * Every room as a section in the order Ghar lists them with Unassigned last (and only when it holds devices),
- * each with its devices as Ghar lists them. A device whose room is missing from `rooms` brings its own.
- */
-export function roomSections(devices: GharDevice[], rooms: GharRoom[]): Section[] {
-  const sections = new Map<string, Section>();
-  const add = (room: GharRoom) => {
-    const section: Section = {
-      kind: room.name === UNASSIGNED_ROOM ? "unassigned" : "room",
-      key: `room:${room.id}`,
-      title: roomTitle(room.name),
-      room,
-      devices: [],
-    };
-    sections.set(room.id, section);
-    return section;
-  };
-  for (const room of rooms) {
-    if (room.name !== UNASSIGNED_ROOM) {
-      add(room);
+/** Every tag any device carries with the devices under it, by name. Ghar deletes a tag no device carries, so every tag listed has a device. */
+export function tagGroups(devices: GharDevice[]): TagGroup[] {
+  const groups = new Map<string, TagGroup>();
+  for (const device of devices) {
+    for (const tag of device.tags) {
+      const group = groups.get(tag.name) ?? { tag, devices: [] };
+      group.devices.push(device);
+      groups.set(tag.name, group);
     }
   }
-  for (const device of devices) {
-    (sections.get(device.room.id) ?? add(device.room)).devices.push(device);
+  return [...groups.values()].sort((a, b) => byName(a.tag.name, b.tag.name));
+}
+
+/** The devices that carry no tag. */
+export function untaggedDevices(devices: GharDevice[]): GharDevice[] {
+  return devices.filter((device) => device.tags.length === 0);
+}
+
+/** The devices a filter shows, as Ghar lists them. */
+export function devicesFor(filter: Filter, devices: GharDevice[]): GharDevice[] {
+  if (filter.kind === "tag") {
+    return devices.filter((device) => device.tags.some((tag) => tag.name === filter.name));
   }
-  return [...sections.values()].sort((a, b) => Number(a.kind === "unassigned") - Number(b.kind === "unassigned"));
+  return filter.kind === "untagged" ? untaggedDevices(devices) : devices;
 }
 
-/** Every group (Ghar tag) any device carries, by name. */
-export function groupNames(devices: GharDevice[]): string[] {
-  return [...new Set(devices.flatMap((device) => device.tags.map((tag) => tag.name)))].sort(byName);
-}
+/** The name the devices with no tag are listed under. */
+export const UNTAGGED = "Untagged";
 
-/** One group as a section: the devices that carry the tag, as Ghar lists them. */
-export function groupSection(devices: GharDevice[], name: string): Section {
-  return { kind: "group", key: `group:${name}`, title: name, room: null, devices: devices.filter((device) => device.tags.some((tag) => tag.name === name)) };
-}
+/** One card of the Home tile: the lights under a tag (or under none) and how many are on. */
+export type TagLights = { key: string; name: string; untagged: boolean; lights: GharDevice[]; on: number };
 
-/** The sections a filter shows: every room, one room, or one group. */
-export function sectionsFor(filter: Filter, devices: GharDevice[], rooms: GharRoom[]): Section[] {
-  if (filter.kind === "group") {
-    return [groupSection(devices, filter.name)];
-  }
-  const all = roomSections(devices, rooms).filter((section) => section.kind !== "unassigned" || section.devices.length > 0);
-  return filter.kind === "room" ? all.filter((section) => section.room?.id === filter.id) : all;
+/**
+ * The lights under each tag they carry, a light under every one of its tags: tags with a light on first, the rest after
+ * in name order, and the lights with no tag last.
+ */
+export function tagLights(lights: GharDevice[]): TagLights[] {
+  const entry = (key: string, name: string, untagged: boolean, own: GharDevice[]): TagLights => ({ key, name, untagged, lights: own, on: own.filter(isOn).length });
+  const tagged = tagGroups(lights).map((group) => entry(`tag:${group.tag.name}`, group.tag.name, false, group.devices));
+  const bare = untaggedDevices(lights);
+  const rank = (card: TagLights) => (card.on > 0 ? 0 : 1);
+  const ordered = tagged.map((card, index) => ({ card, index })).sort((a, b) => rank(a.card) - rank(b.card) || a.index - b.index).map((item) => item.card);
+  return bare.length > 0 ? [...ordered, entry("untagged", UNTAGGED, true, bare)] : ordered;
 }
 
 /** How many lights a set of devices holds and how many are on. */
@@ -228,7 +210,7 @@ export function countLights(devices: GharDevice[]): { lights: number; on: number
   return { lights: lights.length, on: lights.filter(isOn).length };
 }
 
-/** A section's line next to its name: "1 of 2 on", or its device count when it holds no light. */
+/** A tag's, or a view's, line next to its name: "1 of 2 on", or its device count when it holds no light. */
 export function sectionMeta(devices: GharDevice[]): string {
   const { lights, on } = countLights(devices);
   return lights > 0 ? `${on} of ${lights} on` : `${devices.length} ${devices.length === 1 ? "device" : "devices"}`;

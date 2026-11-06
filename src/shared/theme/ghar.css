@@ -20,7 +20,7 @@
   }
 }
 
-/* Quick actions: All off, Evening, Add a device, and the room options. */
+/* Quick actions: All off, Evening, Add a device, and the tag options. */
 .ghar-action {
   display: inline-flex;
   height: 38px;
@@ -65,7 +65,7 @@
   font-size: 13px;
 }
 
-/* Chips: Everywhere, each room and group, New room. */
+/* Chips: All, each tag, Untagged. */
 .ghar-chip {
   display: inline-flex;
   height: 34px;

@@ -2,32 +2,31 @@ import { useEffect, useState } from "react";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { deviceActions } from "../features/ghar/deviceActions";
-import { Inspector, type InspectorPick } from "../features/ghar/Inspector";
+import { Inspector } from "../features/ghar/Inspector";
 import {
   allOff,
   countLights,
+  devicesFor,
   evening,
-  groupNames,
   isLight,
   isOn,
   levelCommand,
-  roomSections,
   sectionLevelCommands,
   sectionSwitch,
-  sectionsFor,
   switchCommand,
-  UNASSIGNED_ROOM,
+  tagGroups,
+  UNTAGGED,
+  untaggedDevices,
   type Filter,
 } from "../features/ghar/model";
 import { PairingSheet } from "../features/ghar/PairingSheet";
-import { RoomSection, SECTION_SHUT, type SectionUi } from "../features/ghar/RoomSection";
+import { SECTION_SHUT, TagSection, type SectionUi } from "../features/ghar/TagSection";
 import { useHouse } from "../features/ghar/useHouse";
 import { ghar } from "../shared/api";
 import { Page } from "../shared/layout/Page";
 import { ConfirmDialog } from "../shared/overlay/ConfirmDialog";
 import { Button, ButtonGroup, Pill } from "../shared/ui/Button";
 import { Card } from "../shared/ui/Card";
-import { Icon } from "../shared/ui/Icon";
 import { StaleBanner, StateView } from "../shared/states/ModuleState";
 import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
@@ -35,19 +34,19 @@ import { useModuleState } from "../shared/hooks/useModuleState";
 import { useRetained } from "../shared/hooks/useRetained";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
-import type { GharCommand, GharDevice } from "../types/ghar";
+import type { GharCommand, GharDevice, GharTag } from "../types/ghar";
 
-/** The page is wider than this before the inspector sits beside the rooms; narrower, it is a drawer over them. */
+/** The page is wider than this before the inspector sits beside the tags' devices; narrower, it is a drawer over them. */
 const DOCK_ABOVE = 900;
 
 /** The inspector's width in px. */
 const INSPECTOR_WIDTH = 360;
 
-/** The rooms' column is narrower than this before its device tiles shrink a little, in px. */
-const NARROW_ROOMS = 520;
+/** The devices' column is narrower than this before its device tiles shrink a little, in px. */
+const NARROW_TILES = 520;
 
-/** A room waiting on the answer to "delete it?", with what it holds. */
-type DeletingRoom = { id: string; name: string; inside: GharDevice[] };
+/** A tag waiting on the answer to "delete it?", with how many devices carry it. */
+type DeletingTag = { tag: GharTag; count: number };
 
 /** Tells the page whether the inspector is docked, which only the page's frame knows; it draws nothing. */
 function ReportDocked({ docked, onChange }: { docked: boolean; onChange: (docked: boolean) => void }) {
@@ -55,10 +54,7 @@ function ReportDocked({ docked, onChange }: { docked: boolean; onChange: (docked
   return null;
 }
 
-/** The room whose options are open and what they show. */
-type OpenRoom = { id: string; ui: SectionUi } | null;
-
-/** The page while Ghar answers: rooms of the loaded page's tile sizes, so nothing shifts when it arrives. */
+/** The page while Ghar answers: sections of the loaded page's tile sizes, so nothing shifts when it arrives. */
 function Loading() {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 18 }}>
@@ -85,110 +81,91 @@ function Loading() {
 }
 
 /**
- * Ghar: the house as rooms of device tiles under the chips that filter them, with the selected device's inspector docked beside
- * them (a drawer over them when the page is narrow). A room opens its options from its name; a tile switches from its switch and
- * is chosen for the inspector from its name; the header's buttons switch everything off, set Evening and add a device. `?device=`
- * (from a toast) selects that device; `?room=` and `?group=` open the page filtered to a room or a group.
+ * Ghar: the house browsed by tag. A row of chips (All, each tag with its device count, Untagged) filters the device tiles; a tag's
+ * view has a header with whole-tag controls (switch, brightness, rename, add devices, delete). A device is under every tag it
+ * carries and shows them as chips; one with none is under Untagged. The selected device's inspector docks beside the tiles (a
+ * drawer over them when the page is narrow). A tile switches from its switch and is chosen for the inspector from its name; the
+ * header's buttons switch everything off, set Evening and add a device. `?device=` (from a toast) selects that device; `?tag=`
+ * opens the page filtered to a tag.
  */
 export function GharPage() {
   const house = useHouse();
-  const { connected, devicesQuery, roomsQuery } = house;
+  const { connected, devicesQuery } = house;
   const { state: connection } = useConnection();
   const location = useLocation();
   const [params] = useSearchParams();
   const focusId = params.get("device");
-  const [filter, setFilter] = useState<Filter>(() => (params.get("room") !== null ? { kind: "room", id: params.get("room") as string } : params.get("group") !== null ? { kind: "group", name: params.get("group") as string } : { kind: "everywhere" }));
+  const [filter, setFilter] = useState<Filter>(() => (params.get("tag") !== null ? { kind: "tag", name: params.get("tag") as string } : { kind: "all" }));
   const [selectedId, setSelectedId] = useState<string | null>(focusId);
   const [closed, setClosed] = useState(false);
-  const [open, setOpen] = useState<OpenRoom>(null);
-  const [pick, setPick] = useState<InspectorPick>(null);
+  const [ui, setUi] = useState<SectionUi>(SECTION_SHUT);
   const [renaming, setRenaming] = useState(false);
-  const [newRoom, setNewRoom] = useState(false);
-  const [pairing, setPairing] = useState<{ room: string; run: number } | null>(null);
-  const [deleting, setDeleting] = useState<DeletingRoom | null>(null);
+  const [pairing, setPairing] = useState<{ tag: string; run: number } | null>(null);
+  const [deleting, setDeleting] = useState<DeletingTag | null>(null);
   const [docked, setDocked] = useState(false);
 
   useEffect(() => {
     if (focusId !== null) {
       setSelectedId(focusId);
       setClosed(false);
-      setFilter({ kind: "everywhere" });
+      setFilter({ kind: "all" });
     }
   }, [focusId, location.key]);
 
-  const devicesState = useModuleState(devicesQuery, (answer) => answer.devices.length === 0);
-  const roomsState = useModuleState(roomsQuery, () => false);
-  const failed = [devicesState, roomsState].find((state_) => state_.kind === "error" || state_.kind === "module-offline");
-  const state = failed ?? (roomsState.kind === "loading" ? roomsState : devicesState);
-  const retry = () => void [devicesQuery, roomsQuery].find((query) => query.isError)?.refetch();
+  const state = useModuleState(devicesQuery, (answer) => answer.devices.length === 0);
+  const retry = () => void devicesQuery.refetch();
 
   const devices = devicesQuery.data?.devices ?? [];
-  const rooms = roomsQuery.data?.rooms ?? [];
-  const groups = groupNames(devices);
-  const everyRoom = roomSections(devices, rooms).filter((section) => section.kind !== "unassigned" || section.devices.length > 0);
-  const shown: Filter =
-    (filter.kind === "room" && !everyRoom.some((section) => section.room?.id === filter.id)) || (filter.kind === "group" && !groups.includes(filter.name)) ? { kind: "everywhere" } : filter;
-  const sections = sectionsFor(shown, devices, rooms);
+  const groups = tagGroups(devices);
+  const tagNames = groups.map((group) => group.tag.name);
+  const untagged = untaggedDevices(devices);
+  const shown: Filter = (filter.kind === "tag" && !tagNames.includes(filter.name)) || (filter.kind === "untagged" && untagged.length === 0) ? { kind: "all" } : filter;
+  const group = shown.kind === "tag" ? (groups.find((candidate) => candidate.tag.name === shown.name) ?? null) : null;
+  const listed = devicesFor(shown, devices);
+  const title = shown.kind === "tag" ? shown.name : shown.kind === "untagged" ? UNTAGGED : "All devices";
   const { lights, on } = countLights(devices);
   const chosen = devices.find((device) => device.id === selectedId) ?? null;
   const inspected = closed ? null : docked ? (chosen ?? devices.find(isOn) ?? devices.find(isLight) ?? null) : chosen;
   const kept = state.kind === "ready" || state.kind === "empty";
   const disabled = !connected;
 
+  const choose = (next: Filter) => {
+    setFilter(next);
+    setUi(SECTION_SHUT);
+  };
   const select = (device: GharDevice) => {
     setSelectedId(device.id);
     setClosed(false);
-    setPick(null);
     setRenaming(false);
   };
   const send = (device: GharDevice, command: GharCommand) => void house.run([{ id: device.id, command }]);
-  const openPairing = (room: string) => setPairing((current) => ({ room, run: (current?.run ?? 0) + 1 }));
+  const openPairing = (tag: string) => setPairing((current) => ({ tag, run: (current?.run ?? 0) + 1 }));
   const actionsFor = (device: GharDevice) =>
     deviceActions(device, {
-      rooms,
       disabled,
+      inTag: group?.tag.name,
       onToggle: (on) => send(device, switchCommand(on)),
       onIdentify: () => void house.write(`Identifying ${device.name}`, () => ghar.identify(device.id)),
       onRename: () => {
         select(device);
         setRenaming(true);
       },
-      onMove: (room) => void house.write(`Moving ${device.name}`, () => ghar.moveDevice(device.id, room.id)),
+      onRemoveFromTag: () => group !== null && void house.write(`Removing ${device.name} from ${group.tag.name}`, () => ghar.removeTagDevice(group.tag.id, device.id)),
       onInspect: () => select(device),
     });
 
-  const createRoom = async (name: string) => {
-    setNewRoom(false);
+  const renameTag = async (tag: GharTag, name: string) => {
     const trimmed = name.trim();
-    if (trimmed.length === 0) {
-      return;
-    }
-    const made = [] as Awaited<ReturnType<typeof ghar.createRoom>>[];
-    const ok = await house.write(`Creating ${trimmed}`, async () => {
-      made.push(await ghar.createRoom(trimmed));
-    });
-    if (ok && made[0]) {
-      setFilter({ kind: "room", id: made[0].id });
+    if (trimmed.length > 0 && trimmed !== tag.name && (await house.write(`Renaming ${tag.name}`, () => ghar.renameTag(tag.id, trimmed)))) {
+      setFilter({ kind: "tag", name: trimmed });
     }
   };
 
-  const removeRoom = async (id: string, name: string, inside: GharDevice[]) => {
-    const unassigned = rooms.find((room) => room.name === UNASSIGNED_ROOM);
-    setOpen(null);
+  const removeTag = async (tag: GharTag) => {
+    setUi(SECTION_SHUT);
     setDeleting(null);
-    const ok = await house.write(`Deleting ${name}`, async () => {
-      if (inside.length > 0) {
-        if (!unassigned) {
-          throw new Error("Ghar has no unassigned room to move this room's devices into");
-        }
-        for (const device of inside) {
-          await ghar.moveDevice(device.id, unassigned.id);
-        }
-      }
-      await ghar.deleteRoom(id);
-    });
-    if (ok) {
-      setFilter({ kind: "everywhere" });
+    if (await house.write(`Deleting ${tag.name}`, () => ghar.deleteTag(tag.id))) {
+      setFilter({ kind: "all" });
     }
   };
 
@@ -217,44 +194,34 @@ export function GharPage() {
     } else if (state.kind === "empty") {
       body = (
         <Card style={{ flex: 1, minWidth: 0 }}>
-          <StateView kind="empty" title="No devices yet" detail="Add a device and it appears here, in its room." />
+          <StateView kind="empty" title="No devices yet" detail="Add a device and it appears here, under its tags." />
         </Card>
       );
     } else {
       body = (
         <div className="scroll" style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", gap: 22, paddingRight: 4 }}>
-          {sections.map((section) => {
-            const roomId = section.room?.id ?? null;
-            const ui = open !== null && open.id === roomId ? open.ui : SECTION_SHUT;
-            const room = section.room;
-            return (
-              <RoomSection
-                key={section.key}
-                section={section}
-                elsewhere={room === null ? [] : devices.filter((device) => device.room.id !== room.id)}
-                ui={ui}
-                onUi={(next) => setOpen(roomId !== null && next.open ? { id: roomId, ui: next } : null)}
-                selectedId={inspected?.id ?? null}
-                busy={house.pending}
-                disabled={disabled}
-                minTile={narrow ? 200 : 210}
-                onToggle={(device, next) => send(device, switchCommand(next))}
-                onLevel={(device, level) => send(device, levelCommand(level))}
-                onSelect={select}
-                deviceActions={actionsFor}
-                onSwitch={() => void house.run(sectionSwitch(section.devices))}
-                onSectionLevel={(level) => void house.run(sectionLevelCommands(section.devices, level))}
-                onRename={(name) => {
-                  if (room !== null && name.trim().length > 0 && name.trim() !== room.name) {
-                    void house.write(`Renaming ${room.name}`, () => ghar.renameRoom(room.id, name.trim()));
-                  }
-                }}
-                onMoveHere={(device) => room !== null && void house.write(`Moving ${device.name}`, () => ghar.moveDevice(device.id, room.id))}
-                onAddHere={() => openPairing(room !== null && room.name !== UNASSIGNED_ROOM ? room.id : "")}
-                onDelete={() => room !== null && setDeleting({ id: room.id, name: section.title, inside: section.devices })}
-              />
-            );
-          })}
+          <TagSection
+            key={title}
+            title={title}
+            tag={group?.tag ?? null}
+            devices={listed}
+            elsewhere={group === null ? [] : devices.filter((device) => !device.tags.some((tag) => tag.id === group.tag.id))}
+            ui={ui}
+            onUi={setUi}
+            selectedId={inspected?.id ?? null}
+            busy={house.pending}
+            disabled={disabled}
+            minTile={narrow ? 200 : 210}
+            onToggle={(device, next) => send(device, switchCommand(next))}
+            onLevel={(device, level) => send(device, levelCommand(level))}
+            onSelect={select}
+            deviceActions={actionsFor}
+            onSwitch={() => void house.run(sectionSwitch(listed))}
+            onSectionLevel={(level) => void house.run(sectionLevelCommands(listed, level))}
+            onRename={(name) => group !== null && void renameTag(group.tag, name)}
+            onAddDevice={(device) => group !== null && void house.write(`Adding ${device.name} to ${group.tag.name}`, () => ghar.addTagDevices(group.tag.id, [device.id]))}
+            onDelete={() => group !== null && setDeleting({ tag: group.tag, count: group.devices.length })}
+          />
         </div>
       );
     }
@@ -267,19 +234,15 @@ export function GharPage() {
     shownInspector === null ? undefined : (
       <Inspector
         device={shownInspector}
-        rooms={rooms}
-        groups={groups}
+        tags={tagNames}
         width={INSPECTOR_WIDTH}
-        pick={pick}
-        onPick={setPick}
         renaming={renaming}
         onRenaming={setRenaming}
         disabled={disabled}
         onClose={() => setClosed(true)}
         onSend={(command) => send(shownInspector, command)}
         onRename={(name) => void house.write(`Renaming ${shownInspector.name}`, () => ghar.renameDevice(shownInspector.id, name))}
-        onMove={(room) => void house.write(`Moving ${shownInspector.name}`, () => ghar.moveDevice(shownInspector.id, room.id))}
-        onTags={(names) => void house.write(`Grouping ${shownInspector.name}`, () => ghar.setDeviceTags(shownInspector.id, names))}
+        onTags={(names) => void house.write(`Tagging ${shownInspector.name}`, () => ghar.setDeviceTags(shownInspector.id, names))}
         onIdentify={() => void house.write(`Identifying ${shownInspector.name}`, () => ghar.identify(shownInspector.id))}
       />
     );
@@ -303,57 +266,28 @@ export function GharPage() {
                   <Button tone="outline" size="lg" disabled={disabled || lights === 0} onClick={() => void house.run(evening(devices))}>
                     Evening
                   </Button>
-                  <Button tone="fill" size="lg" icon="plus" disabled={disabled} onClick={() => openPairing("")}>
+                  <Button tone="fill" size="lg" icon="plus" disabled={disabled} onClick={() => openPairing(group?.tag.name ?? "")}>
                     Add device
                   </Button>
                 </ButtonGroup>
               ) : undefined
             }
           />
-          {kept ? (
-            <div role="toolbar" aria-label="Rooms and groups" style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", flex: "none" }}>
-              <Pill active={shown.kind === "everywhere"} onClick={() => setFilter({ kind: "everywhere" })}>
-                Everywhere
+          {kept && groups.length > 0 ? (
+            <div role="toolbar" aria-label="Tags" className="overflow-x-auto" style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
+              <Pill className="shrink-0" active={shown.kind === "all"} count={devices.length} onClick={() => choose({ kind: "all" })}>
+                All
               </Pill>
-              {everyRoom.map((section) => (
-                <Pill key={section.key} active={shown.kind === "room" && shown.id === section.room?.id} onClick={() => section.room && setFilter({ kind: "room", id: section.room.id })}>
-                  {section.title}
+              {groups.map((entry) => (
+                <Pill key={entry.tag.id} className="shrink-0" active={shown.kind === "tag" && shown.name === entry.tag.name} count={entry.devices.length} onClick={() => choose({ kind: "tag", name: entry.tag.name })}>
+                  {entry.tag.name}
                 </Pill>
               ))}
-              {groups.map((name) => (
-                <Pill key={name} active={shown.kind === "group" && shown.name === name} onClick={() => setFilter({ kind: "group", name })}>
-                  <Icon name="grid" size={13} />
-                  {name}
+              {untagged.length > 0 ? (
+                <Pill className="shrink-0" active={shown.kind === "untagged"} count={untagged.length} onClick={() => choose({ kind: "untagged" })}>
+                  {UNTAGGED}
                 </Pill>
-              ))}
-              {newRoom ? (
-                <div className="pill" style={{ width: 168, border: "1px dashed var(--sage-line)", background: "transparent" }}>
-                  <Icon name="plus" size={13} />
-                  <input
-                    className="cinp"
-                    placeholder="Room name"
-                    aria-label="New room name"
-                    autoComplete="off"
-                    spellCheck={false}
-                    autoFocus
-                    style={{ fontSize: 13, color: "var(--ink)" }}
-                    onBlur={(event) => void createRoom(event.currentTarget.value)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter") {
-                        event.currentTarget.blur();
-                      } else if (event.key === "Escape") {
-                        event.currentTarget.value = "";
-                        event.currentTarget.blur();
-                      }
-                    }}
-                  />
-                </div>
-              ) : (
-                <Pill disabled={disabled} onClick={() => setNewRoom(true)} style={{ border: "1px dashed var(--sage-line)", background: "transparent" }}>
-                  <Icon name="plus" size={13} />
-                  New room
-                </Pill>
-              )}
+              ) : null}
             </div>
           ) : null}
           {state.kind === "ready" && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Ghar reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={retry} /> : null}
@@ -365,14 +299,14 @@ export function GharPage() {
               </Button>
             </div>
           ) : null}
-          {renderBody(room.width < NARROW_ROOMS)}
+          {renderBody(room.width < NARROW_TILES)}
           {shownPairing === null ? null : (
             <PairingSheet
               key={shownPairing.run}
               open={pairing !== null}
-              rooms={rooms}
+              known={tagNames}
               devices={devices}
-              startRoom={shownPairing.room}
+              startTag={shownPairing.tag}
               onClose={() => setPairing(null)}
               onToggle={(device, next) => send(device, switchCommand(next))}
               onLevel={(device, level) => send(device, levelCommand(level))}
@@ -380,11 +314,11 @@ export function GharPage() {
           )}
           <ConfirmDialog
             open={deleting !== null}
-            title={shownDeleting === null ? "" : `Delete ${shownDeleting.name}?`}
-            detail={shownDeleting === null ? "" : shownDeleting.inside.length === 0 ? "The room is empty." : `Its ${shownDeleting.inside.length === 1 ? "device goes" : `${shownDeleting.inside.length} devices go`} to Unassigned.`}
-            confirmLabel="Delete room"
+            title={shownDeleting === null ? "" : `Delete ${shownDeleting.tag.name}?`}
+            detail={shownDeleting === null ? "" : `It is removed from ${shownDeleting.count === 1 ? "its device" : `its ${shownDeleting.count} devices`}, which stay.`}
+            confirmLabel="Delete tag"
             onCancel={() => setDeleting(null)}
-            onConfirm={() => shownDeleting !== null && void removeRoom(shownDeleting.id, shownDeleting.name, shownDeleting.inside)}
+            onConfirm={() => shownDeleting !== null && void removeTag(shownDeleting.tag)}
           />
         </>
       )}

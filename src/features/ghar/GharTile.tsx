@@ -10,12 +10,10 @@ import { pushToast } from "../../contexts/toasts";
 import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
-import { isLight, isOn, lightColor, roomTitle, sectionSwitch, switchCommand, UNASSIGNED_ROOM } from "./model";
+import { isLight, isOn, lightColor, sectionSwitch, switchCommand, tagLights } from "./model";
 import { useHouse, type House } from "./useHouse";
 
-const ROOM_HEIGHT = 72;
-
-type Room = { name: string; lights: GharDevice[]; on: number };
+const CARD_HEIGHT = 72;
 
 /** Keeps a click inside a tile's control from following the tile's link. */
 function swallow(event: MouseEvent): void {
@@ -23,23 +21,12 @@ function swallow(event: MouseEvent): void {
   event.stopPropagation();
 }
 
-/** The lights grouped by the room they are in: rooms with a light on first, the rest after, and the lights that belong to no room last. */
-function roomsOf(lights: GharDevice[]): Room[] {
-  const names = [...new Set(lights.map((light) => light.room.name))];
-  const rooms = names.map((name) => {
-    const own = lights.filter((light) => light.room.name === name);
-    return { name, lights: own, on: own.filter(isOn).length };
-  });
-  const rank = (room: Room) => (room.name === UNASSIGNED_ROOM ? 2 : room.on > 0 ? 0 : 1);
-  return rooms.map((room, index) => ({ room, index })).sort((a, b) => rank(a.room) - rank(b.room) || a.index - b.index).map((entry) => entry.room);
-}
-
 type LightProps = {
   light: GharDevice;
   house: House;
 };
 
-/** One light in a room tile: its colour dot and name, and a switch that flips just this light; the tile's link does not follow the click. */
+/** One light in a tag card: its colour dot and name, and a switch that flips just this light; the tile's link does not follow the click. */
 function Light({ light, house }: LightProps) {
   const on = light.state.on?.value === true;
   const flip = (event: MouseEvent) => {
@@ -63,65 +50,68 @@ function Light({ light, house }: LightProps) {
   );
 }
 
-type RoomsProps = {
+type TagsProps = {
   lights: GharDevice[];
   geometry: TileGeometry;
   house: House;
 };
 
-/** A card per room with how many of its lights are on and, when the card is tall enough, the lights themselves; rooms that do not fit collapse into a last card that opens the Ghar page. */
-function Rooms({ lights, geometry, house }: RoomsProps) {
+/**
+ * A card per tag with how many of its lights are on and, when the card is tall enough, the lights themselves; a light is on every card
+ * of a tag it carries. Tags that do not fit collapse into a last card that opens the Ghar page.
+ */
+function Tags({ lights, geometry, house }: TagsProps) {
   const navigate = useNavigate();
-  const rooms = roomsOf(lights);
+  const cards = tagLights(lights);
   const maxColumns = geometry.iw >= 640 ? 4 : geometry.iw >= 440 ? 3 : 2;
-  const columns = Math.max(1, Math.min(maxColumns, rooms.length));
-  const rowsFit = Math.max(1, Math.floor((geometry.bh + 8) / ROOM_HEIGHT));
+  const columns = Math.max(1, Math.min(maxColumns, cards.length));
+  const rowsFit = Math.max(1, Math.floor((geometry.bh + 8) / CARD_HEIGHT));
   const slots = columns * rowsFit;
-  const shown = rooms.length <= slots ? rooms : rooms.slice(0, slots - 1);
-  const extra = rooms.length - shown.length;
+  const shown = cards.length <= slots ? cards : cards.slice(0, slots - 1);
+  const extra = cards.length - shown.length;
   const rows = Math.ceil((shown.length + (extra > 0 ? 1 : 0)) / columns);
   const cell = (geometry.bh - 8 * (rows - 1)) / rows;
   const listed = Math.max(0, Math.min(4, Math.floor((cell - 62) / 22)));
   return (
     <div className="grid min-h-0 min-w-0 flex-1 auto-rows-[minmax(0,1fr)] gap-2" style={{ gridTemplateColumns: `repeat(${columns},minmax(0,1fr))` }}>
       <AnimatePresence initial={false}>
-        {shown.map((room) => (
+        {shown.map((card) => (
           <motion.div
-            key={room.name}
+            key={card.key}
             {...RISE}
             layout="position"
             role="button"
             tabIndex={0}
-            aria-pressed={room.on > 0}
-            className={`ui-hover-card ui-trans flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${room.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
-            title={`Switch ${room.on > 0 ? "off" : "on"} ${roomTitle(room.name)}`}
+            aria-pressed={card.on > 0}
+            className={`ui-hover-card ui-trans flex min-h-0 min-w-0 cursor-pointer flex-col gap-1 rounded-[14px] border px-3 pt-3 pb-3 text-left ${card.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
+            title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
             onClick={(event) => {
               swallow(event);
-              void house.run(sectionSwitch(room.lights));
+              void house.run(sectionSwitch(card.lights));
             }}
             onKeyDown={(event) => {
               if (event.key === "Enter" || event.key === " ") {
                 event.preventDefault();
                 event.stopPropagation();
-                void house.run(sectionSwitch(room.lights));
+                void house.run(sectionSwitch(card.lights));
               }
             }}
           >
             <div className="flex min-w-0 text-[14px] font-semibold">
-              <NameTruncate name={roomTitle(room.name)} />
+              <NameTruncate name={card.name} />
             </div>
-            <span className="text-[13px] text-ink-muted tabular-nums">{`${room.on} of ${room.lights.length} on`}</span>
+            <span className="text-[13px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
             <div className="flex-1" />
             {listed === 0 ? null : (
               <div className="flex flex-col gap-0.5">
                 <AnimatePresence initial={false}>
-                  {room.lights.length <= listed
-                    ? room.lights.map((light) => <Light key={light.id} light={light} house={house} />)
+                  {card.lights.length <= listed
+                    ? card.lights.map((light) => <Light key={light.id} light={light} house={house} />)
                     : listed === 1
-                      ? [<span key="count" className="flex h-5 items-center text-[13px] text-ink-muted tabular-nums">{`${room.lights.length} lights`}</span>]
+                      ? [<span key="count" className="flex h-5 items-center text-[13px] text-ink-muted tabular-nums">{`${card.lights.length} lights`}</span>]
                       : [
-                          ...room.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
-                          <span key="more" className="flex h-5 items-center text-[12px] text-ink-muted tabular-nums">{`+${room.lights.length - (listed - 1)} more`}</span>,
+                          ...card.lights.slice(0, listed - 1).map((light) => <Light key={light.id} light={light} house={house} />),
+                          <span key="more" className="flex h-5 items-center text-[12px] text-ink-muted tabular-nums">{`+${card.lights.length - (listed - 1)} more`}</span>,
                         ]}
                 </AnimatePresence>
               </div>
@@ -132,7 +122,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
       {extra > 0 ? (
         <button
           type="button"
-          aria-label="Show all rooms"
+          aria-label="Show all tags"
           className="ui-hover-fill ui-trans flex min-h-0 items-center justify-center gap-2 rounded-[14px] border border-dashed border-sage-line text-[14px] font-medium text-sage-text"
           onClick={(event) => {
             swallow(event);
@@ -146,7 +136,7 @@ function Rooms({ lights, geometry, house }: RoomsProps) {
   );
 }
 
-/** Home's Ghar tile: a tile per room with its lights, how many are on, and one switch for all of them. */
+/** Home's Ghar tile: a card per tag with how many of its lights are on and, when tall enough, the lights; a tap switches the whole tag, and one switch in the header is for every light. */
 export function GharTile({ order }: { order: number }) {
   const house = useHouse();
   const query = house.devicesQuery;
@@ -194,7 +184,7 @@ export function GharTile({ order }: { order: number }) {
         );
       }}
     >
-      {(g) => <Rooms lights={lights} geometry={g} house={house} />}
+      {(g) => <Tags lights={lights} geometry={g} house={house} />}
     </Tile>
   );
 }

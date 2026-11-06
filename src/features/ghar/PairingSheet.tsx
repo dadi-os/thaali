@@ -4,14 +4,12 @@ import { ghar, isMeshOnline } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
 import { isTauriRuntime } from "../../shared/desktop/runtime";
 import { Dialog } from "../../shared/overlay/Dialog";
-import { Button, ButtonGroup } from "../../shared/ui/Button";
-import { Icon } from "../../shared/ui/Icon";
+import { Button, ButtonGroup, Pill } from "../../shared/ui/Button";
 import { Segmented } from "../../shared/ui/Segmented";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { useConnection } from "../../shared/hooks/useConnection";
-import type { GharDevice, GharRoom } from "../../types/ghar";
+import type { GharDevice } from "../../types/ghar";
 import { DeviceTile } from "./DeviceTile";
-import { UNASSIGNED_ROOM } from "./model";
 import { startDeviceRadio } from "./radio";
 import { shownError } from "./useHouse";
 
@@ -38,15 +36,13 @@ export type PairingViewProps = {
   onPassword: (password: string) => void;
   /** What the radio is doing, when it is the computer's. */
   radioNote: string;
-  /** The room id the device lands in; empty is Unassigned. */
-  room: string;
-  onRoom: (room: string) => void;
-  /** The named rooms to choose from. */
-  rooms: GharRoom[];
+  /** The tags the device gets, by name; none leaves it untagged. */
+  tags: string[];
+  onTags: (tags: string[]) => void;
+  /** Every tag Ghar has, to choose from. */
+  known: string[];
   /** The devices the job made, once they are in Ghar's list. */
   landed: GharDevice[];
-  /** The name of the room the device landed in. */
-  landedIn: string;
   /** Why pairing failed. */
   failure: string;
   /** The code form can be sent. */
@@ -81,7 +77,7 @@ function Box({ children }: { children: ReactNode }) {
  * The pairing sheet over the Ghar page, one view per step: the setup code with how the device reaches Ghar and the room it lands in,
  * then a ring while Ghar looks for it and joins it, then the device itself, or what went wrong.
  */
-export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, password, onPassword, radioNote, room, onRoom, rooms, landed, landedIn, failure, canSubmit, open, onSubmit, onRetry, onClose, onToggle, onLevel }: PairingViewProps) {
+export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, password, onPassword, radioNote, tags, onTags, known, landed, failure, canSubmit, open, onSubmit, onRetry, onClose, onToggle, onLevel }: PairingViewProps) {
   const reached = step === "code" ? 0 : step === "seek" ? 1 : 2;
   const busy = step === "seek" || step === "pair";
   const footer =
@@ -156,17 +152,32 @@ export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, 
                 </Box>
               </div>
             ) : null}
-            <Field name="Room">
+            <Field name="Tags">
+              <div role="group" aria-label="Tags" style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}>
+                {[...new Set([...known, ...tags])].map((name) => (
+                  <Pill key={name} active={tags.includes(name)} onClick={() => onTags(tags.includes(name) ? tags.filter((tag) => tag !== name) : [...tags, name])}>
+                    {name}
+                  </Pill>
+                ))}
+              </div>
               <Box>
-                <select className="cinp" aria-label="Room" value={room} style={{ fontSize: 15, color: "var(--ink)", appearance: "none" }} onChange={(event) => onRoom(event.target.value)}>
-                  <option value="">Unassigned</option>
-                  {rooms.map((option) => (
-                    <option key={option.id} value={option.id}>
-                      {option.name}
-                    </option>
-                  ))}
-                </select>
-                <Icon name="chevDown" size={14} />
+                <input
+                  className="cinp"
+                  placeholder="New tag"
+                  aria-label="New tag"
+                  autoComplete="off"
+                  spellCheck={false}
+                  style={{ fontSize: 15, color: "var(--ink)" }}
+                  onKeyDown={(event) => {
+                    const name = event.currentTarget.value.trim();
+                    if (event.key === "Enter" && name.length > 0) {
+                      event.currentTarget.value = "";
+                      if (!tags.includes(name)) {
+                        onTags([...tags, name]);
+                      }
+                    }
+                  }}
+                />
               </Box>
             </Field>
           </div>
@@ -183,7 +194,7 @@ export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, 
                 ))
               )}
             </div>
-            <span style={{ fontSize: 13, color: "var(--ink-muted)", lineHeight: "19px" }}>{`In ${landedIn}. Move it to another room from its controls any time.`}</span>
+            <span style={{ fontSize: 13, color: "var(--ink-muted)", lineHeight: "19px" }}>{tags.length > 0 ? `Tagged ${tags.join(", ")}. Change its tags from its controls any time.` : "No tags yet. Tag it from its controls any time."}</span>
           </div>
         ) : (
           <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
@@ -204,12 +215,12 @@ export function PairingView({ step, radio, onRadio, code, onCode, ssid, onSsid, 
 }
 
 export type PairingSheetProps = {
-  /** Every room, so a device can land straight in one. */
-  rooms: GharRoom[];
+  /** Every tag Ghar has, so a device can land straight under some. */
+  known: string[];
   /** Every device Ghar lists, to show the ones the job made. */
   devices: GharDevice[];
-  /** The room the sheet opens on; empty for Unassigned. */
-  startRoom: string;
+  /** The tag the sheet opens with chosen; empty for none. */
+  startTag: string;
   /** The dialog is showing; closing plays its exit and stops the pairing radio. */
   open: boolean;
   onClose: () => void;
@@ -218,16 +229,15 @@ export type PairingSheetProps = {
 };
 
 /**
- * Pair a Matter device: its setup code, how it reaches Ghar and the room it lands in, then Ghar looks for it and joins it,
+ * Pair a Matter device: its setup code, how it reaches Ghar and the tags it gets, then Ghar looks for it and joins it,
  * then the device itself. Pairing through this computer makes it the Bluetooth radio, so the Wi-Fi it joins is asked for too.
  */
-export function PairingSheet({ rooms, devices, startRoom, open, onClose, onToggle, onLevel }: PairingSheetProps) {
+export function PairingSheet({ known, devices, startTag, open, onClose, onToggle, onLevel }: PairingSheetProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const queryClient = useQueryClient();
-  const named = rooms.filter((room) => room.name !== UNASSIGNED_ROOM);
   const [code, setCode] = useState("");
-  const [roomId, setRoomId] = useState(startRoom);
+  const [tags, setTags] = useState<string[]>(() => (startTag === "" ? [] : [startTag]));
   const [radio, setRadio] = useState<RadioMode>("network");
   const [ssid, setSsid] = useState("");
   const [password, setPassword] = useState("");
@@ -297,7 +307,7 @@ export function PairingSheet({ rooms, devices, startRoom, open, onClose, onToggl
       const started = await ghar.startCommission({
         code: code.trim(),
         radio,
-        ...(roomId !== "" ? { room_id: roomId } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
         ...(radio === "nearby" ? { wifi: { ssid: ssid.trim(), password } } : {}),
       });
       setJobId(started.job_id);
@@ -320,11 +330,10 @@ export function PairingSheet({ rooms, devices, startRoom, open, onClose, onToggl
       password={password}
       onPassword={setPassword}
       radioNote={radioError ?? (radioReady ? "Hold this computer next to the device. The Wi-Fi password is sent once and not saved." : "Opening this computer's radio…")}
-      room={roomId}
-      onRoom={setRoomId}
-      rooms={named}
+      tags={tags}
+      onTags={setTags}
+      known={known}
       landed={devices.filter((device) => job?.device_ids?.includes(device.id))}
-      landedIn={named.find((room) => room.id === roomId)?.name ?? "Unassigned"}
       failure={failure ?? ""}
       canSubmit={canSubmit}
       open={open}

@@ -1,6 +1,6 @@
 import type { NasTask } from "../../shared/api/nas";
 import { applyCommand } from "../../features/ghar/model";
-import type { GharCommand, GharCommissionJob, GharDevice, GharRoom } from "../../types/ghar";
+import type { GharCommand, GharCommissionJob, GharDevice, GharTag } from "../../types/ghar";
 import type { PatchScheduleRequest, PostMessageResponse, ScheduledMessage, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
 import type { TimelineRequest } from "../../types/timeline";
@@ -36,13 +36,11 @@ export type FixtureRequest = {
  */
 export class Fixtures {
   private readonly devices: GharDevice[];
-  private readonly rooms: GharRoom[];
   private readonly tasks: NasTask[];
   private readonly schedules = new Map<string, ScheduledMessage[]>();
 
   constructor(private readonly scenario: Scenario) {
     this.devices = ghar.devices(scenario);
-    this.rooms = ghar.rooms(scenario);
     this.tasks = nasTasks(scenario);
   }
 
@@ -187,27 +185,31 @@ export class Fixtures {
   private ghar(route: string, body: unknown): unknown {
     if (route === "GET /health") return { status: "ok" };
     if (route === "GET /devices") return { devices: structuredClone(this.devices) };
-    if (route === "GET /rooms") return { rooms: structuredClone(this.rooms) };
     if (route === "GET /events") return { events: [] };
-    if (route === "POST /rooms") {
-      const room = { id: `r0000000-0000-4000-8000-${(this.rooms.length + 1).toString().padStart(12, "0")}`, name: (body as { name: string }).name };
-      this.rooms.push(room);
-      return room;
-    }
-    const room = /^(PATCH|DELETE) \/rooms\/([^/]+)$/.exec(route);
-    if (room) {
-      const index = this.rooms.findIndex((r) => r.id === room[2]);
-      if (index < 0) throw new Error(`fixtures: no ghar room ${room[2]}`);
-      if (room[1] === "DELETE") {
-        this.rooms.splice(index, 1);
-        return undefined;
+    const tag = /^(PATCH|DELETE) \/tags\/([^/]+)$/.exec(route);
+    if (tag) {
+      for (const device of this.devices) {
+        device.tags = tag[1] === "DELETE" ? device.tags.filter((t) => t.id !== tag[2]) : device.tags.map((t) => (t.id === tag[2] ? { ...t, name: (body as { name: string }).name } : t));
       }
-      this.rooms[index] = { ...this.rooms[index]!, name: (body as { name: string }).name };
-      for (const device of this.devices.filter((d) => d.room.id === room[2])) device.room = this.rooms[index]!;
-      return this.rooms[index];
+      return tag[1] === "DELETE" ? undefined : this.tagNamed((body as { name: string }).name);
+    }
+    const members = /^POST \/tags\/([^/]+)\/devices$/.exec(route);
+    if (members) {
+      const named = this.tagById(members[1]!);
+      for (const device of this.devices.filter((d) => (body as { device_ids: string[] }).device_ids.includes(d.id))) {
+        if (!device.tags.some((t) => t.id === named.id)) device.tags.push(named);
+      }
+      return undefined;
+    }
+    const member = /^DELETE \/tags\/([^/]+)\/devices\/([^/]+)$/.exec(route);
+    if (member) {
+      const device = this.devices.find((d) => d.id === member[2]);
+      if (!device) throw new Error(`fixtures: no ghar device ${member[2]}`);
+      device.tags = device.tags.filter((t) => t.id !== member[1]);
+      return undefined;
     }
     const patch = /^PATCH \/devices\/([^/]+)$/.exec(route);
-    if (patch) return this.patchDevice(patch[1]!, body as { name?: string; room?: string; tags?: string[] });
+    if (patch) return this.patchDevice(patch[1]!, body as { name?: string; tags?: string[] });
     const command = /^POST \/devices\/([^/]+)\/command$/.exec(route);
     if (command) {
       const index = this.devices.findIndex((d) => d.id === command[1]);
@@ -222,15 +224,26 @@ export class Fixtures {
     throw new Error(`fixtures: no route for ghar ${route}`);
   }
 
-  private patchDevice(id: string, body: { name?: string; room?: string; tags?: string[] }): GharDevice {
+  private patchDevice(id: string, body: { name?: string; tags?: string[] }): GharDevice {
     const device = this.devices.find((d) => d.id === id);
     if (!device) {
       throw new Error(`fixtures: no ghar device ${id}`);
     }
     if (body.name !== undefined) device.name = body.name;
-    if (body.room !== undefined) device.room = this.rooms.find((r) => r.id === body.room) ?? device.room;
-    if (body.tags !== undefined) device.tags = body.tags.map((name) => ({ id: `t-${name}`, name }));
+    if (body.tags !== undefined) device.tags = body.tags.map((name) => this.tagNamed(name));
     return device;
+  }
+
+  /** The tag a name stands for: the one a device already carries, or a new one. */
+  private tagNamed(name: string): GharTag {
+    const known = this.devices.flatMap((d) => d.tags).find((t) => t.name === name);
+    return known ?? { id: `t-${name}`, name };
+  }
+
+  private tagById(id: string): GharTag {
+    const known = this.devices.flatMap((d) => d.tags).find((t) => t.id === id);
+    if (!known) throw new Error(`fixtures: no ghar tag ${id}`);
+    return known;
   }
 
   /** The commission job a setup code starts: its first four digits choose how far it gets (0000 listening, 1111 pairing, 2222 paired, else failed). */

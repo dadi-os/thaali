@@ -57,7 +57,7 @@ export function useActivityToasts(): void {
         key: `ghar:${device.id}`,
         tone: "info",
         title: `${device.name} turned ${on ? "on" : "off"}`,
-        body: device.room.name,
+        body: device.tags.map((tag) => tag.name).join(" · "),
         target: { kind: "ghar", deviceId: device.id },
       });
     }

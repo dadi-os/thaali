@@ -109,8 +109,7 @@ export type GharDevice = {
   product_name: string | null;
   /** The bridge's product name when the device sits behind a bridge. */
   bridge_name: string | null;
-  room: { id: string; name: string };
-  /** The Ghar tags (shown as groups) the device carries. */
+  /** The Ghar tags the device carries, as many as it likes. A device with none is untagged. */
   tags: GharTag[];
   capabilities: Array<{
     capability: GharCapabilityName;
@@ -122,13 +121,7 @@ export type GharDevice = {
   state: Record<string, GharAttributeState>;
 };
 
-/** Room row from Ghar GET /rooms. */
-export type GharRoom = {
-  id: string;
-  name: string;
-};
-
-/** A Ghar tag: a named group of devices that crosses rooms. */
+/** A Ghar tag: a named group of devices. A device can carry many; Ghar deletes a tag no device carries. */
 export type GharTag = {
   id: string;
   name: string;

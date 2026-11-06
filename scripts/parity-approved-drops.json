@@ -1,1 +1,7 @@
-{}
+{
+  "ghar.createRoom": "Ghar dropped rooms and went tags-only; its /rooms routes are gone.",
+  "ghar.deleteRoom": "Ghar dropped rooms and went tags-only; its /rooms routes are gone.",
+  "ghar.listRooms": "Ghar dropped rooms and went tags-only; its /rooms routes are gone.",
+  "ghar.moveDevice": "A device has no room to move to; tags replace it (setDeviceTags, addTagDevices, removeTagDevice).",
+  "ghar.renameRoom": "Ghar dropped rooms and went tags-only; renameTag renames a tag."
+}

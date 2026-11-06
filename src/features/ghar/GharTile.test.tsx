@@ -44,17 +44,32 @@ function mount() {
 }
 
 describe("Home Ghar controls", () => {
-  it("has no way to start a room, and lists a room's lights when its card is tall enough", () => {
+  it("has no way to start a tag, and lists a tag's lights when its card is tall enough", () => {
     mount();
-    expect(host.querySelector("[aria-label='New room']")).toBeNull();
+    expect(host.querySelector("[aria-label='New tag']")).toBeNull();
     expect(host.querySelector("input")).toBeNull();
     expect(host.querySelectorAll("button[aria-pressed]").length).toBeGreaterThan(0);
+  });
+
+  it("shows a card per tag with how many of its lights are on", () => {
+    mount();
+    const cards = [...host.querySelectorAll("[role='button'][title^='Switch']")].map((card) => card.textContent);
+    expect(cards.some((text) => text?.includes("all lights") && text.includes("3 of 5 on"))).toBe(true);
+    expect(cards.some((text) => text?.startsWith("ankur's bed lights") && text.includes("0 of 1 on"))).toBe(true);
+  });
+
+  it("switches the whole tag from its card without opening Ghar", () => {
+    mount();
+    const card = [...host.querySelectorAll<HTMLElement>("[role='button'][title^='Switch']")].find((candidate) => candidate.textContent?.startsWith("ankur's bed lights"))!;
+    act(() => card.click());
+    expect(house.run).toHaveBeenCalledWith([{ id: expect.any(String), command: { capability: "on_off", command: "on" } }]);
+    expect(host.querySelector("output")!.textContent).toBe("/");
   });
 
   it("opens Ghar from the overflow card", () => {
     geometry = { iw: 320, bh: 65, tw: 354, th: 135 };
     mount();
-    act(() => (host.querySelector("[aria-label='Show all rooms']") as HTMLButtonElement).click());
+    act(() => (host.querySelector("[aria-label='Show all tags']") as HTMLButtonElement).click());
     expect(host.querySelector("output")!.textContent).toBe("/ghar");
   });
 });

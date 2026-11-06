@@ -1,5 +1,6 @@
 import { useContextActions } from "../../shared/interaction/contextMenu";
 import type { ActionList } from "../../shared/interaction/actions";
+import { Chip } from "../../shared/ui/Chip";
 import { Icon, type IconName } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { GharDevice } from "../../types/ghar";
@@ -9,6 +10,9 @@ import { has, isOn, isSwitchable, lightColor, num, stateLine } from "./model";
 
 /** The icon each kind of device wears; any other kind is a power mark. */
 const KIND_ICON: Partial<Record<GharDevice["kind"], IconName>> = { light: "bulb", cover: "expand", thermostat: "sun", occupancy: "eye" };
+
+/** Tags a tile names before the rest are counted as "+N". */
+const TAG_CAP = 3;
 
 export type DeviceTileProps = {
   device: GharDevice;
@@ -29,7 +33,7 @@ export type DeviceTileProps = {
 
 /**
  * One device as a tile: its kind's icon, a switch where it has one, its name and what it is doing, and a brightness slider while
- * a dimmable light is on. The name and state are the button that selects it into the inspector; a right click opens its actions.
+ * a dimmable light is on, and the tags it carries as small chips (the first few, then "+N"). The name and state are the button that selects it into the inspector; a right click opens its actions.
  */
 export function DeviceTile({ device, selected, busy, disabled, onToggle, onLevel, onSelect, actions }: DeviceTileProps) {
   const on = isOn(device);
@@ -83,6 +87,14 @@ export function DeviceTile({ device, selected, busy, disabled, onToggle, onLevel
         <Truncate text={device.name} style={{ fontSize: 15, fontWeight: 600 }} />
         <Truncate text={stateLine(device)} style={{ fontSize: 13, color: device.online ? "var(--ink-muted)" : "var(--error)" }} />
       </button>
+      {device.tags.length > 0 ? (
+        <div aria-label="Tags" style={{ display: "flex", flexWrap: "wrap", gap: 4, overflow: "hidden" }}>
+          {device.tags.slice(0, TAG_CAP).map((tag) => (
+            <Chip key={tag.id}>{tag.name}</Chip>
+          ))}
+          {device.tags.length > TAG_CAP ? <Chip>{`+${device.tags.length - TAG_CAP}`}</Chip> : null}
+        </div>
+      ) : null}
       {isSwitchable(device) && on && has(device, "level") ? (
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div style={{ flex: 1, minWidth: 0 }}>

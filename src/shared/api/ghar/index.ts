@@ -5,17 +5,14 @@ import type {
   GharDevice,
   GharEvent,
   GharRadioCommand,
-  GharRoom,
+  GharTag,
 } from "../../../types/ghar";
 
 /** React Query key for GET /devices. Shared by the home widget and the Ghar page. */
 export const GHAR_DEVICES_KEY = ["ghar", "devices"] as const;
 
-/** React Query key for GET /rooms. */
-export const GHAR_ROOMS_KEY = ["ghar", "rooms"] as const;
-
 /**
- * Ghar HTTP client — rooms, devices, commissioning, and the device radio bridge.
+ * Ghar HTTP client — devices, tags, commissioning, and the device radio bridge.
  * Paths live here; callers pass only domain args.
  */
 export function createGharClient(transport: Transport, baseUrl: string) {
@@ -29,7 +26,7 @@ export function createGharClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /devices — Matter devices grouped by room on the caller. */
+    /** GET /devices — Matter devices, each with its tags. */
     listDevices(): Promise<{ devices: GharDevice[] }> {
       return transport.request({
         baseUrl,
@@ -38,51 +35,41 @@ export function createGharClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /rooms — every room, including the seeded unassigned room. */
-    listRooms(): Promise<{ rooms: GharRoom[] }> {
+    /** PATCH /tags/:id — rename a tag. Ghar refuses a name another tag has (409). */
+    renameTag(id: string, name: string): Promise<GharTag> {
       return transport.request({
         baseUrl,
-        path: "/rooms",
-        method: "GET",
-      });
-    },
-
-    /** POST /rooms — create a room. */
-    createRoom(name: string): Promise<GharRoom> {
-      return transport.request({
-        baseUrl,
-        path: "/rooms",
-        method: "POST",
-        body: { name },
-      });
-    },
-
-    /** PATCH /rooms/:id — rename a room. Ghar refuses the unassigned room and a taken name (409). */
-    renameRoom(id: string, name: string): Promise<GharRoom> {
-      return transport.request({
-        baseUrl,
-        path: `/rooms/${id}`,
+        path: `/tags/${id}`,
         method: "PATCH",
         body: { name },
       });
     },
 
-    /** DELETE /rooms/:id — delete an empty room. Ghar refuses one that still has devices (409). */
-    deleteRoom(id: string): Promise<void> {
+    /** DELETE /tags/:id — delete a tag; every device that carried it loses it and stays. */
+    deleteTag(id: string): Promise<void> {
       return transport.request({
         baseUrl,
-        path: `/rooms/${id}`,
+        path: `/tags/${id}`,
         method: "DELETE",
       });
     },
 
-    /** PATCH /devices/:id — move a device into a room. */
-    moveDevice(id: string, roomId: string): Promise<GharDevice> {
+    /** POST /tags/:id/devices — put devices under a tag. */
+    addTagDevices(id: string, deviceIds: string[]): Promise<void> {
       return transport.request({
         baseUrl,
-        path: `/devices/${id}`,
-        method: "PATCH",
-        body: { room: roomId },
+        path: `/tags/${id}/devices`,
+        method: "POST",
+        body: { device_ids: deviceIds },
+      });
+    },
+
+    /** DELETE /tags/:id/devices/:deviceId — take one device out from under a tag; Ghar deletes the tag when no device is left. */
+    removeTagDevice(id: string, deviceId: string): Promise<void> {
+      return transport.request({
+        baseUrl,
+        path: `/tags/${id}/devices/${deviceId}`,
+        method: "DELETE",
       });
     },
 
@@ -96,7 +83,7 @@ export function createGharClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** PATCH /devices/:id — replace a device's tags (its groups); Ghar drops tags no device carries. */
+    /** PATCH /devices/:id — replace a device's tags by name, creating the ones that are new; Ghar drops tags no device carries. */
     setDeviceTags(id: string, tags: string[]): Promise<GharDevice> {
       return transport.request({
         baseUrl,
@@ -141,7 +128,7 @@ export function createGharClient(transport: Transport, baseUrl: string) {
      */
     startCommission(body: {
       code: string;
-      room_id?: string;
+      tags?: string[];
       radio?: "network" | "nearby";
       wifi?: { ssid: string; password: string };
     }): Promise<{ job_id: string }> {
