@@ -58,9 +58,17 @@ async function render(onSelectAgent: (agentId: string) => void = vi.fn()) {
 
 /** Waits for reads and animations to settle inside act. */
 async function settle() {
-  await act(async () => {
-    await new Promise((resolve) => setTimeout(resolve, 60));
-  });
+  const STEP_MS = 60;
+  const GIVE_UP_MS = 3000;
+  let previous = "";
+  let stable = 0;
+  for (let waited = 0; waited < GIVE_UP_MS && stable < 3; waited += STEP_MS) {
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, STEP_MS));
+    });
+    stable = host.textContent === previous ? stable + 1 : 0;
+    previous = host.textContent ?? "";
+  }
 }
 
 /** The button whose text is `text`. */
