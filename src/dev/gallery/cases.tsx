@@ -1,12 +1,10 @@
 import type { ReactNode } from "react";
 import type { NasTask } from "../../shared/api/nas";
-import type { AgentTask } from "../../types/hath";
 import { agentTasks, nasTasks } from "../fixtures/tasks";
 import { terminalCapture } from "../fixtures/nas";
 import { Badge } from "../../shared/ui/Badge";
 import { Button, ButtonGroup, IconButton, Pill, type ButtonSize, type ButtonTone } from "../../shared/ui/Button";
-import { Dialog } from "../../shared/overlay/Dialog";
-import { DialogOption } from "../../shared/overlay/DialogOption";
+import { pageAddress } from "../../features/agents/sessions";
 import { TaskPreview } from "../../shared/components/Task/TaskPreview";
 import { TaskRow } from "../../shared/components/Task/TaskRow";
 import { TooltipBubble } from "../../shared/overlay/Tooltip";
@@ -157,29 +155,6 @@ CASES["tooltip.bubble"] = () => (
     <TooltipBubble style={{ position: "absolute", top: 8, left: 8 }}>application-manager-archive-1010</TooltipBubble>
   </div>
 );
-CASES["dialog.resume"] = () => (
-  <div style={{ position: "relative", width: 640, height: 420 }}>
-    <Dialog
-      open
-      onClose={noop}
-      title="Hand it back?"
-      subtitle="finance-specialist’s helper is paused on chase.com/accounts/statements/october."
-      footer={
-        <>
-          <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--ink-muted)", lineHeight: "16px" }}>Either way the helper first sees the page and its own last step, not your keystrokes.</span>
-          <Button tone="quiet" size="md">
-            Keep driving
-          </Button>
-        </>
-      }
-    >
-      <DialogOption tone="fill" title="Resume the loop" detail="It continues from where it paused, with the page as it is now." onClick={noop} />
-      <DialogOption tone="outline" title="Hand back with a note" detail="It is told what you did and where things stand, then continues." onClick={noop} />
-      <DialogOption tone="danger" title="Stop the task" detail="It goes to sleep and finance-specialist is told it was stopped." onClick={noop} />
-    </Dialog>
-  </div>
-);
-
 /** The fixture tasks the cases draw, by the state the case names. */
 const TASKS = { working: "task/browser/3f2a91", waiting: "task/browser/d41e07", idle: "task/terminal/b7710c", asleep: "task/browser/8ecaaf" };
 /** A task as Hath's session row and Nas's task describe it in the `asking` scenario. */
@@ -197,7 +172,7 @@ function taskFacts(id: string) {
 /** A stand-in block for page content the gate does not draw: the design fills the frame with these. */
 const placeholder = (width: number | string, height: number, radius = 6) => <span style={{ display: "block", width, height, borderRadius: radius, background: "rgba(44, 48, 42, 0.08)" }} />;
 /** The preview of a task with stand-in content: the real screen is a live stream, so the gate fills the frame as the design draws it. */
-export function previewOf(nas: NasTask, row: AgentTask, { tall = false, paused = false } = {}) {
+export function previewOf(nas: NasTask, { tall = false, paused = false } = {}) {
   const shortId = nas.task.replace(/^task\//, "");
   const label = `Open ${nas.kind} task ${shortId}`;
   if (nas.kind === "terminal") {
@@ -210,7 +185,7 @@ export function previewOf(nas: NasTask, row: AgentTask, { tall = false, paused =
     );
   }
   return (
-    <TaskPreview kind="browser" caption={row.current} label={label} paused={paused} onOpen={noop}>
+    <TaskPreview kind="browser" caption={pageAddress(nas.active_url)} label={label} paused={paused} onOpen={noop}>
       <div style={{ height: tall ? 330 : 150, background: "linear-gradient(180deg, #f3f1ec, #e9e6df)", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
         {placeholder("46%", 16)}
         {placeholder("78%", 10)}
@@ -226,8 +201,8 @@ export function previewOf(nas: NasTask, row: AgentTask, { tall = false, paused =
 }
 /** The preview of a fixture task in the `asking` scenario. */
 function preview(id: string, options: { tall?: boolean; paused?: boolean } = {}) {
-  const { nas, row } = taskFacts(id);
-  return previewOf(nas, row, options);
+  const { nas } = taskFacts(id);
+  return previewOf(nas, options);
 }
 /** A task row for a fixture task. */
 function row(id: string, { paused = false } = {}) {

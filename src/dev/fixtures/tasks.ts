@@ -147,6 +147,7 @@ export function nasTasks(scenario: Scenario): NasTask[] {
       status: seed.status,
       ...(seed.status === "asleep" ? {} : { resource: seed.kind === "browser" ? String((i % 4) + 1) : `t${i + 1}` }),
       state: seed.state,
+      ...(seed.kind === "browser" && seed.status !== "asleep" && seed.current !== "" ? { active_url: `https://${seed.current}` } : {}),
       created_at: agoNanos((seed.idleMin + 20) * MIN),
       last_activity: agoNanos(seed.idleMin * MIN),
     }))

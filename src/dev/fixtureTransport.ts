@@ -17,8 +17,12 @@ type Stream = { host: Host; path: string; onEvent: (data: unknown) => void; onCl
 
 declare global {
   interface Window {
-    /** Dev-only handle: push an event onto a fixture event stream. */
-    __fixtures?: { emit: (host: Host, path: string, data: unknown) => void; close: (host: Host, path: string) => void };
+    /** Dev-only handle: push an event onto a fixture event stream, and read the hand-back notes the page sent to Nas. */
+    __fixtures?: {
+      emit: (host: Host, path: string, data: unknown) => void;
+      close: (host: Host, path: string) => void;
+      resumeNotes: () => Array<{ task: string; note: string | undefined }>;
+    };
   }
 }
 
@@ -52,6 +56,7 @@ export class FixtureTransport implements Transport {
   constructor(private readonly scenario: Scenario) {
     this.fixtures = new Fixtures(scenario);
     window.__fixtures = {
+      resumeNotes: () => this.fixtures.resumeNotes,
       emit: (host, path, data) => {
         for (const stream of this.streams) {
           if (stream.host === host && stream.path === path) {

@@ -42,6 +42,10 @@ export class Fixtures {
   private readonly devices: GharDevice[];
   private readonly tasks: NasTask[];
   private readonly schedules = new Map<string, ScheduledMessage[]>();
+  /** The line typed after each terminal's prompt, by terminal id, as keys sent to it build it. */
+  private readonly typed = new Map<string, string>();
+  /** Each `POST /tasks/:kind/:id/resume` the page made, in order, with the note it carried, so a flow can check the hand-back summary. */
+  readonly resumeNotes: Array<{ task: string; note: string | undefined }> = [];
 
   constructor(private readonly scenario: Scenario) {
     this.devices = ghar.devices(scenario);
@@ -56,7 +60,7 @@ export class Fixtures {
       case "hath":
         return this.hath(route, url, body);
       case "nas":
-        return this.nas(route, url);
+        return this.nas(route, url, body);
       case "yaad":
         return this.yaad(route, body);
       case "ghar":
@@ -148,7 +152,7 @@ export class Fixtures {
     throw new Error(`fixtures: no schedule ${id}`);
   }
 
-  private nas(route: string, url: URL): unknown {
+  private nas(route: string, url: URL, body: unknown): unknown {
     const s = this.scenario;
     if (route === "GET /health") return { status: "ok" };
     if (route === "GET /status") return nas.status(s);
@@ -156,18 +160,42 @@ export class Fixtures {
     const driven = /^POST \/(browsers|terminals)\/([^/]+)\/(input|keys)$/.exec(route);
     if (driven) {
       this.settleTask((task) => task.resource === driven[2] && task.kind === (driven[1] === "browsers" ? "browser" : "terminal"), "paused");
-      return driven[1] === "terminals" ? { sent: true } : undefined;
+      if (driven[1] === "terminals") {
+        this.typeInto(driven[2]!, body as { keys: string[]; literal: boolean });
+        return { sent: true };
+      }
+      return undefined;
     }
-    const handBack = /^POST \/tasks\/(browser|terminal)\/([^/]+)\/(resume|stop)$/.exec(route);
-    if (handBack) {
-      return this.settleTask((task) => task.kind === handBack[1] && task.id === handBack[2], handBack[3] === "stop" ? "asleep" : "working");
+    const taskCall = /^POST \/tasks\/(browser|terminal)\/([^/]+)\/(pause|resume|stop)$/.exec(route);
+    if (taskCall) {
+      const [, kind, id, call] = taskCall;
+      if (call === "resume") {
+        this.resumeNotes.push({ task: `task/${kind}/${id}`, note: (body as { note?: string }).note });
+      }
+      return this.settleTask((task) => task.kind === kind && task.id === id, call === "pause" ? "paused" : call === "stop" ? "asleep" : "working");
     }
     if (route === "GET /logs/services") return { services: nas.logServices() };
     if (route === "GET /logs") return { entries: this.filterLogs(url) };
     if (route === "GET /clients") return nas.clients();
     if (route === "GET /headscale/publish") return nas.headscalePublish();
-    if (/^GET \/terminals\/[^/]+\/capture$/.test(route)) return nas.terminalCapture();
+    const capture = /^GET \/terminals\/([^/]+)\/capture$/.exec(route);
+    if (capture) return nas.terminalCapture(this.typed.get(capture[1]!) ?? "");
     throw new Error(`fixtures: no route for nas ${route}${url.search}`);
+  }
+
+  /** Applies keys sent to a pane to the line typed after its prompt: text as typed, Backspace, and Enter or a chord clearing it. */
+  private typeInto(terminal: string, { keys, literal }: { keys: string[]; literal: boolean }): void {
+    let line = this.typed.get(terminal) ?? "";
+    for (const key of keys) {
+      if (literal) {
+        line += key;
+      } else if (key === "BSpace") {
+        line = line.slice(0, -1);
+      } else if (key === "Enter" || key.startsWith("C-")) {
+        line = "";
+      }
+    }
+    this.typed.set(terminal, line);
   }
 
   /** Puts the task `match` finds in `status`, as Nas does when Ankur drives, hands back or stops it, and answers with it. */

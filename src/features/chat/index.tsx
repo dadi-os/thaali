@@ -15,7 +15,7 @@ import { hath, nas } from "../../shared/api";
 import type { AgentRecord } from "../../types/hath";
 import { AgentPopover } from "../agents/AgentPopover";
 import { HostPin } from "./HostPin";
-import { pickLiveTasks } from "../agents/sessions";
+import { pickLiveTasks, tasksRefetchInterval } from "../agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
@@ -172,6 +172,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     queryKey: ["nas", "tasks"],
     queryFn: () => nas.listTasks(),
     enabled: connected,
+    refetchInterval: (query) => tasksRefetchInterval(query.state.data),
   });
 
   useEffect(() => {

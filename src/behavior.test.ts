@@ -814,7 +814,7 @@ describe("memory network simulation", () => {
 });
 
 describe("agent tasks", () => {
-  const nasTask = (task: string, status: NasTask["status"], resource?: string): NasTask => ({
+  const nasTask = (task: string, status: NasTask["status"], resource?: string, activeUrl?: string): NasTask => ({
     task,
     kind: task.includes("/browser/") ? "browser" : "terminal",
     id: task.split("/")[2] ?? "",
@@ -823,6 +823,7 @@ describe("agent tasks", () => {
     purpose: "p",
     status,
     ...(resource === undefined ? {} : { resource }),
+    ...(activeUrl === undefined ? {} : { active_url: activeUrl }),
     state: "s",
     created_at: "2026-10-29T10:00:00Z",
     last_activity: "2026-10-29T10:05:00Z",
@@ -846,15 +847,16 @@ describe("agent tasks", () => {
   it("pins the newest live browser and terminal among an agent's tasks", () => {
     const nas = [
       nasTask("task/browser/1", "working", "1"),
-      nasTask("task/browser/2", "idle", "2"),
+      nasTask("task/browser/2", "idle", "2", "https://chase.com/accounts/"),
       nasTask("task/browser/3", "asleep"),
-      nasTask("task/terminal/4", "idle", "tm"),
+      nasTask("task/terminal/4", "paused", "tm"),
     ];
     const sessions = { tasks: [row("task/browser/3"), row("task/browser/2"), row("task/browser/1"), row("task/terminal/4")] };
     expect(pickLiveTasks(sessions, nas)).toEqual({
-      browser: { task: "task/browser/2", resource: "2", caption: "c" },
-      terminal: { task: "task/terminal/4", resource: "tm", caption: "terminal/4 · tm" },
+      browser: { task: "task/browser/2", resource: "2", caption: "chase.com/accounts", paused: false },
+      terminal: { task: "task/terminal/4", resource: "tm", caption: "terminal/4 · tm", paused: true },
     });
+    expect(pickLiveTasks({ tasks: [row("task/browser/1")] }, nas).browser?.caption).toBe("");
     expect(pickLiveTasks({ tasks: [row("task/browser/3")] }, nas)).toEqual({ browser: null, terminal: null });
     expect(pickLiveTasks({ tasks: [] }, nas)).toEqual({ browser: null, terminal: null });
   });

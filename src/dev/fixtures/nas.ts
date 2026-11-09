@@ -85,8 +85,8 @@ export function headscalePublish(): HeadscalePublishStatus {
   return { control_url: "https://dadi.example.test", hostname: "dadi.example.test" };
 }
 
-/** Nas `GET /terminals/:id/capture`: the tail of a pane. */
-export function terminalCapture(): { output: string } {
+/** Nas `GET /terminals/:id/capture`: the tail of a pane, with `typed` after the prompt, as the pane shows keys sent to it. */
+export function terminalCapture(typed = ""): { output: string } {
   return {
     output: [
       "dadi@os:~/projects/thaali$ npm run build",
@@ -96,7 +96,7 @@ export function terminalCapture(): { output: string } {
       "",
       "src/dev/fixtures/hath.ts(88,14): error TS2322: Type 'string' is not assignable to type 'TaskStatus'.",
       "",
-      "dadi@os:~/projects/thaali$ ",
+      `dadi@os:~/projects/thaali$ ${typed}`,
     ].join("\n"),
   };
 }

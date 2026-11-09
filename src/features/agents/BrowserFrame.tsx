@@ -9,6 +9,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useConnection } from "../../shared/hooks/useConnection";
+import { browserKeyActivity, type BrowserActivity } from "./takeover/activity";
 import { createInputSender, keyInput, pointerInput, wheelInput } from "./browserInput";
 import {
   DRIVE_PROFILE,
@@ -22,11 +23,13 @@ export type BrowserFrameProps = {
   /** Nas browser id whose virtual display to stream. */
   browserId: number;
   className?: string;
-  /** Called each time Ankur acts on a driven frame: a press, a key or the wheel. Nas pauses the helper at the first input. */
-  onDrive?: () => void;
+  /** Pointer, wheel and key events go to the browser while true; while false the picture only watches and the page ignores them. */
+  interactive?: boolean;
+  /** Called with each thing Ankur does on an interactive frame: a press, a scroll, a key. */
+  onActivity?: (activity: BrowserActivity) => void;
   /**
    * `peek` thumbnail, `rail` sidebar pin, `detail` the agent panel, `full` the whole 16:9 display at its parent's width (the expanded view),
-   * `fill` a watched picture that covers its parent, and `page` the driven 16:9 display as large as its parent (a size container) allows.
+   * `fill` a watched picture that covers its parent, and `page` the 16:9 display as large as its parent (a size container) allows.
    */
   variant: "peek" | "rail" | "detail" | "full" | "fill" | "page";
 };
@@ -73,17 +76,16 @@ function paintCover(canvas: HTMLCanvasElement, frame: VideoFrame): void {
  * while the mesh is connected and the webview is visible, so a hidden window or an
  * unmounted frame lets the connection close. The caption shows until the first frame; a
  * reconnect keeps the last frame under a badge; a failure shows the error and a retry.
- * The `full` and `page` variants are also a remote control: pointer, wheel and key events go to the
- * browser through Nas with no lock, so the agent keeps working alongside.
+ * While `interactive` it is also a remote control: pointer, wheel and key events go to the browser through Nas.
+ * The stream does not change when it turns on or off.
  */
-export function BrowserFrame({ browserId, className, onDrive, variant }: BrowserFrameProps) {
+export function BrowserFrame({ browserId, className, interactive = false, onActivity, variant }: BrowserFrameProps) {
   const { state: connection } = useConnection();
   const visible = useSyncExternalStore(subscribeVisibility, visibleSnapshot);
   const live = connection === "connected" && visible;
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [overlay, setOverlay] = useState<Overlay>({ kind: "caption" });
   const [inputError, setInputError] = useState<string | null>(null);
-  const driving = variant === "full" || variant === "page";
   const profile = profileFor(variant);
   const sender = useMemo(() => createInputSender(browserId, setInputError), [browserId]);
 
@@ -119,24 +121,30 @@ export function BrowserFrame({ browserId, className, onDrive, variant }: Browser
 
   useEffect(() => {
     const canvas = canvasRef.current;
-    if (!driving || !canvas) {
+    if (!interactive || !canvas) {
       return;
     }
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
-      onDrive?.();
+      onActivity?.({ type: "scroll" });
       sender.push(wheelInput(canvas, e));
     };
     canvas.addEventListener("wheel", onWheel, { passive: false });
     return () => canvas.removeEventListener("wheel", onWheel);
-  }, [driving, sender, onDrive]);
+  }, [interactive, sender, onActivity]);
+
+  useEffect(() => {
+    if (interactive) {
+      canvasRef.current?.focus();
+    }
+  }, [interactive]);
 
   const driveHandlers = {
     onPointerDown: (e: PointerEvent<HTMLCanvasElement>) => {
       e.currentTarget.focus();
       e.currentTarget.setPointerCapture(e.pointerId);
       setInputError(null);
-      onDrive?.();
+      onActivity?.({ type: "click" });
       sender.push(pointerInput("down", e.currentTarget, e));
     },
     onPointerMove: (e: PointerEvent<HTMLCanvasElement>) => sender.push(pointerInput("move", e.currentTarget, e)),
@@ -153,7 +161,10 @@ export function BrowserFrame({ browserId, className, onDrive, variant }: Browser
     const event = keyInput(kind, e);
     if (event) {
       e.preventDefault();
-      onDrive?.();
+      const activity = kind === "key_down" ? browserKeyActivity(e) : null;
+      if (activity !== null) {
+        onActivity?.(activity);
+      }
       sender.push(event);
     }
   };
@@ -181,8 +192,8 @@ export function BrowserFrame({ browserId, className, onDrive, variant }: Browser
       <canvas
         ref={canvasRef}
         aria-label={`Browser ${browserId}`}
-        tabIndex={driving ? 0 : undefined}
-        {...(driving ? driveHandlers : {})}
+        tabIndex={interactive ? 0 : undefined}
+        {...(interactive ? driveHandlers : {})}
         className={`absolute inset-0 h-full w-full touch-none outline-none transition-opacity duration-slow ease-dadi ${
           overlay.kind === "caption" || overlay.kind === "failed" ? "opacity-0" : "opacity-100"
         }`}

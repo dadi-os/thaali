@@ -1,14 +1,12 @@
 import type { CSSProperties, ReactNode } from "react";
 import { terminalCapture } from "../fixtures/nas";
-import { agentTasks, nasTasks } from "../fixtures/tasks";
-import { Button } from "../../shared/ui/Button";
-import { Dialog } from "../../shared/overlay/Dialog";
-import { DialogOption } from "../../shared/overlay/DialogOption";
+import { pageAddress } from "../../features/agents/sessions";
+import { nasTasks } from "../fixtures/tasks";
 import { LargeDialog } from "../../shared/overlay/LargeDialog";
-import { TakeoverBanner, TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "../../features/agents/takeover/parts";
+import { TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "../../features/agents/takeover/parts";
 import { CASES } from "./cases";
 
-/** The takeover modal's cases: the browser and the terminal, just opened and driven, the hand-back dialog, and the window at 960. */
+/** The takeover modal's cases: the browser and the terminal, watching and in control, and the window at 960 and 1920. */
 
 const noop = () => undefined;
 const BROWSER = "task/browser/3f2a91";
@@ -37,31 +35,26 @@ const PAGE: CSSProperties = {
 
 type TakeoverCase = {
   task: string;
+  /** Ankur has taken over: the header says he is in control and the page or pane is ringed. */
   driving?: boolean;
-  /** The hand-back dialog is open. */
-  handingBack?: boolean;
   width?: number;
   height?: number;
 };
 
 /** The takeover modal for a fixture task, over a window of `width` x `height`, with stand-ins for the live page and pane. */
-function takeover({ task, driving = false, handingBack = false, width = 1440, height = 900 }: TakeoverCase) {
+function takeover({ task, driving = false, width = 1440, height = 900 }: TakeoverCase) {
   const nas = nasTasks("normal").find((candidate) => candidate.task === task);
   if (nas === undefined || nas.resource === undefined) {
     throw new Error(`no fixture task ${task}`);
   }
-  const row = agentTasks("normal", nas.owner).find((candidate) => candidate.id === task);
-  if (row === undefined) {
-    throw new Error(`no session row for ${task}`);
-  }
+  const state = driving ? "in-control" : "watching";
   const info = { task, kind: nas.kind, owner: nas.owner, purpose: nas.purpose, status: nas.status, resource: nas.resource };
   return (
     <div style={{ position: "relative", width, height }}>
       <LargeDialog open onClose={noop} label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`}>
-        <TakeoverHeader task={info} driving={driving} onClose={noop} />
-        <TakeoverBanner owner={nas.owner} driving={driving} />
+        <TakeoverHeader task={info} state={state} onTakeover={noop} onReturn={noop} onMenu={noop} onClose={noop} />
         {nas.kind === "browser" ? (
-          <TakeoverBrowser url={row.current} task={task} driving={driving} onBack={noop} onReload={noop}>
+          <TakeoverBrowser url={pageAddress(nas.active_url)} task={task} controlling={driving} onBack={noop} onReload={noop}>
             <div style={PAGE}>
               {block("34%", 26)}
               {block("68%", 14)}
@@ -81,29 +74,11 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
             </div>
           </TakeoverBrowser>
         ) : (
-          <TakeoverTerminal cwd={row.current.split(" · ")[0]!} driving={driving} command="" onCommand={noop} onSubmit={noop}>
+          <TakeoverTerminal controlling={driving}>
             <pre style={{ margin: 0, padding: 16, flex: 1 }}>{terminalCapture().output}</pre>
           </TakeoverTerminal>
         )}
-        <TakeoverFooter kind={nas.kind} resource={nas.resource} driving={driving} />
-        <Dialog
-            open={handingBack}
-            onClose={noop}
-            title="Hand it back?"
-            subtitle={`${nas.owner}’s helper is paused on ${row.current}.`}
-            footer={
-              <>
-                <span style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--ink-muted)", lineHeight: "16px" }}>Either way the helper first sees the page and its own last step, not your keystrokes.</span>
-                <Button tone="quiet" onClick={noop}>
-                  Keep driving
-                </Button>
-              </>
-            }
-          >
-            <DialogOption tone="fill" title="Resume the loop" detail="It continues from where it paused, with the page as it is now." onClick={noop} />
-            <DialogOption tone="outline" title="Hand back with a note" detail="It is told what you did and where things stand, then continues." onClick={noop} />
-            <DialogOption tone="danger" title="Stop the task" detail={`It goes to sleep and ${nas.owner} is told it was stopped.`} onClick={noop} />
-          </Dialog>
+        <TakeoverFooter kind={nas.kind} resource={nas.resource} state={state} />
       </LargeDialog>
     </div>
   );
@@ -111,7 +86,6 @@ function takeover({ task, driving = false, handingBack = false, width = 1440, he
 
 CASES["takeover.browser.watch"] = () => takeover({ task: BROWSER });
 CASES["takeover.browser.drive"] = () => takeover({ task: BROWSER, driving: true });
-CASES["takeover.browser.resume"] = () => takeover({ task: BROWSER, driving: true, handingBack: true });
 CASES["takeover.terminal.watch"] = () => takeover({ task: TERMINAL });
 CASES["takeover.terminal.drive"] = () => takeover({ task: TERMINAL, driving: true });
 CASES["takeover.browser.drive.960"] = () => takeover({ task: BROWSER, driving: true, width: 960 });

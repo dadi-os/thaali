@@ -49,6 +49,8 @@ export type NasTask = {
   resource?: string;
   /** The helper's state summary. */
   state: string;
+  /** A browser task's page in front, the one its screen shows; absent for terminals and while no page is in front. */
+  active_url?: string;
   created_at: string;
   last_activity: string;
 };
@@ -291,7 +293,16 @@ export function createNasClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** POST /tasks/:kind/:id/resume — hand a paused task back, with Ankur's note when he left one. */
+    /** POST /tasks/:kind/:id/pause — take an awake task over: its helper stops at the next step; pausing a paused task changes nothing. */
+    pauseTask(task: Pick<NasTask, "kind" | "id">): Promise<NasTask> {
+      return transport.request({
+        baseUrl,
+        path: `/tasks/${task.kind}/${task.id}/pause`,
+        method: "POST",
+      });
+    },
+
+    /** POST /tasks/:kind/:id/resume — hand a paused task back, with the summary of what Ankur did when there is one. */
     resumeTask(task: Pick<NasTask, "kind" | "id">, note?: string): Promise<NasTask> {
       return transport.request({
         baseUrl,
