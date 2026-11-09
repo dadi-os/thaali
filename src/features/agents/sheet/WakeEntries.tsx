@@ -7,6 +7,8 @@ import { REVEAL } from "../../../shared/motion";
 import { formatClock } from "../../../shared/lib/ux/time";
 import { Icon } from "../../../shared/ui/Icon";
 import { Truncate } from "../../../shared/ui/Truncate";
+import { AgentLink } from "./AgentLink";
+import { Arrive } from "./Arrive";
 import { Expand, Rich } from "./Rich";
 import { callTarget, prettyJson, rawContent } from "./wakes";
 
@@ -20,29 +22,31 @@ export type WakeEntryListProps = {
   agentId: string;
   /** An agent's display name by id; null is Ankur. */
   nameOf: (id: string | null) => string;
+  /** Selects the agent a message's counterpart names. */
+  onSelectAgent: (agentId: string) => void;
 };
 
 /** The entries of an open wake, oldest to newest: messages as bubbles aligned by direction, model turns as quiet blocks. */
-export function WakeEntryList({ entries, agentId, nameOf }: WakeEntryListProps) {
+export function WakeEntryList({ entries, agentId, nameOf, onSelectAgent }: WakeEntryListProps) {
   return (
     <div className="flex flex-col gap-2.5">
       {entries.map((entry) =>
-        entry.type === "message" ? <MessageBubble key={entry.ord} entry={entry} nameOf={nameOf} /> : <TurnBlock key={entry.ord} entry={entry} agentId={agentId} />,
+        entry.type === "message" ? <MessageBubble key={entry.ord} entry={entry} nameOf={nameOf} onSelectAgent={onSelectAgent} /> : <TurnBlock key={entry.ord} entry={entry} agentId={agentId} />,
       )}
     </div>
   );
 }
 
 /** One message of the wake: received at the left, sent at the right, under its counterpart's name and the time. */
-function MessageBubble({ entry, nameOf }: { entry: Extract<WakeEntry, { type: "message" }>; nameOf: WakeEntryListProps["nameOf"] }) {
+function MessageBubble({ entry, nameOf, onSelectAgent }: { entry: Extract<WakeEntry, { type: "message" }>; nameOf: WakeEntryListProps["nameOf"]; onSelectAgent: WakeEntryListProps["onSelectAgent"] }) {
   const [open, setOpen] = useState(false);
   const received = entry.direction === "received";
-  const counterpart = nameOf(received ? entry.message.from_agent_id : entry.message.to_agent_id);
+  const counterpartId = received ? entry.message.from_agent_id : entry.message.to_agent_id;
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${received ? "items-start" : "items-end"}`}>
       <span className="max-w-full text-[11.5px] text-ink-muted">
         {received ? "From " : "To "}
-        <span data-selectable className="font-semibold [overflow-wrap:anywhere]">{counterpart}</span>
+        <span data-selectable className="font-semibold [overflow-wrap:anywhere]"><AgentLink agentId={counterpartId} name={nameOf(counterpartId)} onSelect={onSelectAgent} /></span>
         {` · ${formatClock(entry.at)}`}
       </span>
       <div data-selectable className={`max-w-[92%] min-w-0 rounded-[12px] border px-3 py-2 text-[13px] leading-[18px] ${received ? "border-transparent bg-sage-fill" : "border-glass-border bg-bone-raised"}`}>
@@ -66,13 +70,21 @@ function TurnBlock({ entry, agentId }: { entry: Extract<WakeEntry, { type: "turn
       </span>
       {entry.text === null ? null : <Rich source={entry.text} size={13} lineHeight={19} />}
       {entry.thinking === null ? null : (
-        <div className="flex flex-col gap-1">
+        <div className="flex flex-col">
           <button type="button" className="ui-trans flex min-w-0 items-center gap-1.5 py-1 text-left text-[12px] text-ink-muted" aria-expanded={thinkingOpen} onClick={() => setThinkingOpen(!thinkingOpen)}>
-            <span className={`flex flex-none ${thinkingOpen ? "rotate-90" : ""}`}><Icon name="chevron" size={11} /></span>
+            <span className={`flex flex-none [transition:rotate_var(--fast)_var(--ease)] ${thinkingOpen ? "rotate-90" : ""}`}><Icon name="chevron" size={11} /></span>
             <span className="flex-none font-semibold">Thinking</span>
-            {thinkingOpen ? null : <Truncate text={firstLine} className="min-w-0 flex-1 italic" />}
+            <span className={`ui-trans flex min-w-0 flex-1 ${thinkingOpen ? "opacity-0" : ""}`}>
+              <Truncate text={firstLine} className="min-w-0 flex-1 italic" />
+            </span>
           </button>
-          {thinkingOpen ? <span data-selectable className="block pl-4 text-[12px] leading-[17px] whitespace-pre-wrap text-ink-muted [overflow-wrap:anywhere]">{entry.thinking}</span> : null}
+          <AnimatePresence initial={false}>
+            {thinkingOpen ? (
+              <motion.div key="thinking" {...REVEAL} className="overflow-hidden">
+                <span data-selectable className="block pt-1 pl-4 text-[12px] leading-[17px] whitespace-pre-wrap text-ink-muted [overflow-wrap:anywhere]">{entry.thinking}</span>
+              </motion.div>
+            ) : null}
+          </AnimatePresence>
         </div>
       )}
       {entry.calls.map((call) => (
@@ -123,13 +135,19 @@ function CallRow({ call, agentId }: { call: WakeToolCall; agentId: string }) {
                   ) : null}
                 </div>
               )}
-              {wantFull ? (
-                <div className="flex flex-col gap-0.5">
-                  <span className="ui-label text-[11px]">Full result</span>
-                  {full.error !== null ? <span data-selectable className="text-[12px] text-error">{full.error.message}</span> : null}
-                  {full.data === undefined ? (full.error === null ? <span className="sk h-3 w-full" /> : null) : <span data-selectable className={MONO_TEXT}>{prettyJson(rawContent(full.data.log))}</span>}
-                </div>
-              ) : null}
+              <AnimatePresence initial={false}>
+                {wantFull ? (
+                  <motion.div key="full" {...REVEAL} className="overflow-hidden">
+                    <div className="flex flex-col gap-0.5">
+                      <span className="ui-label text-[11px]">Full result</span>
+                      {full.error !== null ? <span data-selectable className="text-[12px] text-error">{full.error.message}</span> : null}
+                      <Arrive ready={full.data !== undefined || full.error !== null} skeleton={<span className="sk h-3 w-full" />}>
+                        {full.data === undefined ? null : <span data-selectable className={MONO_TEXT}>{prettyJson(rawContent(full.data.log))}</span>}
+                      </Arrive>
+                    </div>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
             </div>
           </motion.div>
         ) : null}

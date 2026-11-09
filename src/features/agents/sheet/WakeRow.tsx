@@ -8,11 +8,16 @@ import { Icon } from "../../../shared/ui/Icon";
 import { Segmented } from "../../../shared/ui/Segmented";
 import { Clamp } from "../../../shared/ui/Truncate";
 import { StateView } from "../../../shared/states/ModuleState";
+import { AgentLink } from "./AgentLink";
+import { Arrive } from "./Arrive";
 import { WakeEntryList } from "./WakeEntries";
 import { countsLine, filterEntries, OUTCOME_LABEL, reasonLine, usageChip, wakeDuration, type LaneFilter } from "./wakes";
 import { useWake } from "./useWakes";
 
-const LANE_FILTERS: readonly LaneFilter[] = ["All", "Work", "Process"];
+const LANE_FILTERS: readonly LaneFilter[] = ["All", "Process", "Work"];
+
+/** The most entry blocks the loading skeleton draws. */
+const SKELETON_ENTRIES = 4;
 
 /** Props of {@link OutcomeChip}. */
 type OutcomeChipProps = { outcome: WakeOutcome };
@@ -73,21 +78,7 @@ export function WakeRow({ wake, open, onToggle, nameOf, onSelectAgent, now }: Wa
             {reason.name === null ? null : (
               <>
                 {" "}
-                {reason.agentId === null ? (
-                  reason.name
-                ) : (
-                  <button
-                    type="button"
-                    className="ui-trans font-semibold text-sage-text hover:underline"
-                    title={`Show ${nameOf(reason.agentId)}`}
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onSelectAgent(reason.agentId!);
-                    }}
-                  >
-                    {nameOf(reason.agentId)}
-                  </button>
-                )}
+                <AgentLink agentId={reason.agentId} name={reason.agentId === null ? reason.name : nameOf(reason.agentId)} onSelect={onSelectAgent} />
               </>
             )}
           </span>
@@ -114,7 +105,7 @@ export function WakeRow({ wake, open, onToggle, nameOf, onSelectAgent, now }: Wa
       <AnimatePresence initial={false}>
         {open ? (
           <motion.div key="body" {...REVEAL} className="overflow-hidden">
-            <WakeBody wake={wake} nameOf={nameOf} />
+            <WakeBody wake={wake} nameOf={nameOf} onSelectAgent={onSelectAgent} />
           </motion.div>
         ) : null}
       </AnimatePresence>
@@ -122,8 +113,27 @@ export function WakeRow({ wake, open, onToggle, nameOf, onSelectAgent, now }: Wa
   );
 }
 
-/** The entries of an open wake under the lane filter, or why they are not there: loading, failed, or aged out. */
-function WakeBody({ wake, nameOf }: { wake: WakeSummary; nameOf: WakeRowProps["nameOf"] }) {
+/** The loading stand-in of an open wake, shaped like it: the lane filter, then a block per entry the wake counted (at most {@link SKELETON_ENTRIES}). */
+function WakeSkeleton({ wake }: { wake: WakeSummary }) {
+  const entries = Math.min(SKELETON_ENTRIES, Math.max(1, wake.counts.tool_calls + wake.counts.messages_received + wake.counts.messages_sent));
+  return (
+    <div className="flex flex-col gap-3 px-3 pb-3 pl-8" aria-label="Loading wake">
+      <span className="sk h-6 w-[170px] rounded-[8px]" />
+      <div className="flex flex-col gap-2.5">
+        {Array.from({ length: entries }, (_, index) => (
+          <div key={index} className="flex flex-col gap-1.5 border-l border-rule pl-3">
+            <span className="sk h-3 w-[30%]" />
+            <span className="sk h-3 w-full" />
+            <span className="sk h-3 w-[70%]" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/** The entries of an open wake under the lane filter, or why they are not there: loading, failed, or aged out. The whole wake is read first and then revealed at once. */
+function WakeBody({ wake, nameOf, onSelectAgent }: { wake: WakeSummary; nameOf: WakeRowProps["nameOf"]; onSelectAgent: WakeRowProps["onSelectAgent"] }) {
   const [filter, setFilter] = useState<LaneFilter>("All");
   const detail = useWake(wake.agent_id, wake.id, true);
   const entries = useMemo(() => (detail.data === undefined ? [] : filterEntries(detail.data.entries, filter)), [detail.data, filter]);
@@ -134,27 +144,22 @@ function WakeBody({ wake, nameOf }: { wake: WakeSummary; nameOf: WakeRowProps["n
       </div>
     );
   }
-  if (detail.data === undefined) {
-    return (
-      <div className="flex flex-col gap-2 px-3 pb-3 pl-8">
-        <span className="sk h-3 w-full" />
-        <span className="sk h-3 w-[70%]" />
-        <span className="sk h-3 w-[85%]" />
-      </div>
-    );
-  }
   return (
-    <div className="flex flex-col gap-3 px-3 pb-3 pl-8">
-      {wake.activity_trimmed ? (
-        <span className="text-[12.5px] text-ink-muted">Details expired</span>
-      ) : (
-        <Segmented size="sm" label="Lane" options={LANE_FILTERS} value={filter} onChange={setFilter} />
-      )}
-      {entries.length === 0 ? (
-        <span className="text-[12.5px] text-ink-muted">{wake.activity_trimmed ? "No messages were kept." : "Nothing recorded yet."}</span>
-      ) : (
-        <WakeEntryList entries={entries} agentId={wake.agent_id} nameOf={nameOf} />
-      )}
-    </div>
+    <Arrive ready={detail.data !== undefined} skeleton={<WakeSkeleton wake={wake} />}>
+      <div className="flex flex-col gap-3 px-3 pb-3 pl-8">
+        {wake.activity_trimmed ? (
+          <span className="text-[12.5px] text-ink-muted">Details expired</span>
+        ) : (
+          <div className="flex self-start">
+            <Segmented size="sm" label="Lane" options={LANE_FILTERS} value={filter} onChange={setFilter} />
+          </div>
+        )}
+        {entries.length === 0 ? (
+          <span className="text-[12.5px] text-ink-muted">{wake.activity_trimmed ? "No messages were kept." : "Nothing recorded yet."}</span>
+        ) : (
+          <WakeEntryList entries={entries} agentId={wake.agent_id} nameOf={nameOf} onSelectAgent={onSelectAgent} />
+        )}
+      </div>
+    </Arrive>
   );
 }

@@ -32,7 +32,6 @@ function sheet({ scenario, agentId }: SheetCase) {
     <div style={{ display: "flex", width: 440, height: 620 }}>
       <AgentSheetPanel
         agent={agent}
-        unread={2}
         tasks={tasks}
         onHaltTask={resolved}
         schedules={{ kind: "ready", items: hath.schedules(agentId) }}

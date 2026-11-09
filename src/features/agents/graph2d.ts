@@ -62,6 +62,9 @@ export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord
 /** Which names are written beside their nodes. */
 export type GraphLabels = "all" | "live" | "roots";
 
+/** One name beside its node: which side, the text and its size in graph units. */
+export type GraphLabel = { right: boolean; name: string; size: number };
+
 export type GraphView = {
   nodes: ForestNode[];
   links: ForestLink[];
@@ -69,12 +72,17 @@ export type GraphView = {
   viewBox: [number, number, number, number];
   /** Graph units per pixel. */
   unit: (px: number) => number;
-  /** The nodes that have a label, with which side it is on. */
-  labels: Map<ForestNode, { right: boolean; name: string; size: number }>;
+  /** Where every node's name goes, shown or not: it is what a hover reveals. */
+  names: Map<ForestNode, GraphLabel>;
+  /** The nodes whose name is written now. */
+  shown: Set<ForestNode>;
 };
 
 export type ViewOptions = {
+  /** Which names are written; it never changes where anything is. */
   labels: GraphLabels;
+  /** Whose names the box and the placement make room for. The fit depends on this and not on `labels`; every name by default. */
+  reserve?: Exclude<GraphLabels, "live">;
   /** The pixels the graph is drawn into. */
   width: number;
   height: number;
@@ -97,12 +105,18 @@ export function nodeRadius(depth: number, scale: number): number {
   return (depth === 1 ? 8 : depth === 2 ? 6 : 4.5) * scale;
 }
 
+type Box = { x0: number; x1: number; y0: number; y1: number };
+
+const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 && a.y1 > b.y0;
+
 /**
  * Fits a forest into `width` x `height` px: stretches a short forest to fill a tall container, widens the box for the
- * labels that stick out (twice over, since the labels change the scale that changes the labels), then writes each
- * label that has room on the side its node faces, or the other, and none where it would cover another node or label.
+ * names that stick out (twice over, since the names change the scale that changes the names), then places each name
+ * on the side its node faces, or the other, where it stays in the box and covers no node and no earlier name. The
+ * positions, the box and every placement depend on the forest and `reserve` alone, never on which agents are live;
+ * `labels` only picks which of the placed names are written.
  */
-export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] }, { labels, width, height, nodeScale = 1, fontScale = 1, pad = 30 }: ViewOptions): GraphView {
+export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] }, { labels, reserve = "all", width, height, nodeScale = 1, fontScale = 1, pad = 30 }: ViewOptions): GraphView {
   const { nodes, links } = forest;
   let x0 = Infinity;
   let x1 = -Infinity;
@@ -136,6 +150,7 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
   if (nodes.length === 0) {
     minX = maxX = minY = maxY = 0;
   }
+  const reserved = (n: ForestNode) => reserve === "all" || n.depth === 1;
   let ext = { l: 0, r: 0 };
   let viewBox: [number, number, number, number] = [0, 0, 0, 0];
   let unit = (px: number) => px;
@@ -146,40 +161,55 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
     const letter = unit(12.5 * fontScale);
     const widest = (right: boolean) =>
       nodes
-        .filter((n) => (Math.cos(n.ang) >= -0.05) === right && (labels === "all" || (labels === "live" ? isLive(n.state) : n.depth === 1)))
+        .filter((n) => (Math.cos(n.ang) >= -0.05) === right && reserved(n))
         .reduce((most, n) => Math.max(most, n.x * (right ? 1 : -1) + unit(18) + graphName(n.agent.name).length * letter * 0.6), -Infinity);
     const room = (maxX - minX + pad * 2) * MAX_LABEL_MARGIN;
     ext = { l: Math.min(room, Math.max(0, widest(false) - -minX)), r: Math.min(room, Math.max(0, widest(true) - maxX)) };
   }
-  const priority = (n: ForestNode) => (isLive(n.state) ? 1 : n.state === "waiting" ? 2 : n.depth === 1 ? 3 : 4 + n.depth);
-  const matters = (n: ForestNode) => n.depth === 1 || isLive(n.state) || n.state === "waiting";
-  const boxes = nodes.map((n) => {
+  const inside = (box: Box) => box.x0 >= viewBox[0] && box.x1 <= viewBox[0] + viewBox[2] && box.y0 >= viewBox[1] && box.y1 <= viewBox[1] + viewBox[3];
+  const nodeBoxes = nodes.map((n) => {
     const r = unit(nodeRadius(n.depth, nodeScale)) + unit(2);
-    return { x0: n.x - r, x1: n.x + r, y0: n.y - r, y1: n.y + r, own: n as ForestNode | null, solid: matters(n) };
+    return { node: n, box: { x0: n.x - r, x1: n.x + r, y0: n.y - r, y1: n.y + r } };
   });
-  const covered = (box: { x0: number; x1: number; y0: number; y1: number }, self: ForestNode) =>
-    boxes.some((other) => other.own !== self && (other.solid || !matters(self)) && box.x0 < other.x1 && box.x1 > other.x0 && box.y0 < other.y1 && box.y1 > other.y0);
-  const written = new Map<ForestNode, { right: boolean; name: string; size: number }>();
-  for (const n of [...nodes].sort((a, b) => priority(a) - priority(b))) {
-    const live = isLive(n.state);
-    const wanted = labels === "all" || (labels === "live" && live) || (labels === "roots" && n.depth === 1);
-    if (!wanted) {
-      continue;
-    }
-    const r = unit(nodeRadius(n.depth, nodeScale));
+  const measure = (n: ForestNode) => {
     const size = unit((n.depth === 1 ? 12.5 : 11.5) * fontScale);
     const name = graphName(n.agent.name);
-    const wide = name.length * size * 0.6;
+    return { size, name, wide: name.length * size * 0.6, r: unit(nodeRadius(n.depth, nodeScale)) };
+  };
+  const boxOf = (n: ForestNode, right: boolean): Box => {
+    const { size, wide, r } = measure(n);
+    const start = right ? n.x + r + unit(7) : n.x - r - unit(7) - wide;
+    return { x0: start, x1: start + wide, y0: n.y - size * 0.75, y1: n.y + size * 0.45 };
+  };
+  const names = new Map<ForestNode, GraphLabel>();
+  const fitted = new Set<ForestNode>();
+  const taken: Box[] = [];
+  const place = (n: ForestNode, solid: (other: ForestNode) => boolean) => {
+    const { size, name } = measure(n);
     const facing = Math.cos(n.ang) >= -0.05;
     for (const right of [facing, !facing]) {
-      const start = right ? n.x + r + unit(7) : n.x - r - unit(7) - wide;
-      const box = { x0: start, x1: start + wide, y0: n.y - size * 0.75, y1: n.y + size * 0.45 };
-      if (!covered(box, n)) {
-        boxes.push({ ...box, own: null, solid: true });
-        written.set(n, { right, name, size });
-        break;
+      const box = boxOf(n, right);
+      if (inside(box) && !nodeBoxes.some((other) => other.node !== n && solid(other.node) && overlaps(box, other.box)) && !taken.some((other) => overlaps(box, other))) {
+        taken.push(box);
+        names.set(n, { right, name, size });
+        fitted.add(n);
+        return;
       }
     }
+  };
+  const order = [...nodes].sort((a, b) => a.depth - b.depth);
+  for (const n of order.filter(reserved)) {
+    place(n, () => true);
   }
-  return { nodes, links, viewBox, unit, labels: written };
+  for (const n of order.filter((candidate) => !fitted.has(candidate))) {
+    place(n, (other) => other.depth === 1);
+  }
+  for (const n of nodes) {
+    if (!names.has(n)) {
+      const { size, name } = measure(n);
+      names.set(n, { right: viewBox[0] + viewBox[2] - n.x >= n.x - viewBox[0], name, size });
+    }
+  }
+  const wanted = (n: ForestNode) => labels === "all" || (labels === "live" && isLive(n.state)) || (labels === "roots" && n.depth === 1);
+  return { nodes, links, viewBox, unit, names, shown: new Set(nodes.filter((n) => wanted(n) && fitted.has(n))) };
 }

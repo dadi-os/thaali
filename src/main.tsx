@@ -1,5 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
+import { MotionConfig } from "motion/react";
 import { initApi } from "./shared/api";
 import { prepareTarget } from "./shared/desktop/os";
 import { installInteraction } from "./shared/interaction";
@@ -26,7 +27,9 @@ async function boot(): Promise<void> {
   const { default: App } = await import("./App");
   root.render(
     <React.StrictMode>
-      <App />
+      <MotionConfig reducedMotion="user">
+        <App />
+      </MotionConfig>
     </React.StrictMode>,
   );
 }

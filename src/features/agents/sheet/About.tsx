@@ -6,6 +6,7 @@ import { RISE } from "../../../shared/motion";
 import { formatDay, formatRelative } from "../../../shared/lib/ux/time";
 import { Disclosure } from "../../../shared/ui/Disclosure";
 import { Clamp } from "../../../shared/ui/Truncate";
+import { AgentLink } from "./AgentLink";
 import { compact } from "./wakes";
 
 /** Characters per token Hath measured for the model's text; a charter's size in tokens is its characters over this. */
@@ -63,9 +64,7 @@ export function About({ agent, parent, onSelectParent, now }: AboutProps) {
         ) : parent === null ? (
           agent.parent_agent_id
         ) : (
-          <button type="button" className="ui-trans font-semibold text-sage-text hover:underline" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
-            {parent.name}
-          </button>
+          <AgentLink agentId={parent.id} name={parent.name} onSelect={onSelectParent} />
         )}
       </KeyValue>
       <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>

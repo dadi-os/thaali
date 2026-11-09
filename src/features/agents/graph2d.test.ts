@@ -37,10 +37,31 @@ describe("viewForest", () => {
   it("names only the roots of a large forest, once each, by their whole name", () => {
     const all = agents("many").filter((agent) => agent.active);
     const view = viewForest(layoutForest(all, stateOf), { labels: "roots", width: 600, height: 300, nodeScale: 0.7 });
-    for (const [node, label] of view.labels) {
+    expect(view.shown.size).toBeGreaterThan(0);
+    for (const node of view.shown) {
       expect(node.depth).toBe(1);
-      expect(label.name).toBe(graphName(node.agent.name));
+      expect(view.names.get(node)!.name).toBe(graphName(node.agent.name));
     }
+  });
+
+  it("keeps every position, the box and every name's place whichever agents are live", () => {
+    const all = agents("many").filter((agent) => agent.active);
+    const viewWith = (liveIds: string[]) =>
+      viewForest(layoutForest(all, (agent) => laneState(agent, { work: liveIds.includes(agent.id), process: false })), { labels: "live", reserve: "all", width: 520, height: 260, nodeScale: 0.85 });
+    const quiet = viewWith([]);
+    const busy = viewWith([all[0]!.id, all[3]!.id, all[7]!.id]);
+    expect(busy.viewBox).toEqual(quiet.viewBox);
+    expect(busy.nodes.map((n) => [n.x, n.y])).toEqual(quiet.nodes.map((n) => [n.x, n.y]));
+    expect([...busy.names.values()]).toEqual([...quiet.names.values()]);
+    expect(quiet.shown.size).toBe(0);
+    expect(busy.shown.size).toBeGreaterThan(0);
+    expect([...busy.shown].every((n) => n.state === "working")).toBe(true);
+  });
+
+  it("gives every node a place for its name so a hover can show it", () => {
+    const all = agents("normal").filter((agent) => agent.active);
+    const view = viewForest(layoutForest(all, stateOf), { labels: "live", width: 520, height: 260, nodeScale: 0.85 });
+    expect(view.names.size).toBe(all.length);
   });
 
   it("writes a name whole, with its role suffix and uncut", () => {

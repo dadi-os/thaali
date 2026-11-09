@@ -7,18 +7,15 @@ import { Clamp } from "../../../shared/ui/Truncate";
 /** Props of {@link StateStrip}. */
 export type StateStripProps = {
   agent: AgentRecord;
-  /** Messages from the agent Ankur has not read. */
-  unread: number;
 };
 
-/** One chip per thing that is true of the agent now: a lane running, what its work lane waits on, unread messages; and the job it was given. */
-export function StateStrip({ agent, unread }: StateStripProps) {
+/** One chip per thing that is true of the agent now: a lane running, what its work lane waits on; and the job it was given. */
+export function StateStrip({ agent }: StateStripProps) {
   const { work, process, waiting_on: waiting, status } = agent.running;
   const chips = [
     work ? { key: "work", tone: "sage" as const, text: "Working" } : null,
     process ? { key: "process", tone: "tide" as const, text: "Processing" } : null,
     waiting === null ? null : { key: "waiting", tone: "tide" as const, text: `Waiting on ${waiting.targets.join(", ")}` },
-    unread > 0 ? { key: "unread", tone: "due" as const, text: `${unread} unread` } : null,
   ].filter((chip) => chip !== null);
   if (chips.length === 0 && !status?.job) {
     return null;

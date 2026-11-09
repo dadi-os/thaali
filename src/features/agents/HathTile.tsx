@@ -62,7 +62,7 @@ function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   const many = agents.length > MANY_AGENTS;
   return (
     <div className="relative min-h-0 min-w-0 flex-1">
-      <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh)} labels="live" nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
+      <AgentGraph2D agents={agents} stateOf={stateOf} width={geometry.iw} height={Math.max(60, geometry.bh)} labels="live" reserve={many ? "roots" : "all"} nodeScale={many ? 0.7 : geometry.iw > 420 ? 1 : 0.85} onPick={onPick} />
     </div>
   );
 }

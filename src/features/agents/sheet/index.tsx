@@ -4,7 +4,7 @@ import { hath, isMeshOnline, nas } from "../../../shared/api";
 import type { AgentRecord, PatchScheduleRequest } from "../../../types/hath";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
-import { getChatState, openAgent, subscribeChat } from "../../../contexts/chat";
+import { openAgent } from "../../../contexts/chat";
 import { getRunning, subscribeRunning } from "../../../contexts/running";
 import { AgentSheetPanel, type SheetFeed } from "./Panel";
 import type { SheetTask } from "./HelperTasks";
@@ -38,7 +38,6 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const running = useSyncExternalStore(subscribeRunning, getRunning);
-  const unread = useSyncExternalStore(subscribeChat, getChatState).unread[agentId] ?? 0;
   const [now, setNow] = useState(() => Date.now());
 
   useEffect(() => {
@@ -84,7 +83,6 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
     <AgentSheetPanel
       key={agentId}
       agent={agent}
-      unread={unread}
       tasks={sheetTasks}
       onHaltTask={haltTask}
       schedules={feedOf(schedules)}

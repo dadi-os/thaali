@@ -1,6 +1,6 @@
-import { Fragment, useRef } from "react";
+import { Fragment, useRef, useState } from "react";
 import type { AgentRecord } from "../../types/hath";
-import { layoutForest, nodeRadius, viewForest, type ForestLink, type ForestOptions, type GraphLabels } from "./graph2d";
+import { layoutForest, nodeRadius, viewForest, type ForestLink, type ForestNode, type ForestOptions, type GraphLabels, type GraphView } from "./graph2d";
 import { useContextActions } from "../../shared/interaction/contextMenu";
 import { agentActions } from "./actions";
 import { isLive, type LaneState } from "./laneState";
@@ -15,8 +15,10 @@ export type AgentGraph2DProps = {
   /** The pixels the graph is drawn into; it is scaled to them, so names stay legible however far it shrinks. */
   width: number;
   height: number;
-  /** Which names are written. */
+  /** Which names are written; a hovered node's name is always written. Changing it moves nothing. */
   labels: GraphLabels;
+  /** Whose names the fit makes room for; defaults to `labels`, or every name when `labels` is `live`. Set it when `labels` follows activity so the layout does not. */
+  reserve?: Exclude<GraphLabels, "live">;
   /** Scales the nodes; 1 for a whole-page graph, smaller for a tile. */
   nodeScale: number;
   /** The radius of the first ring and the distance between rings; a page spreads them wider than a tile. */
@@ -56,17 +58,23 @@ type AgentNodeProps = {
   stroke: string;
   strokeWidth: number;
   dimmed: boolean;
+  /** The pointer entered (the agent) or left (null) the node. */
+  onHover: (agent: AgentRecord | null) => void;
   onPick?: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
 /** One agent's node: a circle that answers a click when the graph picks, and a right-click menu with the agent's actions. */
-function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onPick }: AgentNodeProps) {
+function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onHover, onPick }: AgentNodeProps) {
   const ref = useRef<SVGCircleElement>(null);
   const context = useContextActions(() => agentActions(agent, { onShowDetails: onPick === undefined ? undefined : () => onPick(agent, ref.current!.getBoundingClientRect()) }));
   return (
     <circle
       ref={ref}
       {...context}
+      onPointerEnter={() => onHover(agent)}
+      onPointerLeave={() => onHover(null)}
+      onFocus={() => onHover(agent)}
+      onBlur={() => onHover(null)}
       role={onPick === undefined ? undefined : "button"}
       tabIndex={onPick === undefined ? undefined : 0}
       aria-label={onPick === undefined ? undefined : `Open ${agent.name}`}
@@ -104,9 +112,49 @@ function AgentNode({ agent, state, cx, cy, r, stroke, strokeWidth, dimmed, onPic
   );
 }
 
-/** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes that have room for one. */
-export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale, layout, fontScale, selectedId = null, dimmed = null, onPick }: AgentGraph2DProps) {
-  const view = viewForest(layoutForest(agents, stateOf, layout), { labels, width, height, nodeScale, fontScale });
+type NodeNameProps = {
+  node: ForestNode;
+  view: GraphView;
+  nodeScale: number;
+  /** Whether the name is drawn now; it fades between shown and hidden at the same place. */
+  visible: boolean;
+  /** The node's agent is filtered out. */
+  faint: boolean;
+  /** Drawn above the other names, for the hovered node; it fades in when it appears. */
+  raised?: boolean;
+};
+
+/** One node's name at the place the view reserved for it, faded in or out by `visible`; it ignores the pointer. */
+function NodeName({ node, view, nodeScale, visible, faint, raised = false }: NodeNameProps) {
+  const label = view.names.get(node)!;
+  const strong = node.depth === 1 || isLive(node.state) || raised;
+  const r = view.unit(nodeRadius(node.depth, nodeScale));
+  return (
+    <text
+      x={(node.x + (label.right ? 1 : -1) * (r + view.unit(7))).toFixed(1)}
+      y={(node.y + label.size * 0.35).toFixed(1)}
+      textAnchor={label.right ? "start" : "end"}
+      fontFamily="Inter, system-ui, sans-serif"
+      fontSize={label.size}
+      fontWeight={strong ? 600 : 500}
+      fill={strong ? "var(--ink)" : "var(--ink-muted)"}
+      paintOrder="stroke"
+      stroke="var(--bone)"
+      strokeWidth={view.unit(3)}
+      strokeLinejoin="round"
+      pointerEvents="none"
+      aria-hidden={visible ? undefined : true}
+      style={{ opacity: visible ? (faint ? 0.25 : 1) : 0, transition: "opacity var(--slow) var(--ease)", animation: raised ? "fade var(--slow) var(--ease) both" : undefined }}
+    >
+      {label.name}
+    </text>
+  );
+}
+
+/** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes `labels` picks and the hovered one. Which names show never moves a node or the fit. */
+export function AgentGraph2D({ agents, stateOf, width, height, labels, reserve, nodeScale, layout, fontScale, selectedId = null, dimmed = null, onPick }: AgentGraph2DProps) {
+  const [hovered, setHovered] = useState<AgentRecord | null>(null);
+  const view = viewForest(layoutForest(agents, stateOf, layout), { labels, reserve: reserve ?? (labels === "live" ? "all" : labels), width, height, nodeScale, fontScale });
   const { nodes, links, unit } = view;
   return (
     <svg
@@ -149,6 +197,7 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
                 strokeWidth={unit(selected ? 2.4 : n.state === "waiting" || n.state === "both" ? 2 : 1.5)}
                 stroke={ringOf(n.state, selected)}
                 dimmed={dimmed?.has(n.agent.id) ?? false}
+                onHover={setHovered}
                 onPick={onPick}
               />
             </Fragment>
@@ -156,34 +205,11 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
         })}
       </g>
       <g>
-        {nodes.map((n) => {
-          const label = view.labels.get(n);
-          if (label === undefined) {
-            return null;
-          }
-          const strong = n.depth === 1 || isLive(n.state);
-          const r = unit(nodeRadius(n.depth, nodeScale));
-          return (
-            <text
-              key={n.agent.id}
-              opacity={dimmed?.has(n.agent.id) ? 0.25 : undefined}
-              x={(n.x + (label.right ? 1 : -1) * (r + unit(7))).toFixed(1)}
-              y={(n.y + label.size * 0.35).toFixed(1)}
-              textAnchor={label.right ? "start" : "end"}
-              fontFamily="Inter, system-ui, sans-serif"
-              fontSize={label.size}
-              fontWeight={strong ? 600 : 500}
-              fill={strong ? "var(--ink)" : "var(--ink-muted)"}
-              paintOrder="stroke"
-              stroke="var(--bone)"
-              strokeWidth={unit(3)}
-              strokeLinejoin="round"
-            >
-              {label.name}
-            </text>
-          );
-        })}
+        {nodes.map((n) => (
+          <NodeName key={n.agent.id} node={n} view={view} nodeScale={nodeScale} visible={view.shown.has(n)} faint={dimmed?.has(n.agent.id) ?? false} />
+        ))}
       </g>
+      <g>{hovered === null ? null : nodes.filter((n) => n.agent.id === hovered.id).map((n) => <NodeName key={n.agent.id} node={n} view={view} nodeScale={nodeScale} visible faint={false} raised />)}</g>
     </svg>
   );
 }

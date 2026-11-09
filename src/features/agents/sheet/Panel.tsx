@@ -18,8 +18,6 @@ export type SheetFeed<T> = { kind: "ready"; items: T[] } | { kind: "loading" } |
 
 export type AgentSheetPanelProps = {
   agent: AgentRecord;
-  /** Messages from the agent Ankur has not read. */
-  unread: number;
   /** The agent's helper tasks, with the status Nas reports now; an `asking` one is waiting on this agent. */
   tasks: SheetTask[];
   /** Halts a helper task by its address; rejects with Hath's reason. */
@@ -74,7 +72,7 @@ function scheduleSummary(feed: SheetFeed<ScheduledMessage>): string {
  * wake timeline, its schedules and what it is. It draws what it is given; {@link AgentSheet} reads the agent, schedules and
  * tasks, and the timeline reads its own wakes.
  */
-export function AgentSheetPanel({ agent, unread, tasks, onHaltTask, schedules, onSaveSchedule, onCancelSchedule, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
+export function AgentSheetPanel({ agent, tasks, onHaltTask, schedules, onSaveSchedule, onCancelSchedule, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
   const [schedulesOpen, setSchedulesOpen] = useState(false);
   const { work, process, waiting_on: waiting } = agent.running;
   const lanes = [work ? "Working" : null, process ? "Processing" : null].filter((lane) => lane !== null);
@@ -108,7 +106,7 @@ export function AgentSheetPanel({ agent, unread, tasks, onHaltTask, schedules, o
         </Button>
       </header>
       <div className="scroll flex min-h-0 flex-1 flex-col gap-4 border-t border-rule px-5 pt-4 pb-6">
-        <StateStrip agent={agent} unread={unread} />
+        <StateStrip agent={agent} />
         <HelperTasks owner={agent.name} tasks={tasks} onHalt={onHaltTask} now={now} />
         <Activity agentId={agent.id} connected={connected} nameOf={nameOf} onSelectAgent={onSelectAgent} now={now} />
         <Disclosure title="Schedules" summary={scheduleSummary(schedules)} open={schedulesOpen} onToggle={() => setSchedulesOpen(!schedulesOpen)}>

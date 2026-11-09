@@ -44,12 +44,12 @@ afterEach(() => {
 });
 
 /** Draws the activity section of the fixtures' working agent and lets its reads settle. */
-async function render() {
+async function render(onSelectAgent: (agentId: string) => void = vi.fn()) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   act(() =>
     root.render(
       <QueryClientProvider client={client}>
-        <Activity agentId={AGENT} connected nameOf={(id) => id ?? "Ankur"} onSelectAgent={vi.fn()} now={Date.now()} />
+        <Activity agentId={AGENT} connected nameOf={(id) => id ?? "Ankur"} onSelectAgent={onSelectAgent} now={Date.now()} />
       </QueryClientProvider>,
     ),
   );
@@ -82,6 +82,36 @@ describe("Activity", () => {
     expect(host.textContent).toContain("Failed");
     expect(host.textContent).toContain("work lane stopped: prompt reached the 96000-token ceiling");
     expect(host.querySelectorAll('[role="radiogroup"]')).toHaveLength(1);
+  });
+
+  it("orders the lane filter All, Process, Work and fits it to its choices", async () => {
+    await render();
+    const group = host.querySelector('[role="radiogroup"]') as HTMLElement;
+    expect([...group.querySelectorAll('[role="radio"]')].map((radio) => radio.textContent)).toEqual(["All", "Process", "Work"]);
+    expect(group.parentElement!.className).toContain("self-start");
+  });
+
+  it("shows a skeleton until the whole wake is read, then every entry at once", async () => {
+    let release: (value: unknown) => void = () => undefined;
+    api.getWake.mockImplementation((agentId: string, wakeId: string) => new Promise((resolve) => (release = () => resolve(wakeDetail("normal", agentId, wakeId)))));
+    await render();
+    expect(host.querySelector('[aria-label="Loading wake"]')).not.toBeNull();
+    expect(host.textContent).not.toContain("have the work lane read the statement");
+    expect(host.querySelectorAll('[role="radiogroup"]')).toHaveLength(0);
+    release(null);
+    await settle();
+    expect(host.querySelector('[aria-label="Loading wake"]')).toBeNull();
+    expect(host.textContent).toContain("Reconcile the October statement");
+    expect(host.textContent).toContain("have the work lane read the statement");
+  });
+
+  it("opens the popover of the agent a wake's reason names", async () => {
+    const onSelectAgent = vi.fn();
+    await render(onSelectAgent);
+    const link = [...host.querySelectorAll("button[title^='Show ']")][0] as HTMLButtonElement | undefined;
+    expect(link).toBeDefined();
+    act(() => link!.click());
+    expect(onSelectAgent).toHaveBeenCalledTimes(1);
   });
 
   it("pages earlier wakes with the cursor Hath gave, until it gives none", async () => {
