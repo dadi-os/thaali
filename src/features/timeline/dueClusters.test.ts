@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { clusterDues, DUE_CLUSTER_GAP } from "./dueClusters";
+import { clusterDues, DUE_CLUSTER_GAP, sessionsNeedingRoom } from "./dueClusters";
 
 /** Positions named by letter, in the order given. */
 function at(...entries: Array<[string, number]>) {
@@ -50,5 +50,37 @@ describe("clusterDues", () => {
     const clusters = clusterDues(many);
     expect(clusters).toHaveLength(1);
     expect(clusters[0].items).toEqual(many.map((m) => m.item));
+  });
+});
+
+describe("sessionsNeedingRoom", () => {
+  const tag = { top: -12, bottom: 12 };
+  const hour = (h: number, length = 56) => ({ top: h * 56, bottom: h * 56 + length });
+
+  it("insets nothing when no due tag is drawn", () => {
+    expect(sessionsNeedingRoom([hour(0), hour(5)], [])).toEqual([false, false]);
+  });
+
+  it("insets only the sessions near a tag at 12 AM", () => {
+    expect(sessionsNeedingRoom([hour(0), hour(2), hour(6)], [tag])).toEqual([true, false, false]);
+  });
+
+  it("counts the margin around a tag but not beyond it", () => {
+    expect(sessionsNeedingRoom([{ top: 15, bottom: 60 }], [tag])).toEqual([true]);
+    expect(sessionsNeedingRoom([{ top: 16, bottom: 60 }], [tag])).toEqual([false]);
+  });
+
+  it("counts a tall cluster pill's whole extent", () => {
+    const pill = { top: 100, bottom: 148 };
+    expect(sessionsNeedingRoom([{ top: 140, bottom: 200 }, { top: 300, bottom: 360 }], [pill])).toEqual([true, false]);
+  });
+
+  it("insets a whole overlapping group when one member touches a tag, and not the next group", () => {
+    const sessions = [
+      { top: 0, bottom: 56 },
+      { top: 40, bottom: 200 },
+      { top: 300, bottom: 360 },
+    ];
+    expect(sessionsNeedingRoom(sessions, [{ top: 0, bottom: 24 }])).toEqual([true, true, false]);
   });
 });

@@ -36,3 +36,35 @@ export function clusterDues<T>(positions: ReadonlyArray<DuePosition<T>>, gap: nu
   }
   return clusters;
 }
+
+/** Vertical extent in px of a drawn element on the day's axis. */
+export type Extent = { top: number; bottom: number };
+
+/** Margin in px added above and below each due tag or pill when deciding whether a session needs room. */
+export const DUE_ROOM_MARGIN = 4;
+
+/**
+ * Which sessions must leave the due lane free. A session needs room when its extent overlaps a tag's extent padded by
+ * `margin`; sessions that overlap one another form a group, and a group needs room as a whole so its columns stay aligned.
+ * `sessions` must be ordered by `top`; the answer follows the same order.
+ */
+export function sessionsNeedingRoom(sessions: ReadonlyArray<Extent>, tags: ReadonlyArray<Extent>, margin: number = DUE_ROOM_MARGIN): boolean[] {
+  const needs = sessions.map((s) => tags.some((t) => s.top < t.bottom + margin && s.bottom > t.top - margin));
+  let start = 0;
+  let reach = -Infinity;
+  const close = (end: number) => {
+    if (needs.slice(start, end).some(Boolean)) {
+      needs.fill(true, start, end);
+    }
+    start = end;
+  };
+  sessions.forEach((s, i) => {
+    if (i > start && s.top >= reach) {
+      close(i);
+      reach = -Infinity;
+    }
+    reach = Math.max(reach, s.bottom);
+  });
+  close(sessions.length);
+  return needs;
+}

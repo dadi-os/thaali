@@ -90,6 +90,7 @@ function drafts(day: Date, long: boolean, many: boolean): Draft[] {
     out.push({ id: "bill", title: "Pay the Spotify renewal", kind: "bill", due: at(day, 23, 59), owner: "finance-specialist" });
   }
   if (many) {
+    out.push({ id: "night-owl", title: "Night owl study", kind: "study", start: at(day, 0, 10), end: at(day, 1, 10), owner: "schedule-specialist" });
     const titles = ["Submit CSE 335 homework 3", "Pay the Spotify renewal", "Renew the library books", "Send the Northwind recruiter a reply", "Upload the lab report", "Book the dentist", "Return the textbook"];
     titles.forEach((title, i) => out.push({ id: `due-midnight-${i}`, title, kind: "task", due: at(day, 0, 0), owner: "schedule-specialist" }));
     out.push({ id: "due-near", title: "Reply to the advisor", kind: "task", due: at(day, 0, 10), owner: "schedule-specialist" });

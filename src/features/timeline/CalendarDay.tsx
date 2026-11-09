@@ -7,6 +7,7 @@ import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";
 import { DueLane, DUE_LANE_WIDTH } from "./DueLane";
+import { clusterDues, DUE_TAG_HEIGHT, sessionsNeedingRoom } from "./dueClusters";
 import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
 import { segmentsOn } from "./planner/blocks";
@@ -101,6 +102,15 @@ export function CalendarDay({
     i.end_at === null
       ? 0
       : (Date.parse(i.end_at) - Date.parse(i.start_at!)) / 60_000;
+  const heights = segments.map((s) => Math.max(32, (s.endMin - s.startMin) * PPM - 3));
+  const tags = clusterDues(dues.map((item) => ({ item, y: top(wallMinutes(new Date(item.due_at!))) }))).map(({ y }) => ({
+    top: y - DUE_TAG_HEIGHT / 2,
+    bottom: y + DUE_TAG_HEIGHT / 2,
+  }));
+  const room = sessionsNeedingRoom(
+    segments.map((s, i) => ({ top: top(s.startMin), bottom: top(s.startMin) + heights[i]! })),
+    tags,
+  );
   const own = segments.map((s) => s.block);
   const total = own.reduce((sum, i) => sum + duration(i), 0);
   const done = own
@@ -207,15 +217,16 @@ export function CalendarDay({
               style={{
                 position: "absolute",
                 left: 62,
-                right: dues.length === 0 ? 0 : DUE_LANE_WIDTH + 8,
+                right: 0,
                 top: 0,
                 bottom: 0,
                 zIndex: 2,
               }}
             >
               {segments.map(
-                ({ block: item, startMin, endMin, lane, lanes }) => {
-                  const height = Math.max(32, (endMin - startMin) * PPM - 3);
+                ({ block: item, startMin, lane, lanes }, index) => {
+                  const height = heights[index]!;
+                  const inset = room[index] ? DUE_LANE_WIDTH + 8 : 0;
                   const there = plannedClock(item, zone);
                   const ended =
                     item.state === "cancelled" || item.outcome === "done";
@@ -233,12 +244,12 @@ export function CalendarDay({
                         left:
                           lanes === 1
                             ? 8
-                            : `calc(${(lane / lanes) * 100}% + 8px)`,
-                        right: lanes === 1 ? 8 : undefined,
+                            : `calc((100% - ${inset}px) * ${lane / lanes} + 8px)`,
+                        right: lanes === 1 ? 8 + inset : undefined,
                         width:
                           lanes === 1
                             ? undefined
-                            : `calc(${100 / lanes}% - 16px)`,
+                            : `calc((100% - ${inset}px) / ${lanes} - 16px)`,
                         top: top(startMin),
                         height,
                         display: "flex",
