@@ -81,7 +81,7 @@ function GhostGraph({ width, height }: { width: number; height: number }) {
 /** The footer of the graph's card: what each look of node means. */
 function Legend() {
   return (
-    <div style={{ padding: "12px 18px 14px", borderTop: "1px solid var(--rule)", flex: "none", background: "rgba(250, 250, 247, 0.5)" }}>
+    <div style={{ padding: "12px 18px 14px", borderTop: "1px solid var(--rule)", flex: "none", background: "var(--bone-50)" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "6px 18px", flexWrap: "wrap", fontSize: 13, color: "var(--ink-muted)" }}>
         {LEGEND.map(([name, mark]) => (
           <div key={name} style={{ display: "flex", alignItems: "center", gap: 7, whiteSpace: "nowrap" }}>
@@ -150,7 +150,7 @@ export function HathPage() {
     content = (
       <Card style={{ flex: 1, minHeight: 0, position: "relative" }}>
         <Measured>{(size) => <GhostGraph width={size.width} height={size.height} />}</Measured>
-        <div style={{ display: "flex", alignItems: "center", gap: 18, padding: "12px 18px 14px", borderTop: "1px solid var(--rule)", flex: "none", background: "rgba(250, 250, 247, 0.5)" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 18, padding: "12px 18px 14px", borderTop: "1px solid var(--rule)", flex: "none", background: "var(--bone-50)" }}>
           <Skeleton width={70} height={12} />
           <Skeleton width={86} height={12} />
           <Skeleton width={110} height={12} />

@@ -164,7 +164,7 @@ export function NodeSheet({
                   {...RISE}
                   layout="position"
                   type="button"
-                  className="ui-trans ui-hover-card flex flex-col items-start gap-1 rounded-[12px] border border-glass-border bg-[rgba(250,250,247,0.8)] px-3 py-3 text-left"
+                  className="ui-trans ui-hover-card flex flex-col items-start gap-1 rounded-[12px] border border-glass-border bg-[var(--bone-80)] px-3 py-3 text-left"
                   onClick={() => onSelect(connection.node.id)}
                 >
                   <span data-selectable className="text-[14px] leading-[20px]">

@@ -144,10 +144,10 @@ export type TakeoverBrowserProps = {
 export function TakeoverBrowser({ url, task, driving, onBack, onReload, children }: TakeoverBrowserProps) {
   return (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <div className="flex h-12 flex-none items-center gap-2 border-b border-rule bg-[#f1f2ee] px-3">
+      <div className="flex h-12 flex-none items-center gap-2 border-b border-rule bg-[var(--chrome)] px-3">
         <IconButton icon="back" label="Back" size={32} onClick={onBack} />
         <IconButton icon="retry" label="Reload" size={32} onClick={onReload} />
-        <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-rule bg-white px-3 text-[13px] text-ink-muted">
+        <div className="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-2xl border border-rule bg-[var(--paper)] px-3 text-[13px] text-ink-muted">
           <Icon name="lock" size={12} />
           <Truncate text={url} className="min-w-0 flex-1 text-[13px]" />
         </div>

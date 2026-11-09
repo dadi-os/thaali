@@ -113,7 +113,7 @@ body {
   color: var(--ink);
   font-family: "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
-  color-scheme: light;
+  color-scheme: light dark;
 }
 
 @keyframes breath {

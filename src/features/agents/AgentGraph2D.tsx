@@ -6,7 +6,7 @@ import { agentActions } from "./actions";
 import { isLive, type LaneState } from "./laneState";
 
 /** The fill of a node by what its agent is doing: sage on a lane, tide on the process lane alone, a bone ring while it waits. */
-const FILL: Record<LaneState, string> = { both: "#8fa382", working: "#8fa382", processing: "#7d9aa6", waiting: "#fafaf7", idle: "#b6bdac" };
+const FILL: Record<LaneState, string> = { both: "#8fa382", working: "#8fa382", processing: "#7d9aa6", waiting: "var(--bone)", idle: "#b6bdac" };
 
 export type AgentGraph2DProps = {
   agents: AgentRecord[];
@@ -41,9 +41,9 @@ function curve({ from, to }: ForestLink): string {
 /** The ring of a node: ink while it is the selected one, else by what its agent is doing. */
 function ringOf(state: LaneState, selected: boolean): string {
   if (selected) {
-    return "#2c302a";
+    return "var(--ink)";
   }
-  return state === "waiting" ? "#8fa382" : state === "both" ? "#7d9aa6" : "#fafaf7";
+  return state === "waiting" ? "#8fa382" : state === "both" ? "#7d9aa6" : "var(--bone)";
 }
 
 type AgentNodeProps = {
@@ -173,9 +173,9 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, nodeScale
               fontFamily="Inter, system-ui, sans-serif"
               fontSize={label.size}
               fontWeight={strong ? 600 : 500}
-              fill={strong ? "#2c302a" : "#5d6457"}
+              fill={strong ? "var(--ink)" : "var(--ink-muted)"}
               paintOrder="stroke"
-              stroke="#fafaf7"
+              stroke="var(--bone)"
               strokeWidth={unit(3)}
               strokeLinejoin="round"
             >

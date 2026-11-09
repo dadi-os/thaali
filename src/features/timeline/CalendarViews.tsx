@@ -50,7 +50,7 @@ export function CalendarWeek({ days, now, items, onOpen }: CalendarViewsProps) {
               gap: 8,
               padding: 10,
               borderRadius: 16,
-              background: today ? "rgba(250,250,247,.95)" : "var(--glass-veil)",
+              background: today ? "var(--bone-95)" : "var(--glass-veil)",
               border: `1px solid ${today ? "var(--sage-deep)" : "var(--glass-border)"}`,
               minWidth: 0,
             }}
@@ -254,7 +254,7 @@ export function CalendarMonth({
                 padding: 7,
                 borderRadius: 12,
                 background: today
-                  ? "rgba(250,250,247,.95)"
+                  ? "var(--bone-95)"
                   : "var(--glass-veil)",
                 border: `1px solid ${today ? "var(--sage-deep)" : "var(--glass-border)"}`,
                 opacity: isSameMonth(day, anchor) ? 1 : 0.55,

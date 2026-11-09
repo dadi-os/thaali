@@ -51,7 +51,7 @@ export function DeviceTile({ device, selected, busy, disabled, onToggle, onLevel
         padding: 14,
         borderRadius: 16,
         minWidth: 0,
-        background: selected ? "rgba(250,250,247,.95)" : "var(--glass-veil)",
+        background: selected ? "var(--bone-95)" : "var(--glass-veil)",
         border: `1px solid ${selected ? "var(--sage-deep)" : "var(--glass-border)"}`,
         boxShadow: selected ? "0 0 0 3px rgba(92,107,82,.12)" : "var(--shadow)",
         opacity: device.online ? 1 : 0.7,

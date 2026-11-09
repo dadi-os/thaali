@@ -62,6 +62,15 @@
   --shadow-deep: 0 1px 2px rgba(92, 107, 82, 0.06),
     0 12px 40px rgba(44, 48, 42, 0.08);
 
+  --paper: #ffffff;
+  --bone-95: rgba(250, 250, 247, 0.95);
+  --bone-80: rgba(250, 250, 247, 0.8);
+  --bone-70: rgba(250, 250, 247, 0.7);
+  --bone-50: rgba(250, 250, 247, 0.5);
+  --chrome: #f1f2ee;
+  --rail-ground: #f7f8f3;
+  --composer-fade-solid: #f4f6f0;
+
   /* Bone glass */
   --glass-veil: rgba(250, 250, 247, 0.62);
   --glass-sheet: rgba(250, 250, 247, 0.82);
@@ -96,6 +105,77 @@
   --slower: 550ms;
   --fast: 180ms;
   --breath: 2400ms;
+}
+
+/* Dark: the same tokens on a deep sage-black ground, picked by the OS scheme. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bone: #161814;
+    --bone-raised: #1c1f1a;
+    --field-bloom: radial-gradient(ellipse 55% 50% at 18% 78%, rgba(143, 163, 130, 0.14) 0%, transparent 58%),
+      radial-gradient(ellipse 40% 35% at 82% 22%, rgba(92, 107, 82, 0.18) 0%, transparent 55%),
+      linear-gradient(180deg, #161814 0%, #121410 100%);
+
+    --sage: #9aaf8c;
+    --sage-text: #a8b89a;
+    --sage-deep: #c5d4b8;
+    --sage-deep-hover: #d3e0c8;
+    --sage-deep-press: #deead5;
+    --sage-line: #3d4a38;
+    --sage-faint: rgba(154, 175, 140, 0.12);
+    --sage-fill: rgba(154, 175, 140, 0.1);
+    --sage-active: rgba(154, 175, 140, 0.18);
+
+    --clay: #d2bb8a;
+    --due-ink: #e0c58e;
+    --due-fill: rgba(210, 187, 138, 0.18);
+    --due-line: #6b5a36;
+
+    --tide: #9db8c2;
+    --tide-ink: #b4ccd5;
+    --tide-fill: rgba(157, 184, 194, 0.16);
+    --tide-line: rgba(157, 184, 194, 0.36);
+    --tide-wash: rgba(157, 184, 194, 0.08);
+
+    --ink: #e6ebe0;
+    --ink-muted: #a3ab98;
+    --ink-faint: #7f8776;
+    --ink-ghost: #727a6a;
+
+    --error: #d4a098;
+    --error-line: #5c403c;
+    --error-fill: rgba(154, 90, 78, 0.22);
+    --error-hover: rgba(154, 90, 78, 0.34);
+
+    --rule: #2a3026;
+    --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
+    --shadow-card: 0 1px 2px rgba(0, 0, 0, 0.3), 0 10px 30px rgba(0, 0, 0, 0.3);
+    --shadow-deep: 0 1px 2px rgba(0, 0, 0, 0.25), 0 16px 48px rgba(0, 0, 0, 0.45);
+
+    --glass-veil: rgba(22, 24, 20, 0.72);
+    --glass-sheet: rgba(28, 31, 26, 0.86);
+    --glass-hover: rgba(34, 37, 31, 0.92);
+    --glass-solid: #1c1f1a;
+    --glass-rim-top: rgba(255, 255, 255, 0.08);
+    --glass-border: rgba(255, 255, 255, 0.09);
+
+    --paper: #1f221c;
+    --bone-95: rgba(28, 31, 26, 0.95);
+    --bone-80: rgba(28, 31, 26, 0.8);
+    --bone-70: rgba(22, 24, 20, 0.7);
+    --bone-50: rgba(22, 24, 20, 0.5);
+    --chrome: #23271f;
+    --rail-ground: #171915;
+    --composer-fade-solid: #161814;
+  }
+
+  .rail {
+    --chat-hover: rgba(255, 255, 255, 0.055);
+  }
+
+  .code-view span {
+    color: var(--shiki-dark);
+  }
 }
 
 /* Bone glass surfaces */

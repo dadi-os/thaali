@@ -4,7 +4,7 @@
  * device), an off tile is quiet with a hairline.
  */
 :root {
-  --ghar-raised: #ffffff;
+  --ghar-raised: var(--paper);
   --ghar-quiet: var(--glass-solid);
   --ghar-track: color-mix(in srgb, var(--sage-deep) 13%, var(--bone));
   --ghar-disc: color-mix(in srgb, var(--sage-deep) 7%, var(--bone));
@@ -185,7 +185,7 @@
   width: 26px;
   height: 26px;
   border-radius: 12px;
-  background: #ffffff;
+  background: var(--paper);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.18);
   transition:
     transform var(--slow) var(--ghar-snap),
@@ -298,7 +298,7 @@
   right: 14px;
   height: 4px;
   border-radius: 2px;
-  background: #ffffff;
+  background: var(--paper);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   pointer-events: none;
   transition:

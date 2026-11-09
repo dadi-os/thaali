@@ -541,7 +541,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(250, 250, 247, 0.94);
+    background: var(--bone-95);
     color: var(--ink);
     box-shadow: 0 1px 3px rgba(44, 48, 42, 0.18);
     opacity: 0;
