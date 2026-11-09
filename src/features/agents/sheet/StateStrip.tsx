@@ -3,19 +3,21 @@ import { formatClock } from "../../../shared/lib/ux/time";
 import { Chip } from "../../../shared/ui/Chip";
 import { Icon } from "../../../shared/ui/Icon";
 import { Clamp } from "../../../shared/ui/Truncate";
+import { laneState } from "../laneState";
 
 /** Props of {@link StateStrip}. */
 export type StateStripProps = {
   agent: AgentRecord;
 };
 
-/** One chip per thing that is true of the agent now: a lane running, what its work lane waits on; and the job it was given. */
+/** One chip per lane the agent is running or the wait it is in, read from the one derivation of its state; and the job it was given. */
 export function StateStrip({ agent }: StateStripProps) {
-  const { work, process, waiting_on: waiting, status } = agent.running;
+  const { waiting_on: waiting, status } = agent.running;
+  const state = laneState(agent, undefined);
   const chips = [
-    work ? { key: "work", tone: "sage" as const, text: "Working" } : null,
-    process ? { key: "process", tone: "tide" as const, text: "Processing" } : null,
-    waiting === null ? null : { key: "waiting", tone: "tide" as const, text: `Waiting on ${waiting.targets.join(", ")}` },
+    state === "working" || state === "both" ? { key: "work", tone: "sage" as const, text: "Working" } : null,
+    state === "processing" || state === "both" ? { key: "process", tone: "tide" as const, text: "Processing" } : null,
+    state !== "waiting" || waiting === null ? null : { key: "waiting", tone: "tide" as const, text: `Waiting on ${waiting.targets.join(", ")}` },
   ].filter((chip) => chip !== null);
   if (chips.length === 0 && !status?.job) {
     return null;

@@ -118,18 +118,19 @@ function Tags({ lights, geometry, house }: TagsProps) {
           {cards.map((card) => (
             <section
               key={card.key}
-              className={`flex flex-none flex-col gap-0.5 rounded-[16px] border p-1.5 ${card.on > 0 ? "border-[rgba(240,168,104,.45)] bg-[rgba(240,168,104,.12)]" : "border-glass-border bg-sage-fill"}`}
+              className={`ghar-group flex flex-none flex-col gap-0.5 rounded-[16px] p-1.5 ${card.on > 0 ? "ghar-group--on" : ""}`}
               style={{ width }}
+              title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
+              onClick={(event) => {
+                swallow(event);
+                void house.run(sectionSwitch(card.lights));
+              }}
             >
               <button
                 type="button"
                 aria-pressed={card.on > 0}
-                title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
-                className="ui-trans ui-hover-fill flex min-w-0 items-baseline justify-between gap-3 rounded-[10px] px-2 py-1 text-left"
-                onClick={(event) => {
-                  swallow(event);
-                  void house.run(sectionSwitch(card.lights));
-                }}
+                aria-label={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
+                className="flex min-w-0 items-baseline justify-between gap-3 rounded-[10px] px-2 py-1 text-left"
               >
                 <span className="min-w-0 flex-1 text-[14px] font-semibold">
                   <Truncate text={card.name} />

@@ -57,7 +57,29 @@ describe("HelperTasks", () => {
   it("offers Stop only on tasks that can still be stopped", () => {
     render([task("a", "working"), task("b", "asleep"), task("c", "stopped"), task("d", "asking"), task("e", "paused"), task("f", "idle")], vi.fn());
     const stops = [...host.querySelectorAll("button")].filter((candidate) => candidate.getAttribute("aria-label")?.startsWith("Stop "));
-    expect(stops.map((stop) => stop.getAttribute("aria-label"))).toEqual(["Stop task/browser/a", "Stop task/browser/d", "Stop task/browser/e", "Stop task/browser/f"]);
+    expect(stops.map((stop) => stop.getAttribute("aria-label"))).toEqual(["Stop task/browser/a", "Stop task/browser/d", "Stop task/browser/e"]);
+    act(() => button("Show 3 idle").click());
+    const all = [...host.querySelectorAll("button")].filter((candidate) => candidate.getAttribute("aria-label")?.startsWith("Stop "));
+    expect(all.map((stop) => stop.getAttribute("aria-label"))).toEqual(["Stop task/browser/a", "Stop task/browser/d", "Stop task/browser/e", "Stop task/browser/f"]);
+  });
+
+  it("lists only the active tasks and keeps idle, asleep and stopped ones behind a toggle", () => {
+    render([task("a", "working"), task("b", "asleep"), task("c", "idle")], vi.fn());
+    expect(host.textContent).toContain("Purpose a");
+    expect(host.textContent).not.toContain("Purpose b");
+    expect(host.textContent).toContain("1 of 3 active");
+    act(() => button("Show 2 idle").click());
+    expect(host.textContent).toContain("Purpose b");
+    expect(host.textContent).toContain("Purpose c");
+    act(() => button("Hide idle").click());
+    expect(button("Show 2 idle")).toBeDefined();
+  });
+
+  it("collapses the whole list behind the toggle when every task is idle", () => {
+    render([task("b", "asleep"), task("c", "stopped")], vi.fn());
+    expect(host.textContent).not.toContain("Purpose b");
+    expect(host.textContent).toContain("0 of 2 active");
+    expect(button("Show 2 idle")).toBeDefined();
   });
 
   it("asks before stopping, and Keep leaves the task running", () => {

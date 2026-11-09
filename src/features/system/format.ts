@@ -6,11 +6,18 @@ export function formatGb(bytes: number): string {
   return `${gb.toFixed(gb >= 100 ? 0 : 1).replace(/\.0$/, "")} GB`;
 }
 
-/** How long the box has been up, in whole days and hours. */
+/**
+ * How long the box has been up, as Khisso words it: the two largest of days, hours and minutes that are not zero
+ * ("11 days, 4 hours", "1 hour, 57 minutes"), and "0 minutes" under a minute.
+ */
 export function formatUptime(seconds: number): string {
-  const days = Math.floor(seconds / 86_400);
-  const hours = Math.floor((seconds % 86_400) / 3600);
-  return `${days} ${days === 1 ? "day" : "days"}, ${hours} ${hours === 1 ? "hour" : "hours"}`;
+  const units: Array<[number, string]> = [
+    [Math.floor(seconds / 86_400), "day"],
+    [Math.floor((seconds % 86_400) / 3600), "hour"],
+    [Math.floor((seconds % 3600) / 60), "minute"],
+  ];
+  const shown = units.filter(([count]) => count > 0).slice(0, 2);
+  return shown.length === 0 ? "0 minutes" : shown.map(([count, unit]) => `${count} ${unit}${count === 1 ? "" : "s"}`).join(", ");
 }
 
 /** The color a load meter is drawn in: sage, clay past 75% and error past 90%. */

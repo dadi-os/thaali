@@ -53,9 +53,16 @@ describe("viewForest", () => {
     expect(busy.viewBox).toEqual(quiet.viewBox);
     expect(busy.nodes.map((n) => [n.x, n.y])).toEqual(quiet.nodes.map((n) => [n.x, n.y]));
     expect([...busy.names.values()]).toEqual([...quiet.names.values()]);
-    expect(quiet.shown.size).toBe(0);
-    expect(busy.shown.size).toBeGreaterThan(0);
-    expect([...busy.shown].every((n) => n.state === "working")).toBe(true);
+    expect([...quiet.shown].every((n) => n.state === "waiting")).toBe(true);
+    expect(busy.shown.size).toBeGreaterThan(quiet.shown.size);
+    expect([...busy.shown].every((n) => n.state !== "idle")).toBe(true);
+  });
+
+  it("names every agent that is not idle, one waiting on a task included, and leaves idle ones unnamed", () => {
+    const all = agents("many").filter((agent) => agent.active);
+    const states = new Map(all.map((agent, index) => [agent.id, index === 0 ? "waiting" : index === 1 ? "working" : "idle"] as const));
+    const view = viewForest(layoutForest(all, (agent) => states.get(agent.id) ?? "idle"), { labels: "live", reserve: "all", width: 520, height: 260, nodeScale: 0.85 });
+    expect([...view.shown].map((n) => n.state).sort()).toEqual(["waiting", "working"]);
   });
 
   it("gives every node a place for its name so a hover can show it", () => {

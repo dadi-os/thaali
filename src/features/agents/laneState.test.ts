@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { agents } from "../../dev/fixtures/hath";
 import type { AgentRecord } from "../../types/hath";
-import { isLive, keepsState, laneState, LANE_FILTERS, type LaneState } from "./laneState";
+import { getRunning, seedRunningFromAgents } from "../../contexts/running";
+import { isLive, keepsState, laneState, LANE_FILTERS, stateSentence, stateSince, type LaneState } from "./laneState";
 
 const base: AgentRecord = agents("normal")[0]!;
 const withRunning = (running: Partial<AgentRecord["running"]>): AgentRecord => ({ ...base, running: { work: false, process: false, waiting_on: null, status: null, ...running } });
@@ -50,5 +51,32 @@ describe("keepsState", () => {
 
   it("names a chip for each state group, All first", () => {
     expect(Object.keys(LANE_FILTERS)).toEqual(["All", "Working", "Processing", "Waiting", "Idle"]);
+  });
+});
+
+describe("the popover's state words", () => {
+  const waiting = { targets: ["task/browser/3"], since: "2026-10-28T14:00:00.000Z", wakes_by: "2026-10-28T15:00:00.000Z" };
+
+  it("says the same state the graph node shows, including a wait on a task", () => {
+    const agent = withRunning({ waiting_on: waiting });
+    expect(stateSentence(laneState(agent, undefined), agent.running.waiting_on)).toBe("Waiting on a task");
+    expect(stateSentence("both", null)).toBe("Working + Processing");
+    expect(stateSentence("idle", null)).toBe("Idle");
+    expect(stateSentence("waiting", { ...waiting, targets: ["finance-specialist"] })).toBe("Waiting on an agent");
+    expect(stateSentence("waiting", { ...waiting, targets: ["task/browser/3", "finance-specialist"] })).toBe("Waiting on a task and an agent");
+  });
+
+  it("dates a state from the start of the wait, the last step, or the last update", () => {
+    expect(stateSince(withRunning({ waiting_on: waiting }), "waiting")).toBe(waiting.since);
+    expect(stateSince(withRunning({}), "idle")).toBe(base.updated_at);
+    expect(stateSince(withRunning({ work: true }), "working")).toBe(base.updated_at);
+  });
+});
+
+describe("the running store", () => {
+  it("carries only the lanes, so a stale wait never overrides the agent's own", () => {
+    const waiting = { targets: ["task/browser/3"], since: "2026-10-28T14:00:00.000Z", wakes_by: "2026-10-28T15:00:00.000Z" };
+    seedRunningFromAgents([withRunning({ waiting_on: waiting })]);
+    expect(getRunning()[base.id]).toEqual({ work: false, process: false });
   });
 });

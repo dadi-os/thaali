@@ -4,7 +4,7 @@ import type { NasStatus, NasTask } from "../../shared/api/nas";
 import { Badge } from "../../shared/ui/Badge";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
-import { AgentName } from "../../shared/ui/AgentName";
+import { Truncate } from "../../shared/ui/Truncate";
 import { MeterRow, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
 import { Measured } from "../../shared/layout/Measured";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -75,7 +75,7 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
               <TileList>
                 {sorted.slice(0, Math.max(0, Math.floor((size.height - 24) / TASK_ROW))).map((task) => (
                   <TileRow key={task.task} size="sm" ruled={false} lead={<Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />} trail={<Badge status={task.status} />}>
-                    <AgentName name={task.owner} selectable={false} className="truncate" />
+                    <Truncate text={task.owner} />
                   </TileRow>
                 ))}
               </TileList>

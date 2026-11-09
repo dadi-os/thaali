@@ -1,4 +1,4 @@
-import type { AgentRecord } from "../../types/hath";
+import type { AgentRecord, AgentWaiting } from "../../types/hath";
 import { LANE_LABEL } from "../../shared/lib/ux/lanes";
 
 /** What an agent is doing: on both lanes, on one, waiting on a helper or another agent, or at rest. */
@@ -51,4 +51,38 @@ export type LaneFilter = keyof typeof LANE_FILTERS;
 /** Whether a filter keeps an agent that is in `state`. */
 export function keepsState(filter: LaneFilter, state: LaneState): boolean {
   return (LANE_FILTERS[filter] as readonly LaneState[]).includes(state);
+}
+
+/** What a wait is on in words: `a task`, `an agent` or both, from the addresses it names (`task/...` is a helper task). */
+function waitTarget(waiting: AgentWaiting): string {
+  const tasks = waiting.targets.some((target) => target.startsWith("task/"));
+  const agents = waiting.targets.some((target) => !target.startsWith("task/"));
+  return tasks && agents ? "a task and an agent" : agents ? "an agent" : "a task";
+}
+
+/** The sentence for an agent's state, as the popover's header and strip say it: `Working`, `Working + Processing`, `Waiting on a task` or `Idle`. */
+export function stateSentence(state: LaneState, waiting: AgentWaiting | null): string {
+  switch (state) {
+    case "both":
+      return "Working + Processing";
+    case "working":
+      return "Working";
+    case "processing":
+      return "Processing";
+    case "waiting":
+      return waiting === null ? "Waiting" : `Waiting on ${waitTarget(waiting)}`;
+    case "idle":
+      return "Idle";
+  }
+}
+
+/** The ISO time an agent has been in `state` since, as far as Hath says: the start of its wait, the work lane's last step, or its last update. */
+export function stateSince(agent: AgentRecord, state: LaneState): string {
+  if (state === "waiting") {
+    return agent.running.waiting_on?.since ?? agent.updated_at;
+  }
+  if (state === "idle") {
+    return agent.updated_at;
+  }
+  return agent.running.status?.work.since ?? agent.updated_at;
 }

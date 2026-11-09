@@ -1,5 +1,5 @@
 import type { AgentRecord } from "../../types/hath";
-import { isLive, type LaneState } from "./laneState";
+import type { LaneState } from "./laneState";
 
 /** One agent placed on the forest: its ring depth, its position around the middle and the way it faces. */
 export type ForestNode = { agent: AgentRecord; depth: number; x: number; y: number; ang: number; state: LaneState };
@@ -59,7 +59,7 @@ export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord
   return { nodes, links };
 }
 
-/** Which names are written beside their nodes. */
+/** Which names are written beside their nodes: `live` names every agent that is not idle, which includes one waiting on a task. */
 export type GraphLabels = "all" | "live" | "roots";
 
 /** One name beside its node: which side, the text and its size in graph units. */
@@ -210,6 +210,6 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
       names.set(n, { right: viewBox[0] + viewBox[2] - n.x >= n.x - viewBox[0], name, size });
     }
   }
-  const wanted = (n: ForestNode) => labels === "all" || (labels === "live" && isLive(n.state)) || (labels === "roots" && n.depth === 1);
+  const wanted = (n: ForestNode) => labels === "all" || (labels === "live" && n.state !== "idle") || (labels === "roots" && n.depth === 1);
   return { nodes, links, viewBox, unit, names, shown: new Set(nodes.filter((n) => wanted(n) && fitted.has(n))) };
 }

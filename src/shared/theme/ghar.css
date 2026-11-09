@@ -102,6 +102,31 @@
   color: var(--ink-ghost);
 }
 
+/* A tag's card on the home tile: the whole card is the group's switch, so it all answers a hover; the lights inside are their own controls. */
+.ghar-group {
+  cursor: pointer;
+  border: 1px solid var(--glass-border);
+  background: var(--sage-fill);
+  transition:
+    background-color var(--slow) var(--ease),
+    border-color var(--slow) var(--ease);
+}
+
+.ghar-group:hover {
+  border-color: var(--sage-line);
+  background: var(--sage-active);
+}
+
+.ghar-group--on {
+  border-color: rgba(240, 168, 104, 0.45);
+  background: rgba(240, 168, 104, 0.12);
+}
+
+.ghar-group--on:hover {
+  border-color: rgba(240, 168, 104, 0.75);
+  background: rgba(240, 168, 104, 0.2);
+}
+
 /* A light as a chip: a dot of its color, filled and outlined in it while it is on. */
 .ghar-light-chip {
   display: inline-flex;

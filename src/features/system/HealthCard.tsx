@@ -5,8 +5,8 @@ import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { formatGb, formatUptime, loadTone } from "./format";
 
-/** The circumference of a gauge's ring, which is drawn at radius 38 in a 96 unit box. */
-const RING = 2 * Math.PI * 38;
+/** The length a gauge's ring is measured in (its `pathLength`), so a dash of `p` units is `p` percent of it whatever the radius. */
+const FULL = 100;
 
 export type GaugeProps = {
   name: string;
@@ -18,21 +18,23 @@ export type GaugeProps = {
 
 /** One ring meter: the percentage in its middle, the meter's name and a line of detail under it. */
 function Gauge({ name, percent, detail }: GaugeProps) {
+  const filled = Math.min(FULL, Math.max(0, percent));
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
       <div className="relative size-[92px]">
         <svg width="92" height="92" viewBox="0 0 96 96" aria-hidden="true">
-          <circle cx="48" cy="48" r="38" fill="none" stroke="#e8ece2" strokeWidth="9" />
+          <circle cx="48" cy="48" r="38" fill="none" stroke="var(--sage)" strokeOpacity="0.16" strokeWidth="9" />
           <circle
             cx="48"
             cy="48"
             r="38"
             fill="none"
-            style={{ stroke: loadTone(percent) }}
+            pathLength={FULL}
+            style={{ stroke: loadTone(percent), opacity: filled > 0 ? 1 : 0, transition: "stroke-dasharray var(--slower) var(--ease), stroke var(--slow) var(--ease), opacity var(--slow) var(--ease)" }}
             strokeWidth="9"
             strokeLinecap="round"
-            strokeDasharray={RING.toFixed(1)}
-            strokeDashoffset={(RING * (1 - percent / 100)).toFixed(1)}
+            strokeDasharray={`${filled} ${FULL}`}
+            shapeRendering="geometricPrecision"
             transform="rotate(-90 48 48)"
           />
         </svg>

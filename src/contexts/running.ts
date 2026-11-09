@@ -34,7 +34,7 @@ export function subscribeRunning(listener: Listener): () => void {
 export function seedRunningFromAgents(agents: AgentRecord[]): void {
   const next: RunningMap = {};
   for (const agent of agents) {
-    next[agent.id] = { ...agent.running };
+    next[agent.id] = { work: agent.running.work, process: agent.running.process };
   }
   if (runningMapsEqual(running, next)) {
     return;

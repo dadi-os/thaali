@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { AgentName } from "../../../shared/ui/AgentName";
 import { RISE } from "../../../shared/motion";
 import { formatRelative } from "../../../shared/lib/ux/time";
+import { isLive, laneState, stateSentence, stateSince } from "../laneState";
 import { About } from "./About";
 import { Activity } from "./Activity";
 import { HelperTasks, type SheetTask } from "./HelperTasks";
@@ -74,14 +75,13 @@ function scheduleSummary(feed: SheetFeed<ScheduledMessage>): string {
  */
 export function AgentSheetPanel({ agent, tasks, onHaltTask, schedules, onSaveSchedule, onCancelSchedule, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
   const [schedulesOpen, setSchedulesOpen] = useState(false);
-  const { work, process, waiting_on: waiting } = agent.running;
-  const lanes = [work ? "Working" : null, process ? "Processing" : null].filter((lane) => lane !== null);
-  const live = lanes.length > 0;
-  const orb = work ? "bg-sage" : process ? "bg-tide" : "bg-ink-ghost";
+  const state = laneState(agent, undefined);
+  const live = isLive(state);
+  const orb = state === "working" || state === "both" ? "bg-sage" : state === "processing" || state === "waiting" ? "bg-tide" : "bg-ink-ghost";
   const summary = [
-    live ? lanes.join(" + ") : waiting === null ? "Idle" : "Waiting on a task",
+    stateSentence(state, agent.running.waiting_on),
+    formatRelative(stateSince(agent, state), now),
     tasks.length > 0 ? `${tasks.length} helper ${tasks.length === 1 ? "task" : "tasks"}` : null,
-    formatRelative(agent.updated_at, now),
   ]
     .filter((part) => part !== null)
     .join(" · ");

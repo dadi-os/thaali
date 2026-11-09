@@ -54,17 +54,26 @@ describe("Home Ghar controls", () => {
 
   it("shows a column per tag with how many of its lights are on", () => {
     mount();
-    const cards = [...host.querySelectorAll("button[title^='Switch']")].map((card) => card.textContent);
+    const cards = [...host.querySelectorAll("section[title^='Switch']")].map((card) => card.textContent);
     expect(cards.some((text) => text?.includes("all lights") && text.includes("3 of 5 on"))).toBe(true);
     expect(cards.some((text) => text?.startsWith("ankur's bed lights") && text.includes("0 of 1 on"))).toBe(true);
   });
 
-  it("switches the whole tag from its header without opening Ghar", () => {
+  it("switches the whole tag from anywhere on its card without opening Ghar", () => {
     mount();
-    const card = [...host.querySelectorAll<HTMLElement>("button[title^='Switch']")].find((candidate) => candidate.textContent?.startsWith("ankur's bed lights"))!;
+    const card = [...host.querySelectorAll<HTMLElement>("section[title^='Switch']")].find((candidate) => candidate.textContent?.startsWith("ankur's bed lights"))!;
     act(() => card.click());
     expect(house.run).toHaveBeenCalledWith([{ id: expect.any(String), command: { capability: "on_off", command: "on" } }]);
     expect(host.querySelector("output")!.textContent).toBe("/");
+  });
+
+  it("flips only that light when a light inside a card is tapped, not the whole group", () => {
+    mount();
+    const card = [...host.querySelectorAll<HTMLElement>("section[title^='Switch']")].find((candidate) => candidate.textContent?.includes("all lights"))!;
+    const light = card.querySelector<HTMLButtonElement>("button[title^='Switch'][aria-pressed]:not([aria-label])")!;
+    act(() => light.click());
+    expect(house.run).toHaveBeenCalledOnce();
+    expect(house.run.mock.calls[0]![0]).toHaveLength(1);
   });
 
   it("lists a light with no tag as a pill in the No tag strip, and a tap flips just that light", () => {
