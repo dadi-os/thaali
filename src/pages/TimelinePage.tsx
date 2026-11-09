@@ -1,4 +1,5 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../shared/layout/shell/PageHeader";
@@ -30,6 +31,7 @@ import { Sheet } from "../shared/overlay/Sheet";
 import { Truncate } from "../shared/ui/Truncate";
 import { Segmented } from "../shared/ui/Segmented";
 import { Skeleton } from "../shared/ui/Skeleton";
+import { EASE, LEAVE_S, SLOW_S } from "../shared/motion";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
 import { failureProps } from "../shared/lib/ux/moduleState";
@@ -40,6 +42,19 @@ import type { TimelineItem, TimelineViewName } from "../types/timeline";
 const WIDE_FROM = 860;
 
 type View = "Day" | "Week" | "Month";
+
+/** How far a page travels as it slides in or out, in px. */
+const GLIDE_PX = 56;
+
+/**
+ * How the calendar changes pages: the new one slides in from the side time is coming from while the old one slides out
+ * the way time went and fades (`direction` is 1 going later, -1 going earlier, 0 for a change of view, which only crossfades).
+ */
+const GLIDE = {
+  enter: (direction: number) => ({ opacity: 0, x: direction * GLIDE_PX }),
+  center: { opacity: 1, x: 0, transition: { duration: SLOW_S, ease: EASE } },
+  exit: (direction: number) => ({ opacity: 0, x: -direction * GLIDE_PX, transition: { duration: LEAVE_S, ease: EASE } }),
+} as const;
 const OPTIONS = ["Day", "Week", "Month"] as const;
 
 /** The visible month's Sunday-first grid, including adjacent dates that fill its weeks. */
@@ -195,6 +210,11 @@ export function TimelinePage() {
       : view === "Week"
         ? "this week"
         : "this month";
+  const shownAt = useRef({ view, time: anchor.getTime() });
+  const direction = shownAt.current.view !== view ? 0 : Math.sign(anchor.getTime() - shownAt.current.time);
+  useEffect(() => {
+    shownAt.current = { view, time: anchor.getTime() };
+  });
   const renderBody = (wide: boolean): ReactNode => {
     let body: ReactNode;
     if (state.kind === "loading")
@@ -350,7 +370,13 @@ export function TimelinePage() {
             {state.kind === "ready" && state.stale !== null ? (
               <StaleBanner text={`Showing what Yaad reported ${formatRelative(new Date(state.stale.since).toISOString(), now.getTime())}`} onRetry={() => void query.refetch()} />
             ) : null}
-            {renderBody(room.width > WIDE_FROM)}
+            <div className="relative flex min-h-0 flex-1 flex-col">
+              <AnimatePresence initial={false} mode="popLayout" custom={direction}>
+                <motion.div key={`${view}:${dateKey(anchor)}`} custom={direction} variants={GLIDE} initial="enter" animate="center" exit="exit" className="flex min-h-0 flex-1 flex-col">
+                  {renderBody(room.width > WIDE_FROM)}
+                </motion.div>
+              </AnimatePresence>
+            </div>
             <Sheet open={someday} onClose={() => navigate(view, anchor)} label="Needs a time" width={480}>
               <NeedsATime onClose={() => navigate(view, anchor)} onOpen={(item, element) => popover.show(item, element.getBoundingClientRect())} />
             </Sheet>
