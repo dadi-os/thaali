@@ -28,7 +28,7 @@ export function HostPin({ browser, terminal }: HostPinProps) {
             <AnimatePresence initial={false}>
               {pinned.map((entry) => (
                 <motion.div key={entry.task} {...RISE}>
-                  <TaskView task={entry.task} kind={entry.kind} resource={entry.resource} caption={entry.caption} variant="compact" paused={entry.paused} />
+                  <TaskView task={entry.task} kind={entry.kind} resource={entry.resource} caption={entry.caption} variant="compact" />
                 </motion.div>
               ))}
             </AnimatePresence>

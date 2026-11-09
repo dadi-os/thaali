@@ -188,7 +188,7 @@ export function BrowserFrame({ browserId, className, interactive = false, onActi
   const compact = variant === "peek" || variant === "rail";
 
   return (
-    <div className={`relative overflow-hidden ${chrome} ${size} ${className ?? ""}`}>
+    <div className={`overflow-hidden ${variant === "fill" || variant === "page" ? "" : "relative"} ${chrome} ${size} ${className ?? ""}`}>
       <canvas
         ref={canvasRef}
         aria-label={`Browser ${browserId}`}

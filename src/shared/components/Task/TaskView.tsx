@@ -7,7 +7,7 @@ import { TaskPreview } from "./TaskPreview";
 const LINES = 12;
 /** The screen's height per variant and kind. */
 const HEIGHT = {
-  compact: { browser: "h-[150px]", terminal: "h-[132px]" },
+  compact: { browser: "h-[168px]", terminal: "h-[132px]" },
   tall: { browser: "h-[330px]", terminal: "h-[288px]" },
 } as const;
 
@@ -23,8 +23,6 @@ export type TaskViewProps = {
   /** The address of the page in front in a browser, or the id and slot of a terminal; shown in the preview's bar. */
   caption: string;
   variant: TaskViewVariant;
-  /** Ankur has taken it over and its helper is paused. */
-  paused?: boolean;
 };
 
 /** The tail of a terminal's pane, pinned to the newest line; a failed capture shows Nas's message in place of the output. */
@@ -42,10 +40,10 @@ function TerminalOutput({ terminalId, variant }: { terminalId: string; variant: 
  * A helper task's live screen as a preview: its browser's picture or its terminal's tail, in a frame whose click opens
  * the takeover (chat rail, agent sheet).
  */
-export function TaskView({ task, kind, resource, caption, variant, paused = false }: TaskViewProps) {
+export function TaskView({ task, kind, resource, caption, variant }: TaskViewProps) {
   const shortId = task.replace(/^task\//, "");
   return (
-    <TaskPreview kind={kind} caption={caption} label={`Open ${kind} task ${shortId}`} paused={paused} onOpen={() => setTakeover(task)}>
+    <TaskPreview kind={kind} caption={caption} label={`Open ${kind} task ${shortId}`} onOpen={() => setTakeover(task)}>
       {kind === "browser" ? (
         <div className={`relative ${HEIGHT[variant].browser}`}>
           <BrowserFrame browserId={Number(resource)} variant="fill" />

@@ -18,7 +18,7 @@ export type TaskMenuProps = {
 };
 
 /**
- * The modal's `...` menu: Pause while the task is working, asking or idle, Resume while it is paused and Ankur is not driving it,
+ * The menu behind the header's split-button arrow: Pause while the task is working, asking or idle, Resume while it is paused and Ankur is not driving it,
  * and Stop task always. A task Ankur is driving shows neither Pause nor Resume: Return hands it back.
  */
 export function taskMenu({ status, state, onPause, onResume, onStop }: TaskMenuProps): ActionList {

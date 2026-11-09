@@ -1,4 +1,4 @@
-import type { AgentSessions } from "../../types/hath";
+import type { AgentSessions, TaskStatus } from "../../types/hath";
 import type { NasTask } from "../../shared/api/nas";
 import { POLL_MS } from "../../shared/lib/ux/poll";
 
@@ -36,8 +36,6 @@ export type PinnedTask = {
   resource: string;
   /** What the preview's bar says: the address of the page in front in a browser, or a terminal's id and slot. */
   caption: string;
-  /** Ankur has taken it over and its helper is paused. */
-  paused: boolean;
 };
 
 /** A page address as the preview's bar shows it: without its scheme and a lone trailing slash. */
@@ -45,26 +43,38 @@ export function pageAddress(url: string | undefined): string {
   return (url ?? "").replace(/^[a-z][a-z0-9+.-]*:\/\//i, "").replace(/\/$/, "");
 }
 
+/** Whether a task is doing something: working, asking its agent, or paused with Ankur at the controls. Idle, asleep and stopped tasks are not. */
+export function isActiveTask(status: TaskStatus): boolean {
+  return status === "working" || status === "asking" || status === "paused";
+}
+
 /**
- * The newest live browser and terminal among an agent's tasks, for the thread's pin. A browser's caption is the address
- * of the page in front, as Nas reports it, not what the agent last said it was doing.
- * `sessions.tasks` is most recently active first.
+ * The active browser and terminal among an agent's tasks, for the thread's pin; an idle, asleep or stopped task is not pinned.
+ * A browser's caption is the address of the page in front, as Nas reports it, not what the agent last said it was doing.
+ * `sessions.tasks` is most recently active first; a task in `pinned` (what the pin shows now) wins over a newer one,
+ * so two awake browsers trading the lead do not swap the preview back and forth.
  */
 export function pickLiveTasks(
   sessions: AgentSessions,
   nasTasks: NasTask[],
+  pinned: ReadonlySet<string> = new Set(),
 ): { browser: PinnedTask | null; terminal: PinnedTask | null } {
   const byId = new Map(nasTasks.map((t) => [t.task, t]));
-  let browser: PinnedTask | null = null;
-  let terminal: PinnedTask | null = null;
+  const best: { browser: PinnedTask | null; terminal: PinnedTask | null } = { browser: null, terminal: null };
   for (const row of sessions.tasks) {
-    const view = taskLiveView(byId.get(row.id));
-    if (view?.kind === "browser" && browser === null) {
-      browser = { task: row.id, resource: String(view.browserId), caption: pageAddress(byId.get(row.id)?.active_url), paused: byId.get(row.id)?.status === "paused" };
+    const nasTask = byId.get(row.id);
+    const view = nasTask !== undefined && isActiveTask(nasTask.status) ? taskLiveView(nasTask) : null;
+    if (view === null || nasTask === undefined) {
+      continue;
     }
-    if (view?.kind === "terminal" && terminal === null) {
-      terminal = { task: row.id, resource: view.terminalId, caption: `${row.id.replace(/^task\//, "")} · ${view.terminalId}`, paused: byId.get(row.id)?.status === "paused" };
+    const candidate: PinnedTask =
+      view.kind === "browser"
+        ? { task: row.id, resource: String(view.browserId), caption: pageAddress(nasTask.active_url) }
+        : { task: row.id, resource: view.terminalId, caption: `${row.id.replace(/^task\//, "")} · ${view.terminalId}` };
+    const current = best[view.kind];
+    if (current === null || (pinned.has(candidate.task) && !pinned.has(current.task))) {
+      best[view.kind] = candidate;
     }
   }
-  return { browser, terminal };
+  return best;
 }

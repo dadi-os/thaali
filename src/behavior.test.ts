@@ -844,18 +844,22 @@ describe("agent tasks", () => {
     expect(taskLiveView(undefined)).toBeNull();
   });
 
-  it("pins the newest live browser and terminal among an agent's tasks", () => {
+  it("pins the newest active browser and terminal among an agent's tasks, never an idle or sleeping one", () => {
     const nas = [
       nasTask("task/browser/1", "working", "1"),
       nasTask("task/browser/2", "idle", "2", "https://chase.com/accounts/"),
       nasTask("task/browser/3", "asleep"),
+      nasTask("task/browser/5", "asking", "5", "https://chase.com/accounts/"),
       nasTask("task/terminal/4", "paused", "tm"),
+      nasTask("task/terminal/6", "idle", "t6"),
     ];
-    const sessions = { tasks: [row("task/browser/3"), row("task/browser/2"), row("task/browser/1"), row("task/terminal/4")] };
+    const sessions = { tasks: [row("task/browser/3"), row("task/browser/2"), row("task/browser/5"), row("task/browser/1"), row("task/terminal/6"), row("task/terminal/4")] };
     expect(pickLiveTasks(sessions, nas)).toEqual({
-      browser: { task: "task/browser/2", resource: "2", caption: "chase.com/accounts", paused: false },
-      terminal: { task: "task/terminal/4", resource: "tm", caption: "terminal/4 · tm", paused: true },
+      browser: { task: "task/browser/5", resource: "5", caption: "chase.com/accounts" },
+      terminal: { task: "task/terminal/4", resource: "tm", caption: "terminal/4 · tm" },
     });
+    expect(pickLiveTasks(sessions, nas, new Set(["task/browser/1"])).browser?.task).toBe("task/browser/1");
+    expect(pickLiveTasks({ tasks: [row("task/browser/2")] }, nas)).toEqual({ browser: null, terminal: null });
     expect(pickLiveTasks({ tasks: [row("task/browser/1")] }, nas).browser?.caption).toBe("");
     expect(pickLiveTasks({ tasks: [row("task/browser/3")] }, nas)).toEqual({ browser: null, terminal: null });
     expect(pickLiveTasks({ tasks: [] }, nas)).toEqual({ browser: null, terminal: null });

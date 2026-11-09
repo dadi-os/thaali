@@ -2,8 +2,8 @@ import type { ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { FADE } from "../../../shared/motion";
 import { AgentName } from "../../../shared/ui/AgentName";
-import { Badge } from "../../../shared/ui/Badge";
-import { Button, IconButton } from "../../../shared/ui/Button";
+import { Tooltip } from "../../../shared/overlay/Tooltip";
+import { IconButton } from "../../../shared/ui/Button";
 import { Icon } from "../../../shared/ui/Icon";
 import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import type { TaskStatus } from "../../../types/hath";
@@ -37,54 +37,64 @@ function Kbd({ children }: { children: string }) {
   return <span className="rounded-[6px] border border-sage-line px-[5px] py-px font-numeric text-[11px] text-ink-muted">{children}</span>;
 }
 
+/** What the title's state dot says for a task that is doing something; idle, asleep and stopped show no dot. */
+const DOT: Partial<Record<TaskStatus, { color: string; pulse: boolean; label: string }>> = {
+  working: { color: "var(--sage)", pulse: true, label: "Working" },
+  asking: { color: "var(--tide)", pulse: true, label: "Waiting on its agent" },
+  paused: { color: "var(--ink-faint)", pulse: false, label: "Paused" },
+};
+
 export type TakeoverHeaderProps = {
   task: TakeoverTask;
   state: ControlState;
   onTakeover: () => void;
   onReturn: () => void;
-  /** Opens the overflow menu from the button's box. */
+  /** Opens the arrow's menu from the split button's box. */
   onMenu: (anchor: DOMRect) => void;
   onClose: () => void;
 };
 
 /**
- * The modal's header: the task's kind, id, owner and purpose; then who is in control, `Watching` beside the task's status or
- * `You are in control`; the one button that switches, Takeover or Return; the overflow menu; and Close.
+ * The modal's header: the task's kind, its id and owner behind a small state dot, its purpose, then one split button.
+ * Takeover (Return while Ankur is in control) is the main half and the arrow opens the Pause, Resume and Stop menu.
  */
 export function TakeoverHeader({ task, state, onTakeover, onReturn, onMenu, onClose }: TakeoverHeaderProps) {
   const controlling = isControlling(state);
+  const busy = state === "pausing" || state === "returning";
+  const dot = DOT[task.status];
   return (
     <div className="flex min-h-[60px] flex-none items-center gap-3 border-b border-rule py-2 pr-3 pl-4">
       <span className="flex size-8 flex-none items-center justify-center rounded-[10px] bg-sage-fill text-sage-text">
         <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={16} />
       </span>
       <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex items-baseline gap-2.5 text-[13px]">
+        <div className="flex items-center gap-2.5 text-[13px]">
+          {dot === undefined ? null : (
+            <Tooltip content={dot.label} side="bottom">
+              <span role="img" aria-label={dot.label} className={`dot size-2 ${dot.pulse ? "dot-pulse" : ""}`} style={{ background: dot.color }} />
+            </Tooltip>
+          )}
           <Truncate text={shortId(task.task)} className="flex-none font-numeric text-ink" />
           <AgentName name={task.owner} className="flex-1 text-ink-muted" />
         </div>
         <Clamp text={task.purpose} lines={1} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
       </div>
-      <AnimatePresence mode="wait" initial={false}>
-        {controlling ? (
-          <motion.span key="control" {...FADE} className="inline-flex h-7 flex-none items-center gap-[7px] rounded-full bg-sage-deep px-3 text-[13px] font-semibold whitespace-nowrap text-bone">
-            <span className="dot size-1.5 bg-bone" />
-            You are in control
-          </motion.span>
-        ) : (
-          <motion.span key="watching" {...FADE} className="inline-flex flex-none items-center gap-2.5">
-            <Badge status={task.status} />
-            <span className="inline-flex h-7 items-center gap-[7px] rounded-full border border-sage-line px-3 text-[13px] whitespace-nowrap text-ink-muted">
-              <Icon name="eye" size={13} />
-              Watching
-            </span>
-          </motion.span>
-        )}
-      </AnimatePresence>
-      <Button tone="fill" disabled={state === "pausing" || state === "returning"} onClick={controlling ? onReturn : onTakeover}>
-        {state === "pausing" ? "Taking over…" : state === "returning" ? "Returning…" : controlling ? "Return" : "Takeover"}
-      </Button>
-      <IconButton icon="dots" label="More" size={36} onClick={(event) => onMenu(event.currentTarget.getBoundingClientRect())} />
+      <div className="flex h-9 flex-none items-stretch overflow-hidden rounded-[12px] bg-sage-deep text-bone">
+        <button type="button" disabled={busy} onClick={controlling ? onReturn : onTakeover} className="ui-trans ui-hover-solid px-4 text-[14px] font-semibold whitespace-nowrap disabled:opacity-60">
+          {state === "pausing" ? "Taking over…" : state === "returning" ? "Returning…" : controlling ? "Return" : "Takeover"}
+        </button>
+        <button
+          type="button"
+          aria-label="More"
+          aria-haspopup="menu"
+          title="More"
+          disabled={busy}
+          onClick={(event) => onMenu(event.currentTarget.parentElement!.getBoundingClientRect())}
+          className="ui-trans ui-hover-solid flex w-8 items-center justify-center border-l border-bone/25 disabled:opacity-60"
+        >
+          <Icon name="chevDown" size={14} />
+        </button>
+      </div>
       <IconButton icon="close" label="Close" size={36} onClick={onClose} />
     </div>
   );

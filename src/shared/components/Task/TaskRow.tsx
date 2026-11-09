@@ -4,7 +4,6 @@ import { useContextActions } from "../../interaction/contextMenu";
 import { formatClock, formatRelative } from "../../lib/ux/time";
 import { RISE } from "../../motion";
 import { Icon } from "../../ui/Icon";
-import { AgentName } from "../../ui/AgentName";
 import { Clamp, Truncate } from "../../ui/Truncate";
 import { pushToast } from "../../../contexts/toasts";
 import { setTakeover } from "../../../contexts/takeover";
@@ -58,7 +57,7 @@ export function TaskRow({ task, owner, showOwner = false, question, now = Date.n
             <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={15} />
           </span>
           <Truncate text={shortId(task.id)} className="min-w-0 flex-1 font-numeric text-[13px] text-ink" />
-          {showOwner && owner ? <AgentName name={owner} selectable={false} className="max-w-[40%] text-[13px] text-ink-muted" /> : null}
+          {showOwner && owner ? <Truncate text={owner} className="max-w-[40%] flex-[0_1_auto] text-[13px] text-ink-muted" /> : null}
           <TaskStatus status={task.status} lastActivity={task.last_activity} now={now} />
         </div>
         <div className="pl-[23px]">
