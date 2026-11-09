@@ -53,7 +53,7 @@ export function HelperTasks({ owner, tasks, onHalt, now }: HelperTasksProps) {
   };
   return (
     <div className="flex flex-col gap-0.5">
-      <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
+      <SectionHeader title="Helper tasks" count={active === tasks.length ? `${active} active` : `${active} of ${tasks.length} active`} />
       {tasks.map(({ task, question }) => (
         <div key={task.id} className="flex flex-col">
           <TaskRow task={task} owner={owner} question={question} now={now} />
