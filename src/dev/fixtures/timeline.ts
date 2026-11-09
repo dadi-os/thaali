@@ -61,7 +61,7 @@ function item(day: Date, draft: Draft, today: Date): TimelineItem {
 const ROOM_1345 = { id: "p0000000-0000-4000-8000-000000000001", title: "Engineering Building", address: "428 S Shaw Ln, East Lansing, MI 48824", room: "1345" };
 const GYM = { id: "p0000000-0000-4000-8000-000000000002", title: "IM West", address: null, room: null };
 
-function drafts(day: Date, long: boolean): Draft[] {
+function drafts(day: Date, long: boolean, many: boolean): Draft[] {
   const dow = day.getDay();
   const week = dow >= 1 && dow <= 5;
   const out: Draft[] = [
@@ -88,6 +88,12 @@ function drafts(day: Date, long: boolean): Draft[] {
   if (dow === 0) {
     out.push({ id: "call", title: "Call with the Northwind recruiter", kind: "appointment", start: at(day, 16, 0), end: at(day, 16, 30), state: "cancelled", owner: "recruiter-specialist" });
     out.push({ id: "bill", title: "Pay the Spotify renewal", kind: "bill", due: at(day, 23, 59), owner: "finance-specialist" });
+  }
+  if (many) {
+    const titles = ["Submit CSE 335 homework 3", "Pay the Spotify renewal", "Renew the library books", "Send the Northwind recruiter a reply", "Upload the lab report", "Book the dentist", "Return the textbook"];
+    titles.forEach((title, i) => out.push({ id: `due-midnight-${i}`, title, kind: "task", due: at(day, 0, 0), owner: "schedule-specialist" }));
+    out.push({ id: "due-near", title: "Reply to the advisor", kind: "task", due: at(day, 0, 10), owner: "schedule-specialist" });
+    out.push({ id: "due-far", title: "Water the plants", kind: "task", due: at(day, 9, 0), owner: "schedule-specialist" });
   }
   return out;
 }
@@ -136,7 +142,7 @@ export function timeline(scenario: Scenario, request: TimelineRequest): { items:
   const day = new Date(from);
   day.setHours(0, 0, 0, 0);
   while (day.getTime() < to.getTime()) {
-    for (const draft of drafts(day, scenario === "long")) {
+    for (const draft of drafts(day, scenario === "long", scenario === "many")) {
       const built = item(new Date(day), draft, today);
       const moment = new Date(built.start_at ?? built.due_at ?? day);
       const wantsDue = request.view === "due";

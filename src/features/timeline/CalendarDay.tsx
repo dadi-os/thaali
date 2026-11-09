@@ -6,6 +6,7 @@ import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";
+import { DueLane, DUE_LANE_WIDTH } from "./DueLane";
 import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
 import { segmentsOn } from "./planner/blocks";
@@ -206,7 +207,7 @@ export function CalendarDay({
               style={{
                 position: "absolute",
                 left: 62,
-                right: 0,
+                right: dues.length === 0 ? 0 : DUE_LANE_WIDTH + 8,
                 top: 0,
                 bottom: 0,
                 zIndex: 2,
@@ -334,30 +335,10 @@ export function CalendarDay({
                   );
                 },
               )}
-              {dues.map((item) => (
-                <button
-                  key={itemKey(item)}
-                  type="button"
-                  className="ui-trans ui-hover-fill"
-                  onClick={(e) => onOpen(item, e.currentTarget)}
-                  style={{
-                    position: "absolute",
-                    left: 8,
-                    right: 8,
-                    top: top(wallMinutes(new Date(item.due_at!))),
-                    borderTop: "2px solid var(--clay)",
-                    fontSize: 12,
-                    color: "var(--due-ink)",
-                    textAlign: "right",
-                    zIndex: 3,
-                  }}
-                >
-                  <Truncate
-                    text={`Due ${formatClock(item.due_at!)} · ${item.title}`}
-                  />
-                </button>
-              ))}
             </div>
+            {dues.length === 0 ? null : (
+              <DueLane items={dues} top={(item) => top(wallMinutes(new Date(item.due_at!)))} selected={selected} onOpen={onOpen} />
+            )}
             {nowMinute !== null && nowMinute >= lo && nowMinute <= hi ? (
               <div
                 style={{
