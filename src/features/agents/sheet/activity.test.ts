@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { agentLogs } from "../../../dev/fixtures/hath";
-import { buildActivity, carryWakeKeys, thoughtGist } from "./activity";
+import { buildActivity, thoughtGist } from "./activity";
 
 describe("buildActivity over the fixture logs", () => {
   const wakes = buildActivity(agentLogs("finance-specialist"));
@@ -23,12 +23,6 @@ describe("buildActivity over the fixture logs", () => {
     const messages = wakes.flatMap((wake) => wake.steps.flatMap((step) => (step.kind === "message" ? [step] : [])));
     expect(messages.some((step) => step.wakeStopped)).toBe(true);
     expect(messages.some((step) => step.scheduled && step.direction === "receive")).toBe(true);
-  });
-
-  it("keeps a wake's key when the window slides past its first row", () => {
-    const before = buildActivity(agentLogs("finance-specialist"));
-    const slid = buildActivity(agentLogs("finance-specialist").filter((log) => log.id !== before[0]!.key));
-    expect(carryWakeKeys(before, slid)[0]!.key).toBe(before[0]!.key);
   });
 });
 

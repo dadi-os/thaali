@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useState } from "react";
 import type { AgentRecord, AgentTask, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
 import { Button, IconButton } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
@@ -12,15 +12,22 @@ import { RISE } from "../../../shared/motion";
 import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import { formatClock, formatDay, formatRelative } from "../../../shared/lib/ux/time";
 import type { ActivityWake } from "./activity";
-import { ActivityFeed } from "./ActivityFeed";
+import { Segmented } from "../../../shared/ui/Segmented";
 import { ScheduleRow } from "./ScheduleRow";
+import { Thread } from "./Thread";
+import { defaultTab, flattenLane, withSeparators } from "./laneThread";
 import { workLine } from "./workLine";
+
+const TABS = ["Work", "Process", "About"] as const;
+
+/** The sheet's tabs: one thread per lane, and the agent's facts. */
+type SheetTab = (typeof TABS)[number];
 
 /** Characters per token Hath measured for the model's text; a charter's size in tokens is its characters over this. */
 const CHARS_PER_TOKEN = 2.37;
 
 /** The sections of the sheet that open and shut. */
-export type SheetSection = "calls" | "queued" | "scheduled" | "charter" | "activity";
+export type SheetSection = "calls" | "queued" | "scheduled" | "charter";
 
 /** A helper task of the agent as the sheet lists it. */
 export type SheetTask = {
@@ -38,8 +45,12 @@ export type AgentSheetPanelProps = {
   /** The agent's helper tasks, with the status Nas reports now; an `asking` one is waiting on this agent. */
   tasks: SheetTask[];
   schedules: SheetFeed<ScheduledMessage>;
-  /** The agent's newest wakes, newest first. */
+  /** The agent's newest wakes, newest first; the sheet flattens them into one thread per lane. */
   wakes: SheetFeed<ActivityWake>;
+  /** Whether wakes before the ones read may exist. */
+  canLoadEarlier: boolean;
+  /** Asks for more wakes. */
+  onLoadEarlier: () => void;
   /** Saves a schedule's changes; rejects with Hath's reason. */
   onSaveSchedule: (id: string, changes: PatchScheduleRequest) => Promise<void>;
   /** Cancels a schedule; rejects with Hath's reason. */
@@ -112,11 +123,18 @@ function feedSummary<T>(feed: SheetFeed<T>, ready: (items: T[]) => string): stri
 }
 
 /**
- * The agent's sheet: a glass card docked beside the graph with its name and lanes, what it is doing now, the helper
- * tasks it owns, and sections for its last calls, queued messages, schedule, charter and activity. It draws what it is
+ * The agent's sheet: a glass card docked beside the graph with its name and lanes, what it is doing now, and tabs for each
+ * lane's thread and for the agent's helper tasks, last calls, queued messages, schedule and charter. It draws what it is
  * given; {@link AgentSheet} reads the data and holds the open sections.
  */
-export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, onOpenThread, onClose, now }: AgentSheetPanelProps) {
+export function AgentSheetPanel({ agent, tasks, schedules, wakes, canLoadEarlier, onLoadEarlier, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, onOpenThread, onClose, now }: AgentSheetPanelProps) {
+  const threads = useMemo(() => {
+    const items = wakes.kind === "ready" ? wakes.items : [];
+    return { Work: flattenLane(items, "work"), Process: flattenLane(items, "process") };
+  }, [wakes]);
+  const [chosen, setChosen] = useState<SheetTab | null>(null);
+  const tab = chosen ?? defaultTab(agent.running.work, threads.Work.length, threads.Process.length);
+  const separated = useMemo(() => ({ Work: withSeparators(threads.Work), Process: withSeparators(threads.Process) }), [threads]);
   const status = agent.running.status;
   const waiting = agent.running.waiting_on;
   const lanes = [agent.running.work ? "Working" : null, agent.running.process ? "Processing" : null].filter((lane) => lane !== null);
@@ -124,7 +142,6 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
   const calls = status?.recent ?? [];
   const pending = status?.pending ?? [];
   const who = (id: string | null) => (id === null ? "Ankur" : id);
-  const scroll = useRef<HTMLDivElement>(null);
   const live = lanes.length > 0;
   const orb = agent.running.work ? "bg-sage" : agent.running.process ? "bg-tide" : "bg-ink-ghost";
   const summary = [
@@ -154,22 +171,42 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
           Open thread
         </Button>
       </header>
-      <div ref={scroll} className="scroll flex min-h-0 flex-1 flex-col gap-4 border-t border-rule px-5 pt-4 pb-6">
-        <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-4 py-3">
-          <SectionHeader title="Right now" />
-          <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
-            {workLine(agent, now)}
-          </span>
-          {status?.step ? <Truncate text={status.step} className="ui-mono" /> : null}
-          {status?.job ? (
-            <div className="flex items-start gap-2 text-[13px] leading-[20px] text-ink-muted">
-              <span className="mt-1 flex"><Icon name="user" size={13} /></span>
-              <span data-selectable className="min-w-0 flex-1">
-                <Clamp text={`${who(status.job.from)} asked at ${formatClock(status.job.at)}: ${status.job.content}`} lines={3} />
-              </span>
-            </div>
-          ) : null}
+      <div className="flex min-h-0 flex-1 flex-col border-t border-rule">
+        <div className="flex flex-none flex-col gap-3 px-5 pt-3">
+          <div className="flex flex-col gap-1 rounded-[14px] bg-sage-fill px-4 py-2.5">
+            <SectionHeader title="Right now" />
+            <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
+              {workLine(agent, now)}
+            </span>
+            {status?.step ? <Truncate text={status.step} className="ui-mono" /> : null}
+            {status?.job ? (
+              <div className="flex items-start gap-2 text-[13px] leading-[20px] text-ink-muted">
+                <span className="mt-1 flex"><Icon name="user" size={13} /></span>
+                <span data-selectable className="min-w-0 flex-1">
+                  <Clamp text={`${who(status.job.from)} asked at ${formatClock(status.job.at)}: ${status.job.content}`} lines={2} />
+                </span>
+              </div>
+            ) : null}
+          </div>
+          <Segmented size="sm" label="Agent sheet" options={TABS} value={tab} onChange={setChosen} />
         </div>
+        {tab !== "About" ? (
+          wakes.kind === "ready" ? (
+            <Thread
+              key={tab}
+              items={separated[tab]}
+              live={agent.running[tab === "Work" ? "work" : "process"]}
+              empty={`Nothing on the ${tab.toLowerCase()} lane yet.`}
+              canLoadEarlier={canLoadEarlier}
+              onLoadEarlier={onLoadEarlier}
+            />
+          ) : (
+            <div className="px-5 pt-3">
+              <FeedState feed={wakes} />
+            </div>
+          )
+        ) : (
+        <div className="scroll flex min-h-0 flex-1 flex-col gap-4 px-5 pt-4 pb-6">
         {tasks.length > 0 ? (
           <div className="flex flex-col gap-0.5">
             <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
@@ -230,13 +267,6 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
           >
             <CharterText source={agent.system_prompt} />
           </Disclosure>
-          <Disclosure title="Activity" summary={feedSummary(wakes, (items) => (items.length > 0 ? `${items.length} wakes` : "None"))} open={isOpen("activity")} onToggle={() => onToggle("activity")}>
-            {wakes.kind !== "ready" ? (
-              <FeedState feed={wakes} />
-            ) : (
-              <ActivityFeed wakes={wakes.items} running={agent.running} scrollRef={scroll} now={now} />
-            )}
-          </Disclosure>
         </div>
         <p className="m-0 px-1 text-[12.5px] leading-5 text-ink-muted">
           {`Created ${formatDay(agent.created_at)}`}
@@ -249,6 +279,8 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, onSaveSchedule
             </>
           )}
         </p>
+        </div>
+        )}
       </div>
     </Card>
   );

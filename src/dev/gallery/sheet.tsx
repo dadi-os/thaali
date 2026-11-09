@@ -39,6 +39,8 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
         tasks={tasks}
         schedules={{ kind: "ready", items: hath.schedules(agentId) }}
         wakes={{ kind: "ready", items: buildActivity(hath.agentLogs(agentId)) }}
+        canLoadEarlier
+        onLoadEarlier={noop}
         onSaveSchedule={resolved}
         onCancelSchedule={resolved}
         parent={hath.agents(scenario).find((candidate) => candidate.id === agent.parent_agent_id && candidate.active) ?? null}
@@ -53,12 +55,12 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
 }
 
 CASES["agent.sheet.working"] = () => sheet({ scenario: "normal", agentId: "finance-specialist" });
-CASES["agent.sheet.open"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: ["calls", "charter", "activity"] });
+CASES["agent.sheet.open"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: ["calls", "charter"] });
 CASES["agent.sheet.waiting"] = () => sheet({ scenario: "asking", agentId: "networking-specialist" });
 CASES["agent.sheet.toggle"] = CASES["agent.sheet.working"];
 CASES["agent.sheet.scheduled"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: ["scheduled"] });
-CASES["agent.sheet.activity"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: ["activity"] });
+CASES["agent.sheet.activity"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: [] });
 for (const name of ["scheduled.edit", "scheduled.edit.custom", "scheduled.cancel"]) CASES[`agent.sheet.${name}`] = CASES["agent.sheet.scheduled"];
 for (const name of ["activity.unfold", "activity.opened", "activity.older", "activity.processing"]) CASES[`agent.sheet.${name}`] = CASES["agent.sheet.activity"];
-CASES["agent.sheet.activity.working.live"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: ["activity"] });
+CASES["agent.sheet.activity.working.live"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: [] });
 CASES["agent.sheet.idle"] = () => sheet({ scenario: "normal", agentId: "career-manager" });
