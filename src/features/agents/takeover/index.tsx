@@ -1,8 +1,9 @@
 import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { isMeshOnline, nas } from "../../../shared/api";
+import { hath, isMeshOnline, nas } from "../../../shared/api";
 import type { NasTask } from "../../../shared/api/nas";
 import { useRetained } from "../../../shared/hooks/useRetained";
+import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { AnchoredMenu } from "../../../shared/overlay/AnchoredMenu";
 import { ConfirmDialog } from "../../../shared/overlay/ConfirmDialog";
@@ -15,6 +16,7 @@ import { BrowserFrame } from "../BrowserFrame";
 import { pageAddress, tasksRefetchInterval } from "../sessions";
 import { type Activity, type BrowserActivity, createBrowserActivity, createTerminalActivity, type TerminalActivity } from "./activity";
 import { createControl, type ControlState } from "./control";
+import { STOP_DETAIL, taskMenu } from "./menu";
 import { TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "./parts";
 import { TerminalPane } from "./TerminalPane";
 
@@ -124,9 +126,12 @@ function TakeoverShell({ task, resource, open, state, onTakeover, onReturn, onCl
     setStopping(true);
     setStopError(null);
     try {
-      await nas.pauseTask(task);
-      await nas.stopTask(task);
-      await queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] });
+      await hath.haltSession(task.owner, task.task);
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] }),
+        queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY }),
+        queryClient.invalidateQueries({ queryKey: ["agent", task.owner] }),
+      ]);
       setConfirmingStop(false);
       leave();
     } catch (err) {
@@ -135,7 +140,20 @@ function TakeoverShell({ task, resource, open, state, onTakeover, onReturn, onCl
       setStopping(false);
     }
   };
-  const actions: ActionList = [{ id: "task.stop", label: "Stop task", icon: "power", destructive: true, run: () => setConfirmingStop(true) }];
+  const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] });
+  const actions: ActionList = taskMenu({
+    status: task.status,
+    state,
+    onPause: async () => {
+      await nas.pauseTask(task);
+      await refreshTasks();
+    },
+    onResume: async () => {
+      await nas.resumeTask(task);
+      await refreshTasks();
+    },
+    onStop: () => setConfirmingStop(true),
+  });
   const info = { task: task.task, kind: task.kind, owner: task.owner, purpose: task.purpose, status: task.status, resource };
   return (
     <LargeDialog open={open} onClose={onClose} label={`${task.kind === "browser" ? "Browser" : "Terminal"} ${task.id}`}>
@@ -146,7 +164,7 @@ function TakeoverShell({ task, resource, open, state, onTakeover, onReturn, onCl
       <ConfirmDialog
         open={open && confirmingStop}
         title="Stop this task?"
-        detail={`It goes to sleep and ${task.owner} is told it was stopped.`}
+        detail={STOP_DETAIL}
         confirmLabel="Stop task"
         icon="power"
         pending={stopping}

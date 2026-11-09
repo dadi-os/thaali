@@ -6,6 +6,8 @@ export type Action = {
   id: string;
   /** What the row says, as a verb: "Mark done", "Open thread". */
   label: string;
+  /** One line that explains the row, shown as its tooltip. */
+  detail?: string;
   /** The row's icon. */
   icon?: IconName;
   /** The key combination that runs it, such as "mod+k"; shown at the row's end. */
