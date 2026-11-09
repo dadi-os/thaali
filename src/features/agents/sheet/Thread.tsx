@@ -79,7 +79,7 @@ function ToolRow({ tool, running }: { tool: Extract<ThreadEntry, { kind: "tool" 
               {params.length > 0 ? (
                 <div className="flex flex-col gap-1">
                   {params.map(([name, value]) => (
-                    <div key={name} className="flex items-start overflow-hidden rounded-[6px] bg-[rgba(250,250,247,0.7)]">
+                    <div key={name} className="flex items-start overflow-hidden rounded-[6px] bg-[var(--bone-70)]">
                       <span className="flex-none bg-[rgba(44,48,42,0.06)] px-2 py-1 font-numeric text-[11px] leading-4 text-ink-muted">{name}</span>
                       <div className="min-w-0 flex-1 px-2 py-1 text-ink">
                         <Expand lines={5} lineHeight={16} open={isExpanded(name)} onToggle={() => toggleExpanded(name)}>
