@@ -1,12 +1,10 @@
 import * as hath from "../fixtures/hath";
 import { nasTasks } from "../fixtures/tasks";
-import { AgentSheetPanel, type SheetSection } from "../../features/agents/sheet/Panel";
-
-import { buildActivity } from "../../features/agents/sheet/activity";
+import { AgentSheetPanel } from "../../features/agents/sheet/Panel";
 import type { Scenario } from "../scenario";
 import { CASES } from "./cases";
 
-/** The agent sheet's cases: the docked card for an agent of the fixtures in the states of the design's Hath boards. */
+/** The agent sheet's cases: the popover's content for an agent of the fixtures; its wakes are read from the fixture transport. */
 
 const noop = () => undefined;
 const resolved = () => Promise.resolve();
@@ -14,12 +12,10 @@ const resolved = () => Promise.resolve();
 type SheetCase = {
   scenario: Scenario;
   agentId: string;
-  /** The sections drawn open. */
-  open?: SheetSection[];
 };
 
-/** The sheet of one fixture agent, as tall as the page's content area at 1440 x 900 so the card stretches the way it does there. */
-function sheet({ scenario, agentId, open = [] }: SheetCase) {
+/** The sheet of one fixture agent, as tall as the popover grows. */
+function sheet({ scenario, agentId }: SheetCase) {
   const agent = hath.agents(scenario).find((candidate) => candidate.id === agentId);
   if (agent === undefined) {
     throw new Error(`no fixture agent ${agentId}`);
@@ -33,20 +29,19 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
     return { task: { ...task, status: live.status }, question: live.state };
   });
   return (
-    <div style={{ display: "flex", width: 400, height: 822 }}>
+    <div style={{ display: "flex", width: 440, height: 620 }}>
       <AgentSheetPanel
         agent={agent}
+        unread={2}
         tasks={tasks}
+        onHaltTask={resolved}
         schedules={{ kind: "ready", items: hath.schedules(agentId) }}
-        wakes={{ kind: "ready", items: buildActivity(hath.agentLogs(agentId)) }}
-        canLoadEarlier
-        onLoadEarlier={noop}
         onSaveSchedule={resolved}
         onCancelSchedule={resolved}
         parent={hath.agents(scenario).find((candidate) => candidate.id === agent.parent_agent_id && candidate.active) ?? null}
-        onSelectParent={noop}
-        isOpen={(section) => open.includes(section)}
-        onToggle={noop}
+        onSelectAgent={noop}
+        nameOf={(id) => id ?? "Ankur"}
+        connected
         onOpenThread={noop}
         now={Date.now()}
       />
@@ -55,12 +50,5 @@ function sheet({ scenario, agentId, open = [] }: SheetCase) {
 }
 
 CASES["agent.sheet.working"] = () => sheet({ scenario: "normal", agentId: "finance-specialist" });
-CASES["agent.sheet.open"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: ["calls", "charter"] });
 CASES["agent.sheet.waiting"] = () => sheet({ scenario: "asking", agentId: "networking-specialist" });
-CASES["agent.sheet.toggle"] = CASES["agent.sheet.working"];
-CASES["agent.sheet.scheduled"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: ["scheduled"] });
-CASES["agent.sheet.activity"] = () => sheet({ scenario: "normal", agentId: "career-manager", open: [] });
-for (const name of ["scheduled.edit", "scheduled.edit.custom", "scheduled.cancel"]) CASES[`agent.sheet.${name}`] = CASES["agent.sheet.scheduled"];
-for (const name of ["activity.unfold", "activity.opened", "activity.older", "activity.processing"]) CASES[`agent.sheet.${name}`] = CASES["agent.sheet.activity"];
-CASES["agent.sheet.activity.working.live"] = () => sheet({ scenario: "normal", agentId: "finance-specialist", open: [] });
 CASES["agent.sheet.idle"] = () => sheet({ scenario: "normal", agentId: "career-manager" });

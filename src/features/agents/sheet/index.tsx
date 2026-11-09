@@ -1,17 +1,14 @@
-import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { keepPreviousData, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useEffect, useState, useSyncExternalStore } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { hath, isMeshOnline, nas } from "../../../shared/api";
 import type { AgentRecord, PatchScheduleRequest } from "../../../types/hath";
 import { useConnection } from "../../../shared/hooks/useConnection";
 import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
-import { POLL_MS } from "../../../shared/lib/ux/poll";
-import { openAgent } from "../../../contexts/chat";
+import { getChatState, openAgent, subscribeChat } from "../../../contexts/chat";
 import { getRunning, subscribeRunning } from "../../../contexts/running";
-import { AgentSheetPanel, type SheetFeed, type SheetSection, type SheetTask } from "./Panel";
-import { buildActivity } from "./activity";
+import { AgentSheetPanel, type SheetFeed } from "./Panel";
+import type { SheetTask } from "./HelperTasks";
 
-/** How many of an agent's newest wakes the sheet reads at first, every row of each, and how many more "Load earlier" adds. */
-const ACTIVITY_WAKES = 10;
 /** How often the sheet's relative words are measured again. */
 const TICK_MS = 30_000;
 
@@ -25,47 +22,33 @@ function feedOf<T>(query: { data: T[] | undefined; error: Error | null }): Sheet
 
 export type AgentSheetProps = {
   agentId: string;
-  /** Selects another agent, as the sheet's parent link does. */
+  /** Selects another agent, as the sheet's parent link and a wake's reason do. */
   onSelect: (agentId: string) => void;
   /** Closes the surface the sheet is in; the sheet draws a close control when given. */
   onClose?: () => void;
 };
 
 /**
- * The sheet of one agent, docked beside the Hath graph: it reads the agent from the agents list the page already holds, its
- * schedule, its newest wakes and the helper tasks Nas holds, keeps which sections and task rows are open, and hands the
- * panel what it draws. Nothing is drawn until the agent is in the list.
+ * The sheet of one agent: it reads the agent from the agents list the page already holds, its schedule and the helper tasks
+ * Nas holds, and hands the panel what it draws; the panel's timeline reads the agent's wakes. Nothing is drawn until the
+ * agent is in the list.
  */
 export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
   const queryClient = useQueryClient();
   const { state: connection } = useConnection();
   const connected = isMeshOnline(connection);
   const running = useSyncExternalStore(subscribeRunning, getRunning);
+  const unread = useSyncExternalStore(subscribeChat, getChatState).unread[agentId] ?? 0;
   const [now, setNow] = useState(() => Date.now());
-  const [openSections, setOpenSections] = useState<Partial<Record<SheetSection, boolean>>>({});
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), TICK_MS);
     return () => window.clearInterval(timer);
   }, []);
-  const [wakeLimit, setWakeLimit] = useState(ACTIVITY_WAKES);
-  useEffect(() => {
-    setOpenSections({});
-    setWakeLimit(ACTIVITY_WAKES);
-  }, [agentId]);
 
   const agents = useQuery({ queryKey: AGENTS_QUERY_KEY, queryFn: async () => (await hath.listAgents()).agents, enabled: connected });
   const schedules = useQuery({ queryKey: ["agent-schedules", agentId], queryFn: async () => (await hath.listSchedules(agentId)).schedules, enabled: connected });
   const detail = useQuery({ queryKey: ["agent", agentId], queryFn: () => hath.getAgent(agentId), enabled: connected });
-  const busy = running[agentId]?.work === true || running[agentId]?.process === true;
-  const logs = useQuery({
-    queryKey: ["agent-logs", agentId, "activity", wakeLimit],
-    queryFn: async () => (await hath.getAgentLogs(agentId, { wakes: wakeLimit })).logs,
-    enabled: connected,
-    refetchInterval: busy ? POLL_MS : false,
-    placeholderData: keepPreviousData,
-  });
-  const wakes = useMemo(() => (logs.data === undefined ? undefined : buildActivity(logs.data)), [logs.data]);
   const tasks = useQuery({ queryKey: ["nas", "tasks"], queryFn: () => nas.listTasks(), enabled: connected });
 
   const listed = agents.data?.find((candidate) => candidate.id === agentId);
@@ -74,6 +57,7 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
   }
   const agent: AgentRecord = { ...listed, ...detail.data, running: { ...listed.running, ...detail.data?.running, ...running[agentId] } };
   const parent = agents.data?.find((candidate) => candidate.id === agent.parent_agent_id && candidate.active) ?? null;
+  const nameOf = (id: string | null) => (id === null ? "Ankur" : (agents.data?.find((candidate) => candidate.id === id)?.name ?? id));
   const refreshSchedules = () => queryClient.invalidateQueries({ queryKey: ["agent-schedules"] });
   const saveSchedule = async (id: string, changes: PatchScheduleRequest) => {
     await hath.patchSchedule(id, changes);
@@ -82,6 +66,14 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
   const cancelSchedule = async (id: string) => {
     await hath.cancelSchedule(id);
     await refreshSchedules();
+  };
+  const haltTask = async (taskId: string) => {
+    await hath.haltSession(agentId, taskId);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: ["agent", agentId] }),
+      queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] }),
+    ]);
   };
   const sheetTasks = agent.sessions.tasks.map((row): SheetTask => {
     const live = tasks.data?.find((candidate) => candidate.task === row.id);
@@ -92,17 +84,16 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
     <AgentSheetPanel
       key={agentId}
       agent={agent}
-      canLoadEarlier={wakes !== undefined && wakes.length >= wakeLimit}
-      onLoadEarlier={() => setWakeLimit((limit) => limit + ACTIVITY_WAKES)}
+      unread={unread}
       tasks={sheetTasks}
+      onHaltTask={haltTask}
       schedules={feedOf(schedules)}
-      wakes={logs.error !== null ? { kind: "error", message: logs.error.message } : wakes === undefined ? { kind: "loading" } : { kind: "ready", items: wakes }}
       onSaveSchedule={saveSchedule}
       onCancelSchedule={cancelSchedule}
       parent={parent}
-      onSelectParent={onSelect}
-      isOpen={(section) => openSections[section] === true}
-      onToggle={(section) => setOpenSections((open) => ({ ...open, [section]: open[section] !== true }))}
+      onSelectAgent={onSelect}
+      nameOf={nameOf}
+      connected={connected}
       onOpenThread={() => openAgent(agentId)}
       onClose={onClose}
       now={now}

@@ -4,9 +4,9 @@ export type Lane = "work" | "process";
 /**
  * Agent log event kinds from Hath. `response` is one model call's output,
  * blocks in order (thinking, text, tool_use), logged before its tools run;
- * `tool_result` carries the tool's name and outcome; `message` a delivery.
+ * `tool_result` carries the tool's name and outcome. Speech lives in messages, not logs.
  */
-export type LogEvent = "response" | "tool_result" | "message";
+export type LogEvent = "response" | "tool_result";
 
 /** Outbound file on POST /messages — base64 payload, no data-URL prefix. */
 export type MessageAttachment = {
@@ -94,8 +94,8 @@ export type RouterState = {
   running: RouterRun[];
 };
 
-/** A helper task's lifecycle state in Nas; `paused` while its owner drives it. */
-export type TaskStatus = "working" | "paused" | "idle" | "asking" | "asleep";
+/** A helper task's lifecycle state in Nas; `paused` while its owner drives it, `stopped` once Ankur or Hath halted it. */
+export type TaskStatus = "working" | "paused" | "idle" | "asking" | "asleep" | "stopped";
 
 /** One browser or terminal task in Nas that an agent owns or last steered. */
 export type AgentTask = {
@@ -205,6 +205,94 @@ export type LogRecord = {
   created_at: string;
 };
 
+/** Why a wake began. */
+export type WakeReasonKind = "message" | "schedule" | "recovery" | "steer" | "manual";
+
+/** The structured reason a wake began; `ref` is the sender agent id for `message`, the schedule id for `schedule`, else null. */
+export type WakeReason = { kind: WakeReasonKind; ref: string | null };
+
+/** Where a wake stands: `waiting` appears only on an agent's latest wake, when its work lane watches a task or agent. */
+export type WakeOutcome = "running" | "waiting" | "yielded" | "failed";
+
+/** Model usage summed over a wake's model calls; `calls` is how many. */
+export type WakeUsage = {
+  calls: number;
+  input_tokens: number;
+  output_tokens: number;
+  cache_write: number;
+  cache_read: number;
+};
+
+/** What a wake did, counted. */
+export type WakeCounts = { tool_calls: number; messages_sent: number; messages_received: number };
+
+/** A message as the wake routes return it. */
+export type WakeMessage = {
+  id: string;
+  seq: number;
+  kind: "message" | "notice" | "utterance";
+  status: "running" | "needs_input" | "blocked" | "done" | null;
+  from_agent_id: string | null;
+  to_agent_id: string | null;
+  content: string;
+  created_at: string;
+  attachments: AttachmentSummary[];
+};
+
+/** One wake as `GET /agents/:id/wakes` lists it and `GET /agents/:id/wakes/:wake_id` opens it. */
+export type WakeSummary = {
+  id: string;
+  agent_id: string;
+  reason: WakeReason;
+  /** The message that opened the wake, when one did. */
+  opened_by: WakeMessage | null;
+  started_at: string;
+  /** Null while a lane run is queued or running. */
+  ended_at: string | null;
+  outcome: WakeOutcome;
+  /** Set when the outcome is `failed`. */
+  error: string | null;
+  usage: WakeUsage;
+  counts: WakeCounts;
+  /** True when the wake's activity aged out; its messages remain. */
+  activity_trimmed: boolean;
+};
+
+/** A tool call's result inside a wake; `content` is cut to the server cap when `truncated`, and `chars` is the full length. */
+export type WakeToolResult = { content: string; is_error: boolean; truncated: boolean; chars: number };
+
+/** One tool call of a turn, paired with its result; `log_id` and `result` are both null until the result is logged. */
+export type WakeToolCall = {
+  id: string;
+  name: string;
+  input: unknown;
+  log_id: string | null;
+  result: WakeToolResult | null;
+};
+
+/** One entry of a wake's timeline, ordered by `ord`: a message the agent received or sent, or one model turn. */
+export type WakeEntry =
+  | { ord: number; at: string; type: "message"; direction: "sent" | "received"; message: WakeMessage }
+  | {
+      ord: number;
+      at: string;
+      type: "turn";
+      lane: Lane;
+      usage: { input_tokens: number; output_tokens: number; cache_write: number; cache_read: number };
+      thinking: string | null;
+      text: string | null;
+      calls: WakeToolCall[];
+    };
+
+/** The keyset position after the last wake of a page; the next page starts before it. */
+export type WakeCursor = { started_at: string; id: string };
+
+/** Response of GET /agents/:id/wakes: one page, newest first; `next_before` is null at the end. */
+export type WakeList = { wakes: WakeSummary[]; next_before: WakeCursor | null };
+
+/** Response of GET /agents/:id/wakes/:wake_id. */
+export type WakeDetail = { wake: WakeSummary; entries: WakeEntry[] };
+
 /** GET /health — process liveness. `started_at` is process identity, not a chat epoch. */
 export type HathHealth = {
   status: string;
@@ -226,6 +314,9 @@ export type HathEvent =
       kind?: "message" | "notice";
       at: string;
     }
+  | { type: "wake_started"; agent_id: string; wake_id: string; reason: WakeReason; at: string }
+  | { type: "wake_ended"; agent_id: string; wake_id: string; outcome: Exclude<WakeOutcome, "running">; at: string }
+  | { type: "wake_activity"; agent_id: string; wake_id: string; counts: WakeCounts }
   | { type: "lane_started"; agent_id: string; lane: Lane; at: string }
   | { type: "lane_finished"; agent_id: string; lane: Lane; at: string }
   | {

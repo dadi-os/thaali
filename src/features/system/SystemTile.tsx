@@ -15,7 +15,7 @@ import { Tile, type TileGeometry } from "../home/Tile";
 import { diskName } from "./HealthCard";
 
 /** Where a task stands in the tile's list: working first, then what is waiting on its agent, then the rest. */
-const TASK_ORDER: Record<NasTask["status"], number> = { working: 0, paused: 0, asking: 1, idle: 2, asleep: 3 };
+const TASK_ORDER: Record<NasTask["status"], number> = { working: 0, paused: 0, asking: 1, idle: 2, asleep: 3, stopped: 3 };
 
 type Meter = { name: string; percent: number };
 

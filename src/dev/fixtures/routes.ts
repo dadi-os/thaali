@@ -1,7 +1,7 @@
 import type { NasTask } from "../../shared/api/nas";
 import { applyCommand } from "../../features/ghar/model";
 import type { GharCommand, GharCommissionJob, GharDevice, GharTag } from "../../types/ghar";
-import type { PatchScheduleRequest, PostMessageResponse, ScheduledMessage, ThreadReadMark } from "../../types/hath";
+import type { AgentTask, PatchScheduleRequest, PostMessageResponse, ScheduledMessage, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
 import type { TimelineRequest } from "../../types/timeline";
 import type { Scenario } from "../scenario";
@@ -11,11 +11,15 @@ import * as hath from "./hath";
 import * as nas from "./nas";
 import { nasTasks } from "./tasks";
 import { timeline } from "./timeline";
+import * as wakes from "./wakes";
 import * as yaad from "./yaad";
 import { ago } from "./time";
 
 /** Entries Nas returns from `GET /logs` when the request names no limit. */
 const DEFAULT_LOG_LIMIT = 200;
+
+/** Wakes Hath returns from `GET /agents/:id/wakes` when the request names no limit. */
+const DEFAULT_WAKE_LIMIT = 20;
 
 /** A service host in the mesh, as the fixture routes name it. */
 export type Host = "hath" | "nas" | "yaad" | "ghar" | "chaavi";
@@ -68,7 +72,6 @@ export class Fixtures {
     if (route === "GET /health") return hath.health();
     if (route === "GET /agents") return { agents: hath.agents(s) };
     if (route === "GET /threads") return { threads: hath.threads(s) };
-    if (route === "GET /logs") return { logs: hath.agentLogs("finance-specialist") };
     if (route === "POST /devices/presence") {
       return { ...(body as { node_name: string; platform: string; app_version: string }), at: ago(0) };
     }
@@ -79,6 +82,12 @@ export class Fixtures {
       const response: PostMessageResponse = { to_agent_id: sent.to_agent_id, content: sent.content, attachments: [], seq: 2000, created_at: ago(0) };
       return response;
     }
+    const wake = /^GET \/agents\/([^/]+)\/wakes\/([^/]+)$/.exec(route);
+    if (wake) return wakes.wakeDetail(s, wake[1]!, wake[2]!);
+    const log = /^GET \/agents\/([^/]+)\/logs\/([^/]+)$/.exec(route);
+    if (log) return wakes.logRow(s, log[1]!, log[2]!);
+    const halt = /^POST \/agents\/([^/]+)\/sessions\/([^/]+)\/halt$/.exec(route);
+    if (halt) return this.haltSession(halt[1]!, decodeURIComponent(halt[2]!));
     const schedule = /^(PATCH|DELETE) \/schedules\/([^/]+)$/.exec(route);
     if (schedule) {
       return schedule[1] === "PATCH" ? this.patchSchedule(schedule[2]!, body as PatchScheduleRequest) : this.cancelSchedule(schedule[2]!);
@@ -87,7 +96,11 @@ export class Fixtures {
       const [, id, sub] = agent;
       if (route.startsWith("GET") && sub === undefined) return hath.agentDetail(s, id!);
       if (route.startsWith("GET") && sub === "/messages") return { messages: hath.messages(s, id!) };
-      if (route.startsWith("GET") && sub === "/logs") return { logs: hath.agentLogs(id!) };
+      if (route.startsWith("GET") && sub === "/wakes") {
+        const before = url.searchParams.get("before_id");
+        const limit = Number(url.searchParams.get("limit") ?? DEFAULT_WAKE_LIMIT);
+        return wakes.wakeList(s, id!, limit, before === null ? null : { started_at: url.searchParams.get("before_started_at")!, id: before });
+      }
       if (route.startsWith("GET") && sub === "/schedules") return { schedules: structuredClone(this.schedulesOf(id!)) };
       if (route.startsWith("POST") && sub === "/read") {
         const mark: ThreadReadMark = { agent_id: id!, read_seq: (body as { seq: number }).seq, unread: 0 };
@@ -95,6 +108,16 @@ export class Fixtures {
       }
     }
     throw new Error(`fixtures: no route for hath ${route}${url.search}`);
+  }
+
+  /** Hath `POST /agents/:id/sessions/:task_id/halt`: Nas stops the task and Hath answers with the agent's row of it. */
+  private haltSession(agentId: string, taskId: string): { task: AgentTask } {
+    this.settleTask((task) => task.task === taskId, "stopped");
+    const row = hath.agentDetail(this.scenario, agentId).sessions.tasks.find((task) => task.id === taskId);
+    if (row === undefined) {
+      throw new Error(`fixtures: task_not_found ${taskId}`);
+    }
+    return { task: { ...row, status: "stopped" } };
   }
 
   /** The schedules of `agentId` a page may have edited or cancelled since it loaded. */

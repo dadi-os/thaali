@@ -23,14 +23,15 @@ describe("task list", () => {
     task("c", "paused", "2026-10-28T10:30:00Z", "3"),
     task("d", "idle", "2026-10-28T10:20:00Z", "t1", "terminal"),
     task("e", "asleep", "2026-10-28T09:00:00Z"),
+    task("f", "stopped", "2026-10-28T08:00:00Z"),
   ];
 
   it("counts a paused task with the working ones and every task under All", () => {
-    expect(filterCounts(tasks)).toEqual({ All: 5, Working: 2, Waiting: 1, Idle: 1, Asleep: 1 });
+    expect(filterCounts(tasks)).toEqual({ All: 6, Working: 2, Waiting: 1, Idle: 1, Asleep: 1, Stopped: 1 });
   });
 
   it("lists a task waiting on its agent first, then the newest activity", () => {
-    expect(listedTasks(tasks, "All").map((t) => t.id)).toEqual(["b", "a", "c", "d", "e"]);
+    expect(listedTasks(tasks, "All").map((t) => t.id)).toEqual(["b", "a", "c", "d", "e", "f"]);
     expect(listedTasks(tasks, "Working").map((t) => t.id)).toEqual(["a", "c"]);
   });
 

@@ -18,7 +18,7 @@ export type AgentPopoverProps = {
 
 /**
  * An agent's details in a popover beside whatever was clicked (a graph node, a list row, the name over a thread): what
- * it is doing now, its helper tasks, calls, queue, schedule, charter and activity, with Open thread for its chat. It
+ * it is doing now, its helper tasks (which it can stop), its wakes and what each did, its schedules and what it is, with Open thread for its chat. It
  * replaces going to the Hath page to look at an agent, so a thread or the Home tile can show one in place.
  */
 export function AgentPopover({ agentId, anchor, onSelect, onClose }: AgentPopoverProps) {
@@ -32,7 +32,7 @@ export function AgentPopover({ agentId, anchor, onSelect, onClose }: AgentPopove
       open={agentId !== null}
       anchor={{ x: shownAnchor.left + shownAnchor.width / 2, y: shownAnchor.top + shownAnchor.height / 2, radius: Math.max(shownAnchor.width, shownAnchor.height) / 2 }}
       aria-label="Agent details"
-      widthPx={400}
+      widthPx={440}
       contentKey={shownId}
       style={{ height: `min(${MAX_HEIGHT}px, calc(100vh - 32px))`, maxHeight: "none", padding: 0, outline: "none" }}
       onClose={onClose}

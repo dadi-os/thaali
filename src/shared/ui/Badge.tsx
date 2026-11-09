@@ -14,9 +14,10 @@ const WORD: Record<TaskStatus, string> = {
   asleep: "asleep",
   asking: "waiting on agent",
   paused: "paused",
+  stopped: "stopped",
 };
 
-/** The status word of a helper task: working pulses in sage, waiting on its agent in tide, paused in clay, the rest dashed and quiet. */
+/** The status word of a helper task: working pulses in sage, waiting on its agent in tide, paused in clay, the rest (idle, asleep, stopped) dashed and quiet. */
 export function Badge({ status, label }: BadgeProps) {
   return (
     <span className={`badge badge-${status}`}>

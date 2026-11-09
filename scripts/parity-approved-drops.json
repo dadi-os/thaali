@@ -4,5 +4,6 @@
   "ghar.listRooms": "Ghar dropped rooms and went tags-only; its /rooms routes are gone.",
   "ghar.moveDevice": "A device has no room to move to; tags replace it (setDeviceTags, addTagDevices, removeTagDevice).",
   "yaad.getNode": "The session popover replaced the connections popover, which was the only reader of a node; a session now offers Show in Yaad instead.",
+  "hath.getAgentLogs": "The popover read raw log rows only to guess wakes; Hath now serves wakes directly (listWakes, getWake, getLog) and rejects the wakes parameter.",
   "ghar.renameRoom": "Ghar dropped rooms and went tags-only; renameTag renames a tag."
 }

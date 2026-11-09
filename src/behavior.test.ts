@@ -14,7 +14,6 @@ import {
   trackIncoming,
 } from "./features/chat/lanes";
 import { laneChipLabel } from "./features/chat/LaneChip";
-import { formatToolSignature } from "./shared/lib/content/toolSignature";
 import {
   attachmentSizeLabel,
   PASTE_ATTACHMENT_CHARS,
@@ -188,13 +187,6 @@ describe("lane chip and tool signature", () => {
     expect(laneChipLabel(true, false)).toBe("processing");
     expect(laneChipLabel(false, true)).toBe("working");
     expect(laneChipLabel(true, true)).toBe("processing + working");
-  });
-
-  it("formats a compact tool signature", () => {
-    expect(
-      formatToolSignature("browser_navigate", { url: "https://x.test/path" }),
-    ).toBe('browser_navigate(url: "https://x.test/path")');
-    expect(formatToolSignature("noop", {})).toBe("noop()");
   });
 });
 

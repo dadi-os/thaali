@@ -2,6 +2,7 @@ import type { Transport } from "../transport";
 import type {
   AgentDetail,
   AgentRecord,
+  AgentTask,
   HathHealth,
   DurableMessage,
   LogEvent,
@@ -14,6 +15,9 @@ import type {
   ScheduledMessage,
   ThreadReadMark,
   ThreadSummary,
+  WakeCursor,
+  WakeDetail,
+  WakeList,
 } from "../../../types/hath";
 
 /**
@@ -141,18 +145,60 @@ export function createHathClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /**
-     * GET /agents/:id/logs — optional event filter and limit, or `wakes` for every row of
-     * the agent's newest that many wakes.
-     */
+    /** GET /agents/:id/logs — activity rows, with an optional event filter and limit. */
     getAgentLogs(
       id: string,
-      query?: { event?: LogEvent; limit?: number; wakes?: number },
+      query?: { event?: LogEvent; limit?: number },
     ): Promise<{ logs: LogRecord[] }> {
       return transport.request({
         baseUrl,
         path: `/agents/${id}/logs${toQuery(query)}`,
         method: "GET",
+      });
+    },
+
+    /** GET /agents/:id/wakes — one page of the agent's wakes, newest first; pass the previous page's `next_before` as `before` for the next. */
+    listWakes(agentId: string, query?: { limit?: number; before?: WakeCursor }): Promise<WakeList> {
+      const params = new URLSearchParams();
+      if (query?.limit !== undefined) {
+        params.set("limit", String(query.limit));
+      }
+      if (query?.before !== undefined) {
+        params.set("before_started_at", query.before.started_at);
+        params.set("before_id", query.before.id);
+      }
+      const search = params.toString();
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/wakes${search === "" ? "" : `?${search}`}`,
+        method: "GET",
+      });
+    },
+
+    /** GET /agents/:id/wakes/:wake_id — one wake with its messages and model turns in order. */
+    getWake(agentId: string, wakeId: string): Promise<WakeDetail> {
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/wakes/${wakeId}`,
+        method: "GET",
+      });
+    },
+
+    /** GET /agents/:id/logs/:log_id — one raw log row, for a tool result the wake cut short. */
+    getLog(agentId: string, logId: string): Promise<{ log: LogRecord }> {
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/logs/${logId}`,
+        method: "GET",
+      });
+    },
+
+    /** POST /agents/:id/sessions/:task_id/halt — stops a helper task; `taskId` is the full `task/<kind>/<id>` address. */
+    haltSession(agentId: string, taskId: string): Promise<{ task: AgentTask }> {
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/sessions/${encodeURIComponent(taskId)}/halt`,
+        method: "POST",
       });
     },
 

@@ -1,7 +1,7 @@
 import type { NasTask } from "../../shared/api/nas";
 
 /** The filters over the task list, in the order their chips are drawn. */
-export const TASK_FILTERS = ["All", "Working", "Waiting", "Idle", "Asleep"] as const;
+export const TASK_FILTERS = ["All", "Working", "Waiting", "Idle", "Asleep", "Stopped"] as const;
 
 /** One of {@link TASK_FILTERS}. */
 export type TaskFilter = (typeof TASK_FILTERS)[number];
@@ -12,6 +12,7 @@ const KEEPS: Record<Exclude<TaskFilter, "All">, readonly NasTask["status"][]> = 
   Waiting: ["asking"],
   Idle: ["idle"],
   Asleep: ["asleep"],
+  Stopped: ["stopped"],
 };
 
 /** Whether a filter keeps a task. */

@@ -44,7 +44,7 @@ export type NasTask = {
   /** The agent whose steer the task last answered. */
   steered_by: string;
   purpose: string;
-  status: "working" | "paused" | "idle" | "asking" | "asleep";
+  status: "working" | "paused" | "idle" | "asking" | "asleep" | "stopped";
   /** The live thing the task holds: a browser slot or a terminal id; absent while it sleeps. */
   resource?: string;
   /** The helper's state summary. */

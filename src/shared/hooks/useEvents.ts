@@ -37,6 +37,12 @@ const MAX_BACKOFF_MS = 30_000;
  */
 const TOAST_AFTER_MS = 15_000;
 
+/** React Query key of an agent's wake list (`GET /agents/:id/wakes`, every page). */
+export const wakesKey = (agentId: string) => ["agent-wakes", agentId] as const;
+
+/** React Query key of one open wake (`GET /agents/:id/wakes/:wake_id`). */
+export const wakeKey = (agentId: string, wakeId: string) => ["agent-wake", agentId, wakeId] as const;
+
 /** React Query key for GET /agents. */
 export const AGENTS_QUERY_KEY = ["agents"] as const;
 
@@ -47,6 +53,9 @@ function isHathEvent(data: unknown): data is HathEvent {
   const type = (data as { type?: unknown }).type;
   return (
     type === "message" ||
+    type === "wake_started" ||
+    type === "wake_ended" ||
+    type === "wake_activity" ||
     type === "lane_started" ||
     type === "lane_finished" ||
     type === "lane_failed" ||
@@ -100,7 +109,8 @@ export async function hydrateHistory(): Promise<void> {
 /**
  * Subscribe to Hath SSE. The stream opens before the refetch so no event falls in the gap between them. Reconnects with backoff on drop, reopens (and so refetches) whenever the window becomes visible, and refetches
  * GET /agents plus GET /threads on reconnect (the stream has no replay), and refetches
- * agent schedules and the agent list (whose `sessions` move without any other event) when Hath says they changed.
+ * agent schedules and the agent list (whose `sessions` move without any other event) when Hath says they changed,
+ * and an agent's wake list and the wake a `wake_started`, `wake_ended` or `wake_activity` names.
  * An agent → user message is counted unread (unless its chat is open in a visible window) and
  * toasted (unless its chat is open), a `thread_read` from any device takes Hath's count, and,
  * while the window is hidden or unfocused, raises a native notification. Failed lanes and
@@ -207,6 +217,12 @@ export function useEvents(): void {
         return;
       }
 
+      if (data.type === "wake_started" || data.type === "wake_ended" || data.type === "wake_activity") {
+        void queryClient.invalidateQueries({ queryKey: wakesKey(data.agent_id) });
+        void queryClient.invalidateQueries({ queryKey: wakeKey(data.agent_id, data.wake_id) });
+        return;
+      }
+
       if (data.type === "lane_started") {
         setLaneRunning(data.agent_id, data.lane, true);
         return;
@@ -214,7 +230,6 @@ export function useEvents(): void {
 
       if (data.type === "lane_finished" || data.type === "lane_failed") {
         setLaneRunning(data.agent_id, data.lane, false);
-        void queryClient.invalidateQueries({ queryKey: ["agent-logs", data.agent_id] });
         if (data.type === "lane_failed") {
           pushToast({
             key: `lane_failed:${data.agent_id}:${data.lane}`,

@@ -1,67 +1,42 @@
-import { useMemo, useState } from "react";
-import type { AgentRecord, AgentTask, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
+import { useState } from "react";
+import type { AgentRecord, PatchScheduleRequest, ScheduledMessage } from "../../../types/hath";
 import { Button, IconButton } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { Disclosure } from "../../../shared/ui/Disclosure";
-import { Icon } from "../../../shared/ui/Icon";
-import { SectionHeader, TileList, TileRow } from "../../../shared/components/Module";
-import { TaskRow } from "../../../shared/components/Task/TaskRow";
 import { AnimatePresence, motion } from "motion/react";
 import { AgentName } from "../../../shared/ui/AgentName";
 import { RISE } from "../../../shared/motion";
-import { Clamp, Truncate } from "../../../shared/ui/Truncate";
-import { formatClock, formatDay, formatRelative } from "../../../shared/lib/ux/time";
-import type { ActivityWake } from "./activity";
-import { Segmented } from "../../../shared/ui/Segmented";
+import { formatRelative } from "../../../shared/lib/ux/time";
+import { About } from "./About";
+import { Activity } from "./Activity";
+import { HelperTasks, type SheetTask } from "./HelperTasks";
 import { ScheduleRow } from "./ScheduleRow";
-import { Thread } from "./Thread";
-import { defaultTab, flattenLane, withSeparators } from "./laneThread";
-import { workLine } from "./workLine";
-
-const TABS = ["Work", "Process", "About"] as const;
-
-/** The sheet's tabs: one thread per lane, and the agent's facts. */
-type SheetTab = (typeof TABS)[number];
-
-/** Characters per token Hath measured for the model's text; a charter's size in tokens is its characters over this. */
-const CHARS_PER_TOKEN = 2.37;
-
-/** The sections of the sheet that open and shut. */
-export type SheetSection = "calls" | "queued" | "scheduled" | "charter";
-
-/** A helper task of the agent as the sheet lists it. */
-export type SheetTask = {
-  /** Hath's session row, with the status Nas reports now. */
-  task: AgentTask;
-  /** The helper's own words when it is waiting on its agent. */
-  question: string;
-};
+import { StateStrip } from "./StateStrip";
 
 /** What a section that is read on its own can be showing. */
 export type SheetFeed<T> = { kind: "ready"; items: T[] } | { kind: "loading" } | { kind: "error"; message: string };
 
 export type AgentSheetPanelProps = {
   agent: AgentRecord;
+  /** Messages from the agent Ankur has not read. */
+  unread: number;
   /** The agent's helper tasks, with the status Nas reports now; an `asking` one is waiting on this agent. */
   tasks: SheetTask[];
+  /** Halts a helper task by its address; rejects with Hath's reason. */
+  onHaltTask: (taskId: string) => Promise<void>;
   schedules: SheetFeed<ScheduledMessage>;
-  /** The agent's newest wakes, newest first; the sheet flattens them into one thread per lane. */
-  wakes: SheetFeed<ActivityWake>;
-  /** Whether wakes before the ones read may exist. */
-  canLoadEarlier: boolean;
-  /** Asks for more wakes. */
-  onLoadEarlier: () => void;
   /** Saves a schedule's changes; rejects with Hath's reason. */
   onSaveSchedule: (id: string, changes: PatchScheduleRequest) => Promise<void>;
   /** Cancels a schedule; rejects with Hath's reason. */
   onCancelSchedule: (id: string) => Promise<void>;
   /** The agent's parent when it is one of the agents on the page; its name is a link. */
   parent: AgentRecord | null;
-  /** Selects the parent agent. */
-  onSelectParent: (id: string) => void;
-  /** Whether a section is open. */
-  isOpen: (section: SheetSection) => boolean;
-  onToggle: (section: SheetSection) => void;
+  /** Selects another agent: the parent, or one a wake's reason names. */
+  onSelectAgent: (id: string) => void;
+  /** An agent's display name by id; null is Ankur. */
+  nameOf: (id: string | null) => string;
+  /** Whether Hath can be reached; the wakes are not read while it cannot. */
+  connected: boolean;
   /** Opens the agent's chat in the rail. */
   onOpenThread: () => void;
   /** Closes the card it sits in; no close control is drawn without it. */
@@ -69,37 +44,6 @@ export type AgentSheetPanelProps = {
   /** The time the sheet's relative words are measured from. */
   now: number;
 };
-
-/** A count of thousands as `1.2k`, below that the number. */
-function kilo(n: number): string {
-  return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
-}
-
-/** A markdown charter as the sheet draws it: `##` headings, `-` bullets and paragraphs, with nothing else interpreted. */
-function CharterText({ source }: { source: string }) {
-  return (
-    <div data-selectable className="flex flex-col gap-0.5">
-      {source.split("\n").flatMap((line, index) => {
-        if (line.startsWith("## ")) {
-          return [
-            <span key={index} className="mt-3 mb-1 block text-[13px] font-semibold">
-              {line.slice(3)}
-            </span>,
-          ];
-        }
-        if (line.startsWith("- ")) {
-          return [
-            <div key={index} className="flex items-start gap-2 text-[13px] leading-[20px] text-ink">
-              <span className="dot mt-2 size-1 bg-sage" />
-              <span className="min-w-0 [overflow-wrap:anywhere]">{line.slice(2)}</span>
-            </div>,
-          ];
-        }
-        return line.trim() === "" ? [] : [<span key={index} className="block text-[13px] leading-[20px] [overflow-wrap:anywhere] text-ink">{line}</span>];
-      })}
-    </div>
-  );
-}
 
 /** What a feed shows in place of its content while it loads or fails: bars the size of rows, or the error's own message. */
 function FeedState({ feed }: { feed: SheetFeed<unknown> }) {
@@ -114,38 +58,30 @@ function FeedState({ feed }: { feed: SheetFeed<unknown> }) {
   );
 }
 
-/** The summary of a feed's section: its own words once read, none while it loads, and `Unavailable` once it failed. */
-function feedSummary<T>(feed: SheetFeed<T>, ready: (items: T[]) => string): string {
+/** The summary of the schedules section: its count once read, none while it loads, and `Unavailable` once it failed. */
+function scheduleSummary(feed: SheetFeed<ScheduledMessage>): string {
   if (feed.kind === "loading") {
     return "";
   }
-  return feed.kind === "error" ? "Unavailable" : ready(feed.items);
+  if (feed.kind === "error") {
+    return "Unavailable";
+  }
+  return feed.items.length > 0 ? String(feed.items.length) : "None";
 }
 
 /**
- * The agent's sheet: a glass card docked beside the graph with its name and lanes, what it is doing now, and tabs for each
- * lane's thread and for the agent's helper tasks, last calls, queued messages, schedule and charter. It draws what it is
- * given; {@link AgentSheet} reads the data and holds the open sections.
+ * The agent's popover content: its name and one summary line over what is true of it now, its helper tasks (with Stop), the
+ * wake timeline, its schedules and what it is. It draws what it is given; {@link AgentSheet} reads the agent, schedules and
+ * tasks, and the timeline reads its own wakes.
  */
-export function AgentSheetPanel({ agent, tasks, schedules, wakes, canLoadEarlier, onLoadEarlier, onSaveSchedule, onCancelSchedule, parent, onSelectParent, isOpen, onToggle, onOpenThread, onClose, now }: AgentSheetPanelProps) {
-  const threads = useMemo(() => {
-    const items = wakes.kind === "ready" ? wakes.items : [];
-    return { Work: flattenLane(items, "work"), Process: flattenLane(items, "process") };
-  }, [wakes]);
-  const [chosen, setChosen] = useState<SheetTab | null>(null);
-  const tab = chosen ?? defaultTab(agent.running.work, threads.Work.length, threads.Process.length);
-  const separated = useMemo(() => ({ Work: withSeparators(threads.Work), Process: withSeparators(threads.Process) }), [threads]);
-  const status = agent.running.status;
-  const waiting = agent.running.waiting_on;
-  const lanes = [agent.running.work ? "Working" : null, agent.running.process ? "Processing" : null].filter((lane) => lane !== null);
-  const active = tasks.filter(({ task }) => task.status === "working" || task.status === "asking" || task.status === "paused").length;
-  const calls = status?.recent ?? [];
-  const pending = status?.pending ?? [];
-  const who = (id: string | null) => (id === null ? "Ankur" : id);
+export function AgentSheetPanel({ agent, unread, tasks, onHaltTask, schedules, onSaveSchedule, onCancelSchedule, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
+  const [schedulesOpen, setSchedulesOpen] = useState(false);
+  const { work, process, waiting_on: waiting } = agent.running;
+  const lanes = [work ? "Working" : null, process ? "Processing" : null].filter((lane) => lane !== null);
   const live = lanes.length > 0;
-  const orb = agent.running.work ? "bg-sage" : agent.running.process ? "bg-tide" : "bg-ink-ghost";
+  const orb = work ? "bg-sage" : process ? "bg-tide" : "bg-ink-ghost";
   const summary = [
-    lanes.length > 0 ? lanes.join(" + ") : waiting === null ? "Idle" : "Waiting on a task",
+    live ? lanes.join(" + ") : waiting === null ? "Idle" : "Waiting on a task",
     tasks.length > 0 ? `${tasks.length} helper ${tasks.length === 1 ? "task" : "tasks"}` : null,
     formatRelative(agent.updated_at, now),
   ]
@@ -171,116 +107,28 @@ export function AgentSheetPanel({ agent, tasks, schedules, wakes, canLoadEarlier
           Open thread
         </Button>
       </header>
-      <div className="flex min-h-0 flex-1 flex-col border-t border-rule">
-        <div className="flex flex-none flex-col gap-3 px-5 pt-3">
-          <div className="flex flex-col gap-1 rounded-[14px] bg-sage-fill px-4 py-2.5">
-            <SectionHeader title="Right now" />
-            <span data-selectable className={status === null ? "text-[14px] text-ink-muted" : "text-[14px] leading-5 font-medium"}>
-              {workLine(agent, now)}
-            </span>
-            {status?.step ? <Truncate text={status.step} className="ui-mono" /> : null}
-            {status?.job ? (
-              <div className="flex items-start gap-2 text-[13px] leading-[20px] text-ink-muted">
-                <span className="mt-1 flex"><Icon name="user" size={13} /></span>
-                <span data-selectable className="min-w-0 flex-1">
-                  <Clamp text={`${who(status.job.from)} asked at ${formatClock(status.job.at)}: ${status.job.content}`} lines={2} />
-                </span>
-              </div>
-            ) : null}
-          </div>
-          <Segmented size="sm" label="Agent sheet" options={TABS} value={tab} onChange={setChosen} />
-        </div>
-        {tab !== "About" ? (
-          wakes.kind === "ready" ? (
-            <Thread
-              key={tab}
-              items={separated[tab]}
-              live={agent.running[tab === "Work" ? "work" : "process"]}
-              empty={`Nothing on the ${tab.toLowerCase()} lane yet.`}
-              canLoadEarlier={canLoadEarlier}
-              onLoadEarlier={onLoadEarlier}
-            />
+      <div className="scroll flex min-h-0 flex-1 flex-col gap-4 border-t border-rule px-5 pt-4 pb-6">
+        <StateStrip agent={agent} unread={unread} />
+        <HelperTasks owner={agent.name} tasks={tasks} onHalt={onHaltTask} now={now} />
+        <Activity agentId={agent.id} connected={connected} nameOf={nameOf} onSelectAgent={onSelectAgent} now={now} />
+        <Disclosure title="Schedules" summary={scheduleSummary(schedules)} open={schedulesOpen} onToggle={() => setSchedulesOpen(!schedulesOpen)}>
+          {schedules.kind !== "ready" ? (
+            <FeedState feed={schedules} />
+          ) : schedules.items.length === 0 ? (
+            <span className="text-[13px] text-ink-muted">Nothing scheduled.</span>
           ) : (
-            <div className="px-5 pt-3">
-              <FeedState feed={wakes} />
-            </div>
-          )
-        ) : (
-        <div className="scroll flex min-h-0 flex-1 flex-col gap-4 px-5 pt-4 pb-6">
-        {tasks.length > 0 ? (
-          <div className="flex flex-col gap-0.5">
-            <SectionHeader title="Helper tasks" count={`${tasks.length} · ${active} active`} />
-            {tasks.map(({ task, question }) => (
-              <TaskRow key={task.id} task={task} owner={agent.name} question={question} now={now} />
-            ))}
-          </div>
-        ) : null}
-        <div className="flex flex-col">
-          {calls.length > 0 ? (
-            <Disclosure title="Last calls" summary={`${calls.length} · ${calls[calls.length - 1]!.name}`} open={isOpen("calls")} onToggle={() => onToggle("calls")}>
-              <TileList>
-                {[...calls].reverse().map((call, index) => (
-                  <TileRow key={index} size="sm" ruled={false} trail={<span className={`flex-none text-[12px] font-semibold ${call.ok === false ? "text-error" : "text-ink-muted"}`}>{call.ok === null ? "running" : call.ok ? "ok" : "error"}</span>}>
-                    <span data-selectable>
-                      <Truncate text={call.arg ? `${call.name} ${call.arg}` : call.name} className="ui-mono" />
-                    </span>
-                  </TileRow>
+            <div className="flex flex-col gap-2">
+              <AnimatePresence initial={false}>
+                {schedules.items.map((schedule, index) => (
+                  <motion.div key={schedule.id} {...RISE} layout="position">
+                    <ScheduleRow schedule={schedule} agentId={agent.id} position={index + 1} onSave={onSaveSchedule} onCancel={onCancelSchedule} />
+                  </motion.div>
                 ))}
-              </TileList>
-            </Disclosure>
-          ) : null}
-          {pending.length > 0 ? (
-            <Disclosure title="Queued to send" summary={String(pending.length)} open={isOpen("queued")} onToggle={() => onToggle("queued")}>
-              <div className="flex flex-col gap-2">
-                <AnimatePresence initial={false}>
-                  {pending.map((message) => (
-                    <motion.span key={message.id} {...RISE} layout="position" data-selectable className="text-[13px] text-ink-muted">
-                      <Clamp text={`To ${who(message.to)}${message.expects_reply ? " (expects a reply)" : ""}: ${message.preview}`} lines={2} />
-                    </motion.span>
-                  ))}
-                </AnimatePresence>
-              </div>
-            </Disclosure>
-          ) : null}
-          <Disclosure title="Scheduled" summary={feedSummary(schedules, (items) => (items.length > 0 ? String(items.length) : "None"))} open={isOpen("scheduled")} onToggle={() => onToggle("scheduled")}>
-            {schedules.kind !== "ready" ? (
-              <FeedState feed={schedules} />
-            ) : schedules.items.length === 0 ? (
-              <span className="text-[13px] text-ink-muted">Nothing scheduled.</span>
-            ) : (
-              <div className="flex flex-col gap-2">
-                <AnimatePresence initial={false}>
-                  {schedules.items.map((schedule, index) => (
-                    <motion.div key={schedule.id} {...RISE} layout="position">
-                      <ScheduleRow schedule={schedule} agentId={agent.id} position={index + 1} onSave={onSaveSchedule} onCancel={onCancelSchedule} />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </div>
-            )}
-          </Disclosure>
-          <Disclosure
-            title="Charter"
-            summary={`~${kilo(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens · ${kilo(agent.system_prompt.length)} chars`}
-            open={isOpen("charter")}
-            onToggle={() => onToggle("charter")}
-          >
-            <CharterText source={agent.system_prompt} />
-          </Disclosure>
-        </div>
-        <p className="m-0 px-1 text-[12.5px] leading-5 text-ink-muted">
-          {`Created ${formatDay(agent.created_at)}`}
-          {parent === null ? (agent.parent_agent_id === null ? "" : ` · child of ${agent.parent_agent_id}`) : (
-            <>
-              {" · child of "}
-              <button type="button" className="ui-trans font-semibold text-sage-text hover:underline" title={`Show ${parent.name}`} onClick={() => onSelectParent(parent.id)}>
-                {parent.name}
-              </button>
-            </>
+              </AnimatePresence>
+            </div>
           )}
-        </p>
-        </div>
-        )}
+        </Disclosure>
+        <About agent={agent} parent={parent} onSelectParent={onSelectAgent} now={now} />
       </div>
     </Card>
   );
