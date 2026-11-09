@@ -33,13 +33,13 @@ export type DockProps = {
 
 /** What the bar says under "Talk to Dadi". */
 function subline(routing: boolean, offline: boolean): string {
-  return offline ? "dadi unreachable" : routing ? "Routing" : "Start something new";
+  return offline ? "dadi unreachable" : routing ? "Dadi is busy" : "Start something new";
 }
 
 /**
  * The router dock, the only way into Dadi: a glass bar at the foot of the conversation list that
  * grows in one motion into the composer, and settles back to the bar when a message is sent. While
- * the router runs, a ring turns on the bar's glyph; nothing else reports what the router did.
+ * the router runs, on any device, a ring turns on the bar's glyph and on the send button, which holds the draft until it is done; nothing else reports what the router did.
  * The height follows the field: its text wraps to as many lines as it needs, up to 160 px.
  */
 export function Dock({
@@ -65,9 +65,10 @@ export function Dock({
     if (!el) {
       return;
     }
+    const applied = el.style.height;
     el.style.height = "auto";
     setFieldHeight(Math.min(FIELD.max, Math.max(FIELD.min, el.scrollHeight)));
-    el.style.height = "";
+    el.style.height = applied;
   }, [draft, open, textareaRef]);
 
   useLayoutEffect(() => {
@@ -79,7 +80,7 @@ export function Dock({
   const height = FIELD.pad * 2 + fieldHeight + (attachments.length > 0 ? FIELD.chips : 0);
   const canSend = (draft.trim().length > 0 || attachments.length > 0) && !routing && !offline;
   const sub = subline(routing, offline);
-  const placeholder = offline ? "dadi unreachable" : "Talk to Dadi";
+  const placeholder = offline ? "dadi unreachable" : routing ? "Dadi is busy" : "Talk to Dadi";
   const classes = ["dock", open ? "open" : "", routing ? "routing" : "", offline ? "disabled" : ""].filter(Boolean).join(" ");
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -126,6 +127,7 @@ export function Dock({
           ) : null}
         </AnimatePresence>
         <div
+          data-bare-field
           className="flex items-end gap-1 p-2"
           onDragOver={(e) => {
             if (!offline && e.dataTransfer.types.includes("Files")) {
@@ -167,13 +169,14 @@ export function Dock({
           />
           <button
             type="button"
-            aria-label="Send"
-            title={routing ? "Dadi is routing" : "Send"}
+            aria-label={routing ? "Dadi is busy" : "Send"}
+            title={routing ? "Dadi is busy; your draft is kept" : "Send"}
             disabled={!canSend}
             onClick={onSend}
             className="dsend mb-0.5"
           >
             <Icon name="send" size={17} />
+            {routing ? <span className="dring" /> : null}
           </button>
         </div>
       </div>

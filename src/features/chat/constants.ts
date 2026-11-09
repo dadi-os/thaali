@@ -26,3 +26,5 @@ export const RAIL_KEY_STEP_PX = 16;
 export const RAIL_KEY_STEP_SHIFT_PX = 64;
 /** Where the dragged width is kept between launches. */
 export const RAIL_WIDTH_KEY = "thaali.railWidth";
+/** How long a pinned helper preview stays after its task stops being active, so a status that flaps does not unmount and remount it, in ms. */
+export const PIN_LINGER_MS = 4000;

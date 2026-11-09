@@ -142,7 +142,7 @@ export function Composer({
               </motion.div>
             ) : null}
           </AnimatePresence>
-          <div className="flex items-end gap-1">
+          <div data-bare-field className="flex items-end gap-1">
             <input
               ref={fileInputRef}
               type="file"

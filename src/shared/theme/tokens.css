@@ -318,6 +318,10 @@
     0 8px 24px rgba(44, 48, 42, 0.1);
 }
 
+.composer-glass:has(textarea:focus-visible) {
+  border-color: var(--sage-line);
+}
+
 .composer-glass--processing {
   border-color: color-mix(in srgb, var(--sage-line) 28%, transparent);
 }

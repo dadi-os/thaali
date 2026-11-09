@@ -36,7 +36,7 @@ export function ConversationRow({ conversation, unread, working, selected, wide,
     <div {...context}>
       <button type="button" className="rail-row ui-trans ui-hover-fill" aria-current={selected ? "true" : undefined} onClick={onOpen}>
         <div className="flex items-start gap-2">
-          <AnimatePresence initial={false}>{working ? <motion.span key="working" {...FADE} className="rail-dot mt-[7px]" /> : null}</AnimatePresence>
+          <AnimatePresence initial={false}>{working ? <motion.span key="working" {...FADE} role="img" aria-label="Working" className="rail-dot mt-[3px]" /> : null}</AnimatePresence>
           <AgentName name={conversation.agent_name} selectable={false} className="flex-1 text-[15px] leading-snug font-semibold tracking-[-0.005em]" />
           <span className="flex-none pt-0.5 text-[12px] whitespace-nowrap text-ink-muted">{formatRailTime(conversation.last_at, now)}</span>
         </div>

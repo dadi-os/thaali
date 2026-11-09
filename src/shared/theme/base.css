@@ -84,7 +84,8 @@
 
   /*
    * A text field shows focus on the box around it, not with a square ring of its own: the field is bare and the
-   * container (a search field, a composer, a form row) takes a soft halo while its field has focus.
+   * container (a search field, a form row) takes a soft halo while its field has focus; a composer opts out with `data-bare-field`
+   * and shows focus on its own border instead.
    */
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
   textarea,
@@ -99,7 +100,7 @@
     outline: none;
   }
 
-  :has(> :is(input, textarea, select):focus-visible) {
+  :has(> :is(input, textarea, select):focus-visible):not([data-bare-field]) {
     outline: 3px solid var(--sage-faint);
     outline-offset: 0;
   }

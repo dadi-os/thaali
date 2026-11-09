@@ -238,6 +238,7 @@
   }
 
   .dsend {
+    position: relative;
     width: 36px;
     height: 36px;
     border-radius: 50%;
@@ -370,13 +371,42 @@
     background: var(--sage-active);
   }
 
+  /* The working dot: 14 px, with a ring that spreads and fades around it, as Khisso's Chats rows draw it. */
   .rail-dot {
-    width: 7px;
-    height: 7px;
+    position: relative;
+    width: 14px;
+    height: 14px;
+    margin: 0 3px;
     border-radius: 50%;
-    background: var(--sage);
+    background: var(--sage-deep);
     flex: none;
-    animation: ui-pulse 1.4s ease-in-out infinite;
+  }
+
+  .rail-dot::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    border: 2px solid var(--sage);
+    animation: rail-dot-ring 1.4s ease-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .rail-dot::after {
+      animation: none;
+      opacity: 0.4;
+    }
+  }
+
+  @keyframes rail-dot-ring {
+    from {
+      transform: scale(1);
+      opacity: 0.7;
+    }
+    to {
+      transform: scale(2);
+      opacity: 0;
+    }
   }
 
   .rail-badge {

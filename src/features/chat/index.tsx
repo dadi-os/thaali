@@ -17,6 +17,7 @@ import { AgentPopover } from "../agents/AgentPopover";
 import { HostPin } from "./HostPin";
 import { pickLiveTasks, tasksRefetchInterval } from "../agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
+import { useLingering } from "../../shared/hooks/useLingering";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
 import {
@@ -68,6 +69,7 @@ import {
   TEXTAREA_MAX_PX,
   LIST_REFRESH_MS,
   THREAD_REFRESH_MS,
+  PIN_LINGER_MS,
 } from "./constants";
 import { Dock } from "./Dock";
 import { partitionByQueued } from "./lanes";
@@ -154,6 +156,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   /** The agent whose details popover is open over the name pill. */
   const [details, setDetails] = useState<{ id: string; anchor: DOMRect } | null>(null);
   const refreshThreadRef = useRef<(() => void) | null>(null);
+  const pinnedTasksRef = useRef<ReadonlySet<string>>(new Set());
 
   const routing = isRouting();
   const rail = useRailWidth();
@@ -543,7 +546,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   /**
    * Hand a message to Dadi: it leaves the dock, the dock settles back to the bar, and the router
    * sends it on as you. Nothing reports where it went. A message that fails comes back to the dock
-   * and a toast says it was copied; a second send waits for the router.
+   * and a toast says it was copied. While any device has the router running (read live, not from the last render, so two quick sends cannot both pass) a send is refused and the draft stays.
    */
   const sendDadi = async (
     content: string,
@@ -553,7 +556,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     if (
       (!trimmed && (!attachments || attachments.length === 0)) ||
       !connected ||
-      routing
+      isRouting()
     ) {
       return;
     }
@@ -629,10 +632,13 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const openAgentView = resolveOpenAgent(openAgentId, agentsQuery);
   const openAgentRecord = openAgentView?.kind === "ready" ? openAgentView.agent : undefined;
-  const { browser: liveBrowser, terminal: liveTerminal } =
-    openAgentRecord && tasksQuery.isSuccess
-      ? pickLiveTasks(openAgentRecord.sessions, tasksQuery.data)
+  const picked =
+    openAgentRecord && tasksQuery.data !== undefined
+      ? pickLiveTasks(openAgentRecord.sessions, tasksQuery.data, pinnedTasksRef.current)
       : { browser: null, terminal: null };
+  pinnedTasksRef.current = new Set([picked.browser?.task, picked.terminal?.task].filter((task) => task !== undefined));
+  const liveBrowser = useLingering(picked.browser, PIN_LINGER_MS);
+  const liveTerminal = useLingering(picked.terminal, PIN_LINGER_MS);
   const showHostPin = viewingThread && (liveBrowser !== null || liveTerminal !== null);
 
   const showComposer = openAgentView?.kind === "ready" && openAgentView.agent.active;
