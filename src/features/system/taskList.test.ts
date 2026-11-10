@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { NasTask } from "../../shared/api/nas";
-import { filterCounts, listedTasks, slotLabel } from "./taskList";
+import { filterCounts, listedTasks, slotLabel, tileTasks } from "./taskList";
 
 const task = (id: string, status: NasTask["status"], lastActivity: string, resource?: string, kind: NasTask["kind"] = "browser"): NasTask => ({
   task: `task/${kind}/${id}`,
@@ -39,5 +39,21 @@ describe("task list", () => {
     expect(slotLabel(tasks[0]!)).toBe("slot 1");
     expect(slotLabel(tasks[3]!)).toBeNull();
     expect(slotLabel(tasks[4]!)).toBeNull();
+  });
+
+  it("shows only active tasks on the tile while any exist, working before asking", () => {
+    const shown = tileTasks(tasks);
+    expect(shown.title).toBe("Active tasks");
+    expect(shown.tasks.map((t) => t.id).sort()).toEqual(["a", "b", "c"]);
+    expect(shown.tasks[shown.tasks.length - 1]!.status).toBe("asking");
+  });
+
+  it("shows only idle tasks when none are active, then asleep ones with stopped last", () => {
+    const quiet = tasks.filter((t) => ["idle", "asleep", "stopped"].includes(t.status));
+    expect(tileTasks(quiet).title).toBe("Idle tasks");
+    expect(tileTasks(quiet).tasks.map((t) => t.id)).toEqual(["d"]);
+    const sleeping = tasks.filter((t) => t.status === "stopped" || t.status === "asleep").reverse();
+    expect(tileTasks(sleeping).title).toBe("Asleep tasks");
+    expect(tileTasks(sleeping).tasks.map((t) => t.id)).toEqual(["e", "f"]);
   });
 });

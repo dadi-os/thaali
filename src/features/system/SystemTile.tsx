@@ -5,7 +5,7 @@ import { Badge } from "../../shared/ui/Badge";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
-import { MeterRow, SectionHeader, StatusChip, TileList, TileRow } from "../../shared/components/Module";
+import { MeterRow, SectionHeader, TileList, TileRow } from "../../shared/components/Module";
 import { Measured } from "../../shared/layout/Measured";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
@@ -13,9 +13,7 @@ import { POLL_MS } from "../../shared/lib/ux/poll";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { diskName } from "./HealthCard";
-
-/** Where a task stands in the tile's list: working first, then what is waiting on its agent, then the rest. */
-const TASK_ORDER: Record<NasTask["status"], number> = { working: 0, paused: 0, asking: 1, idle: 2, asleep: 3, stopped: 3 };
+import { tileTasks } from "./taskList";
 
 type Meter = { name: string; percent: number };
 
@@ -56,10 +54,31 @@ export function healthSummary(status: NasStatus): string {
   return down.length === 0 ? "All healthy" : `${down.join(", ")} down`;
 }
 
+type DeviceChipProps = {
+  node_name: string;
+  online: boolean;
+  pending?: boolean;
+};
+
+/** One device on dadi: online is a full-ink name with a glowing sage dot, waiting to join is clay, and offline is dim with a hollow dot, so connected devices stand out in both themes. */
+function DeviceChip({ node_name, online, pending }: DeviceChipProps) {
+  const look = online
+    ? { chip: "border-sage-line bg-sage-fill text-ink", dot: "bg-sage-deep shadow-[0_0_0_3px_color-mix(in_srgb,var(--sage)_32%,transparent),0_0_8px_var(--sage)]" }
+    : pending
+      ? { chip: "border-due-line bg-due-fill text-due-ink", dot: "bg-clay" }
+      : { chip: "border-transparent bg-transparent text-ink-ghost", dot: "border border-ink-ghost bg-transparent" };
+  return (
+    <span className={`inline-flex h-8 flex-none items-center gap-2 rounded-full border px-3 text-[13px] whitespace-nowrap ${online ? "font-semibold" : "font-normal"} ${look.chip}`} title={`${node_name}: ${online ? "online" : pending ? "waiting to join" : "offline"}`}>
+      <span className={`size-2 flex-none rounded-full ${look.dot}`} />
+      {node_name}
+    </span>
+  );
+}
+
 /** As many meters as fit, the helper tasks that fit after them, and the devices on dadi in a footer that scrolls sideways. */
 function Body({ status, tasks, clients, geometry }: BodyProps) {
   const meters = metersOf(status).slice(0, Math.max(1, Math.min(4, Math.floor((geometry.bh + 12) / 42))));
-  const sorted = [...tasks].sort((a, b) => TASK_ORDER[a.status] - TASK_ORDER[b.status]);
+  const { title, tasks: sorted } = tileTasks(tasks);
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col" style={{ gap: BLOCK_GAP }}>
       <div className="flex flex-none flex-col gap-3">
@@ -71,7 +90,7 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
         <Measured style={{ overflow: "hidden" }}>
           {(size) => (
             <div className="flex flex-col">
-              <SectionHeader title="Tasks" count={sorted.length} />
+              <SectionHeader title={title} count={sorted.length} />
               <TileList>
                 {sorted.slice(0, Math.max(0, Math.floor((size.height - 24) / TASK_ROW))).map((task) => (
                   <TileRow key={task.task} size="sm" ruled={false} lead={<Icon name={task.kind === "browser" ? "browser" : "terminal"} size={14} />} trail={<Badge status={task.status} />}>
@@ -88,9 +107,7 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
       <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: 32 + 13 }} onClick={(event) => event.preventDefault()}>
         {clients.length === 0 ? <span className="text-[13px] text-ink-muted">No devices on dadi</span> : null}
         {clients.map((client) => (
-          <StatusChip rigid key={client.node_name} tone={client.online ? "sage" : client.pending ? "clay" : "quiet"} title={`${client.node_name}: ${client.online ? "online" : client.pending ? "waiting to join" : "offline"}`}>
-            {client.node_name}
-          </StatusChip>
+          <DeviceChip key={client.node_name} {...client} />
         ))}
       </div>
     </div>
