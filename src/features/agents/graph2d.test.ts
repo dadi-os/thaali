@@ -65,6 +65,22 @@ describe("viewForest", () => {
     expect([...view.shown].map((n) => n.state).sort()).toEqual(["waiting", "working"]);
   });
 
+  it("names two close non-idle agents without their names overlapping", () => {
+    const family = [record("career-manager", null), record("a-specialist", "career-manager"), record("b-specialist", "career-manager"), record("c-specialist", "career-manager"), record("d-specialist", "career-manager")];
+    const states = new Map<string, "waiting" | "working">([["b-specialist", "waiting"], ["c-specialist", "working"]]);
+    const view = viewForest(layoutForest(family, (agent) => states.get(agent.id) ?? "idle", { r1: 40, step: 14 }), { labels: "live", reserve: "all", width: 400, height: 200, nodeScale: 0.85 });
+    const shown = [...view.shown];
+    expect(shown.map((n) => n.agent.id).sort()).toEqual(["b-specialist", "c-specialist"]);
+    const box = (n: (typeof shown)[number]) => {
+      const label = view.names.get(n)!;
+      const wide = label.name.length * label.size * 0.6;
+      const x0 = label.right ? n.x : n.x - wide;
+      return { x0, x1: x0 + wide, y0: n.y + label.dy - label.size * 0.75, y1: n.y + label.dy + label.size * 0.45 };
+    };
+    const [one, two] = shown.map(box) as [ReturnType<typeof box>, ReturnType<typeof box>];
+    expect(one.x0 < two.x1 && one.x1 > two.x0 && one.y0 < two.y1 && one.y1 > two.y0).toBe(false);
+  });
+
   it("gives every node a place for its name so a hover can show it", () => {
     const all = agents("normal").filter((agent) => agent.active);
     const view = viewForest(layoutForest(all, stateOf), { labels: "live", width: 520, height: 260, nodeScale: 0.85 });

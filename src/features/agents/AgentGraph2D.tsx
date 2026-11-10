@@ -132,7 +132,7 @@ function NodeName({ node, view, nodeScale, visible, faint, raised = false }: Nod
   return (
     <text
       x={(node.x + (label.right ? 1 : -1) * (r + view.unit(7))).toFixed(1)}
-      y={(node.y + label.size * 0.35).toFixed(1)}
+      y={(node.y + label.dy + label.size * 0.35).toFixed(1)}
       textAnchor={label.right ? "start" : "end"}
       fontFamily="Inter, system-ui, sans-serif"
       fontSize={label.size}

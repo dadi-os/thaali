@@ -62,8 +62,8 @@ export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord
 /** Which names are written beside their nodes: `live` names every agent that is not idle, which includes one waiting on a task. */
 export type GraphLabels = "all" | "live" | "roots";
 
-/** One name beside its node: which side, the text and its size in graph units. */
-export type GraphLabel = { right: boolean; name: string; size: number };
+/** One name beside its node: which side, how far above (negative) or below it sits, the text and its size in graph units. */
+export type GraphLabel = { right: boolean; dy: number; name: string; size: number };
 
 export type GraphView = {
   nodes: ForestNode[];
@@ -74,7 +74,7 @@ export type GraphView = {
   unit: (px: number) => number;
   /** Where every node's name goes, shown or not: it is what a hover reveals. */
   names: Map<ForestNode, GraphLabel>;
-  /** The nodes whose name is written now. */
+  /** The nodes whose name is written now: every one `labels` picks, since every node has a place. */
   shown: Set<ForestNode>;
 };
 
@@ -112,7 +112,9 @@ const overlaps = (a: Box, b: Box) => a.x0 < b.x1 && a.x1 > b.x0 && a.y0 < b.y1 &
 /**
  * Fits a forest into `width` x `height` px: stretches a short forest to fill a tall container, widens the box for the
  * names that stick out (twice over, since the names change the scale that changes the names), then places each name
- * on the side its node faces, or the other, where it stays in the box and covers no node and no earlier name. The
+ * beside its node on the side it faces, the other side, then lifted or dropped by a line or two on either side, taking the
+ * first spot that stays in the box and covers no node and no earlier name; when none is clear it takes the one that
+ * collides least, so no name is ever dropped. The
  * positions, the box and every placement depend on the forest and `reserve` alone, never on which agents are live;
  * `labels` only picks which of the placed names are written.
  */
@@ -176,40 +178,42 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
     const name = graphName(n.agent.name);
     return { size, name, wide: name.length * size * 0.6, r: unit(nodeRadius(n.depth, nodeScale)) };
   };
-  const boxOf = (n: ForestNode, right: boolean): Box => {
+  const boxOf = (n: ForestNode, right: boolean, dy: number): Box => {
     const { size, wide, r } = measure(n);
     const start = right ? n.x + r + unit(7) : n.x - r - unit(7) - wide;
-    return { x0: start, x1: start + wide, y0: n.y - size * 0.75, y1: n.y + size * 0.45 };
+    return { x0: start, x1: start + wide, y0: n.y + dy - size * 0.75, y1: n.y + dy + size * 0.45 };
   };
   const names = new Map<ForestNode, GraphLabel>();
-  const fitted = new Set<ForestNode>();
   const taken: Box[] = [];
   const place = (n: ForestNode, solid: (other: ForestNode) => boolean) => {
     const { size, name } = measure(n);
     const facing = Math.cos(n.ang) >= -0.05;
-    for (const right of [facing, !facing]) {
-      const box = boxOf(n, right);
-      if (inside(box) && !nodeBoxes.some((other) => other.node !== n && solid(other.node) && overlaps(box, other.box)) && !taken.some((other) => overlaps(box, other))) {
-        taken.push(box);
-        names.set(n, { right, name, size });
-        fitted.add(n);
-        return;
+    const lines = [0, -1.2, 1.2, -2.4, 2.4];
+    const options = lines.flatMap((line) => [facing, !facing].map((right) => ({ right, dy: line * size })));
+    const collisions = (box: Box) =>
+      (inside(box) ? 0 : 100) + nodeBoxes.filter((other) => other.node !== n && solid(other.node) && overlaps(box, other.box)).length + taken.filter((other) => overlaps(box, other)).length;
+    let best = options[0]!;
+    let fewest = Infinity;
+    for (const option of options) {
+      const cost = collisions(boxOf(n, option.right, option.dy));
+      if (cost < fewest) {
+        best = option;
+        fewest = cost;
+      }
+      if (cost === 0) {
+        break;
       }
     }
+    taken.push(boxOf(n, best.right, best.dy));
+    names.set(n, { right: best.right, dy: best.dy, name, size });
   };
   const order = [...nodes].sort((a, b) => a.depth - b.depth);
   for (const n of order.filter(reserved)) {
     place(n, () => true);
   }
-  for (const n of order.filter((candidate) => !fitted.has(candidate))) {
+  for (const n of order.filter((candidate) => !reserved(candidate))) {
     place(n, (other) => other.depth === 1);
   }
-  for (const n of nodes) {
-    if (!names.has(n)) {
-      const { size, name } = measure(n);
-      names.set(n, { right: viewBox[0] + viewBox[2] - n.x >= n.x - viewBox[0], name, size });
-    }
-  }
   const wanted = (n: ForestNode) => labels === "all" || (labels === "live" && n.state !== "idle") || (labels === "roots" && n.depth === 1);
-  return { nodes, links, viewBox, unit, names, shown: new Set(nodes.filter((n) => wanted(n) && fitted.has(n))) };
+  return { nodes, links, viewBox, unit, names, shown: new Set(nodes.filter(wanted)) };
 }
