@@ -44,7 +44,7 @@ function dueTime(item: TimelineItem): number {
 }
 
 /** What Yaad holds that has no time: the tasks waiting for one (soonest due first) and the ideas, and whether the first answer is still on its way. */
-export function useNeedsATime() {
+function useNeedsATime() {
   const query = useSomeday();
   const items = query.data ?? [];
   return {
@@ -180,7 +180,7 @@ export function NeedsATime({ onOpen, onClose }: NeedsATimeProps) {
         </div>
         <IconButton icon="close" label="Close" onClick={onClose} />
       </header>
-      <div className="scroll flex min-h-0 flex-1 flex-col gap-6 px-4 pb-14">
+      <div className="scroll flex min-h-0 flex-1 flex-col gap-6 overscroll-contain px-4 pb-14 [&>*]:flex-none">
         {query.isError && !query.data ? (
           <StateView kind="error" title="Couldn’t load what needs a time" {...failureProps(query.error)} onRetry={() => void query.refetch()} />
         ) : pending ? (

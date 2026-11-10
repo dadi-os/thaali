@@ -76,7 +76,7 @@ export function MenuSurface({ actions, onChosen, origin = "top left", width = 22
       ref={ref}
       role="menu"
       className="floating menu-panel"
-      style={{ width, transformOrigin: origin, animation: "none" }}
+      style={{ width, maxHeight: "calc(100vh - 24px)", overflowY: "auto", transformOrigin: origin, animation: "none" }}
       onKeyDown={move}
       onContextMenu={(event) => event.preventDefault()}
       {...MENU}

@@ -36,7 +36,7 @@ export function Sheet({ open, onClose, label, width = 420, from = "right", locke
         <motion.div
           key="sheet"
           className="scrim"
-          style={{ background: "rgba(44, 48, 42, 0.18)", zIndex: "var(--z-scrim)", display: "flex", justifyContent: from === "right" ? "flex-end" : "flex-start", padding: MARGIN, animation: "none" }}
+          style={{ background: "rgba(44, 48, 42, 0.18)", zIndex: "var(--z-scrim)", overflow: "hidden", display: "flex", justifyContent: from === "right" ? "flex-end" : "flex-start", padding: MARGIN, animation: "none" }}
           onPointerDown={(event) => {
             if (!locked && event.target === event.currentTarget) {
               onClose();
@@ -48,7 +48,7 @@ export function Sheet({ open, onClose, label, width = 420, from = "right", locke
             role="dialog"
             aria-modal="true"
             aria-label={label}
-            style={{ display: "flex", flexDirection: "column", width, maxWidth: "100%", height: "100%", overflow: "hidden", background: "var(--bone)", border: "1px solid var(--glass-border)", borderRadius: 24, boxShadow: "0 2px 6px rgba(44,48,42,.08), 0 28px 80px rgba(44,48,42,.22)" }}
+            style={{ display: "flex", flexDirection: "column", width, maxWidth: "100%", height: "100%", maxHeight: "100%", minHeight: 0, overflow: "hidden", background: "var(--bone)", border: "1px solid var(--glass-border)", borderRadius: 24, boxShadow: "0 2px 6px rgba(44,48,42,.08), 0 28px 80px rgba(44,48,42,.22)" }}
             {...floatingSheetMotion(from)}
           >
             {children}

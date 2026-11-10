@@ -6,12 +6,10 @@ import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";
-import { DueLane, DUE_LANE_WIDTH } from "./DueLane";
-import { clusterDues, DUE_TAG_HEIGHT, sessionsNeedingRoom } from "./dueClusters";
+import { DuePanel } from "./DuePanel";
 import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
 import { segmentsOn } from "./planner/blocks";
-import { NeedsTimeCard } from "./NeedsTimeCard";
 import { clockChange, plannedClock } from "./zones";
 
 const PPM = 56 / 60;
@@ -37,11 +35,9 @@ export type CalendarDayProps = {
   wide: boolean;
   /** Open a session's details under the chosen control. */
   onOpen: (item: TimelineItem, element: Element) => void;
-  /** Open the Needs a time sheet. */
-  onNeedsTime: () => void;
 };
 
-/** A day's wall-clock axis, with overlap lanes, clock-change bands, deadlines and an instant-based now/next summary. */
+/** A day's wall-clock axis with overlap lanes and clock-change bands, beside a scrolling Due panel and an instant-based now/next summary. */
 export function CalendarDay({
   day,
   now,
@@ -50,7 +46,6 @@ export function CalendarDay({
   selected,
   wide,
   onOpen,
-  onNeedsTime,
 }: CalendarDayProps) {
   const start = startOfDay(day);
   const change = clockChange(start, addDays(start, 1), zone);
@@ -68,7 +63,6 @@ export function CalendarDay({
   const nowMinute = isSameDay(day, now) ? wallMinutes(now) : null;
   const minutes = [
     ...segments.flatMap((s) => [s.startMin, s.endMin]),
-    ...dues.map((i) => wallMinutes(new Date(i.due_at!))),
     ...(nowMinute === null ? [] : [nowMinute]),
   ];
   const lo =
@@ -103,14 +97,6 @@ export function CalendarDay({
       ? 0
       : (Date.parse(i.end_at) - Date.parse(i.start_at!)) / 60_000;
   const heights = segments.map((s) => Math.max(32, (s.endMin - s.startMin) * PPM - 3));
-  const tags = clusterDues(dues.map((item) => ({ item, y: top(wallMinutes(new Date(item.due_at!))) }))).map(({ y }) => ({
-    top: y - DUE_TAG_HEIGHT / 2,
-    bottom: y + DUE_TAG_HEIGHT / 2,
-  }));
-  const room = sessionsNeedingRoom(
-    segments.map((s, i) => ({ top: top(s.startMin), bottom: top(s.startMin) + heights[i]! })),
-    tags,
-  );
   const own = segments.map((s) => s.block);
   const total = own.reduce((sum, i) => sum + duration(i), 0);
   const done = own
@@ -130,13 +116,15 @@ export function CalendarDay({
     <div
       style={{
         display: "flex",
+        flexDirection: wide ? "row" : "column",
         flex: 1,
-        gap: 16,
+        gap: wide ? 16 : 12,
         minWidth: 0,
         minHeight: 0,
         alignItems: "stretch",
       }}
     >
+      {wide ? null : <DuePanel items={dues} now={now} selected={selected} onOpen={onOpen} docked={false} />}
       <Card
         style={{ flex: 1, padding: "4px 14px 14px", minHeight: 0, minWidth: 0 }}
       >
@@ -226,7 +214,6 @@ export function CalendarDay({
               {segments.map(
                 ({ block: item, startMin, lane, lanes }, index) => {
                   const height = heights[index]!;
-                  const inset = room[index] ? DUE_LANE_WIDTH + 8 : 0;
                   const there = plannedClock(item, zone);
                   const ended =
                     item.state === "cancelled" || item.outcome === "done";
@@ -241,15 +228,9 @@ export function CalendarDay({
                       title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}${there === null ? "" : ` (${there})`}`}
                       style={{
                         position: "absolute",
-                        left:
-                          lanes === 1
-                            ? 8
-                            : `calc((100% - ${inset}px) * ${lane / lanes} + 8px)`,
-                        right: lanes === 1 ? 8 + inset : undefined,
-                        width:
-                          lanes === 1
-                            ? undefined
-                            : `calc((100% - ${inset}px) / ${lanes} - 16px)`,
+                        left: lanes === 1 ? 8 : `calc(100% * ${lane / lanes} + 8px)`,
+                        right: lanes === 1 ? 8 : undefined,
+                        width: lanes === 1 ? undefined : `calc(100% / ${lanes} - 16px)`,
                         top: top(startMin),
                         height,
                         display: "flex",
@@ -347,9 +328,6 @@ export function CalendarDay({
                 },
               )}
             </div>
-            {dues.length === 0 ? null : (
-              <DueLane items={dues} top={(item) => top(wallMinutes(new Date(item.due_at!)))} selected={selected} onOpen={onOpen} />
-            )}
             {nowMinute !== null && nowMinute >= lo && nowMinute <= hi ? (
               <div
                 style={{
@@ -485,7 +463,7 @@ export function CalendarDay({
               {span(Math.round(done))} done
             </span>
           </Card>
-          <NeedsTimeCard onOpen={onNeedsTime} />
+          <DuePanel items={dues} now={now} selected={selected} onOpen={onOpen} docked />
         </div>
       ) : null}
     </div>

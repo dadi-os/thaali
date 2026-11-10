@@ -76,7 +76,7 @@ function dateKey(day: Date): string {
 
 /**
  * Timeline's Day, Week and Month views. The URL keeps the selected view and date, session menus
- * retain details and owner actions, and Needs a time remains available for unscheduled plans.
+ * retain details and owner actions, and Needs a time opens over the current view without changing it.
  * Clock and device zone are read again when the app becomes visible after sleep or travel.
  */
 export function TimelinePage() {
@@ -91,7 +91,7 @@ export function TimelinePage() {
   const requested = params.get("view");
   const view: View =
     requested === "week" ? "Week" : requested === "month" ? "Month" : "Day";
-  const someday = requested === "someday";
+  const needsTime = params.get("needs") === "1";
   const date = params.get("date");
   const anchor = date === null ? startOfDay(now) : new Date(`${date}T00:00:00`);
   if (!Number.isFinite(anchor.getTime()))
@@ -157,14 +157,21 @@ export function TimelinePage() {
       ? state.data.filter((item) => !item.hide_from_planner)
       : [];
   const own = view === "Day" ? items.filter(onDay) : items;
-  const navigate = (nextView: View, day: Date, needsTime = false) => {
+  const navigate = (nextView: View, day: Date) => {
     setParams((current) => {
       const next = new URLSearchParams(current);
-      next.set("view", needsTime ? "someday" : nextView.toLowerCase());
+      next.set("view", nextView.toLowerCase());
       next.set("date", dateKey(day));
       return next;
     });
   };
+  const setNeedsTime = (open: boolean) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (open) next.set("needs", "1");
+      else next.delete("needs");
+      return next;
+    });
   const move = (step: number) =>
     navigate(
       view,
@@ -275,8 +282,7 @@ export function TimelinePage() {
             selected={popover.openKey}
             wide={wide}
             onOpen={open}
-            onNeedsTime={() => navigate(view, anchor, true)}
-          />
+                      />
         ) : view === "Week" ? (
           <CalendarWeek days={days} now={now} items={items} onOpen={open} />
         ) : (
@@ -334,7 +340,7 @@ export function TimelinePage() {
               title="Timeline"
               meta={state.kind === "ready" ? `${own.length} ${own.length === 1 ? "session" : "sessions"} ${when}` : undefined}
               trailing={
-                <Button tone="quiet" size="sm" onClick={() => navigate(view, anchor, true)}>
+                <Button tone="quiet" size="sm" onClick={() => setNeedsTime(true)}>
                   Needs a time
                 </Button>
               }
@@ -377,8 +383,8 @@ export function TimelinePage() {
                 </motion.div>
               </AnimatePresence>
             </div>
-            <Sheet open={someday} onClose={() => navigate(view, anchor)} label="Needs a time" width={480}>
-              <NeedsATime onClose={() => navigate(view, anchor)} onOpen={(item, element) => popover.show(item, element.getBoundingClientRect())} />
+            <Sheet open={needsTime} onClose={() => setNeedsTime(false)} label="Needs a time" width={480}>
+              <NeedsATime onClose={() => setNeedsTime(false)} onOpen={(item, element) => popover.show(item, element.getBoundingClientRect())} />
             </Sheet>
           </>
         )}

@@ -72,7 +72,7 @@ const message = (seq, content) => ({ type: "message", agent_id: "finance-special
 
 /** Scripted flows: each opens something, then captures its frames and runs the checks. */
 function flowJobs(scenario) {
-  const job = (name, route, steps, settleMs = 2500) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}${route.includes("?") ? "&" : "?"}fixtures=${scenario}`, width: 1440, height: 900, settleMs, steps });
+  const job = (name, route, steps, settleMs = 2500, height = 900, width = 1440) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}${route.includes("?") ? "&" : "?"}fixtures=${scenario}`, width, height, settleMs, steps });
   const frames = (tag, times) => times.flatMap((t, i) => [{ wait: i === 0 ? t : t - times[i - 1] }, { shot: `flow-${tag}~${scenario}~${t}ms.png` }]);
   return [
     job("agent-sheet", "/hath", [
@@ -247,6 +247,20 @@ function flowJobs(scenario) {
       ...frames("yaad-sheet-closed", [700]),
       { eval: expectText("Coming up", true) },
     ]),
+    job("needs-time-short", "/timeline?view=week", [
+      { eval: clickText("button", "Needs a time") },
+      ...frames("needs-time-short-open", [900]),
+      { eval: '(() => { const list = document.querySelector("[role=dialog] .scroll"); list.scrollTop = list.scrollHeight; })(); 0' },
+      ...frames("needs-time-short-bottom", [400]),
+      { eval: `(() => { const q = (e) => { const r = e.getBoundingClientRect(); return [e.tagName, Math.round(r.top), Math.round(r.bottom), e.scrollHeight, e.clientHeight].join(" "); }; const list = document.querySelector("[role=dialog] .scroll"); console.error("DIAG " + q(document.querySelector("[role=dialog]")) + " | list " + q(list) + " | " + [...list.children].map(q).join(" | ") + " | edges " + list.getAttributeNames().join(",")); })(); 0` },
+      { eval: `(() => { const list = document.querySelector("[role=dialog] .scroll"); const box = list.getBoundingClientRect(); const last = list.lastElementChild.getBoundingClientRect(); if (box.bottom > innerHeight + 1 || last.bottom > box.bottom) console.error("needs-time list cut off: list bottom " + box.bottom + " window " + innerHeight + " last " + last.bottom); })(); 0` },
+    ], 2500, 640),
+    job("needs-time-narrow", "/timeline", [
+      { eval: clickText("button", "Needs a time") },
+      ...frames("needs-time-narrow-open", [900]),
+      { eval: '(() => { const list = document.querySelector("[role=dialog] .scroll"); list.scrollTop = list.scrollHeight; })(); 0' },
+      ...frames("needs-time-narrow-bottom", [400]),
+    ], 2500, 700, 960),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },
       ...frames("chat-open", [120, 600]),
