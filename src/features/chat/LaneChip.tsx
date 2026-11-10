@@ -32,9 +32,9 @@ export function laneChipLabel(processing: boolean, working: boolean): LaneChipLa
 }
 
 /** The mark's box (px) and dot diameter. */
-const BOX_W = 22;
-const BOX_H = 12;
-const DOT = 3.5;
+const BOX_W = 32;
+const BOX_H = 18;
+const DOT = 5.5;
 /** One pass of a dot from the left edge to dropping off the right. */
 const FLOW_MS = 1500;
 
@@ -104,13 +104,13 @@ export function LaneChip({ process: processing, work: working }: LaneChipProps) 
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 4, scale: 0.96 }}
           transition={{ duration: SLOW_S, ease: EASE }}
-          className="pointer-events-none mb-2 flex justify-center"
+          className="pointer-events-none mb-3 flex justify-center"
         >
           <motion.span
             layout
             transition={{ duration: SLOW_S, ease: EASE }}
-            className={`lane-chip inline-flex items-center gap-2 rounded-full py-1 text-[11px] font-medium ${
-              processing ? "pr-3 pl-2" : "px-3"
+            className={`lane-chip inline-flex items-center gap-2.5 rounded-full py-2 text-[14px] font-semibold ${
+              processing ? "pr-5 pl-3.5" : "px-5"
             } ${working ? "lane-sheen" : ""}`}
           >
             <AnimatePresence initial={false}>
@@ -130,7 +130,7 @@ export function LaneChip({ process: processing, work: working }: LaneChipProps) 
             <AnimatePresence mode="wait" initial={false}>
               <motion.span
                 key={label}
-                className="relative tracking-[0.04em] text-sage-text lowercase"
+                className="relative tracking-[0.02em] text-sage-text lowercase"
                 initial={{ opacity: 0, y: 3 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -3 }}
