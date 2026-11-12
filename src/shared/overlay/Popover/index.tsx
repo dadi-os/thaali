@@ -11,6 +11,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, animate, motion, useMotionValue } from "motion/react";
 import { EASE, SLOW_S, SLOWER_S } from "../../motion";
 import { useDismiss } from "../../interaction/dismiss";
+import { placePanel } from "./placement";
 import { inHoverZone } from "./zone";
 
 export type PopoverAnchor = {
@@ -32,6 +33,10 @@ export type PopoverProps = {
   className?: string;
   style?: CSSProperties;
   widthPx?: number;
+  /** The tallest the panel grows to, in px, before its content scrolls inside it; the window less its margins limits it further. */
+  maxHeightPx?: number;
+  /** Keep the room the panel may grow to clear of the window's edge (the default), so content loading in does not move it; false keeps clear only the room it takes now. */
+  reserveRoom?: boolean;
   "aria-label"?: string;
   /** Element that owns the coordinate space for `anchor`. */
   containerRef?: RefObject<HTMLElement | null>;
@@ -57,7 +62,8 @@ export type PopoverHover = {
   onOutside: () => void;
 };
 
-const PAD = 12;
+/** The panel's default tallest height, in px. */
+const MAX_HEIGHT = 520;
 /** Space between the anchor's edge and the panel. */
 const OFFSET = 22;
 /** How far above the anchor the panel's top sits, so its header lines up with it. */
@@ -72,6 +78,8 @@ type Placement = {
   width: number;
   height: number;
   side: "left" | "right";
+  /** The height the panel is limited to, so it always fits the window. */
+  limit: number;
 };
 
 /**
@@ -88,6 +96,8 @@ export function Popover({
   className,
   style,
   widthPx = 340,
+  maxHeightPx = MAX_HEIGHT,
+  reserveRoom = true,
   "aria-label": ariaLabel,
   containerRef,
   contentKey,
@@ -122,25 +132,28 @@ export function Popover({
       const { x: originX, y: originY } = originOf();
       const width = panel.offsetWidth;
       const height = panel.offsetHeight;
-      /** Room the panel may grow into (its max-height); placing by it keeps the panel still as content loads in. */
-      const tallest = Math.max(height, parseFloat(getComputedStyle(panel).maxHeight) || height);
-      let side: Placement["side"] = "left";
-      let left = originX + clearance;
-      if (left + width > window.innerWidth - PAD) {
-        left = originX - clearance - width;
-        side = "right";
-      }
-      left = Math.max(PAD, Math.min(left, window.innerWidth - width - PAD));
-      const top = Math.max(PAD, Math.min(originY - HEADER_LIFT, window.innerHeight - tallest - PAD));
+      const { left, top, side, limit } = placePanel({
+        originX,
+        originY,
+        clearance,
+        lift: HEADER_LIFT,
+        width,
+        height,
+        reserve: reserveRoom,
+        maxHeight: maxHeightPx,
+        viewportW: window.innerWidth,
+        viewportH: window.innerHeight,
+      });
       setPos((prev) =>
         prev &&
         prev.left === left &&
         prev.top === top &&
         prev.width === width &&
         prev.height === height &&
-        prev.side === side
+        prev.side === side &&
+        prev.limit === limit
           ? prev
-          : { left, top, width, height, side },
+          : { left, top, width, height, side, limit },
       );
     };
 
@@ -155,7 +168,7 @@ export function Popover({
       observer.disconnect();
       window.removeEventListener("resize", place);
     };
-  }, [open, anchor.x, anchor.y, clearance, containerRef, widthPx]);
+  }, [open, anchor.x, anchor.y, clearance, containerRef, widthPx, maxHeightPx, reserveRoom]);
 
   useLayoutEffect(() => {
     const prev = placed.current;
@@ -250,11 +263,12 @@ export function Popover({
           ref={panelRef}
           role="dialog"
           aria-label={ariaLabel}
-          className={`popover-glass fixed z-[60] flex max-h-[min(70vh,520px)] flex-col ${className ?? ""}`}
+          className={`popover-glass fixed z-[60] flex flex-col ${className ?? ""}`}
           style={{
             left: pos ? pos.left : origin.x + clearance,
             top: pos ? pos.top : origin.y - HEADER_LIFT,
             width: `min(${widthPx}px, calc(100vw - 24px))`,
+            maxHeight: pos ? pos.limit : `min(${maxHeightPx}px, calc(100vh - 24px))`,
             visibility: pos ? "visible" : "hidden",
             transformOrigin: `${pos?.side === "right" ? "right" : "left"} ${HEADER_LIFT}px`,
             x: glideX,

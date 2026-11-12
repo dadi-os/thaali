@@ -164,6 +164,27 @@ export function formatDayShort(d: Date): string {
   }).format(d);
 }
 
+/** How long ago an earlier `at` was: "12m ago", "2h ago", then whole days ("yesterday", "3 days ago"). */
+export function formatSince(now: Date, at: Date): string {
+  const minutes = Math.max(0, Math.round((now.getTime() - at.getTime()) / 60_000));
+  if (minutes < 60) {
+    return `${minutes}m ago`;
+  }
+  if (minutes < 24 * 60) {
+    return `${Math.floor(minutes / 60)}h ago`;
+  }
+  const days = Math.round((startOfDay(at).getTime() - startOfDay(now).getTime()) / 86_400_000);
+  return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(days, "day");
+}
+
+/** Where `now` stands against a session: when it starts, "now" while it runs, how long ago it ended. */
+export function relativeToSession(now: Date, start: Date, end: Date): string {
+  if (now < start) {
+    return formatUntil(now, start);
+  }
+  return now < end ? "now" : formatSince(now, end);
+}
+
 /** Countdown from `now` to a later `at`: "in 12m", "in 2h 10m", then whole days. */
 export function formatUntil(now: Date, at: Date): string {
   const minutes = Math.max(0, Math.round((at.getTime() - now.getTime()) / 60_000));

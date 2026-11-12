@@ -28,7 +28,8 @@ export type SessionPopover = {
 
 /**
  * A session's click popover: its card (kind, time, place, notes, Mark done, Show in Yaad and Message) opening beside where
- * the pointer pressed, kept clear of it. It closes on Escape, a press outside and when the page that owns it goes away.
+ * the pointer pressed, kept clear of it and inside the window, its notes scrolling inside the card when they are long. It
+ * closes on Escape, a press outside and when the page that owns it goes away.
  */
 export function useSessionPopover(): SessionPopover {
   const [details, setDetails] = useState<Shown | null>(null);
@@ -47,8 +48,8 @@ export function useSessionPopover(): SessionPopover {
   }, []);
   const popovers =
     shown === null ? null : (
-      <Popover open={details !== null} anchor={{ x: shown.x, y: shown.y, radius: POINTER_CLEARANCE }} aria-label={`${shown.item.title} details`} widthPx={320} onClose={() => setDetails(null)}>
-        <div onClick={(event) => (event.target as Element).closest("button") !== null && setDetails(null)}>
+      <Popover open={details !== null} anchor={{ x: shown.x, y: shown.y, radius: POINTER_CLEARANCE }} aria-label={`${shown.item.title} details`} widthPx={340} reserveRoom={false} onClose={() => setDetails(null)}>
+        <div className="flex min-h-0 flex-1 flex-col" onClick={(event) => (event.target as Element).closest("button") !== null && setDetails(null)}>
           <SessionCard block={shown.item} />
         </div>
       </Popover>
