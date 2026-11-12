@@ -96,6 +96,10 @@ func run(_ plan: Plan) async -> [[String: Any]] {
         let webView = WKWebView(frame: frame, configuration: config)
         let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: job.width, height: job.height), styleMask: [.borderless], backing: .buffered, defer: false)
         window.contentView = webView
+        if ProcessInfo.processInfo.environment["SNAP_DARK"] == "1" {
+            window.appearance = NSAppearance(named: .darkAqua)
+            webView.appearance = NSAppearance(named: .darkAqua)
+        }
         window.acceptsMouseMovedEvents = true
         window.alphaValue = 0.6
         window.ignoresMouseEvents = true

@@ -1,4 +1,4 @@
-import type { PlanKind, TimelineItem, TimelineRequest } from "../../types/timeline";
+import type { PlanKind, SessionNote, TimelineItem, TimelineRequest } from "../../types/timeline";
 import type { Scenario } from "../scenario";
 
 const TIME_ZONE = "America/New_York";
@@ -7,6 +7,10 @@ function at(day: Date, hour: number, minute: number): Date {
   const d = new Date(day);
   d.setHours(hour, minute, 0, 0);
   return d;
+}
+
+function isSameDay(a: Date, b: Date): boolean {
+  return a.toDateString() === b.toDateString();
 }
 
 function localDate(day: Date): string {
@@ -26,6 +30,7 @@ type Draft = {
   recurrence?: string;
   owner?: string;
   body?: string | null;
+  notes?: SessionNote[];
 };
 
 function item(day: Date, draft: Draft, today: Date): TimelineItem {
@@ -54,7 +59,7 @@ function item(day: Date, draft: Draft, today: Date): TimelineItem {
     series: draft.recurrence ? { completed: 6, total: 15 } : null,
     place: draft.place ?? null,
     owner: draft.owner ?? "schedule-specialist",
-    notes: [],
+    notes: draft.notes ?? [],
   };
 }
 
@@ -69,6 +74,23 @@ function drafts(day: Date, long: boolean, many: boolean): Draft[] {
     { id: "lunch", title: "Lunch", kind: "meal", start: at(day, 12, 30), end: at(day, 13, 10), owner: "health-specialist" },
     { id: "study", title: long ? "Study block: CSE 335 homework 3, then reread chapters 5 and 6 before Thursday's quiz" : "Study block", kind: "study", start: at(day, 14, 0), end: at(day, 15, 30) },
   ];
+  if (isSameDay(day, new Date())) {
+    const now = Date.now();
+    out.push({ id: "focus-now", title: "Focus block: reading week 9", kind: "focus", start: new Date(now - 25 * 60_000), end: new Date(now + 35 * 60_000), owner: "schedule-specialist" });
+  }
+  if (long) {
+    out.push({
+      id: "overflow",
+      title: `Preparation for the ${"Extraordinarilylongunbrokenword".repeat(2)} review with the whole department, then a long debrief about everything that came up`,
+      kind: "meeting",
+      start: at(day, 8, 0),
+      end: at(day, 9, 30),
+      place: { id: "p0000000-0000-4000-8000-000000000003", title: "The Wharton Center for the Performing Arts, Cobb Great Hall, second floor mezzanine", address: "750 E Shaw Ln, East Lansing, MI 48824", room: "Mezzanine East 2C" },
+      body: "Bring the printed agenda and the signed forms.",
+      notes: Array.from({ length: 40 }, (_, i) => ({ id: `note-${i}`, title: `Note ${i + 1}: ${i % 7 === 0 ? "Averyveryverylongunbrokentoken".repeat(4) : "follow up on the open question from the last meeting"}`, body: null })),
+      owner: "schedule-specialist",
+    });
+  }
   if (week) {
     out.push({ id: "cse300", title: "CSE 300 lecture", kind: "class", start: at(day, 10, 20), end: at(day, 11, 40), place: ROOM_1345, recurrence: "Every weekday", owner: "cse-300-specialist" });
   }

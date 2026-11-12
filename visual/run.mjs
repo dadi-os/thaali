@@ -6,6 +6,9 @@
  * Usage: node visual/run.mjs --out <dir> [--pages hath,system] [--scenarios normal,asking]
  *        [--widths 1440,900x700,1080x1920] [--interact] [--flows]
  *
+ * `--polish` runs only the refinement captures (thread pill, System tile, Home timeline tile, Hath hover, Day view and its rail
+ * at three sizes, session popovers with long content at the window's edges, Month, Segmented states); set `SNAP_DARK=1` for the dark scheme.
+ *
  * `--flows` adds the scripted flows (agent sheet and takeover modal, toasts, System task rows and logs, chat thread) at
  * 1440 wide in the `normal`, `asking` and `long` scenarios; `--flows-only` runs just those, and `--flow <name>` just the flows
  * whose name starts with it (`--flow chaavi`).
@@ -72,7 +75,7 @@ const message = (seq, content) => ({ type: "message", agent_id: "finance-special
 
 /** Scripted flows: each opens something, then captures its frames and runs the checks. */
 function flowJobs(scenario) {
-  const job = (name, route, steps, settleMs = 2500, height = 900, width = 1440) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}${route.includes("?") ? "&" : "?"}fixtures=${scenario}`, width, height, settleMs, steps });
+  const job = (name, route, steps, settleMs = 2500, height = 900, width = 1440) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}`, width, height, settleMs, steps });
   const frames = (tag, times) => times.flatMap((t, i) => [{ wait: i === 0 ? t : t - times[i - 1] }, { shot: `flow-${tag}~${scenario}~${t}ms.png` }]);
   return [
     job("agent-sheet", "/hath", [
@@ -269,7 +272,52 @@ function flowJobs(scenario) {
   ];
 }
 
+/** A click at a viewport point on the first button whose text holds `text`, as a pointer press does, so a popover opens beside that point. */
+const clickAt = (text, x, y) =>
+  `(() => { const b = [...document.querySelectorAll("button")].find((el) => el.textContent.includes(${JSON.stringify(text)})); b.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: ${x}, clientY: ${y}, detail: 1 })); })(); 0`;
+const escape = `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); 0`;
+
+/** The refinement captures: one job each, at the sizes the checks call for. */
+function polishJobs() {
+  const job = (name, route, steps, width = 1440, height = 900, settleMs = 3000) => ({ name: `polish-${name}`, url: `${ORIGIN}${route}${route.includes("?") ? "&" : "?"}fixtures=${route.includes("fixtures=") ? "" : "normal"}`.replace(/fixtures=$/, ""), width, height, settleMs, steps });
+  const edges = (tag, width, height) =>
+    Object.entries({ tl: [10, 10], tr: [width - 10, 10], bl: [10, height - 10], br: [width - 10, height - 10], l: [10, height / 2], r: [width - 10, height / 2], c: [width / 2, height / 2] }).flatMap(([edge, [x, y]]) => [
+      { eval: clickAt("Preparation for", Math.round(x), Math.round(y)) },
+      { wait: 700 },
+      { shot: `polish-popover-${tag}-${edge}.png` },
+      { eval: `(() => { const d = document.querySelector("[role=dialog]"); if (!d) return console.error("no popover at ${edge}"); const r = d.getBoundingClientRect(); const body = d.querySelector("[data-selectable]"); if (r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight || d.scrollWidth > d.clientWidth + 1) console.error("popover ${tag} ${edge} out of window: " + [r.left, r.top, r.right, r.bottom, innerWidth, innerHeight].map(Math.round).join(",")); })(); 0` },
+      { eval: escape },
+      { wait: 500 },
+    ]);
+  return [
+    job("home", "/?fixtures=normal", [
+      { shot: "polish-home.png" },
+      { eval: `document.querySelector('circle[aria-label="Open career-manager"]')?.focus(); 0` },
+      { wait: 700 },
+      { shot: "polish-hath-hover.png" },
+    ]),
+    job("thread", "/?fixtures=normal", [
+      { eval: sidebarRow("finance-specialist") },
+      { wait: 900 },
+      { eval: emit({ type: "lane_started", agent_id: "finance-specialist", lane: "process" }) },
+      { eval: emit({ type: "lane_started", agent_id: "finance-specialist", lane: "work" }) },
+      { wait: 900 },
+      { shot: "polish-thread-pill.png" },
+    ]),
+    job("day-1440", "/timeline?view=day&fixtures=many", [{ shot: "polish-day-1440.png" }, { hover: "[role=radio][aria-checked=false]" }, { wait: 300 }, { shot: "polish-segmented-hover.png" }]),
+    job("day-960", "/timeline?view=day&fixtures=many", [{ shot: "polish-day-960.png" }], 960, 640),
+    job("day-narrow", "/timeline?view=day&fixtures=many", [{ shot: "polish-day-narrow.png" }], 700, 900),
+    job("month", "/timeline?view=month&fixtures=normal", [{ shot: "polish-month.png" }]),
+    job("popover-1440", "/timeline?view=day&fixtures=long", edges("1440", 1440, 900)),
+    job("popover-960", "/timeline?view=day&fixtures=long", edges("960", 960, 640), 960, 640),
+    job("system", "/system?fixtures=normal", [{ shot: "polish-system.png" }]),
+  ];
+}
+
 function plan(opts, outDir) {
+  if (opts.polish) {
+    return { outDir: join(outDir, "shots"), hookScript: join(here, "hook.js"), checksScript: join(here, "checks.js"), jobs: polishJobs() };
+  }
   const pages = opts["flows-only"] || typeof opts.flow === "string" ? [] : list(opts.pages, Object.keys(PAGES));
   const scenarios = list(opts.scenarios, SCENARIOS);
   const sizes = list(opts.widths, ["1440"]);
