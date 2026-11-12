@@ -1,6 +1,6 @@
 import { Fragment, useRef, useState } from "react";
 import type { AgentRecord } from "../../types/hath";
-import { layoutForest, nodeRadius, viewForest, type ForestLink, type ForestNode, type ForestOptions, type GraphLabels, type GraphView } from "./graph2d";
+import { childrenOf, layoutForest, nodeRadius, viewForest, type ForestLink, type ForestNode, type ForestOptions, type GraphLabel, type GraphLabels, type GraphView } from "./graph2d";
 import { useContextActions } from "../../shared/interaction/contextMenu";
 import { agentActions } from "./actions";
 import { isLive, type LaneState } from "./laneState";
@@ -120,14 +120,16 @@ type NodeNameProps = {
   visible: boolean;
   /** The node's agent is filtered out. */
   faint: boolean;
-  /** Drawn above the other names, for the hovered node; it fades in when it appears. */
-  raised?: boolean;
+  /** Drawn above the other names and fading in when it appears: `own` for the hovered node, in strong type, and `child` for one of its subagents, in normal type. */
+  raised?: "own" | "child";
+  /** Where the name goes when that is not the place the view reserved for it, as a hovered group's names may take. */
+  at?: GraphLabel;
 };
 
-/** One node's name at the place the view reserved for it, faded in or out by `visible`; it ignores the pointer. */
-function NodeName({ node, view, nodeScale, visible, faint, raised = false }: NodeNameProps) {
-  const label = view.names.get(node)!;
-  const strong = node.depth === 1 || isLive(node.state) || raised;
+/** One node's name at the place the view reserved for it (or `at`), faded in or out by `visible`; it ignores the pointer. */
+function NodeName({ node, view, nodeScale, visible, faint, raised, at }: NodeNameProps) {
+  const label = at ?? view.names.get(node)!;
+  const strong = raised === "child" ? false : node.depth === 1 || isLive(node.state) || raised === "own";
   const r = view.unit(nodeRadius(node.depth, nodeScale));
   return (
     <text
@@ -137,25 +139,30 @@ function NodeName({ node, view, nodeScale, visible, faint, raised = false }: Nod
       fontFamily="Inter, system-ui, sans-serif"
       fontSize={label.size}
       fontWeight={strong ? 600 : 500}
-      fill={strong ? "var(--ink)" : "var(--ink-muted)"}
+      fill={strong || raised === "child" ? "var(--ink)" : "var(--ink-muted)"}
       paintOrder="stroke"
       stroke="var(--bone)"
       strokeWidth={view.unit(3)}
       strokeLinejoin="round"
       pointerEvents="none"
       aria-hidden={visible ? undefined : true}
-      style={{ opacity: visible ? (faint ? 0.25 : 1) : 0, transition: "opacity var(--slow) var(--ease)", animation: raised ? "fade var(--slow) var(--ease) both" : undefined }}
+      style={{ opacity: visible ? (faint ? 0.25 : 1) : 0, transition: "opacity var(--slow) var(--ease)", animation: raised === undefined ? undefined : "fade var(--slow) var(--ease) both" }}
     >
       {label.name}
     </text>
   );
 }
 
-/** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes `labels` picks and the hovered one. Which names show never moves a node or the fit. */
+/** The agents as a radial forest in one SVG that fills its positioned parent: a node per agent, a line per parent, and a name beside the nodes `labels` picks and the hovered (or focused) one together with the names of its subagents. Which names show never moves a node or the fit. */
 export function AgentGraph2D({ agents, stateOf, width, height, labels, reserve, nodeScale, layout, fontScale, selectedId = null, dimmed = null, onPick }: AgentGraph2DProps) {
   const [hovered, setHovered] = useState<AgentRecord | null>(null);
   const view = viewForest(layoutForest(agents, stateOf, layout), { labels, reserve: reserve ?? (labels === "live" ? "all" : labels), width, height, nodeScale, fontScale });
   const { nodes, links, unit } = view;
+  const hoveredNode = hovered === null ? undefined : nodes.find((n) => n.agent.id === hovered.id);
+  const group = hoveredNode === undefined ? new Map<ForestNode, GraphLabel>() : view.focus([hoveredNode, ...childrenOf(links, hoveredNode)]);
+  /** A subagent whose name is already written where the hover would put it needs no second copy. */
+  const written = (n: ForestNode) => n !== hoveredNode && view.shown.has(n) && group.get(n) !== undefined && group.get(n)!.right === view.names.get(n)!.right && group.get(n)!.dy === view.names.get(n)!.dy;
+  const moved = (n: ForestNode) => group.has(n) && n !== hoveredNode && !written(n);
   return (
     <svg
       viewBox={view.viewBox.map((x) => x.toFixed(0)).join(" ")}
@@ -206,10 +213,16 @@ export function AgentGraph2D({ agents, stateOf, width, height, labels, reserve, 
       </g>
       <g>
         {nodes.map((n) => (
-          <NodeName key={n.agent.id} node={n} view={view} nodeScale={nodeScale} visible={view.shown.has(n)} faint={dimmed?.has(n.agent.id) ?? false} />
+          <NodeName key={n.agent.id} node={n} view={view} nodeScale={nodeScale} visible={view.shown.has(n) && !moved(n)} faint={dimmed?.has(n.agent.id) ?? false} />
         ))}
       </g>
-      <g>{hovered === null ? null : nodes.filter((n) => n.agent.id === hovered.id).map((n) => <NodeName key={n.agent.id} node={n} view={view} nodeScale={nodeScale} visible faint={false} raised />)}</g>
+      <g>
+        {[...group.entries()]
+          .filter(([n]) => !written(n))
+          .map(([n, at]) => (
+            <NodeName key={n.agent.id} node={n} view={view} nodeScale={nodeScale} visible faint={n !== hoveredNode && (dimmed?.has(n.agent.id) ?? false)} raised={n === hoveredNode ? "own" : "child"} at={at} />
+          ))}
+      </g>
     </svg>
   );
 }

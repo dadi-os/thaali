@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { agents } from "../../dev/fixtures/hath";
 import type { AgentRecord } from "../../types/hath";
-import { graphName, layoutForest, viewForest } from "./graph2d";
+import { childrenOf, graphName, layoutForest, viewForest } from "./graph2d";
 import { laneState } from "./laneState";
 
 const record = (id: string, parent: string | null): AgentRecord => ({ ...agents("normal")[0]!, id, name: id, parent_agent_id: parent });
@@ -91,5 +91,38 @@ describe("viewForest", () => {
     const long = "application-and-recruiting-coordination-specialist";
     expect(graphName(long)).toBe(long);
     expect(graphName("finance-specialist")).toBe("finance-specialist");
+  });
+});
+
+describe("hover focus", () => {
+  const family = [record("career-manager", null), record("resume-specialist", "career-manager"), record("linkedin-specialist", "career-manager"), record("finance-manager", null), record("budget-specialist", "finance-manager")];
+
+  it("finds a node's direct children and no one else's", () => {
+    const { nodes, links } = layoutForest(family, stateOf);
+    const manager = nodes.find((n) => n.agent.id === "career-manager")!;
+    expect(childrenOf(links, manager).map((n) => n.agent.id)).toEqual(["resume-specialist", "linkedin-specialist"]);
+    expect(childrenOf(links, nodes.find((n) => n.agent.id === "resume-specialist")!)).toEqual([]);
+  });
+
+  it("places the names of the hovered node and its children, the hovered node keeping its own place when it is clear", () => {
+    const forest = layoutForest(family, stateOf);
+    const view = viewForest(forest, { labels: "roots", width: 600, height: 400, nodeScale: 1 });
+    const manager = view.nodes.find((n) => n.agent.id === "career-manager")!;
+    const group = [manager, ...childrenOf(view.links, manager)];
+    const focus = view.focus(group);
+    expect([...focus.keys()]).toEqual(group);
+    expect(focus.get(manager)).toEqual(view.names.get(manager));
+    for (const n of group) {
+      expect(focus.get(n)!.name).toBe(n.agent.name);
+    }
+  });
+
+  it("does not move any node, the box or any name's reserved place", () => {
+    const view = viewForest(layoutForest(family, stateOf), { labels: "roots", width: 600, height: 400, nodeScale: 1 });
+    const before = [...view.names.values()].map((label) => ({ ...label }));
+    const nodesBefore = view.nodes.map((n) => [n.x, n.y]);
+    view.focus([view.nodes[0]!, ...childrenOf(view.links, view.nodes[0]!)]);
+    expect([...view.names.values()]).toEqual(before);
+    expect(view.nodes.map((n) => [n.x, n.y])).toEqual(nodesBefore);
   });
 });

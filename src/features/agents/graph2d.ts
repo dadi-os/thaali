@@ -59,6 +59,11 @@ export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord
   return { nodes, links };
 }
 
+/** The nodes `node` reports for: its direct children in the forest, in the order they were placed. */
+export function childrenOf(links: ForestLink[], node: ForestNode): ForestNode[] {
+  return links.filter((link) => link.from === node).map((link) => link.to);
+}
+
 /** Which names are written beside their nodes: `live` names every agent that is not idle, which includes one waiting on a task. */
 export type GraphLabels = "all" | "live" | "roots";
 
@@ -76,6 +81,12 @@ export type GraphView = {
   names: Map<ForestNode, GraphLabel>;
   /** The nodes whose name is written now: every one `labels` picks, since every node has a place. */
   shown: Set<ForestNode>;
+  /**
+   * Where the names of a hovered group go, the first node of `group` being the hovered one: each keeps its own place when
+   * that is clear of the nodes and of the names written now, and otherwise takes the nearest clear one, the group's names
+   * claiming room before the written names of nodes outside it.
+   */
+  focus: (group: ForestNode[]) => Map<ForestNode, GraphLabel>;
 };
 
 export type ViewOptions = {
@@ -185,13 +196,16 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
   };
   const names = new Map<ForestNode, GraphLabel>();
   const taken: Box[] = [];
-  const place = (n: ForestNode, solid: (other: ForestNode) => boolean) => {
-    const { size, name } = measure(n);
+  /** The spots a node's name may take, its own side first and then the other, level with it and then a line or two above or below. */
+  const optionsOf = (n: ForestNode, first?: { right: boolean; dy: number }) => {
+    const { size } = measure(n);
     const facing = Math.cos(n.ang) >= -0.05;
-    const lines = [0, -1.2, 1.2, -2.4, 2.4];
-    const options = lines.flatMap((line) => [facing, !facing].map((right) => ({ right, dy: line * size })));
-    const collisions = (box: Box) =>
-      (inside(box) ? 0 : 100) + nodeBoxes.filter((other) => other.node !== n && solid(other.node) && overlaps(box, other.box)).length + taken.filter((other) => overlaps(box, other)).length;
+    const spots = [0, -1.2, 1.2, -2.4, 2.4].flatMap((line) => [facing, !facing].map((right) => ({ right, dy: line * size })));
+    return first === undefined ? spots : [first, ...spots.filter((spot) => spot.right !== first.right || spot.dy !== first.dy)];
+  };
+  /** The first spot of `options` that is in the box and clear of every node `solid` picks and every box in `claimed`, else the one that collides least. */
+  const choose = (n: ForestNode, options: { right: boolean; dy: number }[], solid: (other: ForestNode) => boolean, claimed: Box[]) => {
+    const collisions = (box: Box) => (inside(box) ? 0 : 100) + nodeBoxes.filter((other) => other.node !== n && solid(other.node) && overlaps(box, other.box)).length + claimed.filter((other) => overlaps(box, other)).length;
     let best = options[0]!;
     let fewest = Infinity;
     for (const option of options) {
@@ -204,6 +218,11 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
         break;
       }
     }
+    return best;
+  };
+  const place = (n: ForestNode, solid: (other: ForestNode) => boolean) => {
+    const { size, name } = measure(n);
+    const best = choose(n, optionsOf(n), solid, taken);
     taken.push(boxOf(n, best.right, best.dy));
     names.set(n, { right: best.right, dy: best.dy, name, size });
   };
@@ -215,5 +234,17 @@ export function viewForest(forest: { nodes: ForestNode[]; links: ForestLink[] },
     place(n, (other) => other.depth === 1);
   }
   const wanted = (n: ForestNode) => labels === "all" || (labels === "live" && n.state !== "idle") || (labels === "roots" && n.depth === 1);
-  return { nodes, links, viewBox, unit, names, shown: new Set(nodes.filter(wanted)) };
+  const focus = (group: ForestNode[]): Map<ForestNode, GraphLabel> => {
+    const members = new Set(group);
+    const claimed = nodes.filter((n) => wanted(n) && !members.has(n)).map((n) => boxOf(n, names.get(n)!.right, names.get(n)!.dy));
+    const placed = new Map<ForestNode, GraphLabel>();
+    for (const n of group) {
+      const own = names.get(n)!;
+      const best = choose(n, optionsOf(n, own), () => true, claimed);
+      claimed.push(boxOf(n, best.right, best.dy));
+      placed.set(n, { ...own, right: best.right, dy: best.dy });
+    }
+    return placed;
+  };
+  return { nodes, links, viewBox, unit, names, shown: new Set(nodes.filter(wanted)), focus };
 }
