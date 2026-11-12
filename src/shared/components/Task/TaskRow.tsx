@@ -5,7 +5,6 @@ import { formatClock, formatRelative } from "../../lib/ux/time";
 import { RISE } from "../../motion";
 import { Icon } from "../../ui/Icon";
 import { Clamp, Truncate } from "../../ui/Truncate";
-import { pushToast } from "../../../contexts/toasts";
 import { setTakeover } from "../../../contexts/takeover";
 import { taskActions } from "./actions";
 import { TaskStatus } from "./TaskStatus";
@@ -28,30 +27,22 @@ function shortId(id: string): string {
 
 /**
  * The one row for a helper task, shared by the agent sheet and the System page: its id, owner, status and age,
- * what it is for and where it is now. A click opens the task's live view at once; a task that is asleep has none, so it
- * says so in a toast instead. A task waiting on its agent shows the question it asked, never as a request to Ankur. A
+ * what it is for and where it is now. A click opens the task's live view at once; a task that is asleep has none, so its
+ * row is inert (no pointer, no hover, `aria-disabled`) and says when it fell asleep. A task waiting on its agent shows the question it asked, never as a request to Ankur. A
  * task its owner is driving has the `paused` status. Right-click offers the task's actions.
  */
 export function TaskRow({ task, owner, showOwner = false, question, now = Date.now() }: TaskRowProps) {
   const waiting = task.status === "asking";
   const asleep = task.status === "asleep";
   const context = useContextActions(() => taskActions({ id: task.id, live: !asleep }));
-  const open = () => {
-    if (asleep) {
-      pushToast({
-        key: `task-asleep:${task.id}`,
-        tone: "info",
-        module: "system",
-        title: `${owner ?? "This agent"}'s task is asleep`,
-        body: `Asleep since ${formatClock(task.last_activity)}. It wakes on the next steer.`,
-      });
-      return;
-    }
-    setTakeover(task.id);
-  };
   return (
     <motion.div {...RISE} {...context} className={`overflow-hidden rounded-[14px] border ${waiting ? "border-tide-line bg-tide-wash" : "border-transparent"}`}>
-      <button type="button" className="ui-trans ui-hover-fill flex w-full flex-col gap-1.5 rounded-xl px-3 py-2.5 text-left" onClick={open}>
+      <button
+        type="button"
+        className={`flex w-full flex-col gap-1.5 rounded-xl px-3 py-2.5 text-left ${asleep ? "cursor-default" : "ui-trans ui-hover-fill"}`}
+        aria-disabled={asleep ? true : undefined}
+        onClick={asleep ? undefined : () => setTakeover(task.id)}
+      >
         <div className="flex items-center gap-2">
           <span className={`flex ${waiting ? "text-tide-ink" : "text-ink-muted"}`}>
             <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={15} />
@@ -63,7 +54,11 @@ export function TaskRow({ task, owner, showOwner = false, question, now = Date.n
         <div className="pl-[23px]">
           <Clamp text={task.purpose} lines={2} style={{ fontSize: 14, lineHeight: "19px" }} />
         </div>
-        {!asleep && task.current ? (
+        {asleep ? (
+          <div className="pl-[23px]">
+            <Truncate text={`Asleep since ${formatClock(task.last_activity)} · wakes on the next steer`} className="text-[12px] text-ink-muted" />
+          </div>
+        ) : task.current ? (
           <div className="pl-[23px]">
             <Truncate text={task.current} className="ui-mono" />
           </div>

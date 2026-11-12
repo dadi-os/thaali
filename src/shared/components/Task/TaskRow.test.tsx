@@ -40,10 +40,22 @@ describe("TaskRow", () => {
     expect(getTakeover()).toBe("task/browser/3f2a91");
   });
 
-  it("opens nothing for a sleeping task and says so", () => {
+  it("leaves a sleeping task's row inert: no modal, no toast, aria-disabled, no hover affordance, and says it is asleep", () => {
     act(() => root.render(<TaskRow task={task("asleep")} owner="finance-specialist" showOwner />));
-    act(() => host.querySelector("button")!.click());
+    const row = host.querySelector("button")!;
+    act(() => row.click());
     expect(getTakeover()).toBeNull();
-    expect(getToasts().length).toBe(1);
+    expect(getToasts()).toHaveLength(0);
+    expect(row.getAttribute("aria-disabled")).toBe("true");
+    expect(row.className).toContain("cursor-default");
+    expect(row.className).not.toContain("ui-hover-fill");
+    expect(host.textContent).toContain("Asleep since");
+  });
+
+  it("keeps a live task's row clickable", () => {
+    act(() => root.render(<TaskRow task={task("idle")} owner="finance-specialist" showOwner />));
+    const row = host.querySelector("button")!;
+    expect(row.getAttribute("aria-disabled")).toBeNull();
+    expect(row.className).toContain("ui-hover-fill");
   });
 });
