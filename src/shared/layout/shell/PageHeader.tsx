@@ -21,6 +21,7 @@ export function PageHeader({ title, meta, trailing }: PageHeaderProps) {
     <div className="flex min-h-10 flex-none items-center gap-4">
       <Link
         to="/"
+        draggable={false}
         aria-label="Back to home"
         className="ui-trans ui-hover-fill flex size-8 flex-none items-center justify-center rounded-[10px] border border-dashed border-sage-line text-sage-deep"
       >

@@ -5,6 +5,9 @@
  *   (messages, log lines, values, ids, notes) opts in with `data-selectable`, or is a text field.
  * - Anything a person can act on shows the pointer, eases its hover and focus changes, and gives under the
  *   finger on press. A disabled one shows the arrow and does not react.
+ * - Nothing is dragged by the system: a link or an image held and pulled would otherwise lift off as a drag
+ *   image in WKWebView and WebView2. Dragging that the app means (Chaavi's rows, file drops on the composer) runs on
+ *   pointer and drop events of its own, which this does not touch.
  * - No scrollbar draws anywhere; a scrolling region shows it continues with an edge fade (see ScrollArea).
  */
 
@@ -75,11 +78,14 @@
     cursor: default;
   }
 
+  a,
+  a *,
   img,
   svg,
   canvas,
   video {
     -webkit-user-drag: none;
+    user-drag: none;
   }
 
   /*

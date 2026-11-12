@@ -41,4 +41,16 @@ describe("where input and the operating system are handled", () => {
     const allowed = (path: string) => path.startsWith("shared/desktop/") || path.startsWith("shared/api/");
     expect(filesMatching(/from "@tauri-apps\//).filter((path) => !allowed(path))).toEqual(["features/ghar/radio.ts"]);
   });
+
+  it("keeps the system from dragging links and media: one base rule, and no link that opts back in", () => {
+    const base = readFileSync(join(SRC, "shared/theme/base.css"), "utf8");
+    const rule = /(?:^|\n)\s*a,\s*a \*,[^{]*\{([^}]*)\}/.exec(base);
+    expect(rule).not.toBeNull();
+    expect(rule![1]).toContain("-webkit-user-drag: none");
+    expect(rule![1]).toContain("user-drag: none");
+    const links = sources().flatMap((path) => [...readFileSync(path, "utf8").matchAll(/<Link\b[^>]*?>/gs)].map((match) => ({ path: relative(SRC, path), tag: match[0] })));
+    expect(links.length).toBeGreaterThan(0);
+    expect(links.filter(({ tag }) => !tag.includes("draggable={false}"))).toEqual([]);
+    expect(filesMatching(/draggable=\{true\}|draggable="true"/)).toEqual([]);
+  });
 });

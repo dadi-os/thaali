@@ -110,7 +110,7 @@ export function Tile({ area, title, to, order, summary, right, children, skeleto
   const showSummary = summary !== undefined && summary !== "" && notice === null && !loading;
   const placement = useMemo(() => ({ gridArea: area, animationDelay: `${order * ENTRANCE_STEP_S}s` }), [area, order]);
   return (
-    <Link ref={frame} to={to} aria-label={title} className="tile-enter ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-[20px] border border-glass-border bg-glass-veil p-4 text-ink no-underline shadow-[var(--shadow-card)]" style={placement}>
+    <Link ref={frame} to={to} draggable={false} aria-label={title} className="tile-enter ui-hover-card ui-trans flex min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-[20px] border border-glass-border bg-glass-veil p-4 text-ink no-underline shadow-[var(--shadow-card)]" style={placement}>
       <div className="flex h-6 flex-none items-center gap-3 px-0.5">
         <span className="flex-none text-[17px] font-semibold tracking-[-0.005em] text-sage-text">{title}</span>
         <div className="flex-1" />
