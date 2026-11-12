@@ -60,15 +60,15 @@ type DeviceChipProps = {
   pending?: boolean;
 };
 
-/** One device on dadi: online is a full-ink name with a glowing sage dot, waiting to join is clay, and offline is dim with a hollow dot, so connected devices stand out in both themes. */
+/** One device on dadi, in the pill language of the other chips: a solid sage dot and ink name when online, a clay dot when waiting to join, a muted dot and name when offline. */
 function DeviceChip({ node_name, online, pending }: DeviceChipProps) {
   const look = online
-    ? { chip: "border-sage-line bg-sage-fill text-ink", dot: "bg-sage-deep shadow-[0_0_0_3px_color-mix(in_srgb,var(--sage)_32%,transparent),0_0_8px_var(--sage)]" }
+    ? { chip: "bg-sage-fill text-ink", dot: "bg-sage-deep" }
     : pending
-      ? { chip: "border-due-line bg-due-fill text-due-ink", dot: "bg-clay" }
-      : { chip: "border-transparent bg-transparent text-ink-ghost", dot: "border border-ink-ghost bg-transparent" };
+      ? { chip: "bg-due-fill text-due-ink", dot: "bg-clay" }
+      : { chip: "bg-sage-fill text-ink-muted", dot: "bg-ink-ghost" };
   return (
-    <span className={`inline-flex h-8 flex-none items-center gap-2 rounded-full border px-3 text-[13px] whitespace-nowrap ${online ? "font-semibold" : "font-normal"} ${look.chip}`} title={`${node_name}: ${online ? "online" : pending ? "waiting to join" : "offline"}`}>
+    <span className={`inline-flex h-8 flex-none items-center gap-2 rounded-full px-3 text-[13px] font-normal whitespace-nowrap ${look.chip}`} title={`${node_name}: ${online ? "online" : pending ? "waiting to join" : "offline"}`}>
       <span className={`size-2 flex-none rounded-full ${look.dot}`} />
       {node_name}
     </span>
