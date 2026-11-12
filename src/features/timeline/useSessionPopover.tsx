@@ -48,7 +48,7 @@ export function useSessionPopover(): SessionPopover {
   }, []);
   const popovers =
     shown === null ? null : (
-      <Popover open={details !== null} anchor={{ x: shown.x, y: shown.y, radius: POINTER_CLEARANCE }} aria-label={`${shown.item.title} details`} widthPx={340} reserveRoom={false} onClose={() => setDetails(null)}>
+      <Popover open={details !== null} anchor={{ x: shown.x, y: shown.y, radius: POINTER_CLEARANCE }} aria-label={`${shown.item.title} details`} widthPx={400} reserveRoom={false} onClose={() => setDetails(null)}>
         <div className="flex min-h-0 flex-1 flex-col" onClick={(event) => (event.target as Element).closest("button") !== null && setDetails(null)}>
           <SessionCard block={shown.item} />
         </div>
