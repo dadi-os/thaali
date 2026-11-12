@@ -6,6 +6,7 @@ import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
 import { isSameDay, wallMinutes } from "./dates";
+import { DayRail } from "./DayRail";
 import { DuePanel } from "./DuePanel";
 import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
@@ -34,7 +35,7 @@ export type CalendarDayProps = {
   onOpen: (item: TimelineItem, element: Element) => void;
 };
 
-/** A day's wall-clock axis with overlap lanes, beside a scrolling Due panel and an instant-based now/next summary. */
+/** A day's wall-clock axis with overlap lanes, beside the rail of now, next and due cards, which scrolls on its own. */
 export function CalendarDay({
   day,
   now,
@@ -74,38 +75,7 @@ export function CalendarDay({
   const hourText = (min: number) =>
     `${Math.floor(min / 60) % 12 || 12} ${min >= 720 && min < 1440 ? "PM" : "AM"}`;
   const top = (minute: number) => (minute - lo) * PPM;
-  const current = timed.find(
-    (i) =>
-      i.state !== "cancelled" &&
-      Date.parse(i.start_at!) <= now.getTime() &&
-      i.end_at !== null &&
-      Date.parse(i.end_at) > now.getTime(),
-  );
-  const next = [...timed]
-    .filter(
-      (i) => i.state !== "cancelled" && Date.parse(i.start_at!) > now.getTime(),
-    )
-    .sort((a, b) => Date.parse(a.start_at!) - Date.parse(b.start_at!))[0];
-  const duration = (i: TimelineItem) =>
-    i.end_at === null
-      ? 0
-      : (Date.parse(i.end_at) - Date.parse(i.start_at!)) / 60_000;
   const heights = segments.map((s) => Math.max(32, (s.endMin - s.startMin) * PPM - 3));
-  const own = segments.map((s) => s.block);
-  const total = own.reduce((sum, i) => sum + duration(i), 0);
-  const done = own
-    .filter((i) => i.outcome === "done")
-    .reduce((sum, i) => sum + duration(i), 0);
-  const span = (min: number) =>
-    `${Math.floor(min / 60) ? `${Math.floor(min / 60)} h ` : ""}${Math.round(min % 60) ? `${Math.round(min % 60)} min` : ""}`.trim() ||
-    "0 min";
-  const label: CSSProperties = {
-    fontSize: 12.5,
-    fontWeight: 600,
-    letterSpacing: "0.005em",
-    color: "var(--ink-muted)",
-    lineHeight: "16px",
-  };
   return (
     <div
       style={{
@@ -307,112 +277,7 @@ export function CalendarDay({
           </div>
         </div>
       </Card>
-      {wide ? (
-        <div
-          style={{
-            display: "flex",
-            flexDirection: "column",
-            width: 300,
-            flex: "none",
-            gap: 12,
-            minHeight: 0,
-            overflowY: "auto",
-          }}
-        >
-          <Card style={{ padding: 16, minWidth: 0, flex: "none", gap: 10 }}>
-            <span style={label}>Now</span>
-            {current === undefined ? (
-              <span style={{ fontSize: 14, color: "var(--ink-muted)" }}>
-                Nothing right now.
-              </span>
-            ) : (
-              <>
-                <button
-                  type="button"
-                  onClick={(e) => onOpen(current, e.currentTarget)}
-                  style={{ textAlign: "left", fontSize: 17, fontWeight: 600 }}
-                >
-                  {current.title}
-                </button>
-                <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-                  {`${formatClock(current.start_at!)} – ${formatClock(current.end_at!)}`}
-                </span>
-                <div
-                  style={{
-                    height: 6,
-                    borderRadius: 4,
-                    background: "var(--rule)",
-                    overflow: "hidden",
-                  }}
-                >
-                  <span
-                    style={{
-                      display: "block",
-                      height: "100%",
-                      width: `${((now.getTime() - Date.parse(current.start_at!)) / (Date.parse(current.end_at!) - Date.parse(current.start_at!))) * 100}%`,
-                      background: "var(--sage-deep)",
-                    }}
-                  />
-                </div>
-                <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-                  {Math.round(
-                    (Date.parse(current.end_at!) - now.getTime()) / 60_000,
-                  )}{" "}
-                  min left
-                </span>
-              </>
-            )}
-          </Card>
-          {next === undefined ? null : (
-            <Card style={{ padding: 16, minWidth: 0, flex: "none", gap: 8 }}>
-              <span style={label}>Next</span>
-              <button
-                type="button"
-                onClick={(e) => onOpen(next, e.currentTarget)}
-                style={{ textAlign: "left", fontSize: 17, fontWeight: 600 }}
-              >
-                {next.title}
-              </button>
-              <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-                {formatClock(next.start_at!)} · in{" "}
-                {span(
-                  Math.round(
-                    (Date.parse(next.start_at!) - now.getTime()) / 60_000,
-                  ),
-                )}
-              </span>
-            </Card>
-          )}
-          <Card style={{ padding: 16, minWidth: 0, flex: "none", gap: 10 }}>
-            <span style={label}>The day</span>
-            <span style={{ fontSize: 15, fontWeight: 600 }}>
-              {own.filter((i) => i.state !== "cancelled").length} sessions ·{" "}
-              {span(Math.round(total))}
-            </span>
-            <div
-              style={{
-                height: 6,
-                borderRadius: 4,
-                background: "var(--rule)",
-                overflow: "hidden",
-              }}
-            >
-              <span
-                style={{
-                  display: "block",
-                  height: "100%",
-                  width: `${total ? (done / total) * 100 : 0}%`,
-                  background: "var(--sage)",
-                }}
-              />
-            </div>
-            <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-              {span(Math.round(done))} done
-            </span>
-          </Card>
-          <DuePanel items={dues} now={now} selected={selected} onOpen={onOpen} docked />
-        </div>
-      ) : null}
+      {wide ? <DayRail sessions={segments.map((segment) => segment.block)} dues={dues} now={now} selected={selected} onOpen={onOpen} /> : null}
     </div>
   );
 }
