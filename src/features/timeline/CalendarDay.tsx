@@ -5,12 +5,11 @@ import { Chip } from "../../shared/ui/Chip";
 import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { TimelineItem } from "../../types/timeline";
-import { addDays, isSameDay, startOfDay, wallMinutes } from "./dates";
+import { isSameDay, wallMinutes } from "./dates";
 import { DuePanel } from "./DuePanel";
 import { PlanButton } from "./PlanButton";
 import { itemKey, planTone } from "./plans";
 import { segmentsOn } from "./planner/blocks";
-import { clockChange, plannedClock } from "./zones";
 
 const PPM = 56 / 60;
 const SHEET: CSSProperties = {
@@ -25,8 +24,6 @@ export type CalendarDayProps = {
   day: Date;
   /** Real instant used for progress and the now line. */
   now: Date;
-  /** Device IANA zone; session zones remain unchanged. */
-  zone: string;
   /** This day's sessions and deadlines. */
   items: TimelineItem[];
   /** Occurrence key of the session whose details are open. */
@@ -37,18 +34,15 @@ export type CalendarDayProps = {
   onOpen: (item: TimelineItem, element: Element) => void;
 };
 
-/** A day's wall-clock axis with overlap lanes and clock-change bands, beside a scrolling Due panel and an instant-based now/next summary. */
+/** A day's wall-clock axis with overlap lanes, beside a scrolling Due panel and an instant-based now/next summary. */
 export function CalendarDay({
   day,
   now,
-  zone,
   items,
   selected,
   wide,
   onOpen,
 }: CalendarDayProps) {
-  const start = startOfDay(day);
-  const change = clockChange(start, addDays(start, 1), zone);
   const timed = items.filter(
     (item) => !item.hide_from_planner && item.start_at !== null,
   );
@@ -66,11 +60,11 @@ export function CalendarDay({
     ...(nowMinute === null ? [] : [nowMinute]),
   ];
   const lo =
-    change !== null || minutes.length === 0
+    minutes.length === 0
       ? 0
       : Math.max(0, Math.floor((Math.min(...minutes) - 60) / 60) * 60);
   const hi =
-    change !== null || minutes.length === 0
+    minutes.length === 0
       ? 1440
       : Math.min(1440, Math.ceil((Math.max(...minutes) + 60) / 60) * 60);
   const hours = Array.from(
@@ -154,13 +148,7 @@ export function CalendarDay({
                     left: 0,
                     background: "transparent",
                     fontSize: 12,
-                    color:
-                      change !== null && change.minute === m
-                        ? change.kind === "spring"
-                          ? "var(--due-ink)"
-                          : "#2b4450"
-                        : "var(--ink-muted)",
-                    fontWeight: change?.minute === m ? 600 : 400,
+                    color: "var(--ink-muted)",
                     width: 56,
                     textAlign: "right",
                     paddingRight: 10,
@@ -172,35 +160,6 @@ export function CalendarDay({
                 </span>
               </div>
             ))}
-            {change !== null && change.minute >= lo && change.minute < hi ? (
-              <div
-                style={{
-                  position: "absolute",
-                  left: 62,
-                  right: 8,
-                  top: top(change.minute),
-                  height: change.duration * PPM,
-                  borderRadius: 10,
-                  background:
-                    change.kind === "spring"
-                      ? "repeating-linear-gradient(135deg, rgba(184,154,99,.16) 0 8px, rgba(184,154,99,.04) 8px 16px)"
-                      : "rgba(125,154,166,.10)",
-                  border: `1px dashed ${change.kind === "spring" ? "var(--due-line)" : "rgba(125,154,166,.5)"}`,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  zIndex: 0,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color:
-                    change.kind === "spring" ? "var(--due-ink)" : "#2b4450",
-                }}
-              >
-                {change.kind === "spring"
-                  ? `${hourText(change.minute)} is skipped: ${change.from} becomes ${change.to}`
-                  : `${hourText(change.minute)} happens twice: ${change.from}, then ${change.to}`}
-              </div>
-            ) : null}
             <div
               style={{
                 position: "absolute",
@@ -214,7 +173,6 @@ export function CalendarDay({
               {segments.map(
                 ({ block: item, startMin, lane, lanes }, index) => {
                   const height = heights[index]!;
-                  const there = plannedClock(item, zone);
                   const ended =
                     item.state === "cancelled" || item.outcome === "done";
                   return (
@@ -225,7 +183,7 @@ export function CalendarDay({
                       aria-haspopup="menu"
                       aria-expanded={selected === itemKey(item)}
                       onClick={(e) => onOpen(item, e.currentTarget)}
-                      title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}${there === null ? "" : ` (${there})`}`}
+                      title={`${item.title} · ${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}`}
                       style={{
                         position: "absolute",
                         left: lanes === 1 ? 8 : `calc(100% * ${lane / lanes} + 8px)`,
@@ -311,17 +269,6 @@ export function CalendarDay({
                         >
                           {`${formatClock(item.start_at!)} – ${formatClock(item.end_at!)}`}
                         </span>
-                      ) : null}
-                      {height >= 62 && there !== null ? (
-                        <Truncate
-                          text={there}
-                          style={{
-                            fontSize: 12,
-                            color: "var(--ink-muted)",
-                            paddingLeft: 17,
-                            fontFamily: "var(--font-mono)",
-                          }}
-                        />
                       ) : null}
                     </PlanButton>
                   );

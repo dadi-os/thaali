@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { formatAge, formatClock, formatZone } from "./time";
+import { formatAge, formatClock } from "./time";
 
 describe("formatClock", () => {
   it("reads 12-hour with AM or PM in the zone it is given", () => {
@@ -8,11 +8,9 @@ describe("formatClock", () => {
     expect(formatClock("2026-10-28T23:05:00.000Z", "America/New_York")).toMatch(/^7:05\s?PM$/);
   });
 
-  it("tells the two 1 AMs of a fall-back day apart by their zones", () => {
+  it("reads both 1:30s of a fall-back day", () => {
     expect(formatClock("2026-11-01T05:30:00.000Z", "America/New_York")).toMatch(/^1:30\s?AM$/);
     expect(formatClock("2026-11-01T06:30:00.000Z", "America/New_York")).toMatch(/^1:30\s?AM$/);
-    expect(formatZone("2026-11-01T05:30:00.000Z", "America/New_York")).toBe("EDT");
-    expect(formatZone("2026-11-01T06:30:00.000Z", "America/New_York")).toBe("EST");
   });
 });
 

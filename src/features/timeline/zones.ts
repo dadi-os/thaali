@@ -1,6 +1,3 @@
-import { formatClock, formatZone } from "../../shared/lib/ux/time";
-import type { TimelineItem } from "../../types/timeline";
-
 /** UTC offset in minutes for an instant in an IANA zone; includes fractional-hour offsets. */
 export function zoneOffset(at: Date, zone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -22,8 +19,6 @@ export type ClockChange = {
   kind: "spring" | "fall";
   minute: number;
   duration: number;
-  from: string;
-  to: string;
 };
 
 /** Finds the skipped or repeated wall-clock interval, including half-hour clock changes. */
@@ -55,20 +50,5 @@ export function clockChange(
     kind: delta > 0 ? "spring" : "fall",
     minute: delta > 0 ? minute - delta : minute,
     duration: Math.abs(delta),
-    from: formatZone(start.toISOString(), zone),
-    to: formatZone(after.toISOString(), zone),
   };
-}
-
-/** The session's originally planned clock times, when its zone differs from the device's offset. */
-export function plannedClock(
-  item: TimelineItem,
-  deviceZone: string,
-): string | null {
-  if (item.time_zone === null || item.start_at === null) return null;
-  const at = new Date(item.start_at);
-  if (zoneOffset(at, item.time_zone) === zoneOffset(at, deviceZone))
-    return null;
-  const city = item.time_zone.split("/").pop()!.replace(/_/g, " ");
-  return `In ${city}: ${formatClock(item.start_at, item.time_zone)}${item.end_at === null ? "" : ` – ${formatClock(item.end_at, item.time_zone)}`} ${formatZone(item.start_at, item.time_zone)}`;
 }

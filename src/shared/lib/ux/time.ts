@@ -47,17 +47,6 @@ export function formatDay(iso: string, zone?: string): string {
   return new Intl.DateTimeFormat(undefined, { weekday: "short", month: "short", day: "numeric", timeZone: zone }).format(new Date(iso));
 }
 
-/** The short name of the zone at an instant (e.g. "EDT"), in the device's zone, or in `zone` (an IANA name) when given. */
-export function formatZone(iso: string, zone?: string): string {
-  const name = new Intl.DateTimeFormat("en-US", { timeZoneName: "short", timeZone: zone })
-    .formatToParts(new Date(iso))
-    .find((part) => part.type === "timeZoneName");
-  if (name === undefined) {
-    throw new Error(`no zone name for ${iso} in ${zone ?? "the device's zone"}`);
-  }
-  return name.value;
-}
-
 /** The time since an instant in its shortest form ("42s", "3m", "5h", "2d"), as a task row's age reads. */
 export function formatAge(iso: string, now = Date.now()): string {
   const seconds = Math.max(0, Math.round((now - new Date(iso).getTime()) / 1000));

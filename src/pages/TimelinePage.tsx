@@ -20,11 +20,9 @@ import { PlanDetailsContext } from "../features/timeline/PlanButton";
 import { itemKey, plansOn } from "../features/timeline/plans";
 import { useSessionPopover } from "../features/timeline/useSessionPopover";
 import { NeedsATime } from "../features/timeline/Someday";
-import { clockChange, zoneOffset } from "../features/timeline/zones";
 import { isMeshOnline, timeline } from "../shared/api";
 import { Button, IconButton } from "../shared/ui/Button";
 import { Card } from "../shared/ui/Card";
-import { Chip } from "../shared/ui/Chip";
 import { Page } from "../shared/layout/Page";
 import { StaleBanner, StateView } from "../shared/states/ModuleState";
 import { Sheet } from "../shared/overlay/Sheet";
@@ -77,7 +75,7 @@ function dateKey(day: Date): string {
 /**
  * Timeline's Day, Week and Month views. The URL keeps the selected view and date, session menus
  * retain details and owner actions, and Needs a time opens over the current view without changing it.
- * Clock and device zone are read again when the app becomes visible after sleep or travel.
+ * Clock and device zone are read again when the app becomes visible after sleep or travel, and times follow the device zone.
  */
 export function TimelinePage() {
   const [params, setParams] = useSearchParams();
@@ -182,20 +180,6 @@ export function TimelinePage() {
           : new Date(anchor.getFullYear(), anchor.getMonth() + step, 1),
     );
   const open = (item: TimelineItem, element: Element) => popover.show(item, element.getBoundingClientRect());
-  const changeDay =
-    days.find((day) => clockChange(day, addDays(day, 1), zone) !== null) ??
-    anchor;
-  const change = clockChange(changeDay, addDays(changeDay, 1), zone);
-  const noon = new Date(changeDay);
-  noon.setHours(12);
-  const other = own.find(
-    (item) =>
-      item.time_zone !== null &&
-      zoneOffset(noon, item.time_zone) !== zoneOffset(noon, zone),
-  );
-  const difference = other?.time_zone
-    ? (zoneOffset(noon, zone) - zoneOffset(noon, other.time_zone)) / 60
-    : 0;
   const title =
     view === "Day"
       ? new Intl.DateTimeFormat(undefined, {
@@ -277,7 +261,6 @@ export function TimelinePage() {
           <CalendarDay
             day={anchor}
             now={now}
-            zone={zone}
             items={items}
             selected={popover.openKey}
             wide={wide}
@@ -347,20 +330,6 @@ export function TimelinePage() {
             />
             <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", flexWrap: "nowrap" }}>
               <Truncate text={title} style={{ flex: "0 1 auto", minWidth: 0, fontSize: 28, fontWeight: 600, letterSpacing: "-0.02em" }} />
-              {change === null && !other?.time_zone ? null : (
-                <div style={{ display: "flex", alignItems: "center", gap: 8, flex: "none" }}>
-                  {change === null ? null : (
-                    <Chip size="md" tone="due">
-                      {`${change.from} → ${change.to}`}
-                    </Chip>
-                  )}
-                  {other?.time_zone ? (
-                    <Chip size="md" tone="tide">
-                      {Math.abs(difference)} h {difference < 0 ? "behind" : "ahead of"} {other.time_zone.split("/").pop()!.replace(/_/g, " ")}
-                    </Chip>
-                  ) : null}
-                </div>
-              )}
               <div style={{ flex: 1 }} />
               <>
                   <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
