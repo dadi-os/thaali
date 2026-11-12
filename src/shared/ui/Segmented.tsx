@@ -39,8 +39,9 @@ export type SegmentedProps<Value extends string> = {
 };
 
 /**
- * A switch between a few exclusive choices: the chosen one sits on a raised thumb that slides to the next
- * choice, moving by transform so it never jitters or reflows.
+ * A switch between a few exclusive choices: the chosen one sits on a raised thumb that glides on a spring to the next
+ * choice, taking that choice's width, while the words change colour. Choices wash on hover, the chosen thumb lifts a
+ * little, a press sinks the choice, and a keyboard focus draws the app's ring (see `.seg` in the primitives).
  */
 export function Segmented<Value extends string>({ options, value, onChange, label, size = "md" }: SegmentedProps<Value>) {
   const group = useId();
@@ -64,6 +65,7 @@ export function Segmented<Value extends string>({ options, value, onChange, labe
               aria-label={option.label === undefined ? option.title : undefined}
               title={option.title}
               onClick={() => onChange(option.value)}
+              className="seg ui-trans"
               style={{
                 position: "relative",
                 display: "inline-flex",
@@ -78,14 +80,15 @@ export function Segmented<Value extends string>({ options, value, onChange, labe
                 fontWeight: on ? 600 : 500,
                 lineHeight: 1,
                 whiteSpace: "nowrap",
-                color: on ? "var(--ink)" : "var(--ink-muted)",
+                color: on ? "var(--ink)" : undefined,
               }}
             >
               {on ? (
                 <motion.span
                   layoutId="segmented-thumb"
                   transition={SPRING_GLIDE}
-                  style={{ position: "absolute", inset: 0, borderRadius: look.radius - TRACK_PAD, background: "var(--bone)", boxShadow: "0 1px 2px rgba(92, 107, 82, 0.15)" }}
+                  className="seg-thumb"
+                  style={{ position: "absolute", inset: 0, borderRadius: look.radius - TRACK_PAD }}
                 />
               ) : null}
               {option.icon === undefined ? null : (
