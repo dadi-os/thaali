@@ -38,7 +38,7 @@ const EMPTY: GraphData = { nodes: [], edges: [] };
 /**
  * Yaad page: everything Yaad remembers as a live 3D graph under the kind chips, and the focused node's sheet docked beside it,
  * or a drawer over it when the page is narrow. The search box narrows the graph to the nodes matching it. `?focus=` names the
- * node to open on, `?kind=` the chip to start on, so the timeline's links and a link open the page on a node.
+ * node to open on, `?kind=` the chip to start on, so the planner's links and a link open the page on a node.
  */
 export function YaadPage() {
   const { state: connection } = useConnection();

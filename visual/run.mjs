@@ -21,7 +21,7 @@ import { ensureServer, ensureTool, ORIGIN } from "./harness.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", timeline: "/timeline", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
+const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", planner: "/planner", "planner-week": "/planner?view=week", "planner-month": "/planner?view=month", "planner-someday": "/planner?someday=1", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
 const SCENARIOS = ["normal", "loading", "offline", "blip", "module-offline", "errors", "empty", "long", "many", "asking"];
 /** Width by height; the portrait monitor is 1080x1920. */
 const SIZES = { "1440": [1440, 900], "900": [900, 700], "1920": [1920, 1080], "1080x1920": [1080, 1920] };
@@ -250,20 +250,25 @@ function flowJobs(scenario) {
       ...frames("yaad-sheet-closed", [700]),
       { eval: expectText("Coming up", true) },
     ]),
-    job("needs-time-short", "/timeline?view=week", [
-      { eval: clickText("button", "Needs a time") },
-      ...frames("needs-time-short-open", [900]),
-      { eval: '(() => { const list = document.querySelector("[role=dialog] .scroll"); list.scrollTop = list.scrollHeight; })(); 0' },
-      ...frames("needs-time-short-bottom", [400]),
-      { eval: `(() => { const q = (e) => { const r = e.getBoundingClientRect(); return [e.tagName, Math.round(r.top), Math.round(r.bottom), e.scrollHeight, e.clientHeight].join(" "); }; const list = document.querySelector("[role=dialog] .scroll"); console.error("DIAG " + q(document.querySelector("[role=dialog]")) + " | list " + q(list) + " | " + [...list.children].map(q).join(" | ") + " | edges " + list.getAttributeNames().join(",")); })(); 0` },
-      { eval: `(() => { const list = document.querySelector("[role=dialog] .scroll"); const box = list.getBoundingClientRect(); const last = list.lastElementChild.getBoundingClientRect(); if (box.bottom > innerHeight + 1 || last.bottom > box.bottom) console.error("needs-time list cut off: list bottom " + box.bottom + " window " + innerHeight + " last " + last.bottom); })(); 0` },
+    job("planner-tick", `/planner?view=day&fixtures=${scenario}`, [
+      { eval: "window.__mountSince = performance.now(); 0" },
+      { eval: clickText("[role=checkbox]", "Reply to the Northwind recruiter") },
+      ...frames("planner-tick", [120, 400, 1100]),
+      { eval: expectText("Checked off") },
+      { eval: clickText("button", "Undo") },
+      ...frames("planner-tick-undone", [600]),
+    ]),
+    job("planner-someday", `/planner?view=day&someday=1&fixtures=${scenario}`, [
+      ...frames("planner-someday-open", [900]),
+      { eval: expectText("Gym training split") },
+      { eval: clickText("button[aria-expanded=false]", "Gym training split") },
+      ...frames("planner-someday-group", [400]),
     ], 2500, 640),
-    job("needs-time-narrow", "/timeline", [
-      { eval: clickText("button", "Needs a time") },
-      ...frames("needs-time-narrow-open", [900]),
-      { eval: '(() => { const list = document.querySelector("[role=dialog] .scroll"); list.scrollTop = list.scrollHeight; })(); 0' },
-      ...frames("needs-time-narrow-bottom", [400]),
-    ], 2500, 700, 960),
+    job("planner-plan", `/planner?view=day&fixtures=${scenario}`, [
+      { eval: 'document.querySelector("[data-context][aria-haspopup=dialog]").click(); 0' },
+      ...frames("planner-plan-card", [700]),
+      { eval: expectText("Going") },
+    ]),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },
       ...frames("chat-open", [120, 600]),
@@ -282,7 +287,7 @@ function polishJobs() {
   const job = (name, route, steps, width = 1440, height = 900, settleMs = 3000) => ({ name: `polish-${name}`, url: `${ORIGIN}${route}${route.includes("?") ? "&" : "?"}fixtures=${route.includes("fixtures=") ? "" : "normal"}`.replace(/fixtures=$/, ""), width, height, settleMs, steps });
   const edges = (tag, width, height) =>
     Object.entries({ tl: [10, 10], tr: [width - 10, 10], bl: [10, height - 10], br: [width - 10, height - 10], l: [10, height / 2], r: [width - 10, height / 2], c: [width / 2, height / 2] }).flatMap(([edge, [x, y]]) => [
-      { eval: clickAt("Preparation for", Math.round(x), Math.round(y)) },
+      { eval: clickAt("Study block", Math.round(x), Math.round(y)) },
       { wait: 700 },
       { shot: `polish-popover-${tag}-${edge}.png` },
       { eval: `(() => { const d = document.querySelector("[role=dialog]"); if (!d) return console.error("no popover at ${edge}"); const r = d.getBoundingClientRect(); const body = d.querySelector("[data-selectable]"); if (r.left < 0 || r.top < 0 || r.right > innerWidth || r.bottom > innerHeight || d.scrollWidth > d.clientWidth + 1) console.error("popover ${tag} ${edge} out of window: " + [r.left, r.top, r.right, r.bottom, innerWidth, innerHeight].map(Math.round).join(",")); })(); 0` },
@@ -304,12 +309,12 @@ function polishJobs() {
       { wait: 900 },
       { shot: "polish-thread-pill.png" },
     ]),
-    job("day-1440", "/timeline?view=day&fixtures=many", [{ shot: "polish-day-1440.png" }, { hover: "[role=radio][aria-checked=false]" }, { wait: 300 }, { shot: "polish-segmented-hover.png" }]),
-    job("day-960", "/timeline?view=day&fixtures=many", [{ shot: "polish-day-960.png" }], 960, 640),
-    job("day-narrow", "/timeline?view=day&fixtures=many", [{ shot: "polish-day-narrow.png" }], 700, 900),
-    job("month", "/timeline?view=month&fixtures=normal", [{ shot: "polish-month.png" }]),
-    job("popover-1440", "/timeline?view=day&fixtures=long", edges("1440", 1440, 900)),
-    job("popover-960", "/timeline?view=day&fixtures=long", edges("960", 960, 640), 960, 640),
+    job("day-1440", "/planner?view=day&fixtures=many", [{ shot: "polish-day-1440.png" }, { hover: "[role=radio][aria-checked=false]" }, { wait: 300 }, { shot: "polish-segmented-hover.png" }]),
+    job("day-960", "/planner?view=day&fixtures=many", [{ shot: "polish-day-960.png" }], 960, 640),
+    job("day-narrow", "/planner?view=day&fixtures=many", [{ shot: "polish-day-narrow.png" }], 700, 900),
+    job("month", "/planner?view=month&fixtures=normal", [{ shot: "polish-month.png" }]),
+    job("popover-1440", "/planner?view=day&fixtures=long", edges("1440", 1440, 900)),
+    job("popover-960", "/planner?view=day&fixtures=long", edges("960", 960, 640), 960, 640),
     job("system", "/system?fixtures=normal", [{ shot: "polish-system.png" }]),
   ];
 }
@@ -329,7 +334,7 @@ function plan(opts, outDir) {
         const tag = `${page}~${scenario}~${size}`;
         const steps = [{ shot: `${tag}.png` }, { checks: "settled" }];
         if (opts.interact) steps.push(...interactionSteps(tag));
-        jobs.push({ name: tag, url: `${ORIGIN}${PAGES[page]}?fixtures=${scenario}`, width, height, settleMs: SETTLE_MS[scenario] ?? 4000, steps });
+        jobs.push({ name: tag, url: `${ORIGIN}${PAGES[page]}${PAGES[page].includes("?") ? "&" : "?"}fixtures=${scenario}`, width, height, settleMs: SETTLE_MS[scenario] ?? 4000, steps });
       }
     }
   }

@@ -3,14 +3,14 @@ import { applyCommand } from "../../features/ghar/model";
 import type { GharCommand, GharCommissionJob, GharDevice, GharTag } from "../../types/ghar";
 import type { AgentTask, PatchScheduleRequest, PostMessageResponse, ScheduledMessage, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
-import type { TimelineRequest } from "../../types/timeline";
+import type { AttendedRequest, PlansRequest, TaskDoneRequest, TasksRequest } from "../../types/planner";
 import type { Scenario } from "../scenario";
 import * as chaavi from "./chaavi";
 import * as ghar from "./ghar";
 import * as hath from "./hath";
 import * as nas from "./nas";
 import { nasTasks } from "./tasks";
-import { timeline } from "./timeline";
+import { plans, setAttended, setTaskDone, tasks } from "./planner";
 import * as wakes from "./wakes";
 import * as yaad from "./yaad";
 import { ago } from "./time";
@@ -223,11 +223,10 @@ export class Fixtures {
     const s = this.scenario;
     if (route === "POST /graph") return yaad.graph(s);
     if (route === "POST /query") return yaad.query(s, body as QueryRequest);
-    if (route === "POST /timeline") return timeline(s, body as TimelineRequest);
-    if (route === "PUT /timeline/outcome") {
-      const outcome = body as { plan_id: string; occurrence_date: string; outcome: "done" | null };
-      return { ...outcome, outcome_at: outcome.outcome === null ? null : ago(0) };
-    }
+    if (route === "POST /timeline") return plans(s, body as PlansRequest);
+    if (route === "POST /tasks") return tasks(s, body as TasksRequest);
+    if (route === "PUT /tasks/done") return setTaskDone(body as TaskDoneRequest);
+    if (route === "PUT /timeline/attended") return setAttended(body as AttendedRequest);
     const node = /^GET \/nodes\/([^/]+)$/.exec(route);
     if (node) return yaad.node(s, node[1]!);
     throw new Error(`fixtures: no route for yaad ${route}`);

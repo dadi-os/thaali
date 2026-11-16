@@ -199,3 +199,16 @@ export function formatUntil(now: Date, at: Date): string {
   const days = Math.round((startOfDay(at).getTime() - startOfDay(now).getTime()) / 86_400_000);
   return new Intl.RelativeTimeFormat(undefined, { numeric: "auto" }).format(days, "day");
 }
+/** The local calendar date of `d` as `YYYY-MM-DD`, the form Yaad's task requests and `opens_on` use. */
+export function dateKey(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+/** The local midnight a `YYYY-MM-DD` key names; throws on anything else. */
+export function parseDateKey(key: string): Date {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(key);
+  if (match === null) {
+    throw new Error(`Invalid date ${key}`);
+  }
+  return new Date(Number(match[1]), Number(match[2]) - 1, Number(match[3]));
+}

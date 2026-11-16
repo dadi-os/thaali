@@ -497,7 +497,7 @@ function viewSubmenu() {
       navItem("view-agents", "Hath…", "/hath"),
       navItem("view-system", "System…", "/system"),
       navItem("view-memory", "Yaad…", "/yaad"),
-      navItem("view-timeline", "Timeline…", "/timeline"),
+      navItem("view-planner", "Planner…", "/planner"),
       navItem("view-chaavi", "Chaavi…", "/chaavi"),
       navItem("view-ghar", "Ghar…", "/ghar"),
     ],

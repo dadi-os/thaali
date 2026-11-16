@@ -49,6 +49,11 @@
   --error-line: #c4a49a;
   --error-fill: rgba(196, 164, 154, 0.26);
   --error-hover: rgba(196, 164, 154, 0.4);
+  /* Past due: the calm rose-clay of the error tones, softer than an error; ink passes 4.5:1 on bone */
+  --late: #bb7d70;
+  --late-ink: #8e4f43;
+  --late-fill: rgba(196, 164, 154, 0.26);
+  --late-line: #c4a49a;
 
   /* Structure */
   --rule: #e4ebdc;
@@ -146,6 +151,10 @@
     --error-line: #5c403c;
     --error-fill: rgba(154, 90, 78, 0.22);
     --error-hover: rgba(154, 90, 78, 0.34);
+    --late: #c58a7e;
+    --late-ink: #d9a99f;
+    --late-fill: rgba(154, 90, 78, 0.24);
+    --late-line: #5c403c;
 
     --rule: #2a3026;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
@@ -267,8 +276,8 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   grid-template-rows: repeat(4, minmax(0, 1fr));
   grid-template-areas:
-    "hath hath timeline timeline"
-    "hath hath timeline timeline"
+    "hath hath planner planner"
+    "hath hath planner planner"
     "yaad yaad chaavi system"
     "ghar ghar chaavi system";
 }
@@ -278,7 +287,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr));
     grid-template-rows: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
     grid-template-areas:
-      "hath timeline"
+      "hath planner"
       "yaad ghar"
       "chaavi system";
   }
@@ -290,7 +299,7 @@
     grid-template-rows: minmax(190px, 20fr) minmax(230px, 26fr) minmax(150px, 9fr) minmax(236px, 15fr) minmax(250px, 22fr);
     grid-template-areas:
       "hath hath"
-      "timeline timeline"
+      "planner planner"
       "yaad yaad"
       "ghar ghar"
       "chaavi system";

@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { clockChange, zoneOffset } from "./zones";
+import { plans } from "../../dev/fixtures/planner";
+import { clockChange, plannedClock, zoneOffset } from "./zones";
 
-describe("Timeline zones", () => {
+describe("Planner zones", () => {
   it("finds the repeated hour on a fall-back day", () => {
     expect(
       clockChange(
@@ -54,5 +55,26 @@ describe("Timeline zones", () => {
     expect(zoneOffset(instant, "Asia/Kathmandu")).toBe(345);
     expect(zoneOffset(instant, "UTC")).toBe(0);
     expect(zoneOffset(instant, "America/New_York")).toBe(-240);
+  });
+
+  it("shows a plan's original clock after travel, and suppresses equal offsets", () => {
+    const base = plans("normal", {
+      from: "2026-10-28T00:00:00-04:00",
+      to: "2026-10-29T00:00:00-04:00",
+      view: "planner",
+    }).items[0]!;
+    const item = {
+      ...base,
+      time_zone: "America/New_York",
+      start_at: "2026-10-28T09:00:00-04:00",
+      end_at: "2026-10-28T10:00:00-04:00",
+    };
+    expect(plannedClock(item, "America/Los_Angeles")).toBe(
+      "In New York: 9:00 AM – 10:00 AM EDT",
+    );
+    expect(plannedClock(item, "America/Detroit")).toBeNull();
+    expect(
+      plannedClock({ ...item, time_zone: null }, "America/Los_Angeles"),
+    ).toBeNull();
   });
 });

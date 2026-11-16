@@ -14,7 +14,7 @@ const LOOK: Record<ToastKind, { ink: string; mark: IconName; tint: string }> = {
 };
 
 /** The mark of each part of dadi a toast can be about. */
-const MODULE_MARK: Record<ToastModule, IconName> = { ghar: "home", chaavi: "key", yaad: "brain", hath: "graph", system: "server", timeline: "cal", dadi: "send" };
+const MODULE_MARK: Record<ToastModule, IconName> = { ghar: "home", chaavi: "key", yaad: "brain", hath: "graph", system: "server", planner: "cal", dadi: "send" };
 
 export type ToastProps = {
   kind?: ToastKind;
@@ -34,6 +34,8 @@ export type ToastProps = {
   leaving?: boolean;
   /** Changing it restarts the bar, for a toast that was pushed again. */
   restartKey?: number;
+  /** A quiet button at the toast's end, such as Undo. */
+  action?: { label: string; onRun: () => void };
   /** The whole toast is the target: clicking it goes to the thing. */
   onActivate?: () => void;
   onDismiss?: () => void;
@@ -45,7 +47,7 @@ export type ToastProps = {
 };
 
 /** One quiet line with a kind mark; hover or focus opens the detail, a click goes to the thing, the bar is the time left. */
-export function Toast({ kind = "info", module = null, title, body, open = false, width = 340, visibleMs = null, leaving = false, restartKey, onActivate, onDismiss, onExpire, onLeft, style }: ToastProps) {
+export function Toast({ kind = "info", module = null, title, body, open = false, width = 340, visibleMs = null, leaving = false, restartKey, action, onActivate, onDismiss, onExpire, onLeft, style }: ToastProps) {
   const look = LOOK[kind];
   return (
     <div
@@ -73,6 +75,11 @@ export function Toast({ kind = "info", module = null, title, body, open = false,
             </div>
           ) : null}
         </div>
+        {action === undefined ? null : (
+          <button type="button" className="ui-trans ui-hover-fill" onClick={action.onRun} style={{ alignSelf: "center", pointerEvents: "auto", height: 28, padding: "0 12px", borderRadius: 14, fontSize: 13, fontWeight: 600, color: look.ink, background: look.tint, flex: "none" }}>
+            {action.label}
+          </button>
+        )}
       </div>
       <button type="button" className="tst-x ui-trans ui-hover-fill" aria-label="Dismiss" title="Dismiss" onClick={onDismiss}>
         <Icon name="close" size={13} />

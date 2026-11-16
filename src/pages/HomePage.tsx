@@ -3,10 +3,10 @@ import { ChaaviTile } from "../features/chaavi/ChaaviTile";
 import { GharTile } from "../features/ghar/GharTile";
 import { YaadTile } from "../features/memory/YaadTile";
 import { SystemTile } from "../features/system/SystemTile";
-import { DayTile } from "../features/timeline/DayTile";
+import { PlannerWidget } from "../features/planner/PlannerWidget";
 
 /**
- * Home: six tiles in the named areas of `.home-grid` (Hath 2 x 2, Timeline 2 x 2, Yaad 2 x 1, Ghar 2 x 1, Chaavi
+ * Home: six tiles in the named areas of `.home-grid` (Hath 2 x 2, Planner 2 x 2, Yaad 2 x 1, Ghar 2 x 1, Chaavi
  * 1 x 2, System 1 x 2 on a wide window), which fills the page exactly. Nothing here scrolls: each tile is given
  * the room the grid leaves it and shows as much as fits.
  */
@@ -16,7 +16,7 @@ export function HomePage() {
       <div className="home-grid min-h-0 flex-1">
         <HathTile order={0} />
         <YaadTile order={1} />
-        <DayTile order={2} />
+        <PlannerWidget order={2} />
         <GharTile order={3} />
         <ChaaviTile order={4} />
         <SystemTile order={5} />

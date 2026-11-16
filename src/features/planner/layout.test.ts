@@ -1,51 +1,12 @@
 import { describe, expect, it } from "vitest";
-import type { TimelineItem } from "../../../types/timeline";
-import {
-  axisRange,
-  formatClockCompact,
-  formatRange,
-  formatSpan,
-  gapsBetween,
-  nowAndNext,
-  segmentsOn,
-} from "./blocks";
+import type { Plan } from "../../types/planner";
+import { axisRange, formatClockCompact, formatRange, formatSpan, gapsBetween, hasEnded, nowAndNext, segmentsOn } from "./layout";
 
 const day = new Date(2026, 9, 21);
-const at = (hour: number, minute = 0, dayOffset = 0) =>
-  new Date(2026, 9, 21 + dayOffset, hour, minute).toISOString();
+const at = (hour: number, minute = 0, dayOffset = 0) => new Date(2026, 9, 21 + dayOffset, hour, minute).toISOString();
 
-function block(
-  title: string,
-  start: string,
-  end: string,
-  extra: Partial<TimelineItem> = {},
-): TimelineItem {
-  return {
-    id: title,
-    occurrence_date: "2026-10-21",
-    title,
-    body: null,
-    kind: "study",
-    status: "confirmed",
-    start_at: start,
-    end_at: end,
-    due_at: null,
-    opens_at: null,
-    all_day: false,
-    time_zone: null,
-    hide_from_planner: false,
-    state: "scheduled",
-    outcome: null,
-    outcome_at: null,
-    actual_start: null,
-    actual_end: null,
-    recurrence: null,
-    series: null,
-    place: null,
-    owner: "schedule-specialist",
-    notes: [],
-    ...extra,
-  };
+function block(title: string, start: string, end: string, extra: Partial<Plan> = {}): Plan {
+  return { id: title, title, body: null, rsvp: "yes", start_at: start, end_at: end, all_day: false, time_zone: null, attended: null, place: null, hub: null, owner: "manual", notes: [], ...extra };
 }
 
 describe("planner segments", () => {
@@ -115,7 +76,7 @@ describe("planner segments", () => {
       ],
       day,
     );
-    expect(gapsBetween(segments)).toEqual([{ startMin: 540, endMin: 570 }]);
+    expect(gapsBetween(segments, 10)).toEqual([{ startMin: 540, endMin: 570 }]);
   });
 
   it("keeps a session spanning the repeated hour visible with a forward extent", () => {
@@ -156,6 +117,20 @@ describe("planner segments", () => {
     expect(between.current).toBeNull();
     expect(between.next?.block.title).toBe("B");
     expect(nowAndNext(segments, 700)).toEqual({ current: null, next: null });
+  });
+
+  it("treats a declined plan as no commitment when finding free time", () => {
+    const segments = segmentsOn(
+      [block("A", at(8), at(9)), block("Skipped", at(9, 5), at(11), { rsvp: "no" }), block("B", at(12), at(13))],
+      day,
+    );
+    expect(gapsBetween(segments, 30)).toEqual([{ startMin: 540, endMin: 720 }]);
+  });
+
+  it("ends a plan when its end has passed", () => {
+    const now = new Date(2026, 9, 21, 12);
+    expect(hasEnded(block("Past", at(9), at(10)), now)).toBe(true);
+    expect(hasEnded(block("Ahead", at(13), at(14)), now)).toBe(false);
   });
 
   it("writes a range with the period once when both ends share it, and a compact clock", () => {

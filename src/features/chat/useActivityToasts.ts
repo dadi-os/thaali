@@ -1,11 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ghar, timeline } from "../../shared/api";
+import { ghar, planner } from "../../shared/api";
 import { GHAR_DEVICES_KEY } from "../../shared/api/ghar";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { pushToast } from "../../contexts/toasts";
-import { formatTime } from "../timeline/dates";
-import { isMultiDay, itemKey, spanOf } from "../timeline/plans";
+import { formatTime } from "../planner/dates";
+import { isMultiDay, spanOf } from "../planner/plans";
 
 /** How often the upcoming-plans query refreshes and the plan clock ticks. */
 const PLAN_POLL_MS = 60_000;
@@ -17,8 +17,7 @@ const PLAN_STARTING_MS = 2 * 60_000;
 /**
  * Toast what happens around the house while the app is open: a Ghar device turning on or
  * off (any source: an agent, a wall switch, the house page; picked up by the shared
- * GET /devices poll), and a timed commitment (the home tile's view: no routines, nothing
- * hidden or cancelled) ten minutes before it starts and again as it starts. A failed poll is not toasted: the Ghar and timeline tiles show their own failures.
+ * GET /devices poll), and a timed commitment (the home tile's view: nothing declined) ten minutes before it starts and again as it starts. A failed poll is not toasted: the Ghar and planner tiles show their own failures.
  */
 export function useActivityToasts(): void {
   const { state: connection } = useConnection();
@@ -70,15 +69,15 @@ export function useActivityToasts(): void {
   }, []);
 
   const plansQuery = useQuery({
-    queryKey: ["yaad", "timeline", "soon"],
+    queryKey: ["yaad", "planner", "plans", "soon"],
     queryFn: async () => {
       const from = new Date(Date.now() - PLAN_STARTING_MS);
-      const { items } = await timeline.query({
+      const { items } = await planner.plans({
         from: from.toISOString(),
         to: new Date(from.getTime() + PLAN_SOON_MS + 2 * PLAN_POLL_MS).toISOString(),
         view: "tile",
       });
-      return items.filter((n) => n.start_at !== null && n.state !== "cancelled" && !n.all_day && !isMultiDay(n));
+      return items.filter((n) => n.rsvp !== "no" && !n.all_day && !isMultiDay(n));
     },
     enabled: connected,
     refetchInterval: connected ? PLAN_POLL_MS : false,
@@ -88,13 +87,10 @@ export function useActivityToasts(): void {
   useEffect(() => {
     for (const plan of plansQuery.data ?? []) {
       const span = spanOf(plan);
-      if (!span) {
-        continue;
-      }
       const lead = span.start.getTime() - now;
       const phase =
         lead > 0 && lead <= PLAN_SOON_MS ? "soon" : lead <= 0 && -lead < PLAN_STARTING_MS ? "now" : null;
-      const mark = `${itemKey(plan)}:${span.start.toISOString()}:${phase}`;
+      const mark = `${plan.id}:${span.start.toISOString()}:${phase}`;
       if (phase === null || announced.current.has(mark)) {
         continue;
       }
@@ -107,7 +103,7 @@ export function useActivityToasts(): void {
           phase === "soon"
             ? `In ${Math.ceil(lead / 60_000)} min · ${formatTime(span.start.toISOString())}`
             : `Starting now · until ${formatTime(span.end.toISOString())}`,
-        target: { kind: "timeline" },
+        target: { kind: "planner" },
       });
     }
   }, [plansQuery.data, now]);

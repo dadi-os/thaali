@@ -14,6 +14,8 @@ export const SCENARIOS = [
   "long",
   "many",
   "asking",
+  "planner-busy",
+  "planner-done",
   "tasks-error",
   "errors-error",
   "refused",

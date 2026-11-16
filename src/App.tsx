@@ -6,7 +6,7 @@ import { GharPage } from "./pages/GharPage";
 import { HathPage } from "./pages/HathPage";
 import { HomePage } from "./pages/HomePage";
 import { SystemPage } from "./pages/SystemPage";
-import { TimelinePage } from "./pages/TimelinePage";
+import { PlannerPage } from "./pages/PlannerPage";
 import { YaadPage } from "./pages/YaadPage";
 import { failureTarget, pushToast } from "./contexts/toasts";
 
@@ -40,8 +40,9 @@ export default function App() {
             <Route index element={<HomePage />} />
             <Route path="hath" element={<HathPage />} />
             <Route path="yaad" element={<YaadPage />} />
-            <Route path="timeline" element={<TimelinePage />} />
-            <Route path="calendar" element={<Navigate to="/timeline" replace />} />
+            <Route path="planner" element={<PlannerPage />} />
+            <Route path="timeline" element={<Navigate to="/planner" replace />} />
+            <Route path="calendar" element={<Navigate to="/planner" replace />} />
             <Route path="system" element={<SystemPage />} />
             <Route path="chaavi" element={<ChaaviPage />} />
             <Route path="ghar" element={<GharPage />} />

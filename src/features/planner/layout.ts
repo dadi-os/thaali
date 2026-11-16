@@ -1,11 +1,9 @@
-/** Pure planner logic: a day's sessions as segments on a minute axis, their lanes, gaps, and what is now and next. */
+/** Pure planner logic: a day's plans as segments on a minute axis, their lanes, gaps, and what is now and next. */
 
-import { addDays, endOfDay, startOfDay, wallMinutes } from "../dates";
-import type { TimelineItem } from "../../../types/timeline";
-import { clockChange } from "../zones";
+import type { Plan } from "../../types/planner";
+import { addDays, startOfDay, wallMinutes } from "./dates";
+import { clockChange } from "./zones";
 
-/** The least unclaimed time between two blocks that the planner draws as a gap (travel). */
-export const GAP_MIN = 10;
 
 /** Hours the axis shows on a day with no blocks. */
 const EMPTY_FROM_HOUR = 7;
@@ -13,7 +11,7 @@ const EMPTY_TO_HOUR = 22;
 
 /** One block's part of one day, in minutes after local midnight, with its side-by-side lane. */
 export type Segment = {
-  block: TimelineItem;
+  block: Plan;
   startMin: number;
   endMin: number;
   /** Lane among the blocks it overlaps, and how many lanes that overlapping group has. */
@@ -25,10 +23,10 @@ export type Segment = {
 export type Gap = { startMin: number; endMin: number };
 
 /**
- * `day`'s part of every timed session that touches it, earliest first, with overlapping
- * sessions in side-by-side lanes. The planner view only holds sessions with both times.
+ * `day`'s part of every timed plan that touches it, earliest first, with overlapping
+ * plans in side-by-side lanes. A plan with no end is left out: it has no extent to draw.
  */
-export function segmentsOn(blocks: TimelineItem[], day: Date): Segment[] {
+export function segmentsOn(blocks: Plan[], day: Date): Segment[] {
   const dayStart = startOfDay(day).getTime();
   const dayEnd = addDays(startOfDay(day), 1).getTime();
   const repeated =
@@ -97,12 +95,16 @@ export function segmentsOn(blocks: TimelineItem[], day: Date): Segment[] {
   return segments;
 }
 
-/** The unclaimed stretches between consecutive segments that last at least {@link GAP_MIN}. */
-export function gapsBetween(segments: Segment[]): Gap[] {
+/**
+ * The free stretches between consecutive segments that last at least `minMinutes`. Declined plans
+ * are not commitments, so they never end or interrupt free time.
+ */
+export function gapsBetween(segments: Segment[], minMinutes: number): Gap[] {
   const gaps: Gap[] = [];
-  let reach = segments[0]?.endMin ?? 0;
-  for (const segment of segments.slice(1)) {
-    if (segment.startMin - reach >= GAP_MIN) {
+  const kept = segments.filter((segment) => segment.block.rsvp !== "no");
+  let reach = kept[0]?.endMin ?? 0;
+  for (const segment of kept.slice(1)) {
+    if (segment.startMin - reach >= minMinutes) {
       gaps.push({ startMin: reach, endMin: segment.startMin });
     }
     reach = Math.max(reach, segment.endMin);
@@ -122,7 +124,7 @@ export function axisRange(columns: Segment[][]): { from: number; to: number } {
   };
 }
 
-/** The block happening at `nowMin` and the first one starting after it. */
+/** The segment happening at `nowMin` and the first one starting after it. */
 export function nowAndNext(
   segments: Segment[],
   nowMin: number,
@@ -132,6 +134,11 @@ export function nowAndNext(
       segments.find((s) => s.startMin <= nowMin && nowMin < s.endMin) ?? null,
     next: segments.find((s) => s.startMin > nowMin) ?? null,
   };
+}
+
+/** True once a plan's end has passed. */
+export function hasEnded(plan: Plan, now: Date): boolean {
+  return plan.end_at !== null && new Date(plan.end_at).getTime() <= now.getTime();
 }
 
 /** Minutes as "1 h 20 min", "45 min", or "2 h". */
@@ -171,10 +178,3 @@ export function formatClockCompact(minutes: number): string {
   return formatMinuteOfDay(minutes).replace(/[\s\u202f\u00a0]+/g, "");
 }
 
-/** ISO bounds of a local day, for a planner query. */
-export function dayBounds(day: Date): { from: string; to: string } {
-  return {
-    from: startOfDay(day).toISOString(),
-    to: endOfDay(day).toISOString(),
-  };
-}

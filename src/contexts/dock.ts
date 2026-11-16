@@ -1,6 +1,6 @@
 /**
  * Asks the router dock to open from outside the sidebar: the ⌘K shortcut, a failed-send toast
- * and the timeline's "ask Dadi" actions, which arrive with something to say. The sidebar watches the count and opens the dock,
+ * and the planner's "ask Dadi" actions, which arrive with something to say. The sidebar watches the count and opens the dock,
  * with its field focused, each time it rises.
  */
 

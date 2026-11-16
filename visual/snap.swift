@@ -99,6 +99,9 @@ func run(_ plan: Plan) async -> [[String: Any]] {
         if ProcessInfo.processInfo.environment["SNAP_DARK"] == "1" {
             window.appearance = NSAppearance(named: .darkAqua)
             webView.appearance = NSAppearance(named: .darkAqua)
+        } else if ProcessInfo.processInfo.environment["SNAP_DARK"] == "0" {
+            window.appearance = NSAppearance(named: .aqua)
+            webView.appearance = NSAppearance(named: .aqua)
         }
         window.acceptsMouseMovedEvents = true
         window.alphaValue = 0.6

@@ -7,7 +7,7 @@ const MAX_TOASTS = 4;
 export type ToastTone = "info" | "error" | "ok";
 
 /** The part of dadi a toast is about; it picks the toast's mark. */
-export type ToastModule = "ghar" | "chaavi" | "yaad" | "hath" | "system" | "timeline" | "dadi";
+export type ToastModule = "ghar" | "chaavi" | "yaad" | "hath" | "system" | "planner" | "dadi";
 
 /** Where clicking a toast takes you. */
 export type ToastTarget =
@@ -20,7 +20,7 @@ export type ToastTarget =
   | { kind: "logs"; service: string; q: string; at: string }
   /** The house page with the device's controls open. */
   | { kind: "ghar"; deviceId: string }
-  | { kind: "timeline" }
+  | { kind: "planner" }
   /** The router dock, open with the draft that did not send. */
   | { kind: "router" };
 
@@ -40,9 +40,14 @@ export type Toast = {
   target: ToastTarget | null;
   /** The part of dadi it is about; null for a notice that belongs to none. */
   module: ToastModule | null;
+  /** A button on the toast that undoes or follows up what it reports; null for a toast with none. */
+  action: ToastAction | null;
   /** Set once it is on its way out; the Toaster removes it when the exit animation ends. */
   leaving: boolean;
 };
+
+/** A button on a toast: its label and what it does. */
+export type ToastAction = { label: string; run: () => void };
 
 /** What a caller supplies; the store fills in id, count and time. */
 export type ToastInput = Pick<Toast, "key" | "tone" | "title"> & {
@@ -50,6 +55,8 @@ export type ToastInput = Pick<Toast, "key" | "tone" | "title"> & {
   target?: ToastTarget | null;
   /** The part of dadi it is about; read from the key and target when left out. */
   module?: ToastModule;
+  /** A button on the toast, such as Undo. */
+  action?: ToastAction;
 };
 
 /** A log service's name as the module it belongs to. */
@@ -60,7 +67,7 @@ function moduleOf(input: ToastInput): ToastModule | null {
   if (input.module !== undefined) {
     return input.module;
   }
-  for (const module of ["ghar", "chaavi", "timeline", "yaad"] as const) {
+  for (const module of ["ghar", "chaavi", "planner", "yaad"] as const) {
     if (input.key.startsWith(module)) {
       return module;
     }
@@ -74,8 +81,8 @@ function moduleOf(input: ToastInput): ToastModule | null {
       return "hath";
     case "ghar":
       return "ghar";
-    case "timeline":
-      return "timeline";
+    case "planner":
+      return "planner";
     case "router":
       return "dadi";
     case "logs":
@@ -117,6 +124,7 @@ export function pushToast(input: ToastInput, now: number = Date.now()): void {
     at: now,
     target: input.target ?? null,
     module: moduleOf(input),
+    action: input.action ?? null,
   };
   const existing = toasts.find((t) => t.key === input.key);
   if (existing) {

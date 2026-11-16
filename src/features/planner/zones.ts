@@ -1,3 +1,5 @@
+import { formatClock } from "../../shared/lib/ux/time";
+import type { Plan } from "../../types/planner";
 /** UTC offset in minutes for an instant in an IANA zone; includes fractional-hour offsets. */
 export function zoneOffset(at: Date, zone: string): number {
   const parts = new Intl.DateTimeFormat("en-US", {
@@ -51,4 +53,24 @@ export function clockChange(
     minute: delta > 0 ? minute - delta : minute,
     duration: Math.abs(delta),
   };
+}
+
+/** The short name of `zone` at an instant ("EDT"), from the platform's zone data. */
+function zoneName(iso: string, zone: string): string {
+  const name = new Intl.DateTimeFormat("en-US", { timeZoneName: "short", timeZone: zone }).formatToParts(new Date(iso)).find((part) => part.type === "timeZoneName");
+  if (name === undefined) throw new Error(`no zone name for ${iso} in ${zone}`);
+  return name.value;
+}
+
+/** The plan's originally planned clock times, when its zone differs from the device's offset. */
+export function plannedClock(
+  item: Plan,
+  deviceZone: string,
+): string | null {
+  if (item.time_zone === null) return null;
+  const at = new Date(item.start_at);
+  if (zoneOffset(at, item.time_zone) === zoneOffset(at, deviceZone))
+    return null;
+  const city = item.time_zone.split("/").pop()!.replace(/_/g, " ");
+  return `In ${city}: ${formatClock(item.start_at, item.time_zone)}${item.end_at === null ? "" : ` – ${formatClock(item.end_at, item.time_zone)}`} ${zoneName(item.start_at, item.time_zone)}`;
 }

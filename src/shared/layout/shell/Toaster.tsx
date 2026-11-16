@@ -12,7 +12,7 @@ const VISIBLE_MS = 6_000;
 
 /**
  * Go where a toast points: its chat in the sidebar, the router dock, or the page for a log line,
- * a device or the timeline. Page targets ride in the URL, so the page focuses them on arrival.
+ * a device or the planner. Page targets ride in the URL, so the page focuses them on arrival.
  */
 export function openTarget(target: ToastTarget, navigate: NavigateFunction): void {
   switch (target.kind) {
@@ -25,8 +25,8 @@ export function openTarget(target: ToastTarget, navigate: NavigateFunction): voi
     case "ghar":
       navigate(`/ghar?${new URLSearchParams({ device: target.deviceId })}`);
       return;
-    case "timeline":
-      navigate("/timeline");
+    case "planner":
+      navigate("/planner");
       return;
     case "router":
       requestDock();
@@ -61,6 +61,7 @@ export function Toaster() {
                 module={toast.module}
                 title={toast.count > 1 ? `${toast.title} ×${toast.count}` : toast.title}
                 body={toast.body}
+                action={toast.action === null ? undefined : { label: toast.action.label, onRun: () => { toast.action!.run(); dismissToast(toast.id); } }}
                 visibleMs={VISIBLE_MS}
                 restartKey={toast.at}
                 style={{ animation: "none" }}

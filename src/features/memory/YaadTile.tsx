@@ -5,7 +5,7 @@ import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { SectionHeader, Stat, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { startOfWeek } from "../timeline/dates";
+import { startOfWeek } from "../planner/dates";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import type { NodeKind, NodeRecord } from "../../types/yaad";
 import { tileNotice } from "../home/notice";

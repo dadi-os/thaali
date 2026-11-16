@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 
-/** How a {@link Chip} is tinted: a sage wash, solid sage, the due wash, tide, or clay. */
-export type ChipTone = "sage" | "solid" | "due" | "tide" | "clay";
+/** How a {@link Chip} is tinted: a sage wash, solid sage, the due wash, the past-due rose-clay, tide, or clay. */
+export type ChipTone = "sage" | "solid" | "due" | "late" | "tide" | "clay";
 
 /** The background, ink and border of each tone. */
 const TONES: Record<ChipTone, { background: string; color: string; border: string }> = {
   sage: { background: "var(--sage-fill)", color: "var(--sage-text)", border: "var(--glass-border)" },
   solid: { background: "var(--sage-deep)", color: "var(--bone)", border: "transparent" },
   due: { background: "var(--due-fill)", color: "var(--due-ink)", border: "var(--due-line)" },
+  late: { background: "var(--late-fill)", color: "var(--late-ink)", border: "var(--late-line)" },
   tide: { background: "var(--tide-fill)", color: "var(--tide-ink)", border: "var(--tide-line)" },
   clay: { background: "color-mix(in srgb, var(--clay) 16%, transparent)", color: "color-mix(in srgb, var(--clay) 70%, var(--ink))", border: "transparent" },
 };

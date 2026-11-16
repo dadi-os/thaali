@@ -39,7 +39,7 @@ export type TileNotice = {
 
 export type TileProps = {
   /** The tile's name, and the name of its grid area. */
-  area: "hath" | "yaad" | "timeline" | "ghar" | "chaavi" | "system";
+  area: "hath" | "yaad" | "planner" | "ghar" | "chaavi" | "system";
   title: string;
   /** The page the tile opens. */
   to: string;
