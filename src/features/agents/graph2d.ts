@@ -1,8 +1,8 @@
 import type { AgentRecord } from "../../types/hath";
-import type { LaneState } from "./laneState";
+import type { AgentState } from "./agentState";
 
 /** One agent placed on the forest: its ring depth, its position around the middle and the way it faces. */
-export type ForestNode = { agent: AgentRecord; depth: number; x: number; y: number; ang: number; state: LaneState };
+export type ForestNode = { agent: AgentRecord; depth: number; x: number; y: number; ang: number; state: AgentState };
 
 /** A line from an agent to the one it reports to. */
 export type ForestLink = { from: ForestNode; to: ForestNode };
@@ -18,7 +18,7 @@ export type ForestOptions = {
  * The agents as a radial forest: one ring per depth, an angular span per root by its leaves, and no node in the
  * middle (Hath has no root). A parent that is not in the list makes its child a root.
  */
-export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord) => LaneState, { r1 = 120, step = 105 }: ForestOptions = {}): { nodes: ForestNode[]; links: ForestLink[] } {
+export function layoutForest(agents: AgentRecord[], stateOf: (agent: AgentRecord) => AgentState, { r1 = 120, step = 105 }: ForestOptions = {}): { nodes: ForestNode[]; links: ForestLink[] } {
   const ids = new Set(agents.map((a) => a.id));
   const kids = new Map<string | null, AgentRecord[]>();
   for (const agent of agents) {

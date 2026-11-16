@@ -331,10 +331,6 @@
   border-color: var(--sage-line);
 }
 
-.composer-glass--processing {
-  border-color: color-mix(in srgb, var(--sage-line) 28%, transparent);
-}
-
 .composer-glass--live {
   border-color: color-mix(in srgb, var(--sage) 36%, transparent);
 }
@@ -376,7 +372,7 @@
   border-color: var(--error-line);
 }
 
-.lane-chip {
+.activity-chip {
   border: 1px solid color-mix(in srgb, var(--sage-line) 60%, transparent);
   background: var(--bone);
   box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
@@ -387,21 +383,21 @@
  * glass and a ring of light running round its edge, so the pill (or a busy list row)
  * reads as working at the level of the surface itself.
  */
-@property --lane-turn {
+@property --sheen-turn {
   syntax: "<angle>";
   inherits: true;
   initial-value: 0deg;
 }
 
-.lane-sheen {
+.working-sheen {
   position: relative;
   isolation: isolate;
   overflow: hidden;
-  animation: lane-turn 2.4s linear infinite;
+  animation: sheen-turn 2.4s linear infinite;
 }
 
-.lane-sheen::before,
-.lane-sheen::after {
+.working-sheen::before,
+.working-sheen::after {
   content: "";
   position: absolute;
   inset: 0;
@@ -409,20 +405,20 @@
   pointer-events: none;
 }
 
-.lane-sheen::before {
+.working-sheen::before {
   z-index: -1;
   background: conic-gradient(
-    from var(--lane-turn),
+    from var(--sheen-turn),
     transparent 0 62%,
     color-mix(in srgb, var(--sage) 20%, transparent) 84%,
     transparent 100%
   );
 }
 
-.lane-sheen::after {
+.working-sheen::after {
   padding: 1px;
   background: conic-gradient(
-    from var(--lane-turn),
+    from var(--sheen-turn),
     transparent 0 58%,
     color-mix(in srgb, var(--sage) 90%, transparent) 84%,
     transparent 100%
@@ -434,14 +430,14 @@
   mask-composite: exclude;
 }
 
-@keyframes lane-turn {
+@keyframes sheen-turn {
   to {
-    --lane-turn: 360deg;
+    --sheen-turn: 360deg;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .lane-sheen {
+  .working-sheen {
     animation: none;
   }
 }

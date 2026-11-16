@@ -8,11 +8,11 @@ import type {
   LogEvent,
   LogRecord,
   MessageAttachment,
-  PatchScheduleRequest,
   PostRouterResponse,
   RouterState,
   PostMessageResponse,
-  ScheduledMessage,
+  RoutineList,
+  StopResult,
   ThreadReadMark,
   ThreadSummary,
   WakeCursor,
@@ -21,7 +21,7 @@ import type {
 } from "../../../types/hath";
 
 /**
- * Hath HTTP client — agents, messages, schedules, and logs over the given transport.
+ * Hath HTTP client — agents, messages, wakes, routines, and logs over the given transport.
  * Paths live here; callers pass only domain args.
  */
 export function createHathClient(transport: Transport, baseUrl: string) {
@@ -202,30 +202,38 @@ export function createHathClient(transport: Transport, baseUrl: string) {
       });
     },
 
-    /** GET /agents/:id/schedules — schedules the agent sends or receives, next run first. */
-    listSchedules(agentId: string): Promise<{ schedules: ScheduledMessage[] }> {
+    /** POST /agents/:id/stop — Ankur's hard stop: ends the run, halts the job's helper tasks and marks the job stopped. */
+    stopAgent(agentId: string): Promise<StopResult> {
       return transport.request({
         baseUrl,
-        path: `/agents/${agentId}/schedules`,
+        path: `/agents/${agentId}/stop`,
+        method: "POST",
+      });
+    },
+
+    /** GET /agents/:id/routines — the agent's routines and reminders, next run first. */
+    listRoutines(agentId: string): Promise<RoutineList> {
+      return transport.request({
+        baseUrl,
+        path: `/agents/${agentId}/routines`,
         method: "GET",
       });
     },
 
-    /** PATCH /schedules/:id — hand edit of its time, repeat, or message. */
-    patchSchedule(id: string, body: PatchScheduleRequest): Promise<ScheduledMessage> {
+    /** DELETE /routines/:id — cancel a routine as Ankur. There is no edit: a change is a message to the agent. */
+    cancelRoutine(id: string): Promise<unknown> {
       return transport.request({
         baseUrl,
-        path: `/schedules/${id}`,
-        method: "PATCH",
-        body,
+        path: `/routines/${id}`,
+        method: "DELETE",
       });
     },
 
-    /** DELETE /schedules/:id — cancel it. */
-    cancelSchedule(id: string): Promise<{ cancelled: true; schedule_id: string }> {
+    /** DELETE /reminders/:id — cancel a reminder as Ankur. */
+    cancelReminder(id: string): Promise<unknown> {
       return transport.request({
         baseUrl,
-        path: `/schedules/${id}`,
+        path: `/reminders/${id}`,
         method: "DELETE",
       });
     },

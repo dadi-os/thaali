@@ -9,7 +9,8 @@ import { useSize } from "../../shared/hooks/useSize";
 import { RISE } from "../../shared/motion";
 import { formatAge } from "../../shared/lib/ux/time";
 import { agentActions } from "./actions";
-import { isLive, LANE_STATE_LABEL, type LaneState } from "./laneState";
+import { agentMark, isLive, STATE_LABEL, type AgentState } from "./agentState";
+import { nowLine } from "./sheet/brief";
 
 /** How often the ages in the list are read again. */
 const TICK_MS = 30_000;
@@ -45,20 +46,12 @@ export function agentRows(agents: AgentRecord[]): AgentRow[] {
   return rows;
 }
 
-/** What an agent says it is doing: its current step, or what it waits on. */
-function nowOf(agent: AgentRecord): string {
-  if (agent.running.status?.step) {
-    return agent.running.status.step;
-  }
-  return agent.running.waiting_on === null ? "" : `Waiting on ${agent.running.waiting_on.targets.join(", ")}`;
-}
-
 const HEAD = "min-w-0 text-[12.5px] font-semibold text-ink-muted";
 
 export type AgentListProps = {
   agents: AgentRecord[];
   /** What each agent is doing. */
-  stateOf: (agent: AgentRecord) => LaneState;
+  stateOf: (agent: AgentRecord) => AgentState;
   /** The agent whose row is marked. */
   selectedId: string | null;
   /** The agents a filter leaves out, drawn faint. */
@@ -68,7 +61,7 @@ export type AgentListProps = {
 
 type AgentListRowProps = {
   row: AgentRow;
-  state: LaneState;
+  state: AgentState;
   selected: boolean;
   dimmed: boolean;
   showNow: boolean;
@@ -81,6 +74,7 @@ function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow,
   const ref = useRef<HTMLButtonElement>(null);
   const context = useContextActions(() => agentActions(agent, { onShowDetails: () => onPick(agent, ref.current!.getBoundingClientRect()) }));
   const tasks = agent.sessions.tasks.length;
+  const mark = agentMark(agent.running, now);
   return (
     <motion.div {...RISE} {...context}>
       <button
@@ -96,17 +90,18 @@ function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow,
           <AgentName name={agent.name} selectable={false} className={`text-[14px] ${depth > 0 ? "font-medium" : "font-semibold"}`} />
         </div>
         <span className="w-[124px] flex-none text-left">
-          {state === "idle" ? <span className="text-[13px] text-ink-muted">idle</span> : <span className="text-[13px] font-medium text-sage-text">{LANE_STATE_LABEL[state]}</span>}
+          {state === "idle" ? <span className="text-[13px] text-ink-muted">{STATE_LABEL.idle}</span> : <span className="text-[13px] font-medium text-sage-text">{STATE_LABEL[state]}</span>}
+          {mark === null ? null : <span className="ml-1.5 text-[13px] font-medium text-[var(--late-ink)]">{mark}</span>}
         </span>
-        {showNow ? <Truncate text={nowOf(agent)} className="ui-mono min-w-0 flex-1 text-ink-muted" /> : null}
-        <span className="w-[52px] flex-none text-right text-[13px] text-ink-muted tabular-nums">{tasks === 0 ? "–" : tasks}</span>
+        {showNow ? <Truncate text={nowLine(agent, now)} className="ui-mono min-w-0 flex-1 text-ink-muted" /> : null}
+        <span className="w-16 flex-none text-right text-[13px] text-ink-muted tabular-nums">{tasks === 0 ? "–" : tasks}</span>
         <span className="w-16 flex-none text-right text-[13px] text-ink-muted">{formatAge(agent.updated_at, now)}</span>
       </button>
     </motion.div>
   );
 }
 
-/** Every agent as a row in tree order: its state, what it is doing now when the card is wide enough, how many helper tasks it has and when it was last active. */
+/** Every agent as a row in tree order: its state (flagged when the job ledger shows an answer overdue or a stopped job), the ask it is on or what it waits on when the card is wide enough, how many helpers it has and when it was last active. */
 export function AgentList({ agents, stateOf, selectedId, dimmed, onPick }: AgentListProps) {
   const [card, { width }] = useSize<HTMLDivElement>();
   const [now, setNow] = useState(() => Date.now());
@@ -121,7 +116,7 @@ export function AgentList({ agents, stateOf, selectedId, dimmed, onPick }: Agent
         <span className={`${HEAD} w-0 flex-1`}>Agent</span>
         <span className={`${HEAD} w-[124px] flex-none`}>State</span>
         {showNow ? <span className={`${HEAD} w-0 flex-1`}>Now</span> : null}
-        <span className={`${HEAD} w-[52px] flex-none text-right`}>Tasks</span>
+        <span className={`${HEAD} w-16 flex-none text-right`}>Helpers</span>
         <span className={`${HEAD} w-16 flex-none text-right`}>Active</span>
       </div>
       <div className="scroll min-h-0 flex-1">

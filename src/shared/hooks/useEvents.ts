@@ -16,12 +16,12 @@ import {
   upsertConversation,
 } from "../../contexts/chat";
 import {
+  applyWakeEvent,
   clearRouterRuns,
   endRouterRun,
   hasLocalSend,
   seedRouterRuns,
   seedRunningFromAgents,
-  setLaneRunning,
   startRouterRun,
 } from "../../contexts/running";
 import { pushToast } from "../../contexts/toasts";
@@ -56,9 +56,6 @@ function isHathEvent(data: unknown): data is HathEvent {
     type === "wake_started" ||
     type === "wake_ended" ||
     type === "wake_activity" ||
-    type === "lane_started" ||
-    type === "lane_finished" ||
-    type === "lane_failed" ||
     type === "router_started" ||
     type === "router_finished" ||
     type === "router_failed" ||
@@ -86,10 +83,15 @@ function logSearchText(message: string): string {
   return message.split(/["\\\n]/)[0]!.trim();
 }
 
-async function refetchAgents(queryClient: QueryClient): Promise<void> {
+/** GET /agents, seeding each agent's running state so it never reads older than the list a view shows. Every view's agents query reads through this. */
+export async function fetchAgents(): Promise<AgentRecord[]> {
   const { agents } = await hath.listAgents();
   seedRunningFromAgents(agents);
-  queryClient.setQueryData(AGENTS_QUERY_KEY, agents);
+  return agents;
+}
+
+async function refetchAgents(queryClient: QueryClient): Promise<void> {
+  queryClient.setQueryData(AGENTS_QUERY_KEY, await fetchAgents());
 }
 
 /** Seed conversation list from durable GET /threads. A failure is the rail's to show, with a retry. */
@@ -113,7 +115,7 @@ export async function hydrateHistory(): Promise<void> {
  * and an agent's wake list and the wake a `wake_started`, `wake_ended` or `wake_activity` names.
  * An agent → user message is counted unread (unless its chat is open in a visible window) and
  * toasted (unless its chat is open), a `thread_read` from any device takes Hath's count, and,
- * while the window is hidden or unfocused, raises a native notification. Failed lanes and
+ * while the window is hidden or unfocused, raises a native notification. A failed wake and
  * routing, and a dropped stream, toast as errors.
  */
 export function useEvents(): void {
@@ -148,9 +150,11 @@ export function useEvents(): void {
       }
 
       if (data.type === "message") {
-        if (!isUserThreadMessage(data.from_agent_id, data.to_agent_id)) {
+        if (data.kind === "notice" || !isUserThreadMessage(data.from_agent_id, data.to_agent_id)) {
           return;
         }
+
+        void queryClient.invalidateQueries({ queryKey: ["agent-messages", data.agent_id] });
 
         ingestLiveMessage(data.agent_id, {
           seq: data.seq,
@@ -158,7 +162,6 @@ export function useEvents(): void {
           content: data.content,
           files: data.attachments,
           at: data.at,
-          ...(data.kind === "notice" ? { notice: true } : {}),
         });
         upsertConversation({
           agent_id: data.agent_id,
@@ -169,10 +172,7 @@ export function useEvents(): void {
         });
         if (data.from_agent_id !== null) {
           const name = agentNameFromCache(queryClient, data.agent_id);
-          countAgentMessage(data.agent_id, {
-            notice: data.kind === "notice",
-            windowVisible: document.visibilityState === "visible",
-          });
+          countAgentMessage(data.agent_id, { windowVisible: document.visibilityState === "visible" });
           announceAgentMessage(data.agent_id, name, data.content);
           notifyAgentMessage(name, data.content).catch((err: unknown) => {
             const message = err instanceof Error ? err.message : String(err);
@@ -189,7 +189,7 @@ export function useEvents(): void {
       }
 
       if (data.type === "schedules_changed") {
-        void queryClient.invalidateQueries({ queryKey: ["agent-schedules"] });
+        void queryClient.invalidateQueries({ queryKey: ["agent-routines"] });
         return;
       }
 
@@ -218,25 +218,20 @@ export function useEvents(): void {
       }
 
       if (data.type === "wake_started" || data.type === "wake_ended" || data.type === "wake_activity") {
-        void queryClient.invalidateQueries({ queryKey: wakesKey(data.agent_id) });
+        applyWakeEvent(data);
         void queryClient.invalidateQueries({ queryKey: wakeKey(data.agent_id, data.wake_id) });
-        return;
-      }
-
-      if (data.type === "lane_started") {
-        setLaneRunning(data.agent_id, data.lane, true);
-        return;
-      }
-
-      if (data.type === "lane_finished" || data.type === "lane_failed") {
-        setLaneRunning(data.agent_id, data.lane, false);
-        if (data.type === "lane_failed") {
+        if (data.type === "wake_activity") {
+          return;
+        }
+        void queryClient.invalidateQueries({ queryKey: wakesKey(data.agent_id) });
+        void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
+        if (data.type === "wake_ended" && data.outcome === "failed") {
           pushToast({
-            key: `lane_failed:${data.agent_id}:${data.lane}`,
+            key: `wake_failed:${data.agent_id}`,
             tone: "error",
-            title: `${agentNameFromCache(queryClient, data.agent_id)}'s ${data.lane} lane failed`,
-            body: data.message,
-            target: { kind: "logs", service: "hath", q: `${data.lane} lane failed`, at: data.at },
+            title: `${agentNameFromCache(queryClient, data.agent_id)} stopped on an error`,
+            body: "Its run failed; the wake's timeline has the reason.",
+            target: { kind: "logs", service: "hath", q: "wake", at: data.at },
           });
         }
         return;

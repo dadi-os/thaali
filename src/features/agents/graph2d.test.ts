@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { agents } from "../../dev/fixtures/hath";
 import type { AgentRecord } from "../../types/hath";
 import { childrenOf, graphName, layoutForest, viewForest } from "./graph2d";
-import { laneState } from "./laneState";
+import { agentState } from "./agentState";
 
 const record = (id: string, parent: string | null): AgentRecord => ({ ...agents("normal")[0]!, id, name: id, parent_agent_id: parent });
-const stateOf = (agent: AgentRecord) => laneState(agent, undefined);
+const stateOf = (agent: AgentRecord) => agentState(agent, undefined);
 
 describe("layoutForest", () => {
   it("puts a root on the first ring, its child on the second, and links them", () => {
@@ -47,7 +47,7 @@ describe("viewForest", () => {
   it("keeps every position, the box and every name's place whichever agents are live", () => {
     const all = agents("many").filter((agent) => agent.active);
     const viewWith = (liveIds: string[]) =>
-      viewForest(layoutForest(all, (agent) => laneState(agent, { work: liveIds.includes(agent.id), process: false })), { labels: "live", reserve: "all", width: 520, height: 260, nodeScale: 0.85 });
+      viewForest(layoutForest(all, (agent) => agentState(agent, { ...agent.running, working: liveIds.includes(agent.id) })), { labels: "live", reserve: "all", width: 520, height: 260, nodeScale: 0.85 });
     const quiet = viewWith([]);
     const busy = viewWith([all[0]!.id, all[3]!.id, all[7]!.id]);
     expect(busy.viewBox).toEqual(quiet.viewBox);

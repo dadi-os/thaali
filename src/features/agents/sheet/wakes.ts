@@ -1,9 +1,6 @@
-import type { Lane, LogRecord, WakeEntry, WakeOutcome, WakeReason, WakeSummary, WakeToolCall, WakeUsage } from "../../../types/hath";
+import type { LogRecord, Reminder, Routine, WakeEntry, WakeOutcome, WakeReason, WakeSummary, WakeToolCall, WakeUsage } from "../../../types/hath";
 import { countNoun } from "../../../shared/lib/ux/plural";
 import { formatSpan } from "../../../shared/lib/ux/time";
-
-/** The lane filter of an open wake: both lanes, or one. */
-export type LaneFilter = "All" | "Work" | "Process";
 
 /** A turn entry of a wake. */
 export type TurnEntry = Extract<WakeEntry, { type: "turn" }>;
@@ -19,19 +16,28 @@ export const OUTCOME_LABEL: Record<WakeOutcome, string> = {
 /** A wake's reason as a sentence: the words before the name, and the agent it names when one does (`agentId` null for Ankur or no one). */
 export type ReasonLine = { lead: string; agentId: string | null; name: string | null };
 
-/** The reason a wake began in words; a `message` wake names its sender, and no sender is Ankur. */
-export function reasonLine(reason: WakeReason): ReasonLine {
+/** What the sheet can name about the routines and reminders that wake an agent. */
+export type ScheduleNames = { routines: Routine[]; reminders: Reminder[] };
+
+/** The reason a wake began in words; a `message` wake names its sender (no sender is Ankur), a `schedule` wake the routine or reminder when the sheet still knows it. */
+export function reasonLine(reason: WakeReason, names: ScheduleNames): ReasonLine {
   switch (reason.kind) {
     case "message":
       return { lead: "Opened by", agentId: reason.ref, name: reason.ref ?? "Ankur" };
-    case "schedule":
-      return { lead: "Schedule", agentId: null, name: null };
+    case "schedule": {
+      const routine = names.routines.find((candidate) => candidate.id === reason.ref);
+      if (routine !== undefined) {
+        return { lead: "Routine", agentId: null, name: routine.title };
+      }
+      const reminder = names.reminders.find((candidate) => candidate.id === reason.ref);
+      return reminder === undefined ? { lead: "Routine or reminder", agentId: null, name: null } : { lead: "Reminder", agentId: null, name: reminder.note };
+    }
     case "recovery":
       return { lead: "Recovery", agentId: null, name: null };
     case "steer":
-      return { lead: "Steer", agentId: null, name: null };
+      return { lead: "Helper reported back", agentId: null, name: null };
     case "manual":
-      return { lead: "Manual", agentId: null, name: null };
+      return { lead: "Started by hand", agentId: null, name: null };
   }
 }
 
@@ -86,16 +92,7 @@ export function callTarget(input: unknown): string {
   return oneLine.length > TARGET_MAX ? `${oneLine.slice(0, TARGET_MAX - 1)}…` : oneLine;
 }
 
-/** The entries an open wake shows under a lane filter: every message, and the turns of the chosen lane (every turn for All). */
-export function filterEntries(entries: WakeEntry[], filter: LaneFilter): WakeEntry[] {
-  if (filter === "All") {
-    return entries;
-  }
-  const lane: Lane = filter === "Work" ? "work" : "process";
-  return entries.filter((entry) => entry.type === "message" || entry.lane === lane);
-}
-
-/** What the agent is doing this moment: its work lane's latest call. */
+/** What the agent is doing this moment: the latest call of a running wake. */
 export type NowLine = {
   name: string;
   target: string;
@@ -105,11 +102,11 @@ export type NowLine = {
   at: string;
 };
 
-/** The last call of the work lane's latest turn in a running wake's entries; null when the lane has not called anything. */
+/** The last call of the latest turn in a running wake's entries; null when the agent has not called anything. */
 export function nowLine(entries: WakeEntry[]): NowLine | null {
   for (let index = entries.length - 1; index >= 0; index -= 1) {
     const entry = entries[index]!;
-    if (entry.type === "turn" && entry.lane === "work") {
+    if (entry.type === "turn") {
       const call: WakeToolCall | undefined = entry.calls[entry.calls.length - 1];
       if (call === undefined) {
         continue;

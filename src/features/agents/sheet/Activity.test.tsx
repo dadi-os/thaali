@@ -5,13 +5,17 @@ import { MotionGlobalConfig } from "motion/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { logRow, wakeDetail, wakeList } from "../../../dev/fixtures/wakes";
-import type { WakeCursor } from "../../../types/hath";
+import { ROUTINE_MORNING } from "../../../dev/fixtures/hath";
+import type { Routine, WakeCursor } from "../../../types/hath";
 import { Activity } from "./Activity";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 MotionGlobalConfig.skipAnimations = true;
 
 const AGENT = "finance-specialist";
+
+/** The routine the fixtures' scheduled wakes name. */
+const SCHEDULES = { routines: [{ id: ROUTINE_MORNING(AGENT), title: "Morning money check" } as Routine], reminders: [] };
 
 const api = vi.hoisted(() => ({
   listWakes: vi.fn(),
@@ -49,7 +53,7 @@ async function render(onSelectAgent: (agentId: string) => void = vi.fn()) {
   act(() =>
     root.render(
       <QueryClientProvider client={client}>
-        <Activity agentId={AGENT} connected nameOf={(id) => id ?? "Ankur"} onSelectAgent={onSelectAgent} now={Date.now()} />
+        <Activity agentId={AGENT} connected nameOf={(id) => id ?? "Ankur"} schedules={SCHEDULES} onSelectAgent={onSelectAgent} now={Date.now()} />
       </QueryClientProvider>,
     ),
   );
@@ -81,22 +85,21 @@ function button(text: string): HTMLButtonElement {
 }
 
 describe("Activity", () => {
-  it("opens the running wake with its Now line and lists the rest collapsed", async () => {
+  it("opens the running wake with its current call and lists the rest collapsed", async () => {
     await render();
-    expect(host.textContent).toContain("Now");
+    expect(host.textContent).toContain("Current call");
     expect(host.textContent).toContain("recall");
     expect(host.textContent).toContain("gym membership monthly charge");
     expect(host.textContent).toContain("Running");
     expect(host.textContent).toContain("Failed");
-    expect(host.textContent).toContain("work lane stopped: prompt reached the 96000-token ceiling");
-    expect(host.querySelectorAll('[role="radiogroup"]')).toHaveLength(1);
+    expect(host.textContent).toContain("The run stopped: the prompt reached the 96000-token ceiling");
+    expect(host.textContent).toContain("Routine Morning money check");
   });
 
-  it("orders the lane filter All, Process, Work and fits it to its choices", async () => {
+  it("has no lane filter: one loop, one list of entries", async () => {
     await render();
-    const group = host.querySelector('[role="radiogroup"]') as HTMLElement;
-    expect([...group.querySelectorAll('[role="radio"]')].map((radio) => radio.textContent)).toEqual(["All", "Process", "Work"]);
-    expect(group.parentElement!.className).toContain("self-start");
+    expect(host.querySelectorAll('[role="radiogroup"]')).toHaveLength(0);
+    expect(host.textContent).not.toMatch(/\b(Process|Work)\b/);
   });
 
   it("shows a skeleton until the whole wake is read, then every entry at once", async () => {
@@ -104,13 +107,12 @@ describe("Activity", () => {
     api.getWake.mockImplementation((agentId: string, wakeId: string) => new Promise((resolve) => (release = () => resolve(wakeDetail("normal", agentId, wakeId)))));
     await render();
     expect(host.querySelector('[aria-label="Loading wake"]')).not.toBeNull();
-    expect(host.textContent).not.toContain("have the work lane read the statement");
-    expect(host.querySelectorAll('[role="radiogroup"]')).toHaveLength(0);
+    expect(host.textContent).not.toContain("searched the receipts folder directly");
     release(null);
     await settle();
     expect(host.querySelector('[aria-label="Loading wake"]')).toBeNull();
     expect(host.textContent).toContain("Reconcile the October statement");
-    expect(host.textContent).toContain("have the work lane read the statement");
+    expect(host.textContent).toContain("searched the receipts folder directly");
   });
 
   it("opens the popover of the agent a wake's reason names", async () => {
@@ -132,15 +134,13 @@ describe("Activity", () => {
     expect([...host.querySelectorAll("button")].some((candidate) => candidate.textContent === "Load earlier")).toBe(false);
   });
 
-  it("filters an open wake's turns by lane and keeps its messages", async () => {
+  it("shows hath's note to the agent as a note, apart from what anyone said", async () => {
     await render();
-    const turnTags = () => [...host.querySelectorAll(".ui-label")].map((label) => label.textContent).filter((text) => text === "Work" || text === "Process");
-    expect(turnTags()).toContain("Process");
-    const radios = [...host.querySelectorAll('[role="radio"]')] as HTMLButtonElement[];
-    act(() => radios.find((radio) => radio.textContent === "Work")!.click());
+    const failed = [...host.querySelectorAll("[class*='cursor-pointer']")].find((row) => row.textContent?.includes("Failed")) as HTMLElement;
+    act(() => failed.click());
     await settle();
-    expect(turnTags()).not.toContain("Process");
-    expect(host.textContent).toContain("Reconcile the October statement");
+    expect(host.textContent).toContain("Note from hath");
+    expect(host.textContent).toContain("The run failed: the prompt reached the 96000-token ceiling.");
   });
 
   it("fetches the raw row for a result the wake cut short", async () => {

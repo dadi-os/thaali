@@ -1,26 +1,22 @@
 import { copyText } from "../../shared/desktop/clipboard";
 import type { ActionList } from "../../shared/interaction/actions";
 import { openAgent } from "../../contexts/chat";
-import type { AgentRecord, ScheduledMessage } from "../../types/hath";
+import type { AgentRecord, Reminder, Routine } from "../../types/hath";
 
-/** What a schedule's actions need from its row. */
-export type ScheduleActionDeps = {
-  /** The agent at the other end of the schedule. */
-  other: string;
-  /** Open the row's editor. */
-  onEdit: () => void;
-  /** Open the editor already asking to cancel. */
+/** What a routine or reminder's actions need from its row. */
+export type RoutineActionDeps = {
+  /** Open the row already asking to cancel. */
   onCancel: () => void;
 };
 
-/** The actions on a schedule row, declared once for its right-click menu: edit it, copy its message or its other end, cancel it. */
-export function scheduleActions(schedule: ScheduledMessage, deps: ScheduleActionDeps): ActionList {
+/** The actions on a routine or reminder row, declared once for its right-click menu: copy what it says, cancel it. */
+export function routineActions(item: { kind: "routine"; routine: Routine } | { kind: "reminder"; reminder: Reminder }, deps: RoutineActionDeps): ActionList {
+  const routine = item.kind === "routine";
   return [
-    { id: "schedule.edit", label: "Edit schedule", icon: "pencil", run: deps.onEdit },
-    { id: "schedule.copy-message", label: "Copy message", icon: "copy", run: () => copyText(schedule.content) },
-    { id: "schedule.copy-agent", label: "Copy agent name", icon: "copy", run: () => copyText(deps.other) },
+    { id: "routine.copy-title", label: routine ? "Copy title" : "Copy note", icon: "copy", run: () => copyText(routine ? item.routine.title : item.reminder.note) },
+    ...(routine ? [{ id: "routine.copy-procedure", label: "Copy procedure", icon: "copy" as const, run: () => copyText(item.routine.procedure) }] : []),
     "separator",
-    { id: "schedule.cancel", label: "Cancel schedule", icon: "trash", destructive: true, run: deps.onCancel },
+    { id: "routine.cancel", label: routine ? "Cancel routine" : "Cancel reminder", icon: "trash", destructive: true, run: deps.onCancel },
   ];
 }
 

@@ -1,12 +1,15 @@
-/** Work vs process lane on an agent. */
-export type Lane = "work" | "process";
-
 /**
  * Agent log event kinds from Hath. `response` is one model call's output,
  * blocks in order (thinking, text, tool_use), logged before its tools run;
  * `tool_result` carries the tool's name and outcome. Speech lives in messages, not logs.
  */
 export type LogEvent = "response" | "tool_result";
+
+/** A message's kind: `notice` is hath's note to an agent, `utterance` the router's. */
+export type MessageKind = "message" | "notice" | "utterance";
+
+/** What a sender says about the job its message closes or parks. */
+export type MessageStatus = "done" | "blocked" | "needs_input";
 
 /** Outbound file on POST /messages — base64 payload, no data-URL prefix. */
 export type MessageAttachment = {
@@ -62,8 +65,10 @@ export type DurableMessage = {
   to_agent_id: string | null;
   content: string;
   attachments: AttachmentSummary[];
-  /** notice: hath's word that the agent's work stopped, shown as a system line; absent from an older hath. */
-  kind?: "message" | "notice";
+  /** notice: hath's note to an agent; it belongs inside a wake, not in the human thread. */
+  kind?: MessageKind;
+  /** What the agent says about its job in a message to its requester; absent from a hath whose thread route does not carry it. */
+  status?: MessageStatus | null;
   created_at: string;
 };
 
@@ -115,39 +120,50 @@ export type AgentSessions = {
   tasks: AgentTask[];
 };
 
-/** What an agent's work lane is waiting on, and since when. */
+/** What an agent is waiting on after its wake ended, and since when. */
 export type AgentWaiting = {
   targets: string[];
   /** ISO time the wait began. */
   since: string;
-  /** ISO time the wait times out. */
+  /** ISO time the wait times out and hath wakes the agent with the facts. */
   wakes_by: string;
 };
 
 /**
- * Where an agent's work stands, from Hath (`running.status` on GET /agents): the answer to
- * "what are you doing?". Null when no lane runs and the work lane is not waiting.
+ * One piece of work an agent is on, as the agent's wake sees it (`running.job` on GET /agents):
+ * opened by a message, closed when the requester has been told. The answer to "what is it doing
+ * for this ask, and what has it done".
  */
-export type AgentStatus = {
-  /** The latest message from whoever gave the agent its job; null when none has. */
-  job: { from: string | null; at: string; content: string } | null;
-  work: {
-    state: "running" | "waiting" | "idle";
-    /** ISO time the wait began, or the last step while running; null while idle. */
-    since: string | null;
-    /** What it waits on, when waiting. */
-    waiting_on: string[];
-  };
-  /** The work lane's current step (its last tool call and short argument); null before it has acted. */
-  step: string | null;
-  /** The work lane's last five tool calls, oldest first; `ok` is null while a call has no result. */
-  recent: { name: string; arg: string; ok: boolean | null }[];
-  /** The helper tasks the agent owns that are in flight. */
-  tasks: { id: string; status: string; current: string }[];
-  /** Why Nas could not be read for the tasks, or null. */
-  tasks_unreadable: string | null;
-  /** Messages the work lane queued that the process lane has not sent. */
-  pending: { id: number; to: string | null; expects_reply: boolean; preview: string }[];
+export type JobLedger = {
+  /** The job's number: its opening message's seq. */
+  job: number;
+  /** Who asked: an agent id, null for Ankur, the agent's own id for a routine run. */
+  requester: string | null;
+  /** The opening message, clipped. */
+  opened: { seq: number; at: string; content: string };
+  /** When the answer is due; only Ankur's jobs have one. */
+  answer_by: string | null;
+  /** Each agent it asked, with the seq of that agent's first reply (null while none). */
+  asks: { to: string; seq: number; answered_seq: number | null }[];
+  /** The helper tasks steered in the job. */
+  helpers: string[];
+  /** Titles of what the job stored in memory. */
+  stored: string[];
+  /** What the agent already sent the requester, oldest first, clipped. */
+  told: { seq: number; preview: string }[];
+  /** When the agent will check back, soonest first (ISO). */
+  reminders: string[];
+  /** Set once the job was stopped. */
+  stopped: { at: string; by: string } | null;
+};
+
+/** `running` on an agent row: one loop, so one flag. */
+export type AgentRunning = {
+  /** The agent's loop is running a step now. */
+  working: boolean;
+  waiting_on: AgentWaiting | null;
+  /** The job of the agent's current wake, or null. */
+  job: JobLedger | null;
 };
 
 /** Flat agent row from GET /agents. */
@@ -157,7 +173,7 @@ export type AgentRecord = {
   system_prompt: string;
   parent_agent_id: string | null;
   active: boolean;
-  running: { work: boolean; process: boolean; waiting_on: AgentWaiting | null; status: AgentStatus | null };
+  running: AgentRunning;
   sessions: AgentSessions;
   created_at: string;
   updated_at: string;
@@ -168,33 +184,58 @@ export type AgentDetail = AgentRecord & {
   children: AgentRecord[];
 };
 
-/** A message Hath delivers from one agent to another at `run_at`, optionally repeating. */
-export type ScheduledMessage = {
+/** The weekdays a routine can run on. */
+export type Weekday = "mon" | "tue" | "wed" | "thu" | "fri" | "sat" | "sun";
+
+/** An agent's own standing duty (GET /agents/:id/routines). Only its agent changes it; Ankur may cancel it. */
+export type Routine = {
   id: string;
-  from_agent_id: string;
-  to_agent_id: string;
-  content: string;
-  /** Next delivery, ISO. */
-  run_at: string;
-  /** Repeat interval; null delivers once. */
-  interval_minutes: number | null;
+  agent_id: string;
+  title: string;
+  procedure: string;
+  /** Local time of day, `HH:MM`, in the box's zone. */
+  at: string;
+  /** The days it runs on; null is every day. */
+  days: Weekday[] | null;
+  next_run_at: string;
+  last_run_at: string | null;
+  last_job_id: string | null;
+  active: boolean;
   created_at: string;
 };
 
-/** PATCH /schedules/:id — any of the fields to change. */
-export type PatchScheduleRequest = {
-  /** ISO with offset, in the future. */
-  run_at?: string;
-  /** Null makes it one-shot. */
-  interval_minutes?: number | null;
-  content?: string;
+/** A one-shot "check back at" that belongs to a job. */
+export type Reminder = {
+  id: string;
+  agent_id: string;
+  job_id: string | null;
+  note: string;
+  run_at: string;
 };
+
+/** GET /agents/:id/routines, next run first in each list. */
+export type RoutineList = {
+  routines: Routine[];
+  reminders: Reminder[];
+};
+
+
+/** POST /agents/:id/stop: Ankur's hard stop. */
+export type StopResult = {
+  agent_id: string;
+  /** True when a running loop was ended. */
+  ended_run: boolean;
+  /** The stopped job's number, null when the agent had no open job. */
+  job: number | null;
+  stopped_tasks: string[];
+  halt_failed: { task: string; error: string }[];
+};
+
 
 /** One agent log row from Hath. */
 export type LogRecord = {
   id: string;
   agent_id: string;
-  lane: Lane;
   event: LogEvent;
   payload: Record<string, unknown>;
   /**
@@ -208,10 +249,10 @@ export type LogRecord = {
 /** Why a wake began. */
 export type WakeReasonKind = "message" | "schedule" | "recovery" | "steer" | "manual";
 
-/** The structured reason a wake began; `ref` is the sender agent id for `message`, the schedule id for `schedule`, else null. */
+/** The structured reason a wake began; `ref` is the sender agent id for `message`, the routine or reminder id for `schedule`, else null. */
 export type WakeReason = { kind: WakeReasonKind; ref: string | null };
 
-/** Where a wake stands: `waiting` appears only on an agent's latest wake, when its work lane watches a task or agent. */
+/** Where a wake stands: `waiting` appears only on an agent's latest wake, when the agent watches a helper task or agent. */
 export type WakeOutcome = "running" | "waiting" | "yielded" | "failed";
 
 /** Model usage summed over a wake's model calls; `calls` is how many. */
@@ -230,8 +271,8 @@ export type WakeCounts = { tool_calls: number; messages_sent: number; messages_r
 export type WakeMessage = {
   id: string;
   seq: number;
-  kind: "message" | "notice" | "utterance";
-  status: "running" | "needs_input" | "blocked" | "done" | null;
+  kind: MessageKind;
+  status: MessageStatus | null;
   from_agent_id: string | null;
   to_agent_id: string | null;
   content: string;
@@ -247,7 +288,7 @@ export type WakeSummary = {
   /** The message that opened the wake, when one did. */
   opened_by: WakeMessage | null;
   started_at: string;
-  /** Null while a lane run is queued or running. */
+  /** Null while the wake runs. */
   ended_at: string | null;
   outcome: WakeOutcome;
   /** Set when the outcome is `failed`. */
@@ -277,7 +318,6 @@ export type WakeEntry =
       ord: number;
       at: string;
       type: "turn";
-      lane: Lane;
       usage: { input_tokens: number; output_tokens: number; cache_write: number; cache_read: number };
       thinking: string | null;
       text: string | null;
@@ -311,26 +351,17 @@ export type HathEvent =
       attachments: AttachmentSummary[];
       seq: number;
       /** notice for hath's word that an agent's work stopped; absent on a message someone wrote. */
-      kind?: "message" | "notice";
+      kind?: MessageKind;
       at: string;
     }
   | { type: "wake_started"; agent_id: string; wake_id: string; reason: WakeReason; at: string }
   | { type: "wake_ended"; agent_id: string; wake_id: string; outcome: Exclude<WakeOutcome, "running">; at: string }
   | { type: "wake_activity"; agent_id: string; wake_id: string; counts: WakeCounts }
-  | { type: "lane_started"; agent_id: string; lane: Lane; at: string }
-  | { type: "lane_finished"; agent_id: string; lane: Lane; at: string }
-  | {
-      type: "lane_failed";
-      agent_id: string;
-      lane: Lane;
-      message: string;
-      at: string;
-    }
   | { type: "thread_read"; agent_id: string; read_seq: number; unread: number; at: string }
   | { type: "router_started"; run_id: string; at: string }
   | { type: "router_finished"; run_id: string; at: string }
   | { type: "router_failed"; run_id: string; message: string; at: string }
-  /** A scheduled message was created, edited, cancelled, delivered or advanced; names no schedule. */
+  /** A routine or reminder was created, ended, cancelled or fired; names none, so refetch the lists shown. */
   | { type: "schedules_changed"; at: string }
   /** The tasks an agent owns or steered changed; `sessions` on GET /agents is out of date. */
   | { type: "sessions_changed"; at: string }

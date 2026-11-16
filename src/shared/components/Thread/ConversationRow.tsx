@@ -12,7 +12,7 @@ export type ConversationRowProps = {
   conversation: Conversation;
   /** Messages to you this conversation holds unread. */
   unread: number;
-  /** An agent lane is running: a pulsing dot opens the row. */
+  /** The agent's loop is running: a pulsing dot opens the row. */
   working: boolean;
   selected: boolean;
   /** Show two lines of the last message instead of one. */

@@ -1,8 +1,8 @@
 import { useState, useSyncExternalStore } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { hath, isMeshOnline } from "../../shared/api";
+import { isMeshOnline } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
+import { AGENTS_QUERY_KEY, fetchAgents } from "../../shared/hooks/useEvents";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { getRunning, subscribeRunning } from "../../contexts/running";
 import type { AgentRecord } from "../../types/hath";
@@ -10,7 +10,7 @@ import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { AgentGraph2D } from "./AgentGraph2D";
 import { AgentPopover } from "./AgentPopover";
-import { isLive, laneState, type LaneState } from "./laneState";
+import { agentState, isLive, type AgentState } from "./agentState";
 
 /** More agents than this are drawn small and only their roots are named. */
 const MANY_AGENTS = 40;
@@ -51,13 +51,13 @@ function GhostGraph({ width, height }: { width: number; height: number }) {
 
 type BodyProps = {
   agents: AgentRecord[];
-  stateOf: (agent: AgentRecord) => LaneState;
+  stateOf: (agent: AgentRecord) => AgentState;
   geometry: TileGeometry;
   /** A node was clicked: show that agent's details beside it. */
   onPick: (agent: AgentRecord, anchor: DOMRect) => void;
 };
 
-/** The agent graph alone: live agents pulse in their state's colors and a click on a node opens it on the Hath page. */
+/** The agent graph alone: working agents pulse in sage and a click on a node opens it on the Hath page. */
 function Body({ agents, stateOf, geometry, onPick }: BodyProps) {
   const many = agents.length > MANY_AGENTS;
   return (
@@ -73,13 +73,13 @@ export function HathTile({ order }: { order: number }) {
   const { state: connection } = useConnection();
   const query = useQuery({
     queryKey: AGENTS_QUERY_KEY,
-    queryFn: async () => (await hath.listAgents()).agents,
+    queryFn: fetchAgents,
     enabled: isMeshOnline(connection),
     select: (agents) => agents.filter((agent) => agent.active),
   });
   const live = useSyncExternalStore(subscribeRunning, getRunning, getRunning);
   const state = useModuleState(query, (agents) => agents.length === 0);
-  const stateOf = (agent: AgentRecord) => laneState(agent, live[agent.id]);
+  const stateOf = (agent: AgentRecord) => agentState(agent, live[agent.id]);
   const agents = state.kind === "ready" ? state.data : [];
   const working = agents.filter((agent) => isLive(stateOf(agent))).length;
   return (

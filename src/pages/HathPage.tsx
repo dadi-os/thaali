@@ -4,9 +4,9 @@ import { useSearchParams } from "react-router-dom";
 import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { AgentGraph2D } from "../features/agents/AgentGraph2D";
 import { AgentList } from "../features/agents/AgentList";
-import { isLive, keepsState, laneState, LANE_FILTERS, type LaneFilter } from "../features/agents/laneState";
+import { agentMark, agentState, isLive, keepsState, STATE_FILTERS, type StateFilter } from "../features/agents/agentState";
 import { AgentPopover } from "../features/agents/AgentPopover";
-import { hath, isMeshOnline } from "../shared/api";
+import { isMeshOnline } from "../shared/api";
 import { Card } from "../shared/ui/Card";
 import { Icon } from "../shared/ui/Icon";
 import { StateView, StaleBanner } from "../shared/states/ModuleState";
@@ -14,7 +14,7 @@ import { Pill } from "../shared/ui/Button";
 import { Segmented } from "../shared/ui/Segmented";
 import { Skeleton } from "../shared/ui/Skeleton";
 import { useConnection } from "../shared/hooks/useConnection";
-import { AGENTS_QUERY_KEY } from "../shared/hooks/useEvents";
+import { AGENTS_QUERY_KEY, fetchAgents } from "../shared/hooks/useEvents";
 import { useModuleState } from "../shared/hooks/useModuleState";
 import { Measured } from "../shared/layout/Measured";
 import { Page } from "../shared/layout/Page";
@@ -27,7 +27,7 @@ import type { AgentRecord } from "../types/hath";
 /** More agents than this are drawn small, with only their roots named. */
 const MANY_AGENTS = 40;
 /** The filter chips, in the order the page draws them. */
-const FILTER_NAMES = Object.keys(LANE_FILTERS) as LaneFilter[];
+const FILTER_NAMES = Object.keys(STATE_FILTERS) as StateFilter[];
 
 /** Where a popover opens for an agent chosen without a click on the page (a search, a link): the top middle of the window. */
 function fallbackAnchor(): DOMRect {
@@ -40,10 +40,9 @@ type View = "graph" | "list";
 /** The mark of each state in the legend, by what the node looks like. */
 const LEGEND = [
   ["working", { background: "var(--sage)", border: "none" }],
-  ["processing", { background: "var(--tide)", border: "none" }],
-  ["working + processing", { background: "var(--sage)", border: "2px solid var(--tide)" }],
-  ["waiting on a task", { background: "var(--bone)", border: "2px solid var(--sage)" }],
+  ["waiting on a helper or agent", { background: "var(--bone)", border: "2px solid var(--sage)" }],
   ["idle", { background: "#b6bdac", border: "none" }],
+  ["answer overdue or stopped", { background: "var(--bone)", border: "2px solid var(--late-ink)" }],
 ] as const;
 
 /** The graph's grey stand-in while the agents load: two rings of dots round a middle one, in the shape the real graph has. */
@@ -106,13 +105,14 @@ export function HathPage() {
 
   const query = useQuery({
     queryKey: AGENTS_QUERY_KEY,
-    queryFn: async () => (await hath.listAgents()).agents,
+    queryFn: fetchAgents,
     enabled: isMeshOnline(connection),
     select: (agents) => agents.filter((agent) => agent.active),
   });
   const state = useModuleState(query, (agents) => agents.length === 0);
   const agents = state.kind === "ready" ? state.data : [];
-  const stateOf = (agent: AgentRecord) => laneState(agent, live[agent.id]);
+  const stateOf = (agent: AgentRecord) => agentState(agent, live[agent.id]);
+  const markOf = (agent: AgentRecord) => agentMark(live[agent.id] ?? agent.running, Date.now());
   const states = agents.map(stateOf);
   const view: View = params.get("view") === "list" ? "list" : "graph";
   const selectedId = params.get("agent");
@@ -186,6 +186,7 @@ export function HathPage() {
             <AgentGraph2D
               agents={agents}
               stateOf={stateOf}
+              markOf={markOf}
               width={size.width}
               height={size.height}
               labels={many ? "roots" : "all"}

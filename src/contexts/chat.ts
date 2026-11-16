@@ -2,6 +2,7 @@ import type {
   AttachmentSummary,
   DurableMessage,
   MessageAttachment,
+  MessageStatus,
   ThreadSummary,
 } from "../types/hath";
 import { pushToast } from "./toasts";
@@ -23,19 +24,14 @@ export type ChatMessage = {
   failed?: boolean;
   /** The real error from the failed send, shown on the bubble; cleared on retry. */
   sendError?: string;
-  /**
-   * Waiting locally because the process lane is busy. Not POSTed yet — can cancel.
-   * Rendered after settled messages as a draft (work-busy does not queue).
-   */
-  queued?: boolean;
-  /** Outbound files, kept only while queued/pending so retry can re-POST; cleared once Hath confirms. */
+  /** Outbound files, kept only while pending or failed so retry can re-POST; cleared once Hath confirms. */
   attachments?: MessageAttachment[];
   /** Files the message carries, as Hath stored them. */
   files?: AttachmentSummary[];
   /** Loaded from durable REST history; skip typewriter on open. */
   historical?: boolean;
-  /** Hath's notice that the agent's work stopped: a system line, not something the agent said. */
-  notice?: boolean;
+  /** What the agent says about its job in this message to you; null on a plain one, absent on yours. */
+  status?: MessageStatus | null;
 };
 
 export type Conversation = {
@@ -88,13 +84,10 @@ function emit(): void {
   }
 }
 
-/** Confirmed first (by time, then seq); then in-flight pending; queued drafts last. */
+/** Confirmed first (by time, then seq); then in-flight pending. */
 function sortMessages(list: ChatMessage[]): ChatMessage[] {
   return [...list].sort((a, b) => {
     const rank = (m: ChatMessage) => {
-      if (m.queued) {
-        return 2;
-      }
       if (m.seq < 0) {
         return 1;
       }
@@ -188,7 +181,7 @@ export function openAgent(agentId: string): void {
 export function seqToMark(messages: ChatMessage[], readSeq: number | null | undefined): number | null {
   let newest: number | null = null;
   for (const m of messages) {
-    if (m.seq >= 0 && !m.pending && !m.queued && !m.failed && (newest === null || m.seq > newest)) {
+    if (m.seq >= 0 && !m.pending && !m.failed && (newest === null || m.seq > newest)) {
       newest = m.seq;
     }
   }
@@ -217,12 +210,12 @@ export function applyThreadRead(agentId: string, readSeq: number, unread: number
 }
 
 /**
- * Count an agent's message to you that arrived live, as Hath counts it, unless it is a
- * notice or lands in the chat that is open while the window is visible, which marks it read.
+ * Count an agent's message to you that arrived live, as Hath counts it, unless it lands in
+ * the chat that is open while the window is visible, which marks it read.
  */
-export function countAgentMessage(agentId: string, opts: { notice: boolean; windowVisible: boolean }): void {
+export function countAgentMessage(agentId: string, opts: { windowVisible: boolean }): void {
   const open = state.open.kind === "agent" && state.open.agentId === agentId;
-  if (opts.notice || (open && opts.windowVisible)) {
+  if (open && opts.windowVisible) {
     return;
   }
   state = { ...state, unread: { ...state.unread, [agentId]: (state.unread[agentId] ?? 0) + 1 } };
@@ -260,13 +253,13 @@ export function setHistoryState(
 }
 
 /**
- * On mesh disconnect: drop optimistic/pending/queued only.
+ * On mesh disconnect: drop optimistic/pending only.
  * Durable history stays — messages survive Hath restart.
  */
 export function clearLiveChat(): void {
   const threads: Record<string, ChatMessage[]> = {};
   for (const [agentId, msgs] of Object.entries(state.threads)) {
-    const kept = msgs.filter((m) => m.seq >= 0 && !m.pending && !m.queued && !m.failed);
+    const kept = msgs.filter((m) => m.seq >= 0 && !m.pending && !m.failed);
     if (kept.length > 0) {
       threads[agentId] = kept;
     }
@@ -445,13 +438,11 @@ export function addOptimistic(
   agentId: string,
   content: string,
   opts?: {
-    queued?: boolean;
     attachments?: MessageAttachment[];
   },
 ): number {
   const seq = nextTempSeq;
   nextTempSeq -= 1;
-  const queued = Boolean(opts?.queued);
   const msg: ChatMessage = {
     id: crypto.randomUUID(),
     seq,
@@ -459,7 +450,6 @@ export function addOptimistic(
     content,
     at: new Date().toISOString(),
     pending: true,
-    queued: queued || undefined,
     attachments: opts?.attachments,
   };
   setThread(agentId, sortMessages([...threadOf(agentId), msg]));
@@ -469,7 +459,7 @@ export function addOptimistic(
 
 /**
  * Promote a temp seq to the server seq, take the stored files and Hath's `at` (when it
- * stored the message, so a queued send sorts after replies that came while it waited),
+ * stored the message, so a send sorts after replies that came while it was in flight),
  * and clear pending.
  */
 export function resolveOptimistic(
@@ -529,27 +519,17 @@ export function removeMessage(agentId: string, seq: number): void {
   emit();
 }
 
-/** Clear failed/queued and set pending again before a retry POST. */
+/** Clear failed and set pending again before a retry POST. */
 export function markPending(agentId: string, tempSeq: number): void {
   setThread(
     agentId,
     threadOf(agentId).map((m) =>
       m.seq === tempSeq
-        ? { ...m, pending: true, failed: false, sendError: undefined, queued: undefined }
+        ? { ...m, pending: true, failed: false, sendError: undefined }
         : m,
     ),
   );
   emit();
-}
-
-/** Queued (not yet POSTed) messages for an agent, oldest first. */
-export function listQueuedThread(agentId: string): ChatMessage[] {
-  return threadOf(agentId).filter((m) => m.queued && m.from_user);
-}
-
-/** Agents with at least one queued message, whichever thread is open. */
-export function queuedAgentIds(): string[] {
-  return Object.keys(state.threads).filter((agentId) => listQueuedThread(agentId).length > 0);
 }
 
 /**
@@ -596,11 +576,11 @@ export function hydrateThreadMessages(
 ): void {
   const current = threadOf(agentId);
   let pending = current.filter(
-    (m) => m.seq < 0 || m.pending || m.queued || m.failed,
+    (m) => m.seq < 0 || m.pending || m.failed,
   );
   const confirmed = new Map<number, ChatMessage>();
   for (const m of current) {
-    if (m.seq >= 0 && !m.pending && !m.queued && !m.failed) {
+    if (m.seq >= 0 && !m.pending && !m.failed) {
       confirmed.set(m.seq, m);
     }
   }
@@ -608,7 +588,10 @@ export function hydrateThreadMessages(
   const bySeq = new Map<number, ChatMessage>();
   for (const row of messages) {
     const seen = confirmed.get(row.seq);
-    if (seen && seen.content === row.content) {
+    if (row.kind === "notice") {
+      continue;
+    }
+    if (seen && seen.content === row.content && seen.status === (row.status ?? null)) {
       bySeq.set(row.seq, seen);
       continue;
     }
@@ -617,7 +600,7 @@ export function hydrateThreadMessages(
       !seen && row.from_agent_id === null
         ? pending.find(
             (m) =>
-              m.pending && m.from_user && !m.queued && m.content === row.content,
+              m.pending && m.from_user && m.content === row.content,
           )
         : undefined;
     if (inFlight) {
@@ -631,7 +614,7 @@ export function hydrateThreadMessages(
       files: row.attachments,
       at: row.created_at,
       historical: seen ? seen.historical : opts?.live ? undefined : true,
-      ...(row.kind === "notice" ? { notice: true } : {}),
+      ...(row.from_agent_id === null ? {} : { status: row.status ?? null }),
     });
   }
   for (const [seq, m] of confirmed) {
@@ -649,7 +632,7 @@ export function hydrateThreadMessages(
 
 /**
  * If a pending optimistic row has the same content, resolve it to realSeq.
- * Otherwise, if exactly one in-flight (non-queued) user pending exists, resolve
+ * Otherwise, if exactly one in-flight user pending exists, resolve
  * that. Else append.
  */
 export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
@@ -660,14 +643,14 @@ export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
   if (msg.from_user) {
     const exact = current.find(
       (m) =>
-        m.pending && m.from_user && !m.queued && m.content === msg.content,
+        m.pending && m.from_user && m.content === msg.content,
     );
     if (exact) {
       resolveOptimistic(agentId, exact.seq, msg.seq, msg.files ?? [], msg.at);
       return;
     }
     const inFlight = current.filter(
-      (m) => m.pending && m.from_user && !m.queued,
+      (m) => m.pending && m.from_user,
     );
     if (inFlight.length === 1) {
       resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.files ?? [], msg.at);
@@ -675,4 +658,15 @@ export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
     }
   }
   appendMessage(agentId, msg);
+}
+
+/**
+ * What the agent's newest message to you says about its job, as far as the loaded thread
+ * knows: `needs_input` (it is parked on your answer), `blocked`, `done`, or null. A message
+ * from you after it settles the question.
+ */
+export function latestAgentStatus(messages: ChatMessage[]): MessageStatus | null {
+  const confirmed = messages.filter((m) => m.seq >= 0 && !m.failed);
+  const newest = confirmed[confirmed.length - 1];
+  return newest === undefined || newest.from_user ? null : (newest.status ?? null);
 }

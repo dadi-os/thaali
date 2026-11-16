@@ -9,11 +9,8 @@ import {
   groupByDay,
   plainPreview,
 } from "./shared/components/Thread/format";
-import {
-  partitionByQueued,
-  trackIncoming,
-} from "./features/chat/lanes";
-import { laneChipLabel } from "./features/chat/LaneChip";
+import { trackIncoming } from "./features/chat/incoming";
+import { activityLabel } from "./features/chat/ActivityChip";
 import {
   attachmentSizeLabel,
   PASTE_ATTACHMENT_CHARS,
@@ -31,7 +28,6 @@ import {
   applyThreadRead,
   countAgentMessage,
   markPending,
-  queuedAgentIds,
   resolveOptimistic,
   mergeConversations,
   messageKey,
@@ -68,7 +64,7 @@ import { createChaaviClient } from "./shared/api/chaavi";
 import { createNasClient } from "./shared/api/nas";
 import { YAAD, HATH, NAS, CHAAVI, CHAAVI_VAULT, GHAR } from "./shared/api/constants";
 import type { Transport } from "./shared/api/transport";
-import type { AgentRecord } from "./types/hath";
+import type { AgentRecord, AgentRunning } from "./types/hath";
 
 describe("formatRelative", () => {
   it("formats minutes ago", () => {
@@ -127,28 +123,7 @@ describe("attachments", () => {
   });
 });
 
-describe("chatSidebar lanes", () => {
-  it("partitions queued vs settled", () => {
-    const messages: ChatMessage[] = [
-      {
-        seq: 1,
-        from_user: true,
-        content: "a",
-        at: "2026-01-01T00:00:00Z",
-      },
-      {
-        seq: -2,
-        from_user: true,
-        content: "b",
-        at: "2026-01-01T00:00:01Z",
-        queued: true,
-      },
-    ];
-    const { settled, queued } = partitionByQueued(messages);
-    expect(settled.map((m) => m.seq)).toEqual([1]);
-    expect(queued.map((m) => m.seq)).toEqual([-2]);
-  });
-
+describe("chatSidebar thread", () => {
   it("treats only post-open non-historical rows as live", () => {
     const existing: ChatMessage = {
       seq: 1,
@@ -181,12 +156,13 @@ describe("chatSidebar lanes", () => {
   });
 });
 
-describe("lane chip and tool signature", () => {
-  it("maps lane occupancy to chip labels", () => {
-    expect(laneChipLabel(false, false)).toBeNull();
-    expect(laneChipLabel(true, false)).toBe("processing");
-    expect(laneChipLabel(false, true)).toBe("working");
-    expect(laneChipLabel(true, true)).toBe("processing + working");
+describe("activity chip", () => {
+  it("says what the agent's one loop is doing, and nothing at rest", () => {
+    const at = (running: Partial<AgentRunning>) => ({ working: false, waiting_on: null, job: null, ...running });
+    expect(activityLabel(at({}), undefined)).toBeNull();
+    expect(activityLabel(at({ working: true }), undefined)).toBe("working");
+    expect(activityLabel(at({ working: true }), { wakeId: "w", counts: { tool_calls: 3, messages_sent: 0, messages_received: 1 } })).toBe("working · 3 tool calls");
+    expect(activityLabel(at({ waiting_on: { targets: ["task/browser/3", "bob", "carol"], since: "2026-10-28T14:20:00Z", wakes_by: "2026-10-28T14:50:00Z" } }), undefined)).toBe("waiting on task/browser/3, bob +1");
   });
 });
 
@@ -383,13 +359,11 @@ describe("user-thread history", () => {
     resetChatStore();
   });
 
-  it("sends a queue from any thread and sorts it after replies that came while it waited", () => {
+  it("sorts a send after replies that came while it was in flight", () => {
     resetChatStore();
-    const tempSeq = addOptimistic("planner", "follow up", { queued: true });
-    expect(queuedAgentIds()).toEqual(["planner"]);
+    const tempSeq = addOptimistic("planner", "follow up");
     ingestLiveMessage("planner", { seq: 8, from_user: false, content: "reply", at: "2099-01-01T00:00:00Z" });
     markPending("planner", tempSeq);
-    expect(queuedAgentIds()).toEqual([]);
     resolveOptimistic("planner", tempSeq, 9, [], "2099-01-01T00:00:05Z");
     expect(getChatState().threads.planner!.map((m) => m.content)).toEqual(["reply", "follow up"]);
     resetChatStore();
@@ -541,7 +515,7 @@ describe("Hath read state", () => {
     applyThreadRead("a", 14, 0);
     expect(getChatState().unread.a).toBe(0);
     expect(getChatState().readSeq.a).toBe(14);
-    countAgentMessage("a", { notice: false, windowVisible: true });
+    countAgentMessage("a", { windowVisible: true });
     applyThreadRead("a", 14, 0);
     applyThreadRead("a", 12, 2);
     expect(getChatState().unread.a).toBe(1);
@@ -555,15 +529,14 @@ describe("Hath read state", () => {
     expect(getChatState().unread).toEqual({ new: 0 });
   });
 
-  it("counts a live reply unless it is a notice or lands in the open chat while the window is visible", () => {
+  it("counts a live reply unless it lands in the open chat while the window is visible", () => {
     resetChatStore();
     openAgent("a");
-    countAgentMessage("a", { notice: false, windowVisible: true });
-    countAgentMessage("b", { notice: true, windowVisible: true });
+    countAgentMessage("a", { windowVisible: true });
     expect(getChatState().unread).toEqual({});
-    countAgentMessage("a", { notice: false, windowVisible: false });
-    countAgentMessage("b", { notice: false, windowVisible: true });
-    countAgentMessage("b", { notice: false, windowVisible: true });
+    countAgentMessage("a", { windowVisible: false });
+    countAgentMessage("b", { windowVisible: true });
+    countAgentMessage("b", { windowVisible: true });
     expect(getChatState().unread).toEqual({ a: 1, b: 2 });
   });
 
@@ -577,7 +550,7 @@ describe("Hath read state", () => {
       last_at: "2026-10-22T11:00:00.000Z",
       from_user: false,
     });
-    countAgentMessage("a", { notice: false, windowVisible: true });
+    countAgentMessage("a", { windowVisible: true });
     applyThreadRead("b", 12, 0);
     mergeConversations([row("a", "2026-10-22T10:00:00.000Z", 0, 10), row("b", "2026-10-22T10:00:00.000Z", 2, 10)]);
     expect(getChatState().unread).toEqual({ a: 1, b: 0 });
@@ -601,7 +574,7 @@ describe("Hath read state", () => {
     expect(seqToMark(thread, 6)).toBe(7);
     expect(seqToMark(thread, 7)).toBeNull();
     expect(seqToMark(thread, 8)).toBeNull();
-    expect(seqToMark([msg(-2, { pending: true, queued: true })], null)).toBeNull();
+    expect(seqToMark([msg(-2, { pending: true })], null)).toBeNull();
     expect(seqToMark([], null)).toBeNull();
   });
 });

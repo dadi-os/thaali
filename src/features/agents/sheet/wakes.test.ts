@@ -1,25 +1,34 @@
 import { describe, expect, it } from "vitest";
 import type { WakeEntry } from "../../../types/hath";
 import { wakeDetail, wakeList } from "../../../dev/fixtures/wakes";
-import { callTarget, countsLine, filterEntries, haltSentence, nowLine, prettyJson, rawContent, reasonLine, usageChip, wakeDuration } from "./wakes";
+import type { Reminder, Routine } from "../../../types/hath";
+import { callTarget, countsLine, haltSentence, nowLine, prettyJson, rawContent, reasonLine, usageChip, wakeDuration, type ScheduleNames } from "./wakes";
 
-/** The newest wake of the fixtures' working agent: running, with its last work call unanswered. */
+/** The newest wake of the fixtures' working agent: running, with its last call unanswered. */
 function runningEntries(): WakeEntry[] {
   const [newest] = wakeList("normal", "finance-specialist", 5, null).wakes;
   return wakeDetail("normal", "finance-specialist", newest!.id).entries;
 }
 
+const NONE: ScheduleNames = { routines: [], reminders: [] };
+const KNOWN: ScheduleNames = { routines: [{ id: "r1", title: "Morning money check" } as Routine], reminders: [{ id: "q1", agent_id: "a", job_id: null, note: "Check the charges settled", run_at: "2026-11-15T12:20:00Z" } as Reminder] };
+
 describe("reasonLine", () => {
   it("names the sender of a message wake, Ankur when it has none", () => {
-    expect(reasonLine({ kind: "message", ref: "career-manager" })).toEqual({ lead: "Opened by", agentId: "career-manager", name: "career-manager" });
-    expect(reasonLine({ kind: "message", ref: null })).toEqual({ lead: "Opened by", agentId: null, name: "Ankur" });
+    expect(reasonLine({ kind: "message", ref: "career-manager" }, NONE)).toEqual({ lead: "Opened by", agentId: "career-manager", name: "career-manager" });
+    expect(reasonLine({ kind: "message", ref: null }, NONE)).toEqual({ lead: "Opened by", agentId: null, name: "Ankur" });
+  });
+
+  it("names the routine or reminder a scheduled wake belongs to, when it is still known", () => {
+    expect(reasonLine({ kind: "schedule", ref: "r1" }, KNOWN)).toEqual({ lead: "Routine", agentId: null, name: "Morning money check" });
+    expect(reasonLine({ kind: "schedule", ref: "q1" }, KNOWN)).toEqual({ lead: "Reminder", agentId: null, name: "Check the charges settled" });
+    expect(reasonLine({ kind: "schedule", ref: "gone" }, KNOWN)).toEqual({ lead: "Routine or reminder", agentId: null, name: null });
   });
 
   it("states every other reason without naming anyone", () => {
-    expect(reasonLine({ kind: "schedule", ref: "s1" }).lead).toBe("Schedule");
-    expect(reasonLine({ kind: "recovery", ref: null }).lead).toBe("Recovery");
-    expect(reasonLine({ kind: "steer", ref: null }).lead).toBe("Steer");
-    expect(reasonLine({ kind: "manual", ref: null })).toEqual({ lead: "Manual", agentId: null, name: null });
+    expect(reasonLine({ kind: "recovery", ref: null }, NONE).lead).toBe("Recovery");
+    expect(reasonLine({ kind: "steer", ref: null }, NONE).lead).toBe("Helper reported back");
+    expect(reasonLine({ kind: "manual", ref: null }, NONE)).toEqual({ lead: "Started by hand", agentId: null, name: null });
   });
 });
 
@@ -55,29 +64,14 @@ describe("callTarget", () => {
   });
 });
 
-describe("filterEntries", () => {
-  it("keeps entries in order, and every message under a lane filter", () => {
-    const entries = runningEntries();
-    expect(entries.map((entry) => entry.ord)).toEqual([...entries.map((entry) => entry.ord)].sort((a, b) => a - b));
-    const work = filterEntries(entries, "Work");
-    expect(work.some((entry) => entry.type === "turn" && entry.lane === "process")).toBe(false);
-    expect(work.some((entry) => entry.type === "turn" && entry.lane === "work")).toBe(true);
-    expect(work.filter((entry) => entry.type === "message")).toEqual(entries.filter((entry) => entry.type === "message"));
-    const process = filterEntries(entries, "Process");
-    expect(process.some((entry) => entry.type === "turn" && entry.lane === "work")).toBe(false);
-    expect(filterEntries(entries, "All")).toBe(entries);
-  });
-});
-
 describe("nowLine", () => {
-  it("reads the work lane's latest call, running while it has no result", () => {
+  it("reads the latest call, running while it has no result", () => {
     const line = nowLine(runningEntries());
     expect(line).toMatchObject({ name: "recall", target: "gym membership monthly charge", running: true });
   });
 
-  it("ignores the process lane and answers null when the work lane has not called anything", () => {
-    const entries = runningEntries().filter((entry) => entry.type === "message" || entry.lane === "process");
-    expect(nowLine(entries)).toBeNull();
+  it("answers null when no turn has called anything", () => {
+    expect(nowLine(runningEntries().filter((entry) => entry.type === "message"))).toBeNull();
     expect(nowLine([])).toBeNull();
   });
 

@@ -1,11 +1,12 @@
 import type {
   AgentDetail,
   AgentRecord,
-  AgentStatus,
+  AgentRunning,
   AttachmentSummary,
   DurableMessage,
   HathHealth,
-  ScheduledMessage,
+  JobLedger,
+  RoutineList,
   ThreadSummary,
 } from "../../types/hath";
 import type { Scenario } from "../scenario";
@@ -53,86 +54,78 @@ function systemPrompt(role: string): string {
   ].join("\n");
 }
 
-/** The status block of an agent whose lanes are quiet or busy, or null when nothing runs. */
-function statusFor(scenario: Scenario, id: string): AgentStatus | null {
-  const tasks = agentTasks(scenario, id);
-  const live = tasks
-    .filter((t) => t.status !== "asleep")
-    .map((t) => ({ id: t.id, status: t.status as string, current: t.current }));
+/** The job ledger of an agent that is on a job, or null. Each one shows a state the sheet and the list draw differently. */
+function ledgerFor(scenario: Scenario, id: string): JobLedger | null {
+  const tasks = agentTasks(scenario, id).filter((t) => t.status !== "asleep");
   if (id === "finance-specialist") {
     return {
-      job: { from: null, at: ago(18 * MIN), content: "Check whether the two pending Chase charges are expected before Friday." },
-      work: { state: "running", since: ago(40_000), waiting_on: [] },
-      step: "steer_browser task/browser/3f2a91 read the October statement",
-      recent: [
-        { name: "recall_memory", arg: "Chase pending charges", ok: true },
-        { name: "read_file", arg: "~/finance/budget.md", ok: true },
-        { name: "steer_browser", arg: "task/browser/3f2a91 open statements", ok: true },
-        { name: "wait", arg: "task/browser/3f2a91", ok: false },
-        { name: "steer_browser", arg: "task/browser/3f2a91 read the October statement", ok: null },
-      ],
-      tasks: live,
-      tasks_unreadable: null,
-      pending: [{ id: 41, to: null, expects_reply: false, preview: "Two small charges may hit this week, both expected." }],
+      job: 1175,
+      requester: null,
+      opened: { seq: 1175, at: ago(4 * MIN), content: "Check whether the two pending Chase charges are expected before Friday." },
+      answer_by: ago(-1 * MIN),
+      asks: [{ to: "schedule-specialist", seq: 902, answered_seq: 903 }, { to: "health-specialist", seq: 904, answered_seq: null }],
+      helpers: tasks.map((t) => t.id),
+      stored: ["Chase pending charges, October"],
+      told: [],
+      reminders: [ago(-20 * MIN)],
+      stopped: null,
     };
   }
   if (id === "networking-specialist") {
-    const asking = tasks.find((t) => t.status === "asking");
     return {
-      job: { from: "career-manager", at: ago(26 * MIN), content: "Send this week's batch of LinkedIn connection requests and log each one in the tracker." },
-      work: {
-        state: "waiting",
-        since: ago(3 * MIN),
-        waiting_on: asking ? [asking.id] : tasks.filter((t) => t.status === "idle").map((t) => t.id),
-      },
-      step: asking ? `steer_browser ${asking.id} sign in to LinkedIn` : "steer_terminal task/terminal/b7710c check the CI run",
-      recent: [
-        { name: "read_file", arg: "~/career/networking/tracker.json", ok: true },
-        { name: "steer_browser", arg: "task/browser/d41e07 sign in", ok: asking ? true : null },
-      ],
-      tasks: live,
-      tasks_unreadable: null,
-      pending: [],
-    };
-  }
-  if (id === "efficiency-specialist") {
-    return {
-      job: { from: "efficiency-specialist", at: ago(2 * MIN), content: "Nightly review. Recall today's entries with recall_memory, filtered by date." },
-      work: { state: "idle", since: null, waiting_on: [] },
-      step: null,
-      recent: [],
-      tasks: live,
-      tasks_unreadable: null,
-      pending: [],
+      job: 2210,
+      requester: "career-manager",
+      opened: { seq: 2210, at: ago(26 * MIN), content: "Send this week's batch of LinkedIn connection requests and log each one in the tracker." },
+      answer_by: null,
+      asks: [],
+      helpers: tasks.map((t) => t.id),
+      stored: [],
+      told: [{ seq: 2211, preview: "Picked up. Signing in to LinkedIn first." }],
+      reminders: [ago(-12 * MIN)],
+      stopped: null,
     };
   }
   if (id === "coding-manager") {
     return {
-      job: { from: null, at: ago(9 * MIN), content: "Build the fixture transport for thaali and run the type-check." },
-      work: { state: "waiting", since: ago(30_000), waiting_on: ["task/terminal/c5728f"] },
-      step: "steer_terminal task/terminal/c5728f build thaali",
-      recent: [{ name: "steer_terminal", arg: "task/terminal/c5728f build thaali", ok: true }],
-      tasks: live,
-      tasks_unreadable: null,
-      pending: [],
+      job: 3301,
+      requester: null,
+      opened: { seq: 3301, at: ago(9 * MIN), content: "Build the fixture transport for thaali and run the type-check." },
+      answer_by: ago(4 * MIN),
+      asks: [],
+      helpers: tasks.map((t) => t.id),
+      stored: [],
+      told: [],
+      reminders: [],
+      stopped: null,
+    };
+  }
+  if (id === "efficiency-specialist") {
+    return {
+      job: 4402,
+      requester: null,
+      opened: { seq: 4402, at: ago(15 * MIN), content: "Nightly review. Recall today's entries and tell me what was missed." },
+      answer_by: ago(10 * MIN),
+      asks: [{ to: "health-specialist", seq: 4403, answered_seq: null }],
+      helpers: [],
+      stored: [],
+      told: [],
+      reminders: [],
+      stopped: { at: ago(6 * MIN), by: "ankur" },
     };
   }
   return null;
 }
 
-/** Whether an agent's work and process lanes run, from its status block. */
-function runningFor(scenario: Scenario, id: string): AgentRecord["running"] {
-  const status = statusFor(scenario, id);
-  const work = status?.work.state === "running";
-  const process = id === "efficiency-specialist";
+/** An agent's `running` block: the one loop, what it waits on, and the ledger of its job. */
+function runningFor(scenario: Scenario, id: string): AgentRunning {
+  const job = ledgerFor(scenario, id);
+  const tasks = agentTasks(scenario, id).filter((t) => t.status !== "asleep");
+  const asking = tasks.find((t) => t.status === "asking");
+  const waits = id === "networking-specialist" || id === "coding-manager";
   return {
-    work,
-    process,
-    waiting_on:
-      status?.work.state === "waiting" && status.work.since !== null
-        ? { targets: status.work.waiting_on, since: status.work.since, wakes_by: ago(-15 * MIN) }
-        : null,
-    status: work || process || status?.work.state === "waiting" ? status : null,
+    working: id === "finance-specialist",
+    waiting_on: waits ? { targets: id === "coding-manager" ? ["task/terminal/c5728f"] : [asking?.id ?? "task/browser/d41e07"], since: ago(id === "coding-manager" ? 30_000 : 3 * MIN), wakes_by: ago(-15 * MIN) } : null,
+    job,
   };
 }
 
@@ -256,25 +249,53 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
   }
   const rows: DurableMessage[] = [
     row(1175, true, "Check whether the two pending Chase charges are expected before Friday.", 52),
-    row(1176, false, "On it. I'll read the October statement and compare against the budget.", 51),
-    row(1177, false, "Hath: the work stopped because the browser task `task/browser/3f2a91` was closed; the job was left unfinished.", 33, { kind: "notice" }),
-    row(1178, true, "Retry it.", 30),
-    row(1179, false, "Both pending charges are expected:\n- **$12.40** Spotify, renews on the 3rd\n- **$38.00** gym, monthly\n\nStatement attached.", 8, { attachments: [RECEIPT] }),
+    row(1176, false, "Picked up. I'll read the October statement and compare against the budget.", 51, { status: null }),
+    row(1178, true, "Retry the statement read; the first one timed out.", 30),
+    row(1179, false, "Both pending charges are expected:\n- **$12.40** Spotify, renews on the 3rd\n- **$38.00** gym, monthly\n\nStatement attached.", 8, { attachments: [RECEIPT], status: "done" }),
     row(1180, true, "Thanks", 6),
   ];
+  if (agentId === "health-specialist") {
+    rows.push(row(1181, false, "Your Thursday lecture moved to 4:00 PM, which collides with the gym block. Should I move gym to Friday morning, or keep Thursday and skip the evening study block?", 12, { status: "needs_input" }));
+  }
+  if (agentId === "cse-300-specialist") {
+    rows.push(row(1181, false, "I can't open the CSE 300 course page: MSU's sign-in is asking for a passkey approval on your phone, and no one has approved it for 20 minutes. I'll retry once you do.", 20, { status: "blocked" }));
+  }
   if (scenario === "long") {
-    rows.push(row(1181, false, `${"A long line of statement detail that wraps across the bubble. ".repeat(60)}\n\n\`\`\`\n${"x".repeat(240)}\n\`\`\``, 3));
+    rows.push(row(1181, false, `${"A long line of statement detail that wraps across the bubble. ".repeat(60)}\n\n\`\`\`\n${"x".repeat(240)}\n\`\`\``, 3, { status: "done" }));
   }
   return rows;
 }
 
-/** Hath `GET /agents/:id/schedules`: two the agent sent itself, one another agent sent it every three hours, and a one-shot it sent. */
-export function schedules(agentId: string): ScheduledMessage[] {
-  const id = (n: number) => `s0000000-0000-4000-8000-${([...agentId].reduce((sum, c) => sum + c.charCodeAt(0), 0) * 10 + n).toString().padStart(12, "0")}`;
-  return [
-    { id: id(1), from_agent_id: agentId, to_agent_id: agentId, content: "Morning money check: balances and anything pending.", run_at: ago(-14 * HOUR), interval_minutes: 1440, created_at: ago(20 * DAY) },
-    { id: id(2), from_agent_id: agentId, to_agent_id: agentId, content: "Weekly spend summary for Ankur.", run_at: ago(-3 * DAY), interval_minutes: 10_080, created_at: ago(20 * DAY) },
-    { id: id(3), from_agent_id: "efficiency-specialist", to_agent_id: agentId, content: "Check the day's spending against the budget and tell me anything over.", run_at: ago(-2 * HOUR), interval_minutes: 180, created_at: ago(9 * DAY) },
-    { id: id(4), from_agent_id: agentId, to_agent_id: "schedule-specialist", content: "Ask whether the gym day moved to Thursday.", run_at: ago(-26 * HOUR), interval_minutes: null, created_at: ago(1 * DAY) },
-  ];
+/** The id of the routine every fixture agent's scheduled wakes name. */
+export const ROUTINE_MORNING = (agentId: string): string => `r0000000-0000-4000-8000-${agentId.length.toString().padStart(11, "0")}1`;
+const ROUTINE_WEEKLY = (agentId: string): string => `r0000000-0000-4000-8000-${agentId.length.toString().padStart(11, "0")}2`;
+
+/** Hath `GET /agents/:id/routines`: the agent's standing duties and its job's check-backs, next run first. */
+export function routines(agentId: string): RoutineList {
+  const routine = (id: string, title: string, procedure: string, at: string, days: RoutineList["routines"][number]["days"], nextHours: number, lastHours: number | null) => ({
+    id,
+    agent_id: agentId,
+    title,
+    procedure,
+    at,
+    days,
+    next_run_at: ago(-nextHours * HOUR),
+    last_run_at: lastHours === null ? null : ago(lastHours * HOUR),
+    last_job_id: lastHours === null ? null : "4402",
+    active: true,
+    created_at: ago(20 * DAY),
+  });
+  if (agentId === "finance-specialist") {
+    return {
+      routines: [
+        routine(ROUTINE_MORNING(agentId), "Morning money check", "Read yesterday's charges and the pending ones, compare them with the budget, and message Ankur only if something is off.", "07:30", null, 14, 10),
+        routine(ROUTINE_WEEKLY(agentId), "Weekly spend summary", "Sum the week's spending by category and send Ankur one short message with the total and the biggest line.", "18:00", ["sun"], 70, 98),
+      ],
+      reminders: [{ id: "q0000000-0000-4000-8000-000000000001", agent_id: agentId, job_id: "1175", note: "Check the Chase charges settled", run_at: ago(-20 * MIN) }],
+    };
+  }
+  if (agentId === "career-manager") {
+    return { routines: [routine(ROUTINE_MORNING(agentId), "Application sweep", "Read the recruiter mail the specialists flagged, update the tracker, and list what needs Ankur's yes.", "09:00", ["mon", "tue", "wed", "thu", "fri"], 20, 4)], reminders: [] };
+  }
+  return { routines: [], reminders: [] };
 }

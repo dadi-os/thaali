@@ -6,7 +6,7 @@ import { Truncate } from "../../../shared/ui/Truncate";
 import { StaleBanner, StateView } from "../../../shared/states/ModuleState";
 import { WakeRow } from "./WakeRow";
 import { useWake, useWakeList } from "./useWakes";
-import { nowLine } from "./wakes";
+import { nowLine, type ScheduleNames } from "./wakes";
 
 /** Props of {@link Activity}. */
 export type ActivityProps = {
@@ -15,6 +15,8 @@ export type ActivityProps = {
   connected: boolean;
   /** An agent's display name by id; null is Ankur. */
   nameOf: (id: string | null) => string;
+  /** The routines and reminders that wake the agent, to name a scheduled wake. */
+  schedules: ScheduleNames;
   /** Selects the agent a wake's reason names. */
   onSelectAgent: (agentId: string) => void;
   /** The time the section's relative words are measured from. */
@@ -22,10 +24,10 @@ export type ActivityProps = {
 };
 
 /**
- * What the agent is doing and has done: the Now line (the work lane's latest call while a wake runs) over the wake timeline,
+ * What the agent has done: the current call (the latest call while a wake runs) over the wake timeline,
  * newest first, a page at a time. The running or latest wake is open until another is chosen; one wake is open at a time.
  */
-export function Activity({ agentId, connected, nameOf, onSelectAgent, now }: ActivityProps) {
+export function Activity({ agentId, connected, nameOf, schedules, onSelectAgent, now }: ActivityProps) {
   const list = useWakeList(agentId, connected);
   const wakes = useMemo(() => list.data?.pages.flatMap((page) => page.wakes), [list.data]);
   const latest = wakes?.[0];
@@ -39,7 +41,7 @@ export function Activity({ agentId, connected, nameOf, onSelectAgent, now }: Act
     <>
       {current === null ? null : (
         <div className="flex flex-col gap-0.5 rounded-[14px] bg-sage-fill px-4 py-2.5">
-          <SectionHeader title="Now" />
+          <SectionHeader title="Current call" />
           <div className="flex min-w-0 items-baseline gap-2">
             <span data-selectable className="flex-none font-numeric text-[13px] font-semibold">{current.name}</span>
             <Truncate text={current.target} className="ui-mono min-w-0 flex-1" />
@@ -71,6 +73,7 @@ export function Activity({ agentId, connected, nameOf, onSelectAgent, now }: Act
                 open={openId === wake.id}
                 onToggle={() => setChosen({ id: openId === wake.id ? null : wake.id })}
                 nameOf={nameOf}
+                schedules={schedules}
                 onSelectAgent={onSelectAgent}
                 now={now}
               />

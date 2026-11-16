@@ -14,10 +14,8 @@ export type ComposerProps = {
   setDraft: (v: string) => void;
   placeholder: string;
   canSubmit: boolean;
-  /** Process lane busy (processing): sends go to the local queue. */
-  processingMode: boolean;
-  /** The work lane is running (and the process lane is not): the glass takes a live rim. */
-  workingMode?: boolean;
+  /** The agent's loop is running: the glass takes a live rim. A send is always live; a message mid-wake joins the agent's next step. */
+  working?: boolean;
   /** Floats above the field, such as the chip saying what the agent is doing. */
   above?: ReactNode;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -48,8 +46,7 @@ export function Composer({
   setDraft,
   placeholder,
   canSubmit,
-  processingMode,
-  workingMode = false,
+  working = false,
   above,
   textareaRef,
   fileInputRef,
@@ -115,7 +112,7 @@ export function Composer({
               onPickFiles(e.dataTransfer.files);
             }
           }}
-          className={`composer-glass pointer-events-auto flex flex-col gap-2 px-2 py-2 transition-[opacity,box-shadow] duration-slow ease-dadi ${workingMode && !processingMode ? "composer-glass--live" : ""} ${processingMode ? "composer-glass--processing" : ""} ${connected ? "" : "opacity-70"}`}
+          className={`composer-glass pointer-events-auto flex flex-col gap-2 px-2 py-2 transition-[opacity,box-shadow] duration-slow ease-dadi ${working ? "composer-glass--live" : ""} ${connected ? "" : "opacity-70"}`}
         >
           <AnimatePresence initial={false}>
             {attachments.length > 0 ? (
@@ -198,14 +195,12 @@ export function Composer({
               rows={1}
               disabled={!connected}
               placeholder={connected ? placeholder : "Connect to message agent"}
-              className={`scroll block min-h-[40px] w-full flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] leading-snug outline-none placeholder:text-ink-ghost disabled:cursor-default ${
-                processingMode ? "text-ink/70" : "text-ink"
-              }`}
+              className={`scroll block min-h-[40px] w-full flex-1 resize-none bg-transparent px-1 py-2.5 text-[15px] leading-snug outline-none placeholder:text-ink-ghost disabled:cursor-default text-ink`}
               style={{ maxHeight: fieldMaxPx }}
             />
             <button
               type="submit"
-              aria-label={processingMode ? "Queue message" : "Send"}
+              aria-label="Send"
               disabled={!canSubmit}
               className={`mb-0.5 inline-flex size-9 shrink-0 items-center justify-center rounded-full transition-colors duration-slow ease-dadi ${
                 canSubmit ? "bg-ink text-bone hover:opacity-90" : "bg-transparent text-ink-muted"

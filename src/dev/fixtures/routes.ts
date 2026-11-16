@@ -1,7 +1,7 @@
 import type { NasTask } from "../../shared/api/nas";
 import { applyCommand } from "../../features/ghar/model";
 import type { GharCommand, GharCommissionJob, GharDevice, GharTag } from "../../types/ghar";
-import type { AgentTask, PatchScheduleRequest, PostMessageResponse, ScheduledMessage, ThreadReadMark } from "../../types/hath";
+import type { AgentTask, PostMessageResponse, RoutineList, StopResult, ThreadReadMark } from "../../types/hath";
 import type { QueryRequest } from "../../types/yaad";
 import type { AttendedRequest, PlansRequest, TaskDoneRequest, TasksRequest } from "../../types/planner";
 import type { Scenario } from "../scenario";
@@ -41,7 +41,9 @@ export type FixtureRequest = {
 export class Fixtures {
   private readonly devices: GharDevice[];
   private readonly tasks: NasTask[];
-  private readonly schedules = new Map<string, ScheduledMessage[]>();
+  private readonly routines = new Map<string, RoutineList>();
+  /** Agents Ankur stopped since the page loaded: their loop ends and their job reads stopped. */
+  private readonly stopped = new Set<string>();
   /** The line typed after each terminal's prompt, by terminal id, as keys sent to it build it. */
   private readonly typed = new Map<string, string>();
   /** Each `POST /tasks/:kind/:id/resume` the page made, in order, with the note it carried, so a flow can check the hand-back summary. */
@@ -74,7 +76,7 @@ export class Fixtures {
     const s = this.scenario;
     const agent = /^\w+ \/agents\/([^/]+)(\/\w+)?$/.exec(route);
     if (route === "GET /health") return hath.health();
-    if (route === "GET /agents") return { agents: hath.agents(s) };
+    if (route === "GET /agents") return { agents: hath.agents(s).map((a) => this.stoppedAgent(a)) };
     if (route === "GET /threads") return { threads: hath.threads(s) };
     if (route === "POST /devices/presence") {
       return { ...(body as { node_name: string; platform: string; app_version: string }), at: ago(0) };
@@ -92,20 +94,21 @@ export class Fixtures {
     if (log) return wakes.logRow(s, log[1]!, log[2]!);
     const halt = /^POST \/agents\/([^/]+)\/sessions\/([^/]+)\/halt$/.exec(route);
     if (halt) return this.haltSession(halt[1]!, decodeURIComponent(halt[2]!));
-    const schedule = /^(PATCH|DELETE) \/schedules\/([^/]+)$/.exec(route);
-    if (schedule) {
-      return schedule[1] === "PATCH" ? this.patchSchedule(schedule[2]!, body as PatchScheduleRequest) : this.cancelSchedule(schedule[2]!);
+    const cancel = /^DELETE \/(routines|reminders)\/([^/]+)$/.exec(route);
+    if (cancel) {
+      return this.cancel(cancel[1] === "routines" ? "routines" : "reminders", cancel[2]!);
     }
     if (agent) {
       const [, id, sub] = agent;
-      if (route.startsWith("GET") && sub === undefined) return hath.agentDetail(s, id!);
+      if (route.startsWith("GET") && sub === undefined) return this.stoppedAgent(hath.agentDetail(s, id!));
       if (route.startsWith("GET") && sub === "/messages") return { messages: hath.messages(s, id!) };
       if (route.startsWith("GET") && sub === "/wakes") {
         const before = url.searchParams.get("before_id");
         const limit = Number(url.searchParams.get("limit") ?? DEFAULT_WAKE_LIMIT);
         return wakes.wakeList(s, id!, limit, before === null ? null : { started_at: url.searchParams.get("before_started_at")!, id: before });
       }
-      if (route.startsWith("GET") && sub === "/schedules") return { schedules: structuredClone(this.schedulesOf(id!)) };
+      if (route.startsWith("GET") && sub === "/routines") return structuredClone(this.routinesOf(id!));
+      if (route.startsWith("POST") && sub === "/stop") return this.stop(id!);
       if (route.startsWith("POST") && sub === "/read") {
         const mark: ThreadReadMark = { agent_id: id!, read_seq: (body as { seq: number }).seq, unread: 0 };
         return mark;
@@ -124,32 +127,36 @@ export class Fixtures {
     return { task: { ...row, status: "stopped" } };
   }
 
-  /** The schedules of `agentId` a page may have edited or cancelled since it loaded. */
-  private schedulesOf(agentId: string): ScheduledMessage[] {
-    const held = this.schedules.get(agentId) ?? hath.schedules(agentId);
-    this.schedules.set(agentId, held);
+  /** The routines and reminders of `agentId` a page may have cancelled since it loaded. */
+  private routinesOf(agentId: string): RoutineList {
+    const held = this.routines.get(agentId) ?? hath.routines(agentId);
+    this.routines.set(agentId, held);
     return held;
   }
 
-  private patchSchedule(id: string, body: PatchScheduleRequest): ScheduledMessage {
-    for (const held of this.schedules.values()) {
-      const found = held.find((schedule) => schedule.id === id);
-      if (found !== undefined) {
-        return Object.assign(found, body);
-      }
-    }
-    throw new Error(`fixtures: no schedule ${id}`);
-  }
-
-  private cancelSchedule(id: string): { cancelled: true; schedule_id: string } {
-    for (const held of this.schedules.values()) {
-      const index = held.findIndex((schedule) => schedule.id === id);
+  private cancel(kind: "routines" | "reminders", id: string): { cancelled: true; id: string } {
+    for (const agentId of ["finance-specialist", "career-manager"]) {
+      const held = this.routinesOf(agentId)[kind];
+      const index = held.findIndex((item) => item.id === id);
       if (index >= 0) {
         held.splice(index, 1);
-        return { cancelled: true, schedule_id: id };
+        return { cancelled: true, id };
       }
     }
-    throw new Error(`fixtures: no schedule ${id}`);
+    throw new Error(`fixtures: no ${kind} ${id}`);
+  }
+
+  /** An agent as it reads after Ankur stopped it: its loop ended and its job says it was stopped. */
+  private stoppedAgent<T extends { id: string; running: { working: boolean; job: { stopped: { at: string; by: string } | null } | null } }>(agent: T): T {
+    if (!this.stopped.has(agent.id) || agent.running.job === null) {
+      return agent;
+    }
+    return { ...agent, running: { ...agent.running, working: false, job: { ...agent.running.job, stopped: { at: ago(0), by: "ankur" } } } };
+  }
+
+  private stop(agentId: string): StopResult {
+    this.stopped.add(agentId);
+    return { agent_id: agentId, ended_run: true, job: 1175, stopped_tasks: [], halt_failed: [] };
   }
 
   private nas(route: string, url: URL, body: unknown): unknown {

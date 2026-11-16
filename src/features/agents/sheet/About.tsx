@@ -1,11 +1,8 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
 import type { AgentRecord } from "../../../types/hath";
 import { KeyValue, SectionHeader } from "../../../shared/components/Module";
-import { RISE } from "../../../shared/motion";
 import { formatDay, formatRelative } from "../../../shared/lib/ux/time";
 import { Disclosure } from "../../../shared/ui/Disclosure";
-import { Clamp } from "../../../shared/ui/Truncate";
 import { AgentLink } from "./AgentLink";
 import { compact } from "./wakes";
 
@@ -49,12 +46,9 @@ export type AboutProps = {
   now: number;
 };
 
-/** What the agent is: its parent, when it was made and last active, its current step, the messages queued to send, and its charter behind a disclosure. */
+/** What the agent is: its parent, when it was made and last active, and its charter behind a disclosure. */
 export function About({ agent, parent, onSelectParent, now }: AboutProps) {
   const [charterOpen, setCharterOpen] = useState(false);
-  const pending = agent.running.status?.pending ?? [];
-  const step = agent.running.status?.step ?? null;
-  const who = (id: string | null) => (id === null ? "Ankur" : id);
   return (
     <div className="flex flex-col">
       <SectionHeader title="About" />
@@ -69,23 +63,6 @@ export function About({ agent, parent, onSelectParent, now }: AboutProps) {
       </KeyValue>
       <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>
       <KeyValue label="Last active">{formatRelative(agent.updated_at, now)}</KeyValue>
-      {step === null ? null : (
-        <KeyValue label="Step" selectable>
-          {step}
-        </KeyValue>
-      )}
-      {pending.length > 0 ? (
-        <div className="flex flex-col gap-1.5 py-2">
-          <span className="ui-label">{`Queued to send · ${pending.length}`}</span>
-          <AnimatePresence initial={false}>
-            {pending.map((message) => (
-              <motion.span key={message.id} {...RISE} layout="position" data-selectable className="text-[13px] text-ink-muted">
-                <Clamp text={`To ${who(message.to)}${message.expects_reply ? " (expects a reply)" : ""}: ${message.preview}`} lines={2} />
-              </motion.span>
-            ))}
-          </AnimatePresence>
-        </div>
-      ) : null}
       <Disclosure
         title="Charter"
         summary={`~${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens · ${compact(agent.system_prompt.length)} chars`}

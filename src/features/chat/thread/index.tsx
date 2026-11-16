@@ -2,8 +2,8 @@ import { useEffect, useRef, useState, type RefObject, type UIEvent } from "react
 import { AnimatePresence, motion } from "motion/react";
 import { FADE } from "../../../shared/motion";
 import type { AgentRecord } from "../../../types/hath";
-import { messageKey, type ChatMessage } from "../../../contexts/chat";
-import { trackIncoming } from "../lanes";
+import { latestAgentStatus, messageKey, type ChatMessage } from "../../../contexts/chat";
+import { trackIncoming } from "../incoming";
 import { MessageBubble } from "../../../shared/components/Thread/Message";
 import { ThreadEmpty } from "./ThreadEmpty";
 import { ThreadSkeleton } from "./ThreadSkeleton";
@@ -21,10 +21,9 @@ export interface ThreadViewProps {
   fadeTop: boolean;
   /** Space kept clear at the top for the floating header, which messages scroll under. */
   headerPad: number;
-  settledMessages: ChatMessage[];
-  queuedMessages: ChatMessage[];
+  messages: ChatMessage[];
   onRetry: (msg: ChatMessage) => void;
-  onCancel: (seq: number) => void;
+  onDismiss: (seq: number) => void;
   /** Display name of the open agent, for the empty state. */
   agentName: string;
   /** Open agent's record once loaded; adds spawn time to the empty state. */
@@ -40,7 +39,7 @@ export interface ThreadViewProps {
   onSuggest: (text: string) => void;
 }
 
-/** Open thread scroll pane: settled messages and queued sends. The composer's lane pill shows what the agent is doing. */
+/** Open thread scroll pane: the human thread's messages. The composer's activity pill shows what the agent is doing, and the agent's newest message carries what the thread still waits on. */
 export function ThreadView({
   scrollRef,
   onScroll,
@@ -48,10 +47,9 @@ export function ThreadView({
   composerPad,
   fadeTop,
   headerPad,
-  settledMessages,
-  queuedMessages,
+  messages,
   onRetry,
-  onCancel,
+  onDismiss,
   agentName,
   agent,
   load,
@@ -64,7 +62,7 @@ export function ThreadView({
   trackIncoming(
     knownRef.current,
     liveRef.current,
-    [...settledMessages, ...queuedMessages],
+    messages,
     !seededRef.current,
   );
   seededRef.current = true;
@@ -78,10 +76,11 @@ export function ThreadView({
   }, [scrollRef, ready]);
 
   const [shown, setShown] = useState(PAGE);
-  const hidden = Math.max(0, settledMessages.length - shown);
-  const drawn = hidden > 0 ? settledMessages.slice(hidden) : settledMessages;
-  const isEmpty =
-    settledMessages.length === 0 && queuedMessages.length === 0;
+  const hidden = Math.max(0, messages.length - shown);
+  const drawn = hidden > 0 ? messages.slice(hidden) : messages;
+  const isEmpty = messages.length === 0;
+  const standing = latestAgentStatus(messages);
+  const newestAgent = [...messages].reverse().find((msg) => msg.seq >= 0 && !msg.from_user);
 
   return (
     <div className="absolute inset-0">
@@ -132,18 +131,9 @@ export function ThreadView({
                   msg.from_user ? () => onRetry(msg) : undefined
                 }
                 onCancel={
-                  msg.failed ? () => onCancel(msg.seq) : undefined
+                  msg.failed ? () => onDismiss(msg.seq) : undefined
                 }
-              />
-            ))}
-          </AnimatePresence>
-          <AnimatePresence initial={false}>
-            {queuedMessages.map((msg) => (
-              <MessageBubble
-                key={messageKey(msg)}
-                message={msg}
-                live={liveRef.current.has(messageKey(msg))}
-                onCancel={() => onCancel(msg.seq)}
+                standing={msg === newestAgent ? standing : null}
               />
             ))}
           </AnimatePresence>

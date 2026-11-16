@@ -26,7 +26,7 @@ export type ConversationListProps = {
   historyError: string | null;
   /** Reload the conversations after a failed load. */
   onRetry: () => void;
-  /** Lanes running per agent: a running agent's row opens with a pulsing dot. */
+  /** What each agent is running: a working agent's row opens with a pulsing dot. */
   running: RunningMap;
   /** Messages to you held while you were busy, per agent. */
   unread: Record<string, number>;
@@ -138,7 +138,7 @@ export function ConversationList({
                       key={conv.agent_id}
                       conversation={conv}
                       unread={unread[conv.agent_id] ?? 0}
-                      working={running[conv.agent_id]?.work === true || running[conv.agent_id]?.process === true}
+                      working={running[conv.agent_id]?.working === true}
                       selected={conv.agent_id === selectedAgentId}
                       wide={wide}
                       now={now}

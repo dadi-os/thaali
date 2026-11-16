@@ -18,7 +18,7 @@ import { HostPin } from "./HostPin";
 import { pickLiveTasks, tasksRefetchInterval } from "../agents/sessions";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useLingering } from "../../shared/hooks/useLingering";
-import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
+import { AGENTS_QUERY_KEY, fetchAgents } from "../../shared/hooks/useEvents";
 import { isMeshOnline } from "../../shared/api";
 import {
   addOptimistic,
@@ -26,8 +26,6 @@ import {
   getChatState,
   hydrateThreadMessages,
   ingestLiveMessage,
-  listQueuedThread,
-  queuedAgentIds,
   markFailed,
   markPending,
   mergeConversations,
@@ -44,9 +42,9 @@ import { getDockRequests, subscribeDock } from "../../contexts/dock";
 import { asQuote, getReplyRequests, getReplyText, subscribeReply } from "../../contexts/reply";
 import { failureTarget, pushToast } from "../../contexts/toasts";
 import {
+  getLiveWakes,
   getRunning,
   isRouting,
-  seedRunningFromAgents,
   setLocalSend,
   subscribeRunning,
 } from "../../contexts/running";
@@ -72,9 +70,8 @@ import {
   PIN_LINGER_MS,
 } from "./constants";
 import { Dock } from "./Dock";
-import { partitionByQueued } from "./lanes";
 import { ConversationList, WIDE_ROW_PX } from "./list";
-import { LaneChip } from "./LaneChip";
+import { ActivityChip } from "./ActivityChip";
 import { ResizeHandle, useRailWidth } from "./ResizeHandle";
 import { ThreadView } from "./thread";
 import { ThreadSkeleton } from "./thread/ThreadSkeleton";
@@ -132,6 +129,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     getRunning,
     getRunning,
   );
+  const liveWakes = useSyncExternalStore(subscribeRunning, getLiveWakes, getLiveWakes);
 
   const [draftAttachments, setDraftAttachments] = useState<DraftAttachment[]>(
     [],
@@ -163,11 +161,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const agentsQuery = useQuery({
     queryKey: AGENTS_QUERY_KEY,
-    queryFn: async () => {
-      const { agents } = await hath.listAgents();
-      seedRunningFromAgents(agents);
-      return agents;
-    },
+    queryFn: fetchAgents,
     enabled: connected,
   });
 
@@ -226,11 +220,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     });
   }, [draftKey]);
 
-  const processBusy = viewingThread && openAgentId ? running[openAgentId]?.process === true : false;
-  const workBusy =
-    viewingThread && openAgentId
-      ? running[openAgentId]?.work === true
-      : false;
+  const openRunning = openAgentId ? running[openAgentId] : undefined;
+  const busy = viewingThread && openRunning?.working === true;
 
   const scrollToBottom = useEffectEvent((behavior: ScrollBehavior = "auto") => {
     const el = scrollRef.current;
@@ -254,7 +245,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return;
     }
     el.scrollTop = el.scrollHeight;
-  }, [threadMessages, processBusy, workBusy, viewingThread, composerHeight]);
+  }, [threadMessages, busy, viewingThread, composerHeight]);
 
   useEffect(() => {
     const el = textareaRef.current;
@@ -276,7 +267,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   /**
    * Load the open thread, then keep it fresh. SSE has no replay, so a dropped
    * stream or tunnel flap would otherwise hide replies until the thread is
-   * reopened. Refreshes run on a slow interval, when the agent's process lane
+   * reopened. Refreshes run on a slow interval, when the agent's wake
    * goes idle, and when the window regains focus or becomes visible.
    */
   useEffect(() => {
@@ -412,18 +403,12 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return;
     }
 
-    const processHeld = running[toId]?.process === true;
-    const queueLocally = existingTempSeq === undefined && processHeld;
-
     let tempSeq: number;
     if (existingTempSeq !== undefined) {
       markPending(toId, existingTempSeq);
       tempSeq = existingTempSeq;
     } else {
-      tempSeq = addOptimistic(toId, trimmed, {
-        queued: queueLocally,
-        attachments,
-      });
+      tempSeq = addOptimistic(toId, trimmed, { attachments });
       setDraft("");
       clearDraftAttachments();
       requestAnimationFrame(() => {
@@ -437,10 +422,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
     if (toId === openAgentId) {
       stickToBottomRef.current = true;
-    }
-
-    if (queueLocally) {
-      return;
     }
 
     try {
@@ -459,39 +440,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     }
   };
 
-  /** Agents whose queue is being sent now, so overlapping flushes never send a message twice or out of order. */
-  const flushingRef = useRef(new Set<string>());
-
-  /**
-   * Send every agent's queued messages, oldest first, once its process lane is idle,
-   * whether or not its thread is open, so a queue never outlives leaving the chat.
-   */
-  const flushQueues = useEffectEvent(async () => {
-    if (!connected) {
-      return;
-    }
-    for (const agentId of queuedAgentIds()) {
-      if (running[agentId]?.process === true || flushingRef.current.has(agentId)) {
-        continue;
-      }
-      flushingRef.current.add(agentId);
-      try {
-        for (const msg of listQueuedThread(agentId)) {
-          await sendThread(agentId, msg.content, msg.seq, msg.attachments);
-        }
-      } finally {
-        flushingRef.current.delete(agentId);
-      }
-    }
-  });
-
-  useEffect(() => {
-    void flushQueues();
-  }, [running, connected]);
-
   const wasBusyRef = useRef(false);
   useEffect(() => {
-    if (processBusy) {
+    if (busy) {
       wasBusyRef.current = true;
       return;
     }
@@ -500,9 +451,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     }
     wasBusyRef.current = false;
     refreshThreadRef.current?.();
-  }, [processBusy]);
+  }, [busy]);
 
-  const cancelQueued = (seq: number) => {
+  const dismissFailed = (seq: number) => {
     if (openAgentId) {
       removeMessage(openAgentId, seq);
     }
@@ -620,14 +571,10 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     clearDraftAttachments();
   };
 
-  const placeholder = !connected ? "Connect to message agent" : processBusy ? `Processing…` : `Message agent`;
+  const placeholder = !connected ? "Connect to message agent" : "Message agent";
 
   const canSubmit = connected && (draft.trim().length > 0 || draftAttachments.length > 0);
   const composerPad = composerHeight + COMPOSER_GAP;
-
-  const { settled: settledMessages, queued: queuedMessages } = partitionByQueued(
-    threadMessages,
-  );
 
 
   const openAgentView = resolveOpenAgent(openAgentId, agentsQuery);
@@ -723,12 +670,11 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                   composerPad={composerPad}
                   fadeTop={showHostPin}
                   headerPad={showHostPin ? 0 : THREAD_HEADER_PX}
-                  settledMessages={settledMessages}
-                  queuedMessages={queuedMessages}
+                  messages={threadMessages}
                   onRetry={(msg) => {
                     void sendThread(openAgentId, msg.content, msg.seq, msg.attachments);
                   }}
-                  onCancel={cancelQueued}
+                  onDismiss={dismissFailed}
                   agentName={openAgentRecord.name}
                   agent={openAgentRecord}
                   load={threadLoad?.agentId === openAgentId ? threadLoad : null}
@@ -752,9 +698,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 setDraft={setDraft}
                 placeholder={placeholder}
                 canSubmit={canSubmit}
-                processingMode={processBusy}
-                workingMode={workBusy && !processBusy}
-                above={<LaneChip process={processBusy} work={workBusy} />}
+                working={busy}
+                above={<ActivityChip running={openRunning ?? { working: false, waiting_on: null, job: null }} live={openAgentId ? liveWakes[openAgentId] : undefined} />}
                 fieldMaxPx={TEXTAREA_MAX_PX}
                 textareaRef={textareaRef}
                 fileInputRef={fileInputRef}

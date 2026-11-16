@@ -75,7 +75,7 @@ const message = (seq, content) => ({ type: "message", agent_id: "finance-special
 
 /** Scripted flows: each opens something, then captures its frames and runs the checks. */
 function flowJobs(scenario) {
-  const job = (name, route, steps, settleMs = 2500, height = 900, width = 1440) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}`, width, height, settleMs, steps });
+  const job = (name, route, steps, settleMs = 2500, height = 900, width = 1440) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}${route.includes("fixtures=") ? "" : `${route.includes("?") ? "&" : "?"}fixtures=${scenario}`}`, width, height, settleMs, steps });
   const frames = (tag, times) => times.flatMap((t, i) => [{ wait: i === 0 ? t : t - times[i - 1] }, { shot: `flow-${tag}~${scenario}~${t}ms.png` }]);
   return [
     job("agent-sheet", "/hath", [
@@ -128,8 +128,8 @@ function flowJobs(scenario) {
       { eval: "window.__mountSince = performance.now(); 0" },
       { eval: emit(message(3001, "Both pending charges are expected: Spotify and the gym, nothing else due before Friday.")) },
       ...frames("toast-info", [80, 320, 900]),
-      { eval: emit({ type: "lane_failed", agent_id: "finance-specialist", lane: "work", message: "dwar returned 529 overloaded while reading the October statement" }) },
-      { eval: emit({ type: "lane_failed", agent_id: "finance-specialist", lane: "work", message: "dwar returned 529 overloaded while reading the October statement" }) },
+      { eval: emit({ type: "wake_ended", agent_id: "finance-specialist", wake_id: "00000000-0000-4000-9000-000000000008", outcome: "failed" }) },
+      { eval: emit({ type: "wake_ended", agent_id: "finance-specialist", wake_id: "00000000-0000-4000-9000-000000000008", outcome: "failed" }) },
       ...frames("toast-error-folded", [1300]),
       { checks: "toasts" },
     ]),
@@ -198,39 +198,37 @@ function flowJobs(scenario) {
       { eval: clickText("button", "Cancel") },
       ...frames("chaavi-delete-cancel", [100, 250, 600]),
     ]),
-    job("hath-schedule", "/hath?agent=career-manager", [
-      { eval: clickText("button", "Scheduled") },
-      ...frames("hath-schedule-open", [400]),
-      { eval: `document.querySelector("button[aria-label='Edit schedule 1']").click(); 0` },
-      ...frames("hath-schedule-edit", [300]),
-      { checks: "schedule-edit" },
-      { eval: typeInto("textarea[aria-label=Message]", "Morning check, edited.") },
-      { eval: clickText("button", "Save") },
-      ...frames("hath-schedule-saved", [600]),
-      { eval: expectText("Morning check, edited.") },
-      { eval: `document.querySelector("button[aria-label='Edit schedule 2']").click(); 0` },
-      { wait: 700 },
-      { eval: clickText("button", "Cancel schedule") },
-      ...frames("hath-schedule-confirm", [300]),
-      { eval: expectText("This schedule will not run again.") },
-      { eval: clickText("button", "Confirm cancel") },
-      ...frames("hath-schedule-cancelled", [600]),
-      { eval: expectText("Weekly spend summary for Ankur.", true) },
+    job("hath-routines", "/hath?agent=career-manager", [
+      ...frames("hath-routines-open", [500]),
+      { eval: expectText("Application sweep") },
+      { eval: expectText("Weekdays at 9:00 AM") },
+      { eval: `document.querySelector("button[aria-label='Cancel Application sweep']").click(); 0` },
+      ...frames("hath-routines-confirm", [400]),
+      { eval: expectText("It will not run again.") },
+      { eval: clickText("button", "Cancel routine") },
+      ...frames("hath-routines-cancelled", [700]),
+      { eval: expectText("Application sweep", true) },
     ]),
-    job("hath-activity", "/hath?agent=career-manager", [
-      { eval: clickText("button", "Activity") },
-      ...frames("hath-activity-open", [400]),
+    job("hath-activity", "/hath?agent=finance-specialist", [
+      ...frames("hath-activity-open", [600]),
       { checks: "activity-open" },
+      { eval: expectText("Current call") },
       { eval: clickText("button", "earlier steps") },
       { wait: 700 },
       { eval: clickText("button[aria-expanded=false]", "search_files") },
       ...frames("hath-activity-unfolded", [700]),
       { eval: expectText("pattern") },
-      { eval: clickText("button", "Show 3 older") },
+      { eval: clickText("button", "Load earlier") },
       ...frames("hath-activity-older", [700]),
-      { eval: expectText("The work lane stopped") },
-      { eval: clickText("[role=radio]", "Working") },
-      ...frames("hath-activity-working", [400]),
+    ]),
+    ...["health-specialist", "cse-300-specialist", "efficiency-specialist", "coding-manager", "networking-specialist"].map((agent) => job(`hath-state-${agent}`, `/hath?agent=${agent}`, [{ wait: 700 }, { shot: `flow-hath-state-${agent}~${scenario}.png` }])),
+    job("hath-stop", "/hath?agent=finance-specialist", [
+      { eval: `document.querySelector("button[aria-label='Stop finance-specialist']").click(); 0` },
+      ...frames("hath-stop-confirm", [400]),
+      { eval: expectText("Stop this job and its helper tasks?") },
+      { eval: clickText("button", "Stop") },
+      ...frames("hath-stop-stopped", [1000]),
+      { eval: expectText("Stopped by you") },
     ]),
     job("hath-search", "/hath", [
       { eval: typeInto("[data-page=hath] input[aria-label='Search agents']", "finance") },
@@ -304,8 +302,7 @@ function polishJobs() {
     job("thread", "/?fixtures=normal", [
       { eval: sidebarRow("finance-specialist") },
       { wait: 900 },
-      { eval: emit({ type: "lane_started", agent_id: "finance-specialist", lane: "process" }) },
-      { eval: emit({ type: "lane_started", agent_id: "finance-specialist", lane: "work" }) },
+      { eval: emit({ type: "wake_started", agent_id: "finance-specialist", wake_id: "00000000-0000-4000-9000-000000000009", reason: { kind: "message", ref: null } }) },
       { wait: 900 },
       { shot: "polish-thread-pill.png" },
     ]),

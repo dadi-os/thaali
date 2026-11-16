@@ -31,9 +31,9 @@ function unreadOf(scenario: Scenario): Record<string, number> {
   return Object.fromEntries(hath.threads(scenario).map((t) => [t.agent_id, t.unread]));
 }
 
-/** The fixtures' running lanes, per agent. */
+/** What the fixtures' agents are running, per agent. */
 function runningOf(scenario: Scenario): RunningMap {
-  return Object.fromEntries(hath.agents(scenario).map((a) => [a.id, { work: a.running.work, process: a.running.process }]));
+  return Object.fromEntries(hath.agents(scenario).map((a) => [a.id, a.running]));
 }
 
 /** The user's messages to one agent in the fixtures: the draft texts the dock cases type. */

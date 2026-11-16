@@ -22,7 +22,6 @@ import { TrayIcon } from "@tauri-apps/api/tray";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { dispatchDesktopShell } from "../../contexts/desktopShell";
 import { isTauriRuntime } from "./runtime";
-import { LANE_LABEL } from "../lib/ux/lanes";
 import unreadMarkUrl from "../../assets/tray-unread.png";
 
 const TRAY_ID = "dadi-tray";
@@ -35,7 +34,7 @@ export type TrayAgent = {
   id: string;
   name: string;
   active: boolean;
-  running: { work: boolean; process: boolean };
+  running: { working: boolean };
 };
 
 /** Live list, still loading, or last fetch failed. */
@@ -53,9 +52,9 @@ export type TraySnapshot = {
   agents: TrayListState<TrayAgent>;
 };
 
-/** The agents the Agents menu lists: those with a lane running, since the rest have nothing to show. */
+/** The agents the Agents menu lists: those whose loop is running, since the rest have nothing to show. */
 export function workingAgents(agents: TrayAgent[]): TrayAgent[] {
-  return agents.filter((agent) => agent.running.work || agent.running.process);
+  return agents.filter((agent) => agent.running.working);
 }
 
 /** Items we mutate after install. Held so updates do not depend on Menu.get. */
@@ -277,10 +276,9 @@ async function setEnabledIf(item: MenuItem, enabled: boolean): Promise<void> {
   }
 }
 
-/** One working agent's row: its name and the lanes that are running. */
+/** One working agent's row: its name and that it is working. */
 function agentSlotLabel(agent: TrayAgent): string {
-  const lanes = [agent.running.work ? LANE_LABEL.work : null, agent.running.process ? LANE_LABEL.process : null].filter((lane) => lane !== null);
-  return `${agent.name}  ·  ${lanes.join(" · ")}`;
+  return `${agent.name}  ·  working`;
 }
 
 /** The Agents menu's status line: how many agents are working, or why it cannot say. */

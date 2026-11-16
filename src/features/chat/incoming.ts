@@ -1,17 +1,6 @@
-/** Pure helpers for chat sidebar lane/message presentation. */
+/** Pure helper for the open thread: which rows arrived live. */
 
 import { messageKey, type ChatMessage } from "../../contexts/chat";
-
-/** Split messages into settled and queued (local hold while the process lane is busy). */
-export function partitionByQueued(messages: ChatMessage[]): {
-  settled: ChatMessage[];
-  queued: ChatMessage[];
-} {
-  return {
-    settled: messages.filter((msg) => !msg.queued),
-    queued: messages.filter((msg) => msg.queued),
-  };
-}
 
 /**
  * First call (`seed`) records the open-thread snapshot so those rows stay still.

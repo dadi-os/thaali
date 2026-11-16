@@ -5,6 +5,7 @@ import { hath } from "../../../shared/api";
 import type { WakeEntry, WakeToolCall } from "../../../types/hath";
 import { REVEAL } from "../../../shared/motion";
 import { formatClock } from "../../../shared/lib/ux/time";
+import { Chip } from "../../../shared/ui/Chip";
 import { Icon } from "../../../shared/ui/Icon";
 import { Truncate } from "../../../shared/ui/Truncate";
 import { AgentLink } from "./AgentLink";
@@ -42,14 +43,18 @@ function MessageBubble({ entry, nameOf, onSelectAgent }: { entry: Extract<WakeEn
   const [open, setOpen] = useState(false);
   const received = entry.direction === "received";
   const counterpartId = received ? entry.message.from_agent_id : entry.message.to_agent_id;
+  const notice = entry.message.kind === "notice";
   return (
     <div className={`flex min-w-0 flex-col gap-1 ${received ? "items-start" : "items-end"}`}>
-      <span className="max-w-full text-[11.5px] text-ink-muted">
-        {received ? "From " : "To "}
-        <span data-selectable className="font-semibold [overflow-wrap:anywhere]"><AgentLink agentId={counterpartId} name={nameOf(counterpartId)} onSelect={onSelectAgent} /></span>
-        {` · ${formatClock(entry.at)}`}
+      <span className="flex max-w-full items-center gap-1.5 text-[11.5px] text-ink-muted">
+        <span>
+          {notice ? "Note from hath" : received ? "From " : "To "}
+          {notice ? null : <span data-selectable className="font-semibold [overflow-wrap:anywhere]"><AgentLink agentId={counterpartId} name={nameOf(counterpartId)} onSelect={onSelectAgent} /></span>}
+          {` · ${formatClock(entry.at)}`}
+        </span>
+        {entry.message.status === "needs_input" ? <Chip tone="tide">Needs input</Chip> : entry.message.status === "blocked" ? <Chip tone="late">Blocked</Chip> : null}
       </span>
-      <div data-selectable className={`max-w-[92%] min-w-0 rounded-[12px] border px-3 py-2 text-[13px] leading-[18px] ${received ? "border-transparent bg-sage-fill" : "border-glass-border bg-bone-raised"}`}>
+      <div data-selectable className={`max-w-[92%] min-w-0 rounded-[12px] border px-3 py-2 text-[13px] leading-[18px] ${notice ? "border-dashed border-rule bg-transparent text-ink-muted" : received ? "border-transparent bg-sage-fill" : "border-glass-border bg-bone-raised"}`}>
         <Expand lines={5} lineHeight={18} open={open} onToggle={() => setOpen(!open)}>
           <span className="block whitespace-pre-wrap [overflow-wrap:anywhere]">{entry.message.content}</span>
         </Expand>
@@ -58,16 +63,13 @@ function MessageBubble({ entry, nameOf, onSelectAgent }: { entry: Extract<WakeEn
   );
 }
 
-/** One model turn: its lane and time, what it said, its thinking behind a disclosure, and a line per tool call. */
+/** One model turn: its time, what it said, its thinking behind a disclosure, and a line per tool call. */
 function TurnBlock({ entry, agentId }: { entry: Extract<WakeEntry, { type: "turn" }>; agentId: string }) {
   const [thinkingOpen, setThinkingOpen] = useState(false);
   const firstLine = entry.thinking?.split("\n").find((line) => line.trim() !== "") ?? "";
   return (
     <div className="flex flex-col gap-1.5 border-l border-rule pl-3">
-      <span className="flex items-center gap-2 text-[11.5px] text-ink-muted">
-        <span className="ui-label text-[11px]">{entry.lane === "work" ? "Work" : "Process"}</span>
-        {formatClock(entry.at)}
-      </span>
+      <span className="text-[11.5px] text-ink-muted">{formatClock(entry.at)}</span>
       {entry.text === null ? null : <Rich source={entry.text} size={13} lineHeight={19} />}
       {entry.thinking === null ? null : (
         <div className="flex flex-col">

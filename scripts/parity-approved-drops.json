@@ -5,5 +5,8 @@
   "ghar.moveDevice": "A device has no room to move to; tags replace it (setDeviceTags, addTagDevices, removeTagDevice).",
   "yaad.getNode": "The session popover replaced the connections popover, which was the only reader of a node; a session now offers Show in Yaad instead.",
   "hath.getAgentLogs": "The popover read raw log rows only to guess wakes; Hath now serves wakes directly (listWakes, getWake, getLog) and rejects the wakes parameter.",
-  "ghar.renameRoom": "Ghar dropped rooms and went tags-only; renameTag renames a tag."
+  "ghar.renameRoom": "Ghar dropped rooms and went tags-only; renameTag renames a tag.",
+  "hath.listSchedules": "Hath replaced scheduled messages with routines and reminders; listRoutines reads them.",
+  "hath.patchSchedule": "Routines and reminders have no PATCH: a routine is changed only by its own agent, so editing is a message to the agent.",
+  "hath.cancelSchedule": "Ankur cancels a routine or a reminder instead: cancelRoutine and cancelReminder."
 }

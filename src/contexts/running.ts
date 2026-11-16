@@ -1,10 +1,20 @@
-import type { AgentRecord, Lane } from "../types/hath";
+import type { AgentRecord, AgentRunning, HathEvent, WakeCounts } from "../types/hath";
 
-export type RunningMap = Record<string, { work: boolean; process: boolean }>;
+/** Each agent's `running` block: seeded from GET /agents, and moved by wake events between refetches. */
+export type RunningMap = Record<string, AgentRunning>;
+
+/** A wake that is running now and what it has done so far. */
+export type LiveWake = { wakeId: string; counts: WakeCounts };
 
 type Listener = (running: RunningMap) => void;
 
+/** What an agent that was never listed reads as. */
+const QUIET: AgentRunning = { working: false, waiting_on: null, job: null };
+const NO_COUNTS: WakeCounts = { tool_calls: 0, messages_sent: 0, messages_received: 0 };
+
 let running: RunningMap = {};
+/** The running wake of each agent, with the counts `wake_activity` last reported. */
+let liveWakes: Record<string, LiveWake> = {};
 /** Router runs Hath reported in flight, by run id. */
 let routerRuns = new Set<string>();
 /** This device's own POST /router calls in flight. */
@@ -17,12 +27,22 @@ function emit(): void {
   }
 }
 
-/** Which lanes are running, per agent. */
+/** What each agent is running, per agent. */
 export function getRunning(): RunningMap {
   return running;
 }
 
-/** Listens for running-lane changes; returns the unsubscribe function. */
+/** The running wake of an agent, or undefined while it has none. */
+export function getLiveWake(agentId: string): LiveWake | undefined {
+  return liveWakes[agentId];
+}
+
+/** The counts of every running wake; changes identity whenever one moves, for `useSyncExternalStore`. */
+export function getLiveWakes(): Record<string, LiveWake> {
+  return liveWakes;
+}
+
+/** Listens for running changes; returns the unsubscribe function. */
 export function subscribeRunning(listener: Listener): () => void {
   listeners.add(listener);
   return () => {
@@ -30,50 +50,36 @@ export function subscribeRunning(listener: Listener): () => void {
   };
 }
 
-/** Seed from GET /agents (or reconnect refetch). */
+/** Seed from GET /agents (or reconnect refetch). An agent that is not working has no live wake. */
 export function seedRunningFromAgents(agents: AgentRecord[]): void {
   const next: RunningMap = {};
   for (const agent of agents) {
-    next[agent.id] = { work: agent.running.work, process: agent.running.process };
+    next[agent.id] = agent.running;
   }
-  if (runningMapsEqual(running, next)) {
+  const nextLive = Object.fromEntries(Object.entries(liveWakes).filter(([id]) => next[id]?.working === true));
+  if (JSON.stringify(running) === JSON.stringify(next) && Object.keys(nextLive).length === Object.keys(liveWakes).length) {
     return;
   }
   running = next;
+  liveWakes = nextLive;
   emit();
 }
 
-function runningMapsEqual(a: RunningMap, b: RunningMap): boolean {
-  const aKeys = Object.keys(a);
-  const bKeys = Object.keys(b);
-  if (aKeys.length !== bKeys.length) {
-    return false;
-  }
-  for (const id of aKeys) {
-    const left = a[id];
-    const right = b[id];
-    if (
-      !right ||
-      left.work !== right.work ||
-      left.process !== right.process
-    ) {
-      return false;
-    }
-  }
-  return true;
-}
+/** The wake events that move an agent's running state without a refetch. */
+export type WakeEvent = Extract<HathEvent, { type: "wake_started" | "wake_ended" | "wake_activity" }>;
 
-/** Records whether one agent lane is running and notifies listeners. */
-export function setLaneRunning(
-  agentId: string,
-  lane: Lane,
-  isRunning: boolean,
-): void {
-  const current = running[agentId] ?? { work: false, process: false };
-  running = {
-    ...running,
-    [agentId]: { ...current, [lane]: isRunning },
-  };
+/** Applies one wake event: a start marks the loop working, an end marks it idle, activity updates the counts. */
+export function applyWakeEvent(event: WakeEvent): void {
+  const current = running[event.agent_id] ?? QUIET;
+  if (event.type === "wake_started") {
+    running = { ...running, [event.agent_id]: { ...current, working: true } };
+    liveWakes = { ...liveWakes, [event.agent_id]: { wakeId: event.wake_id, counts: NO_COUNTS } };
+  } else if (event.type === "wake_ended") {
+    running = { ...running, [event.agent_id]: { ...current, working: false } };
+    liveWakes = Object.fromEntries(Object.entries(liveWakes).filter(([id]) => id !== event.agent_id));
+  } else {
+    liveWakes = { ...liveWakes, [event.agent_id]: { wakeId: event.wake_id, counts: event.counts } };
+  }
   emit();
 }
 
