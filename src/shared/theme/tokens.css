@@ -37,6 +37,7 @@
   --tide-fill: rgba(125, 154, 166, 0.16);
   --tide-line: rgba(125, 154, 166, 0.38);
   --tide-wash: rgba(125, 154, 166, 0.08);
+  --link: #2b6a8f;
 
   /* Ink */
   --ink: #2c302a;
@@ -54,6 +55,9 @@
   --late-ink: #8e4f43;
   --late-fill: rgba(196, 164, 154, 0.26);
   --late-line: #c4a49a;
+  /* Today: the one strong fill (a Week bubble); ink on it passes 4.5:1 */
+  --today: #5c6b52;
+  --today-ink: #fafaf7;
 
   /* Structure */
   --rule: #e4ebdc;
@@ -141,6 +145,7 @@
     --tide-fill: rgba(157, 184, 194, 0.16);
     --tide-line: rgba(157, 184, 194, 0.36);
     --tide-wash: rgba(157, 184, 194, 0.08);
+    --link: #8cc0e0;
 
     --ink: #e6ebe0;
     --ink-muted: #a3ab98;
@@ -155,6 +160,8 @@
     --late-ink: #d9a99f;
     --late-fill: rgba(154, 90, 78, 0.24);
     --late-line: #5c403c;
+    --today: #7f9174;
+    --today-ink: #101310;
 
     --rule: #2a3026;
     --shadow: 0 2px 10px rgba(0, 0, 0, 0.35);
@@ -306,22 +313,37 @@
   }
 }
 
-/* Frosted composer — same veil as the rail, no specular highlight. */
-.composer-fade {
-  pointer-events: none;
-  position: absolute;
-  inset: auto 0 0;
-  height: 8.5rem;
-  z-index: 0;
-  background: linear-gradient(to top, var(--rail-ground, #f7f8f3) 0%, var(--rail-ground, #f7f8f3) 48%, transparent 100%);
+/*
+ * Glass that floats over a thread, as on Khisso: the thread's messages scroll beneath the back circle, the name
+ * capsule, the activity pill and the composer, and the conversation list's search and dock, and show blurred through them. Reduce Transparency and forced colors
+ * take the solid glass token instead.
+ */
+.pane-bubble,
+.activity-chip,
+.composer-glass,
+.rail .search-field,
+.dock {
+  background: var(--glass-veil);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(1.8);
+  backdrop-filter: blur(var(--glass-blur)) saturate(1.8);
 }
 
-/* The composer: a solid card floating over the thread, so nothing shows through it. */
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .pane-bubble,
+  .activity-chip,
+  .composer-glass,
+  .rail .search-field,
+  .dock {
+    background: var(--glass-solid);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}
+
 .composer-glass {
   position: relative;
-  border-radius: 22px;
+  border-radius: 24px;
   border: 1px solid var(--glass-border);
-  background: var(--bone);
   box-shadow:
     0 1px 2px rgba(92, 107, 82, 0.08),
     0 8px 24px rgba(44, 48, 42, 0.1);
@@ -338,7 +360,6 @@
 /* Chat pane header: the name as a glass bubble that opens its details. */
 .pane-bubble {
   border: 1px solid color-mix(in srgb, var(--sage-line) 60%, transparent);
-  background: var(--bone);
   box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
 }
 
@@ -374,7 +395,6 @@
 
 .activity-chip {
   border: 1px solid color-mix(in srgb, var(--sage-line) 60%, transparent);
-  background: var(--bone);
   box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
 }
 

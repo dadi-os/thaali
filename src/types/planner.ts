@@ -1,8 +1,5 @@
 /** Yaad wire types for the Planner: plans on the timeline and tasks on the checklist. */
 
-/** Which filter `POST /timeline` applies. */
-export type PlanViewName = "planner" | "month" | "tile";
-
 /** Ankur's answer to a plan, as Yaad holds it: yes, no, or not yet answered. */
 export type Rsvp = "yes" | "no" | null;
 
@@ -35,7 +32,8 @@ export type Plan = {
   notes: PlanNote[];
 };
 
-export type PlansRequest = { from: string; to: string; view: PlanViewName };
+/** The range `POST /planner/plans` is asked about: every plan touching `[from, to)`, earliest first, declined ones included. */
+export type PlansRequest = { from: string; to: string };
 
 export type PlansResponse = { items: Plan[] };
 

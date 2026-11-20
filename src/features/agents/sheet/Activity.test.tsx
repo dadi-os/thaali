@@ -163,7 +163,7 @@ describe("Activity", () => {
     act(() => trimmed.click());
     await settle();
     expect(host.textContent).toContain("Details expired");
-    expect(host.textContent).toContain("Reconcile the October statement");
+    expect(host.textContent).toContain("Morning money check: balances and anything pending.");
   });
 
   it("shows the error with a retry when the wakes cannot be read", async () => {

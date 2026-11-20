@@ -1,6 +1,7 @@
 /** Display helpers for the chat sidebar. */
 
 import { formatClock } from "../../lib/ux/time";
+import { bareUrlLabel, parseHttp } from "../Markdown/ChatLink";
 
 /** The calendar day of an instant in the device's zone, as `2026-10-28`. */
 function dayKey(ms: number): string {
@@ -65,9 +66,14 @@ export function plainText(markdown: string): string {
     .trim();
 }
 
-/** A message's text without its Markdown marks, on one line, for a list preview. */
+/** A message's text without its Markdown marks, on one line, for a list preview: a link shows its words, a bare URL its host and the start of its path. */
 export function plainPreview(markdown: string): string {
   return markdown
+    .replace(/\[([^\]]+)\]\([^)\s]+\)/g, "$1")
+    .replace(/https?:\/\/[^\s)>\]]*[^\s)>\].,;:!?]/g, (href) => {
+      const url = parseHttp(href);
+      return url === null ? href : bareUrlLabel(url);
+    })
     .replace(/\*\*(.+?)\*\*/g, "$1")
     .replace(/`([^`]+)`/g, "$1")
     .replace(/^[-*]\s+/gm, "")

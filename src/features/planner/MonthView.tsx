@@ -20,7 +20,7 @@ function Badge({ badge }: BadgeProps) {
   }
   const label = badge.allDone ? "All tasks done" : `${badge.closing} ${badge.closing === 1 ? "task closes" : "tasks close"}${badge.pastDue ? ", one past due" : ""}`;
   return (
-    <span aria-label={label} title={label} style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 16, padding: "0 6px", borderRadius: 999, fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums", background: "var(--sage-fill)", color: "var(--ink-muted)" }}>
+    <span aria-label={label} title={label} style={{ display: "inline-flex", alignItems: "center", gap: 4, height: 16, fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: "var(--ink-muted)" }}>
       {badge.allDone ? (
         <span style={{ display: "flex", color: "var(--sage-deep)" }}>
           <Icon name="check" size={10} />
@@ -48,10 +48,12 @@ export type MonthViewProps = {
   onOpen: (plan: Plan, element: Element) => void;
   /** Open a day in the Day view. */
   onDay: (day: Date) => void;
+  /** "+N more" was pressed: open the day's card beside the chosen control. */
+  onMore: (day: Date, element: Element) => void;
 };
 
 /** The Month grid: a tile per day with up to three plans, "+N more", and a task badge. A tile opens its day. */
-export function MonthView({ days, now, anchor, plans, badges, onOpen, onDay }: MonthViewProps) {
+export function MonthView({ days, now, anchor, plans, badges, onOpen, onDay, onMore }: MonthViewProps) {
   return (
     <div style={{ display: "flex", flexDirection: "column", flex: 1, gap: 6, minWidth: 0, minHeight: 0 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -102,7 +104,7 @@ export function MonthView({ days, now, anchor, plans, badges, onOpen, onDay }: M
                 );
               })}
               {more > 0 ? (
-                <button type="button" onClick={() => onDay(day)} style={{ fontSize: 12, color: "var(--ink-muted)", textAlign: "left" }}>
+                <button type="button" aria-haspopup="dialog" className="ui-hover-fill ui-trans" onClick={(e) => onMore(day, e.currentTarget)} style={{ fontSize: 12, color: "var(--ink-muted)", textAlign: "left", borderRadius: 6, padding: "0 4px", margin: "0 -4px" }}>
                   {`+${more} more`}
                 </button>
               ) : null}

@@ -8,5 +8,6 @@
   "ghar.renameRoom": "Ghar dropped rooms and went tags-only; renameTag renames a tag.",
   "hath.listSchedules": "Hath replaced scheduled messages with routines and reminders; listRoutines reads them.",
   "hath.patchSchedule": "Routines and reminders have no PATCH: a routine is changed only by its own agent, so editing is a message to the agent.",
-  "hath.cancelSchedule": "Ankur cancels a routine or a reminder instead: cancelRoutine and cancelReminder."
+  "hath.cancelSchedule": "Ankur cancels a routine or a reminder instead: cancelRoutine and cancelReminder.",
+  "yaad.query": "Home's Yaad tile paged every kind through POST /query to count it; Yaad now serves the counts and the total of every node in one GET /counts (counts)."
 }

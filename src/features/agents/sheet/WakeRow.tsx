@@ -2,43 +2,27 @@ import { AnimatePresence, motion } from "motion/react";
 import type { WakeOutcome, WakeSummary } from "../../../types/hath";
 import { REVEAL } from "../../../shared/motion";
 import { formatRelative } from "../../../shared/lib/ux/time";
-import { Chip } from "../../../shared/ui/Chip";
 import { Icon } from "../../../shared/ui/Icon";
-import { Clamp } from "../../../shared/ui/Truncate";
 import { StateView } from "../../../shared/states/ModuleState";
 import { AgentLink } from "./AgentLink";
 import { Arrive } from "./Arrive";
 import { WakeEntryList } from "./WakeEntries";
-import { countsLine, OUTCOME_LABEL, reasonLine, usageChip, wakeDuration, type ScheduleNames } from "./wakes";
+import { countsLine, OUTCOME_LABEL, reasonLine, wakeDuration, type ScheduleNames } from "./wakes";
 import { useWake } from "./useWakes";
 
 /** The most entry blocks the loading skeleton draws. */
 const SKELETON_ENTRIES = 4;
 
-/** Props of {@link OutcomeChip}. */
-type OutcomeChipProps = { outcome: WakeOutcome };
+/** Props of {@link Outcome}. */
+type OutcomeProps = { outcome: WakeOutcome };
 
-/** A wake's outcome as a chip: running pulses in sage, waiting in tide, yielded stays quiet and failed takes the error tone. */
-function OutcomeChip({ outcome }: OutcomeChipProps) {
-  const pulse = (color: string) => <span className="dot dot-pulse" style={{ width: 6, height: 6, background: color }} />;
-  if (outcome === "failed") {
-    return (
-      <span className="inline-flex h-5 flex-none items-center rounded-full bg-error-fill px-2 text-[11.5px] font-semibold text-error">{OUTCOME_LABEL[outcome]}</span>
-    );
-  }
-  if (outcome === "yielded") {
-    return (
-      <span className="inline-flex h-5 flex-none items-center rounded-full border border-dashed border-sage-line px-2 text-[11.5px] font-semibold text-ink-muted">{OUTCOME_LABEL[outcome]}</span>
-    );
-  }
+/** A wake's outcome as plain type with a dot: running pulses in sage, waiting is tide, yielded stays quiet and failed takes the error tone. */
+function Outcome({ outcome }: OutcomeProps) {
+  const dot = outcome === "running" ? "dot dot-pulse bg-sage" : outcome === "waiting" ? "bg-tide" : outcome === "failed" ? "bg-error" : "bg-ink-ghost";
   return (
-    <span className="inline-flex flex-none items-center gap-1.5">
-      <Chip tone={outcome === "running" ? "sage" : "tide"}>
-        <span className="inline-flex items-center gap-1.5">
-          {pulse(outcome === "running" ? "var(--sage)" : "var(--tide)")}
-          {OUTCOME_LABEL[outcome]}
-        </span>
-      </Chip>
+    <span className={`inline-flex flex-none items-center gap-1.5 text-[12px] font-medium ${outcome === "failed" ? "text-error" : "text-ink-muted"}`}>
+      <span className={`size-1.5 rounded-full ${dot}`} />
+      {OUTCOME_LABEL[outcome]}
     </span>
   );
 }
@@ -67,7 +51,7 @@ export function WakeRow({ wake, open, onToggle, nameOf, schedules, onSelectAgent
   const reason = reasonLine(wake.reason, schedules);
   const counts = countsLine(wake.counts);
   return (
-    <div className={`flex flex-col rounded-[14px] border ${wake.outcome === "failed" ? "border-error-line" : open ? "border-glass-border bg-sage-fill" : "border-transparent"}`}>
+    <div className={`flex flex-col rounded-[14px] border transition-[background-color,border-color] duration-slow ease-dadi ${wake.outcome === "failed" ? "border-error-line" : open ? "border-glass-border bg-bone-raised" : "border-transparent bg-transparent"}`}>
       <div className="ui-trans flex cursor-pointer flex-col gap-1 rounded-[14px] px-3 py-2.5" onClick={onToggle}>
         <div className="flex items-center gap-2">
           <span className={`flex flex-none text-ink-muted ui-trans ${open ? "rotate-90" : ""}`}><Icon name="chevron" size={12} /></span>
@@ -80,22 +64,14 @@ export function WakeRow({ wake, open, onToggle, nameOf, schedules, onSelectAgent
               </>
             )}
           </span>
-          <OutcomeChip outcome={wake.outcome} />
+          <Outcome outcome={wake.outcome} />
           <button type="button" className="sr-only" aria-expanded={open} onClick={(event) => { event.stopPropagation(); onToggle(); }}>
             {open ? "Collapse wake" : "Expand wake"}
           </button>
         </div>
         <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-5 text-[12px] text-ink-muted">
-          <span>{formatRelative(wake.started_at, now)}</span>
-          <span>{wakeDuration(wake, now)}</span>
-          {counts === "" ? null : <span>{counts}</span>}
-          {wake.usage.calls > 0 ? <span className="font-numeric">{usageChip(wake.usage)}</span> : null}
+          <span>{[formatRelative(wake.started_at, now), wake.ended_at === null ? `running for ${wakeDuration(wake, now)}` : `ran ${wakeDuration(wake, now)}`, counts === "" ? null : counts].filter((part) => part !== null).join(" · ")}</span>
         </div>
-        {wake.opened_by === null ? null : (
-          <div className="pl-5 text-[12.5px] leading-[17px] text-ink-muted">
-            <Clamp text={wake.opened_by.content} lines={open ? 3 : 1} />
-          </div>
-        )}
         {wake.error === null ? null : (
           <span data-selectable className="pl-5 text-[12.5px] leading-[17px] text-error [overflow-wrap:anywhere]">{wake.error}</span>
         )}

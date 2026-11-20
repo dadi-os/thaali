@@ -19,6 +19,7 @@ export const SCENARIOS = [
   "tasks-error",
   "errors-error",
   "refused",
+  "chat-rich",
 ] as const;
 
 /** One of {@link SCENARIOS}. */

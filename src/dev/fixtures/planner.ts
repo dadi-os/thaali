@@ -100,6 +100,12 @@ function ordinary(day: Date): Draft[] {
     out.push({ id: "coffee", title: "Coffee with Maya", start: at(day, 11, 0), end: at(day, 12, 0), rsvp: "yes", owner: "schedule-specialist" });
     out.push({ id: "chicago", title: "Weekend in Chicago", start: at(day, 0, 0), end: at(new Date(day.getTime() + 86_400_000), 23, 59), allDay: true, owner: "schedule-specialist" });
   }
+  if (day.getDate() === 20) {
+    out.push({ id: "dentist", title: "Call the dentist about the cleaning", start: at(day, 10, 0), end: null, owner: "health-specialist" });
+  }
+  if (day.getDate() === 27) {
+    out.push({ id: "oil", title: "Book the oil change", start: at(day, 9, 0), end: null, owner: "ingest" });
+  }
   return out;
 }
 
@@ -114,7 +120,7 @@ function busy(day: Date): Draft[] {
   });
 }
 
-/** Yaad `POST /timeline`: the plans a view shows between `from` and `to`. */
+/** Yaad `POST /planner/plans`: every plan touching `[from, to)`, earliest first. */
 export function plans(scenario: Scenario, request: PlansRequest): { items: Plan[] } {
   if (scenario === "empty") {
     return { items: [] };
@@ -132,10 +138,7 @@ export function plans(scenario: Scenario, request: PlansRequest): { items: Plan[
       const start = new Date(built.start_at).getTime();
       const end = built.end_at === null ? start : new Date(built.end_at).getTime();
       const overlaps = start < to.getTime() && end > from.getTime();
-      const multiDay = built.end_at !== null && new Date(built.end_at).toDateString() !== new Date(built.start_at).toDateString();
-      const timed = !built.all_day && built.end_at !== null;
-      const wanted = request.view === "tile" || (request.view === "planner" ? timed : built.all_day || multiDay || built.hub === null);
-      if (overlaps && wanted && !items.some((item) => item.id === built.id)) {
+      if (overlaps && !items.some((item) => item.id === built.id)) {
         items.push(built);
       }
     }
@@ -177,7 +180,7 @@ function build(scenario: Scenario, draft: TaskDraft, today: Date, now: Date): Ta
     opens_on: opens === null ? null : dateKey(opens),
     closes_at: closes?.toISOString() ?? null,
     done: isDone,
-    verified_at: now.toISOString(),
+    verified_at: new Date(now.getTime() - (draft.id.length % 5) * 86_400_000).toISOString(),
     created_at: now.toISOString(),
     updated_at: now.toISOString(),
     past_due: !isDone && closes !== null && closes.getTime() < now.getTime(),
@@ -186,7 +189,7 @@ function build(scenario: Scenario, draft: TaskDraft, today: Date, now: Date): Ta
   };
 }
 
-/** Yaad `POST /tasks`: a day's open, past due and done tasks, or the tasks with no window. */
+/** Yaad `POST /planner/tasks`: a day's open, past due and done tasks, or the tasks with no window. */
 export function tasks(scenario: Scenario, request: TasksRequest): { items: Task[] } {
   if (scenario === "empty") {
     return { items: [] };
@@ -207,13 +210,13 @@ export function tasks(scenario: Scenario, request: TasksRequest): { items: Task[
   };
 }
 
-/** Yaad `PUT /tasks/done`. */
+/** Yaad `PUT /planner/tasks/done`. */
 export function setTaskDone(request: TaskDoneRequest): TaskDoneResponse {
   done.set(request.task_id, request.done);
   return request;
 }
 
-/** Yaad `PUT /timeline/attended`. */
+/** Yaad `PUT /planner/plans/attended`. */
 export function setAttended(request: AttendedRequest): AttendedResponse {
   attended.set(request.plan_id, request.attended);
   return request;

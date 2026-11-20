@@ -74,6 +74,7 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
   const agent: AgentRecord = { ...listed, ...detail.data, running: running[agentId] ?? detail.data?.running ?? listed.running };
   const parent = agents.data?.find((candidate) => candidate.id === agent.parent_agent_id && candidate.active) ?? null;
   const nameOf = (id: string | null) => (id === null ? "Ankur" : (agents.data?.find((candidate) => candidate.id === id)?.name ?? id));
+  const lastAnswered = (thread.data ?? []).filter((message) => message.from_agent_id === agentId && message.kind !== "notice").reduce<string | null>((newest, message) => (newest === null || message.created_at > newest ? message.created_at : newest), null);
   const standing = thread.data === undefined ? null : standingOf(thread.data, wakeDetails.flatMap((query) => query.data ?? []));
   const refreshRoutines = () => queryClient.invalidateQueries({ queryKey: ["agent-routines"] });
   const stopAgent = async () => {
@@ -111,6 +112,7 @@ export function AgentSheet({ agentId, onSelect, onClose }: AgentSheetProps) {
       onHaltTask={haltTask}
       standing={standing}
       live={liveWakes[agentId]}
+      lastAnswered={lastAnswered}
       stop={stop}
       onStop={() => void stopAgent()}
       routines={feedOf(routines)}

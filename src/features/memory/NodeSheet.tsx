@@ -10,6 +10,8 @@ import {
 import { REVEAL, RISE } from "../../shared/motion";
 import { Clamp, Truncate } from "../../shared/ui/Truncate";
 import { formatAge, formatClock, formatDay } from "../../shared/lib/ux/time";
+import { openAgent } from "../../contexts/chat";
+import { requestCompose } from "../../contexts/reply";
 import type { NodeKind } from "../../types/yaad";
 import {
   KIND_TOKEN,
@@ -28,6 +30,7 @@ const KIND_NAME = {
   place: "Place",
   memory: "Memory",
   plan: "Plan",
+  task: "Task",
 } as const satisfies Record<NodeKind, string>;
 
 export type NodeSheetProps = {
@@ -102,6 +105,7 @@ export function NodeSheet({
   const shownMemories = allMemories
     ? memories
     : memories.slice(0, MEMORIES_SHOWN);
+  const keeper = node.agent_id === null ? undefined : agentName(node.agent_id);
   const origin = (of: MemoryNode) => {
     const name = of.agent_id === null ? undefined : agentName(of.agent_id);
     return name === undefined ? SOURCE_LABEL[of.source] : `from ${name}`;
@@ -133,6 +137,22 @@ export function NodeSheet({
           <span data-selectable className="text-[14px] leading-[20px] text-ink">
             {node.body}
           </span>
+        ) : null}
+        {keeper !== undefined && node.agent_id !== null ? (
+          <div className="flex flex-none">
+            <Button
+              tone="quiet"
+              size="sm"
+              icon="send"
+              title={`Message ${keeper}`}
+              onClick={() => {
+                openAgent(node.agent_id!);
+                requestCompose(`I want to talk about "${node.title}" (${node.id})`);
+              }}
+            >
+              Message agent
+            </Button>
+          </div>
         ) : null}
         <AnimatePresence initial={false}>
           {comingUp.length > 0 ? (
@@ -257,9 +277,8 @@ export function NodeSheet({
               note={connections.length === 1 ? "link" : "links"}
             />
             <FieldRow
-              label="Source"
-              value={node.source === "agent" ? "Agent" : node.source}
-              note={node.agent_id ?? undefined}
+              label="Kept by"
+              value={keeper ?? "No agent yet"}
               selectable
             />
           </div>

@@ -5,44 +5,22 @@ import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { SectionHeader, Stat, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { startOfWeek } from "../planner/dates";
 import { useModuleState } from "../../shared/hooks/useModuleState";
-import type { NodeKind, NodeRecord } from "../../types/yaad";
+import type { CountsResponse, NodeKind, NodeRecord } from "../../types/yaad";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 
 /** The kinds the tile counts, with the name and colour each is drawn in. */
 const CELLS: ReadonlyArray<{ kind: NodeKind; name: string; ink: string }> = [
   { kind: "person", name: "People", ink: "var(--tide)" },
-  { kind: "memory", name: "Memories", ink: "var(--sage)" },
   { kind: "place", name: "Places", ink: "var(--clay)" },
   { kind: "plan", name: "Plans", ink: "var(--sage-deep)" },
+  { kind: "task", name: "Tasks", ink: "var(--sage)" },
 ];
-/** Nodes read per `POST /query` page when a kind is counted. */
-const COUNT_PAGE = 200;
-
-/** How many nodes of each kind Yaad holds, and how many of them arrived since this week's Monday. */
-type KindCounts = { totals: Map<NodeKind, number>; thisWeek: number };
-
-/** Counts `kind` by reading every page of it from Yaad; `since` is the instant a node must be created at or after to count as new. */
-export async function countKind(kind: NodeKind, since: number): Promise<{ total: number; fresh: number }> {
-  let total = 0;
-  let fresh = 0;
-  for (let offset = 0; ; offset += COUNT_PAGE) {
-    const { nodes } = await yaad.query({ kind, limit: COUNT_PAGE, offset });
-    total += nodes.length;
-    fresh += nodes.filter((node) => Date.parse(node.created_at) >= since).length;
-    if (nodes.length < COUNT_PAGE) {
-      return { total, fresh };
-    }
-  }
-}
-
-/** Every kind counted, and the graph the most-used list reads. */
-async function readHome(): Promise<{ nodes: NodeRecord[]; counts: KindCounts }> {
-  const since = startOfWeek(new Date()).getTime();
-  const [graph, ...counted] = await Promise.all([yaad.graph({}), ...CELLS.map(({ kind }) => countKind(kind, since))]);
-  return { nodes: graph.nodes, counts: { totals: new Map(CELLS.map(({ kind }, i) => [kind, counted[i]!.total])), thisWeek: counted.reduce((sum, c) => sum + c.fresh, 0) } };
+/** Every kind counted by `GET /counts` (the total over every node, memories included), and the graph the most-used list reads. */
+export async function readHome(): Promise<{ nodes: NodeRecord[]; counts: CountsResponse }> {
+  const [graph, counts] = await Promise.all([yaad.graph({}), yaad.counts()]);
+  return { nodes: graph.nodes, counts };
 }
 
 /** The colour of the dot before a node in the most-used list. */
@@ -52,7 +30,7 @@ function nodeInk(kind: NodeKind): string {
 
 type BodyProps = {
   nodes: NodeRecord[];
-  counts: KindCounts;
+  counts: CountsResponse;
   geometry: TileGeometry;
 };
 
@@ -71,7 +49,7 @@ function Body({ nodes, counts, geometry }: BodyProps) {
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
       <div className={`grid min-h-0 flex-1 gap-2 ${oneRow ? "grid-cols-4 grid-rows-1" : "grid-cols-2 grid-rows-2"}`}>
         {CELLS.map(({ kind, name, ink }) => (
-          <Stat key={kind} value={counts.totals.get(kind) ?? 0} label={name} ink={ink} onClick={() => navigate(`/yaad?kind=${kind}`)} />
+          <Stat key={kind} value={counts.kinds[kind]} label={name} ink={ink} onClick={() => navigate(`/yaad?kind=${kind}`)} />
         ))}
       </div>
       {listed > 0 ? (
@@ -90,19 +68,19 @@ function Body({ nodes, counts, geometry }: BodyProps) {
   );
 }
 
-/** Home's Yaad tile: how many people, memories, places and plans Yaad holds (each kind counted from `POST /query`, a click on a kind opening the page filtered to it, and the total over all of them in the header), and which it recalls most. */
+/** Home's Yaad tile: how many people, places, plans and tasks Yaad holds (from `GET /counts`, a click on a kind opening the page filtered to it, and the total over every node in the header), and which it recalls most. */
 export function YaadTile({ order }: { order: number }) {
   const { state: connection } = useConnection();
   const query = useQuery({ queryKey: ["yaad", "home"], queryFn: readHome, enabled: isMeshOnline(connection) });
   const state = useModuleState(query, (home) => home.nodes.length === 0);
-  const things = state.kind === "ready" ? [...state.data.counts.totals.values()].reduce((sum, count) => sum + count, 0) : 0;
+  const total = state.kind === "ready" ? state.data.counts.total : 0;
   return (
     <Tile
       area="yaad"
       title="Yaad"
       to="/yaad"
       order={order}
-      summary={things > 0 ? `${things.toLocaleString()} things` : undefined}
+      summary={total > 0 ? `${total.toLocaleString()} memories` : undefined}
       loading={state.kind === "loading"}
       notice={tileNotice(state, { name: "Yaad", request: "POST /graph", empty: ["Nothing remembered yet", "Memories appear here as agents learn them."] }, () => void query.refetch())}
       skeleton={(g) => (
@@ -119,7 +97,7 @@ export function YaadTile({ order }: { order: number }) {
         </div>
       )}
     >
-      {(g) => <Body nodes={state.kind === "ready" ? state.data.nodes : []} counts={state.kind === "ready" ? state.data.counts : { totals: new Map(), thisWeek: 0 }} geometry={g} />}
+      {(g) => <Body nodes={state.kind === "ready" ? state.data.nodes : []} counts={state.kind === "ready" ? state.data.counts : { total: 0, kinds: { person: 0, memory: 0, place: 0, plan: 0, task: 0 } }} geometry={g} />}
     </Tile>
   );
 }

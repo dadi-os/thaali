@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { WakeEntry } from "../../../types/hath";
 import { wakeDetail, wakeList } from "../../../dev/fixtures/wakes";
 import type { Reminder, Routine } from "../../../types/hath";
-import { callTarget, countsLine, haltSentence, nowLine, prettyJson, rawContent, reasonLine, usageChip, wakeDuration, type ScheduleNames } from "./wakes";
+import { callTarget, countsLine, haltSentence, nowLine, prettyJson, rawContent, reasonLine, wakeDuration, type ScheduleNames } from "./wakes";
 
 /** The newest wake of the fixtures' working agent: running, with its last call unanswered. */
 function runningEntries(): WakeEntry[] {
@@ -34,13 +34,9 @@ describe("reasonLine", () => {
 
 describe("wake figures", () => {
   it("counts what a wake did and leaves out zeros", () => {
-    expect(countsLine({ tool_calls: 22, messages_sent: 1, messages_received: 1 })).toBe("22 tool calls · 1 in · 1 out");
+    expect(countsLine({ tool_calls: 22, messages_sent: 1, messages_received: 1 })).toBe("22 tool calls · 1 message sent");
     expect(countsLine({ tool_calls: 1, messages_sent: 0, messages_received: 0 })).toBe("1 tool call");
     expect(countsLine({ tool_calls: 0, messages_sent: 0, messages_received: 0 })).toBe("");
-  });
-
-  it("reads tokens and cache into one chip", () => {
-    expect(usageChip({ calls: 14, input_tokens: 52, output_tokens: 21_340, cache_write: 188_200, cache_read: 940_100 })).toBe("21.4k tok · 940.1k cached");
   });
 
   it("measures an ended wake by its end and a running one by now", () => {

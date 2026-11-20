@@ -1,4 +1,4 @@
-import type { EdgeRecord, GraphResponse, NodeKind, NodeRecord, NodeResponse, QueryRequest, QueryResponse } from "../../types/yaad";
+import type { CountsResponse, EdgeRecord, GraphResponse, NodeKind, NodeRecord, NodeResponse, QueryRequest, QueryResponse } from "../../types/yaad";
 import type { Scenario } from "../scenario";
 import { ago, DAY, HOUR } from "./time";
 
@@ -23,6 +23,7 @@ const TITLES: Record<NodeKind, string[]> = {
     "Gym days are chosen by the health specialist each week",
   ],
   plan: ["CSE 300 lecture", "Gym session", "Study block", "Coffee with Maya", "Northwind coding test"],
+  task: ["Submit CSE 335 homework 3", "Renew the parking permit", "Reply to the Northwind recruiter", "Pay the Spotify renewal"],
 };
 
 const EDGE_TYPES = ["ABOUT", "ATTENDS", "AT_LOCATION", "BELONGS_TO", "CLASSMATE_OF", "RELATED_TO"];
@@ -48,9 +49,9 @@ function counts(scenario: Scenario): number {
 function build(scenario: Scenario): GraphResponse {
   const total = counts(scenario);
   const rand = seeded(7);
-  const kinds: NodeKind[] = ["person", "place", "memory", "plan"];
+  const kinds: NodeKind[] = ["person", "place", "memory", "plan", "task"];
   const nodes: NodeRecord[] = Array.from({ length: total }, (_, i): NodeRecord => {
-    const kind = kinds[Math.floor(rand() * 10) % 4]!;
+    const kind = kinds[Math.floor(rand() * 10) % kinds.length]!;
     const pool = TITLES[kind];
     const base = pool[i % pool.length]!;
     const title = scenario === "long" && i % 11 === 0 ? `${base}: ${"a note that keeps going ".repeat(14)}` : i < pool.length ? base : `${base} (${i})`;
@@ -86,6 +87,14 @@ function build(scenario: Scenario): GraphResponse {
 /** Yaad `POST /graph`. */
 export function graph(scenario: Scenario): GraphResponse {
   return build(scenario);
+}
+
+/** Yaad `GET /counts`: every live node, by kind and in all. */
+export function kindCounts(scenario: Scenario): CountsResponse {
+  const { nodes } = build(scenario);
+  const kinds: Record<NodeKind, number> = { person: 0, memory: 0, place: 0, plan: 0, task: 0 };
+  for (const node of nodes) kinds[node.kind] += 1;
+  return { total: nodes.length, kinds };
 }
 
 /** Yaad `GET /nodes/:id`. */

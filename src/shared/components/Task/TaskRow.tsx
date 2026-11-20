@@ -18,6 +18,8 @@ export type TaskRowProps = {
   /** The helper's own words when it is waiting on its agent. */
   question?: string;
   now?: number;
+  /** For popovers: the row is titled by what it is (Browser, Terminal) rather than its address, and its status is plain type with a dot. */
+  plain?: boolean;
 };
 
 /** A helper task's id without its `task/` prefix. */
@@ -31,7 +33,7 @@ function shortId(id: string): string {
  * row is inert (no pointer, no hover, `aria-disabled`) and says when it fell asleep. A task waiting on its agent shows the question it asked, never as a request to Ankur. A
  * task its owner is driving has the `paused` status. Right-click offers the task's actions.
  */
-export function TaskRow({ task, owner, showOwner = false, question, now = Date.now() }: TaskRowProps) {
+export function TaskRow({ task, owner, showOwner = false, question, now = Date.now(), plain = false }: TaskRowProps) {
   const waiting = task.status === "asking";
   const asleep = task.status === "asleep";
   const context = useContextActions(() => taskActions({ id: task.id, live: !asleep }));
@@ -47,9 +49,9 @@ export function TaskRow({ task, owner, showOwner = false, question, now = Date.n
           <span className={`flex ${waiting ? "text-tide-ink" : "text-ink-muted"}`}>
             <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={15} />
           </span>
-          <Truncate text={shortId(task.id)} className="min-w-0 flex-1 font-numeric text-[13px] text-ink" />
+          <Truncate text={plain ? (task.kind === "browser" ? "Browser" : "Terminal") : shortId(task.id)} className={`min-w-0 flex-1 text-[13px] text-ink ${plain ? "font-medium" : "font-numeric"}`} />
           {showOwner && owner ? <Truncate text={owner} className="max-w-[40%] flex-[0_1_auto] text-[13px] text-ink-muted" /> : null}
-          <TaskStatus status={task.status} lastActivity={task.last_activity} now={now} />
+          <TaskStatus status={task.status} lastActivity={task.last_activity} now={now} plain={plain} />
         </div>
         <div className="pl-[23px]">
           <Clamp text={task.purpose} lines={2} style={{ fontSize: 14, lineHeight: "19px" }} />

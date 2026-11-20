@@ -9,15 +9,25 @@ export function matchesShortcut(event: KeyboardEvent, combo: string): boolean {
   return mod === wantsMod && event.shiftKey === parts.includes("shift") && event.altKey === parts.includes("alt") && event.key.toLowerCase() === key;
 }
 
+/** Whether a key press is going into a text field, where a plain letter is text and not a shortcut. */
+function isTyping(target: EventTarget | null): boolean {
+  return target instanceof HTMLElement && (target.isContentEditable || target.closest("input, textarea, select") !== null);
+}
+
 /**
  * Run `handler` when `combo` is pressed anywhere in the window. The one place a keyboard shortcut is bound: the
  * same combination is what an action's `shortcut` field shows in menus. The default action is prevented when it runs.
+ * With `unlessTyping`, a press inside a text field is left alone, for plain-letter shortcuts.
  */
-export function useShortcut(combo: string, handler: () => void): void {
+export function useShortcut(combo: string, handler: () => void, options: { unlessTyping?: boolean } = {}): void {
+  const unlessTyping = options.unlessTyping === true;
   const latest = useRef(handler);
   latest.current = handler;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent): void => {
+      if (unlessTyping && isTyping(event.target)) {
+        return;
+      }
       if (matchesShortcut(event, combo)) {
         event.preventDefault();
         latest.current();
@@ -25,5 +35,5 @@ export function useShortcut(combo: string, handler: () => void): void {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [combo]);
+  }, [combo, unlessTyping]);
 }

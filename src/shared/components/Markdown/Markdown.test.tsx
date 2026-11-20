@@ -62,12 +62,15 @@ describe("MarkdownBody", () => {
     expect(el.textContent).toContain("$412 left, $5 and $10");
   });
 
-  it("renders GFM tables, strikethrough, task lists and link chips", async () => {
+  it("renders GFM tables, strikethrough, task lists and inline links", async () => {
     const el = await render(FIXTURE);
     expect(el.querySelector(".chat-md__table table th")?.textContent).toBe("Name");
     expect(el.querySelector("del")?.textContent).toBe("old");
     expect(el.querySelector('input[type="checkbox"]')).not.toBeNull();
-    expect(el.querySelector("a.chat-link-chip")?.getAttribute("href")).toBe("https://example.com/page");
+    const link = el.querySelector("a.chat-link");
+    expect(link?.getAttribute("href")).toBe("https://example.com/page");
+    expect(link?.textContent).toBe("example.com/page");
+    expect(link?.querySelector("img")?.getAttribute("src")).toContain("domain=example.com");
   });
 
   it("colors a fenced code block with Shiki and keeps the copy button", async () => {

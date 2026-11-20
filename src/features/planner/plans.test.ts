@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRecord } from "../../types/hath";
 import type { Plan } from "../../types/planner";
-import { barColumns, isCurrent, monthTile, ownerAgent, planTone, plansOn, runsAsBar, spanLanes } from "./plans";
+import { bandPlans, barColumns, gridPlans, isCurrent, keptBy, loosePlans, monthPlans, monthTile, ownerAgent, planTone, plansOn, runsAsBar, spanLanes } from "./plans";
 
 function plan(id: string, start: Date, end: Date | null, over: Partial<Plan> = {}): Plan {
   return { id, title: id, body: null, rsvp: "yes", start_at: start.toISOString(), end_at: end?.toISOString() ?? null, all_day: false, time_zone: null, attended: null, place: null, hub: null, owner: "manual", notes: [], ...over };
@@ -55,8 +55,28 @@ describe("owner", () => {
     const agents = [agent("cse-300-specialist", true), agent("old-worker", false)];
     expect(ownerAgent("cse-300-specialist", agents)?.id).toBe("cse-300-specialist");
     expect(ownerAgent("old-worker", agents)).toBeNull();
+    expect(keptBy("cse-300-specialist")).toBe("cse-300-specialist");
+    expect(keptBy("ingest")).toBeNull();
+    expect(keptBy("manual")).toBeNull();
     expect(ownerAgent("manual", [agent("manual", true)])).toBeNull();
     expect(ownerAgent("ingest", agents)).toBeNull();
     expect(ownerAgent("cse-300-specialist", undefined)).toBeNull();
+  });
+});
+
+describe("what each view draws from one list of plans", () => {
+  const all = [plan("timed", d(14, 9), d(14, 10)), plan("no-end", d(14, 11), null), plan("all-day", d(14), d(14, 23), { all_day: true }), plan("trip", d(15, 9), d(17, 17)), plan("declined", d(14, 12), d(14, 13), { rsvp: "no" })];
+
+  it("gives the grid the timed plans with an end, declined ones and plans that run past midnight included", () => {
+    expect(gridPlans(all).map((p) => p.id)).toEqual(["timed", "trip", "declined"]);
+  });
+
+  it("gives the all-day band all-day and multi-day plans", () => {
+    expect(bandPlans(all).map((p) => p.id)).toEqual(["all-day", "trip"]);
+  });
+
+  it("gives Month everything, and the Someday sheet the plans with no end", () => {
+    expect(monthPlans(all)).toHaveLength(5);
+    expect(loosePlans(all).map((p) => p.id)).toEqual(["no-end"]);
   });
 });

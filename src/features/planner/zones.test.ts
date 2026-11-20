@@ -61,7 +61,6 @@ describe("Planner zones", () => {
     const base = plans("normal", {
       from: "2026-10-28T00:00:00-04:00",
       to: "2026-10-29T00:00:00-04:00",
-      view: "planner",
     }).items[0]!;
     const item = {
       ...base,

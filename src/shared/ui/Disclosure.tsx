@@ -1,59 +1,49 @@
 import type { ReactNode } from "react";
+import { AnimatePresence, motion } from "motion/react";
+import { REVEAL } from "../motion";
 import { Icon } from "./Icon";
-import { Truncate } from "./Truncate";
 
-/** The chevron of a disclosure: it turns a quarter when an ancestor has the `open` class. */
-export function Chevron() {
-  return (
-    <span className="chev" style={{ display: "flex" }}>
-      <Icon name="chevron" size={14} />
-    </span>
-  );
-}
-
-export type RevealProps = {
-  children: ReactNode;
-};
-
-/** A region whose height eases open when an ancestor has the `open` class; the content stays mounted so it can ease shut again. */
-export function Reveal({ children }: RevealProps) {
-  return (
-    <div className="reveal">
-      <div>{children}</div>
-    </div>
-  );
-}
-
+/** Props of {@link Disclosure}. */
 export type DisclosureProps = {
   title: string;
-  /** What the section holds, in a few words, shown at the right while it is shut and open. */
+  /** What the section holds, in a few words, at the right of the row whether it is shut or open. */
   summary: string;
   open: boolean;
   onToggle: () => void;
+  /** A hairline above the row. Leave it on to separate sections; turn it off for the first section of a card. */
+  divider?: boolean;
   children: ReactNode;
 };
 
-/** A titled section of a sheet that eases open to its content: a hairline above, a 40 px bar with a turning chevron, the title and its summary, and the content under it. */
-export function Disclosure({ title, summary, open, onToggle, children }: DisclosureProps) {
+/**
+ * A titled section that eases open to its content. The row is a 40 px button with 6 px of padding inside its rounded hover wash (and sunk press): a chevron that turns a quarter when open, the caps title, and the
+ * summary at the right in tabular figures. The content eases open with the REVEAL preset and is mounted only while open, indented
+ * to start under the title.
+ */
+export function Disclosure({ title, summary, open, onToggle, divider = true, children }: DisclosureProps) {
   return (
-    <div className={open ? "dsc open" : "dsc"} style={{ borderTop: "1px solid var(--rule)" }}>
+    <div className={divider ? "border-t border-rule" : undefined}>
       <button
         type="button"
-        className="ui-trans ui-hover-fill"
+        className="ui-trans group flex min-h-10 w-full items-center gap-2.5 rounded-[10px] px-1.5 text-left hover:bg-sage-active/60 active:bg-sage-active"
         aria-expanded={open}
         onClick={onToggle}
-        style={{ display: "flex", alignItems: "center", gap: 8, width: "100%", minHeight: 40, padding: "0 4px", borderRadius: 10 }}
       >
-        <span style={{ display: "flex", color: "var(--ink-muted)" }}>
-          <Chevron />
+        <span className={`flex size-5 flex-none items-center justify-center text-ink-ghost transition-[rotate,color] duration-slow ease-dadi group-hover:text-ink-muted ${open ? "rotate-90" : ""}`}>
+          <Icon name="chevron" size={12} />
         </span>
         <span className="ui-label">{title}</span>
-        <div style={{ flex: 1 }} />
-        <Truncate text={summary} style={{ fontSize: 13, color: "var(--ink-muted)", maxWidth: 190, textAlign: "right" }} />
+        <span className="ml-auto min-w-0 truncate text-[13px] text-ink-muted tabular-nums" title={summary}>
+          {summary}
+        </span>
       </button>
-      <Reveal>
-        <div style={{ padding: "2px 4px 12px 26px" }}>{children}</div>
-      </Reveal>
+      <AnimatePresence initial={false}>
+        {open ? (
+          <motion.div key="content" {...REVEAL} className="overflow-hidden">
+            <div className="pt-0.5 pr-0.5 pb-3 pl-[34px]">{children}</div>
+          </motion.div>
+        ) : null}
+      </AnimatePresence>
     </div>
   );
 }

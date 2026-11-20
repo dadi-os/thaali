@@ -376,42 +376,28 @@ body {
   font-size: 0.88em;
 }
 
-.chat-link-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35em;
-  max-width: 100%;
-  margin: 0 0.1em;
-  padding: 0.12em 0.45em 0.12em 0.28em;
-  border: 1px solid color-mix(in srgb, var(--sage-line) 65%, transparent);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bone) 88%, var(--sage-fill));
-  color: var(--ink-muted);
-  font-size: 0.86em;
-  line-height: 1.3;
+.chat-link {
+  color: var(--link);
   text-decoration: none;
-  vertical-align: baseline;
-  transition:
-    border-color var(--fast) var(--ease),
-    background-color var(--fast) var(--ease),
-    color var(--fast) var(--ease);
+  overflow-wrap: anywhere;
+  cursor: pointer;
 }
 
-.chat-link-chip:hover {
-  border-color: var(--sage);
-  background: var(--sage-fill);
-  color: var(--sage-deep);
+.chat-link:hover,
+.chat-link:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
-.chat-link-chip__icon {
-  flex-shrink: 0;
-  width: 14px;
-  height: 14px;
-  border-radius: 4px;
+.chat-link__url {
+  word-break: break-all;
 }
 
-.chat-link-chip__label {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.chat-link__icon {
+  display: inline-block;
+  width: 0.95em;
+  height: 0.95em;
+  margin-right: 0.3em;
+  border-radius: 3px;
+  vertical-align: -0.12em;
 }

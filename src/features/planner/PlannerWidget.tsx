@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, planner } from "../../shared/api";
-import { Chip } from "../../shared/ui/Chip";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { StateView } from "../../shared/states/ModuleState";
@@ -13,6 +12,7 @@ import { Tile, type TileGeometry } from "../home/Tile";
 import { addDays, dateKey, startOfDay } from "./dates";
 import { formatSpan } from "./layout";
 import { dayTasksKey, groupTasks, progressOf } from "./tasks";
+import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { ROW, tilePlans, windowRows, type WidgetRow } from "./widget";
 
 /** How often the widget moves its progress and its window. */
@@ -38,19 +38,25 @@ function useNow(ms: number): Date {
 type PlanRowProps = {
   row: Extract<WidgetRow, { kind: "plan" }>;
   now: Date;
+  /** Where the plan stands against the clock. */
+  state: TimeState;
+  /** The tile is wide enough for a fact on the right of each row. */
+  wide: boolean;
   /** The spine starts and ends at the first and last dot. */
   first: boolean;
   last: boolean;
 };
 
 /** One plan down the spine: its times, a dot (pulsing while it is on), its title, and what is left of it or how long until it. */
-function PlanRow({ row, now, first, last }: PlanRowProps) {
-  const { plan, current } = row;
+function PlanRow({ row, now, state, wide, first, last }: PlanRowProps) {
+  const { plan } = row;
+  const current = state === "now";
   const declined = plan.rsvp === "no";
   const from = Date.parse(plan.start_at);
   const to = Date.parse(plan.end_at!);
-  const over = to <= now.getTime();
-  const detail = declined ? "Declined" : current ? `${formatSpan(Math.max(0, Math.round((to - now.getTime()) / 60_000)))} left` : over ? formatSpan((to - from) / 60_000) : `in ${formatSpan(Math.round((from - now.getTime()) / 60_000))}`;
+  const over = state === "past";
+  const detail = declined ? "Declined" : planStatus(plan, now, state);
+  const fact = [formatSpan((to - from) / 60_000), plan.place === null ? null : `${plan.place.title}${plan.place.room === null ? "" : ` room ${plan.place.room}`}`].filter((part): part is string => part !== null).join(" · ");
   return (
     <div data-plan={plan.id} className={`relative flex flex-none items-start gap-3 rounded-[12px] px-2 ${current ? "bg-sage-active" : ""} ${over || declined ? "opacity-55" : ""}`} style={{ height: current ? ROW.current : ROW.plan, paddingTop: ROW_TOP }}>
       <span aria-hidden="true" className="absolute w-px bg-sage-line" style={{ left: SPINE_X, top: first ? ROW_TOP + LINE / 2 : 0, bottom: last ? undefined : 0, height: last ? ROW_TOP + LINE / 2 : undefined }} />
@@ -65,6 +71,7 @@ function PlanRow({ row, now, first, last }: PlanRowProps) {
         <Truncate text={plan.title} className={`text-[14px] leading-5 ${current ? "font-semibold" : "font-medium"}`} />
         <span className={`truncate text-[13px] leading-4 ${current ? "text-sage-text" : "text-ink-muted"}`}>{detail}</span>
       </span>
+      {wide ? <Truncate text={fact} className="max-w-[46%] flex-none pt-0.5 text-right text-[13px] leading-5 text-ink-muted" /> : null}
       {current ? (
         <span aria-hidden="true" className="absolute overflow-hidden rounded-full" style={{ left: PAD_X + TIME_COL + 12 + 10 + 12, right: PAD_X + 4, bottom: 9, height: 4, background: "color-mix(in srgb, var(--sage-deep) 16%, transparent)" }}>
           <span className="block h-full rounded-full bg-sage-deep transition-[width] duration-1000 ease-out" style={{ width: `${Math.min(100, Math.max(0, ((now.getTime() - from) / (to - from)) * 100))}%` }} />
@@ -85,14 +92,15 @@ type BodyProps = {
 function Body({ plans, taskLine, now, geometry }: BodyProps) {
   const { rows, earlier, later } = windowRows(plans, now, Math.max(ROW.plan, geometry.bh - FOOTER));
   const planRows = rows.flatMap((row, index) => (row.kind === "plan" ? [index] : []));
+  const nextId = nextPlanId(plans, now);
   const complete = taskLine !== null && taskLine.total > 0 && taskLine.done === taskLine.total;
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ gap: ROW.gap }}>
         {plans.length === 0 ? <StateView dense kind="empty" title="Nothing planned" detail="Plans appear here as agents schedule them." /> : null}
         {earlier > 0 ? (
-          <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL - 24 }}>
-            <Chip>{`${earlier} earlier`}</Chip>
+          <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL + 12 + 10 + 12 }}>
+            <span className="text-[12px] text-ink-muted tabular-nums">{`↑ ${earlier} earlier`}</span>
           </span>
         ) : null}
         {rows.map((row, i) =>
@@ -102,12 +110,12 @@ function Body({ plans, taskLine, now, geometry }: BodyProps) {
               {`Free · ${formatSpan(row.minutes)}`}
             </span>
           ) : (
-            <PlanRow key={row.plan.id} row={row} now={now} first={i === planRows[0]} last={i === planRows[planRows.length - 1]} />
+            <PlanRow key={row.plan.id} row={row} now={now} state={timeState(row.plan, now, nextId)} wide={geometry.iw >= 420} first={i === planRows[0]} last={i === planRows[planRows.length - 1]} />
           ),
         )}
         {later > 0 ? (
-          <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL - 24 }}>
-            <Chip>{`${later} later`}</Chip>
+          <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL + 12 + 10 + 12 }}>
+            <span className="text-[12px] text-ink-muted tabular-nums">{`↓ ${later} later`}</span>
           </span>
         ) : null}
       </div>
@@ -134,7 +142,7 @@ export function PlannerWidget({ order }: { order: number }) {
   const online = isMeshOnline(connection);
   const query = useQuery({
     queryKey: ["yaad", "planner", "plans", "tile", dateKey(today)],
-    queryFn: async () => (await planner.plans({ from: today.toISOString(), to: addDays(today, 1).toISOString(), view: "tile" })).items,
+    queryFn: async () => (await planner.plans({ from: today.toISOString(), to: addDays(today, 1).toISOString() })).items,
     enabled: online,
   });
   const tasks = useQuery({ queryKey: dayTasksKey(today), queryFn: async () => (await planner.tasks({ on: dateKey(today) })).items, enabled: online });

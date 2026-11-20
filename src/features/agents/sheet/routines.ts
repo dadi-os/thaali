@@ -33,10 +33,16 @@ export function cadenceOf(routine: Pick<Routine, "days" | "at">): string {
   return `${daysLabel(routine.days)} at ${timeLabel(routine.at)}`;
 }
 
-/** When it runs next and when it last did: `Next Tue, Nov 17, 7:30 AM · last ran 2 hours ago`, or `never ran`. */
+/** A routine's next run in the fewest words: the weekday and clock within a week (`Mon 9:00 AM`), else the date as well. */
+function nextWords(iso: string, now: number): string {
+  const days = (Date.parse(iso) - now) / 86_400_000;
+  return days < 6 ? `${new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(new Date(iso))} ${formatClock(iso)}` : `${formatDay(iso)}, ${formatClock(iso)}`;
+}
+
+/** When it runs next and when it last did: `Next Mon 9:00 AM · last ran 2 h ago`, or `never ran`. */
 export function runsLine(routine: Pick<Routine, "next_run_at" | "last_run_at">, now: number): string {
-  const next = `Next ${formatDay(routine.next_run_at)}, ${formatClock(routine.next_run_at)}`;
-  return `${next} · ${routine.last_run_at === null ? "never ran" : `last ran ${formatRelative(routine.last_run_at, now)}`}`;
+  const ago = routine.last_run_at === null ? "never ran" : `last ran ${formatRelative(routine.last_run_at, now)}`;
+  return `Next ${nextWords(routine.next_run_at, now)} · ${ago}`;
 }
 
 /** A reminder's time: `Tue, Nov 17, 4:00 PM`. */

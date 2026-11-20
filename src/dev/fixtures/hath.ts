@@ -213,7 +213,9 @@ export function threads(scenario: Scenario): ThreadSummary[] {
     agent_id: agentId,
     agent_name: agentId,
     last_message:
-      scenario === "long" && i === 0 ? `${LAST_MESSAGES[agentId]}\n\n${"Statement detail line. ".repeat(160)}` : LAST_MESSAGES[agentId],
+      scenario === "chat-rich" && agentId === "schedule-specialist"
+        ? "Statement is up: https://secure.chase.com/web/auth/dashboard#/dashboard/documents/myAccounts/statements and the [budget sheet](https://docs.google.com/spreadsheets/d/1)."
+        : scenario === "long" && i === 0 ? `${LAST_MESSAGES[agentId]}\n\n${"Statement detail line. ".repeat(160)}` : LAST_MESSAGES[agentId],
     last_at: ago((i * 37 + 4) * MIN),
     from_user: i === 1 || i === 6,
     unread: i === 0 ? 2 : i === 3 ? 1 : i === 4 ? 5 : 0,
@@ -244,7 +246,7 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
     created_at: ago(minutesAgo * MIN),
     ...extra,
   });
-  if (scenario === "empty") {
+  if (scenario === "empty" || (scenario === "chat-rich" && agentId === "efficiency-specialist")) {
     return [];
   }
   const rows: DurableMessage[] = [
@@ -260,9 +262,57 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
   if (agentId === "cse-300-specialist") {
     rows.push(row(1181, false, "I can't open the CSE 300 course page: MSU's sign-in is asking for a passkey approval on your phone, and no one has approved it for 20 minutes. I'll retry once you do.", 20, { status: "blocked" }));
   }
+  if (scenario === "chat-rich" && (agentId === "schedule-specialist" || agentId === "finance-specialist")) {
+    return richThread(row);
+  }
   if (scenario === "long") {
     rows.push(row(1181, false, `${"A long line of statement detail that wraps across the bubble. ".repeat(60)}\n\n\`\`\`\n${"x".repeat(240)}\n\`\`\``, 3, { status: "done" }));
   }
+  return rows;
+}
+
+/** The `chat-rich` thread: a long conversation with links of every shape, a table, a heading and attachments, for judging the floating glass and inline links. */
+function richThread(row: (seq: number, fromUser: boolean, content: string, minutesAgo: number, extra?: Partial<DurableMessage>) => DurableMessage): DurableMessage[] {
+  const filler = [
+    "Check the statement against the budget.",
+    "Both pending charges are expected. The Spotify renewal lands on the 3rd and the gym is monthly, so nothing needs your attention before Friday.",
+    "Can you also compare October with September?",
+    "October ran $64 under September, mostly because the travel line is empty. I kept the comparison in the sheet so you can open it whenever.",
+  ];
+  const rows: DurableMessage[] = [];
+  for (let i = 0; i < 22; i++) {
+    rows.push(row(1100 + i, i % 2 === 0, filler[i % filler.length]!, 300 - i * 10));
+  }
+  rows.push(
+    row(1130, true, "Send me the sources, and see [the Chase help page](https://www.chase.com/personal/support) too.", 60),
+    row(
+      1131,
+      false,
+      [
+        "## Sources",
+        "",
+        "Start with [the October statement](https://secure.chase.com/web/auth/dashboard) and the [budget sheet](https://docs.google.com/spreadsheets/d/1), then read https://www.consumerfinance.gov/ask-cfpb/what-is-a-pending-transaction-en-1017/ for how pending charges settle.",
+        "",
+        "- [Spotify billing](https://www.spotify.com/account/subscription/)",
+        "- Offline mirror: [archive](https://broken.invalid/archive) (this site has no favicon)",
+        "- A relative [link](/local/path) and [mail](mailto:ankur@example.com) stay plain text",
+        "",
+        "| Source | Link |",
+        "| --- | --- |",
+        "| Statement | [chase.com](https://chase.com/statement) |",
+        "| Sheet | https://docs.google.com/spreadsheets/d/1/edit#gid=0 |",
+        "",
+        "### Notes in [a heading link](https://example.com/notes)",
+        "",
+        "https://github.com/dadi-os/thaali/pull/1234/files?diff=split&w=1&utm_source=newsletter&utm_medium=email",
+      ].join("\n"),
+      55,
+      { attachments: [RECEIPT, { ...RECEIPT, id: "a2222222-2222-4222-8222-222222222222", filename: "budget-2026.xlsx", media_type: "application/vnd.ms-excel", size_bytes: 52_000 }], status: "done" },
+    ),
+    row(1132, true, "Thanks. Anything else to flag from https://example.com/a/very/long/path/that/keeps/going/and/going/forever/and/ever ?", 20),
+    row(1133, false, `Nothing else. ${"The remaining items are routine and I have noted each in the tracker. ".repeat(6)}`, 8, { status: "done" }),
+    row(1134, false, "Last check: all three subscriptions renewed at their usual prices and the pending charges cleared this morning.", 2, { status: "done" }),
+  );
   return rows;
 }
 

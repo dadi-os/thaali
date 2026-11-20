@@ -36,7 +36,7 @@ export type ComposerProps = {
 };
 
 /**
- * The thread's composer: one flat row on the rail's own surface, with no box around the field or the buttons.
+ * The thread's composer: a glass card floating over the thread, which scrolls beneath it.
  * Files dropped on it or pasted into it join the draft, and so does a paste over PASTE_ATTACHMENT_CHARS, as a
  * text file, instead of flooding the field. Staged files and the attach menu arrive and leave with motion.
  */
@@ -89,7 +89,6 @@ export function Composer({
 
   return (
     <motion.div ref={rootRef} {...RISE} className="pointer-events-none absolute inset-x-0 bottom-0 z-20 pb-[0.65rem]">
-      <div className="composer-fade" aria-hidden />
       <div className="relative z-10 px-3">
         {above}
         <AnimatePresence initial={false}>
@@ -116,7 +115,7 @@ export function Composer({
         >
           <AnimatePresence initial={false}>
             {attachments.length > 0 ? (
-              <motion.div key="staged" {...RISE} className="flex gap-2 overflow-x-auto px-1.5 pt-1">
+              <motion.div key="staged" {...RISE} className="flex gap-2 overflow-x-auto px-3 pt-3">
                 <AnimatePresence initial={false}>
                   {attachments.map((att, index) => (
                     <motion.div key={`${att.filename ?? att.media_type}-${index}`} {...RISE} className="relative shrink-0">

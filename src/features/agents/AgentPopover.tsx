@@ -33,6 +33,7 @@ export function AgentPopover({ agentId, anchor, onSelect, onClose }: AgentPopove
       anchor={{ x: shownAnchor.left + shownAnchor.width / 2, y: shownAnchor.top + shownAnchor.height / 2, radius: Math.max(shownAnchor.width, shownAnchor.height) / 2 }}
       aria-label="Agent details"
       widthPx={440}
+      maxHeightPx={MAX_HEIGHT}
       contentKey={shownId}
       style={{ height: `min(${MAX_HEIGHT}px, calc(100vh - 32px))`, maxHeight: "none", padding: 0, outline: "none" }}
       onClose={onClose}

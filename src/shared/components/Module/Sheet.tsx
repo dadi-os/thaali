@@ -52,16 +52,29 @@ export type KeyValueProps = {
   children: ReactNode;
   /** The value is text a person may copy. */
   selectable?: boolean;
+  /** A quiet second fact after the value (a clock beside "in 20 min"), kept on the line when the value truncates. */
+  hint?: string;
+  /** `late` for a value that is past its time (an answer overdue, a task past due). */
+  tone?: "late";
+  /** The row stacks: the label (and its hint) over the value, which may take two lines, for words such as a task's. */
+  wrap?: boolean;
 };
 
-/** One fact of a sheet on a line: a quiet label at the left and its value at the right. */
-export function KeyValue({ label, children, selectable = false }: KeyValueProps) {
+/** One fact of a sheet on a line: a quiet label at the left and its value at the right, 32 px tall at least. */
+export function KeyValue({ label, children, selectable = false, hint, tone, wrap = false }: KeyValueProps) {
   return (
-    <div className="flex min-h-8 min-w-0 items-baseline gap-3 text-[13px]">
-      <span className="flex-none text-ink-muted">{label}</span>
-      <span data-selectable={selectable ? "" : undefined} className="ml-auto min-w-0 truncate text-right font-medium tabular-nums">
+    <div className={`flex min-w-0 text-[13px] ${wrap ? "flex-col gap-0.5 py-1.5" : "min-h-8 items-center gap-3"}`}>
+      <span className={`flex-none text-ink-muted ${wrap && hint !== undefined ? "flex items-baseline gap-2" : ""}`}>
+        {label}
+        {wrap && hint !== undefined ? <span className="text-ink-ghost">{hint}</span> : null}
+      </span>
+      <span
+        data-selectable={selectable ? "" : undefined}
+        className={`min-w-0 font-medium tabular-nums ${wrap ? "line-clamp-2 text-[13.5px] leading-[19px] [overflow-wrap:anywhere]" : "ml-auto truncate text-right"} ${tone === "late" ? "text-[var(--late-ink)]" : ""}`}
+      >
         {children}
       </span>
+      {hint === undefined || wrap ? null : <span className="flex-none text-ink-ghost">{hint}</span>}
     </div>
   );
 }

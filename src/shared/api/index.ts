@@ -60,6 +60,7 @@ export async function initApi(): Promise<void> {
       ? (await import("../../dev/scenario")).readScenario(window.location.search)
       : null;
   if (fixtures !== null) {
+    (await import("../../dev/clock")).installClock(window.location.search);
     const { FixtureTransport } = await import("../../dev/fixtureTransport");
     transport = new FixtureTransport(fixtures);
     usingMesh = false;

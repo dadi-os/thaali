@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { REVEAL } from "../../../shared/motion";
 import { isActiveTask } from "../sessions";
 import type { AgentTask } from "../../../types/hath";
-import { SectionHeader } from "../../../shared/components/Module";
+import { InsetCard } from "../../../shared/components/Module";
 import { TaskRow } from "../../../shared/components/Task/TaskRow";
 import { pushToast } from "../../../contexts/toasts";
 import { Button } from "../../../shared/ui/Button";
@@ -59,7 +59,7 @@ export function HelperTasks({ owner, tasks, onHalt, now }: HelperTasksProps) {
   };
   const row = ({ task, question }: SheetTask) => (
     <div key={task.id} className="flex flex-col">
-      <TaskRow task={task} owner={owner} question={question} now={now} />
+      <TaskRow task={task} owner={owner} question={question} now={now} plain />
       {STOPPABLE.has(task.status) ? (
         <div className="flex items-center justify-end gap-2 px-3 pb-1">
           {confirming === task.id ? (
@@ -82,8 +82,7 @@ export function HelperTasks({ owner, tasks, onHalt, now }: HelperTasksProps) {
     </div>
   );
   return (
-    <div className="flex flex-col gap-0.5">
-      <SectionHeader title="Helper tasks" count={active.length === tasks.length ? `${active.length} active` : `${active.length} of ${tasks.length} active`} />
+    <InsetCard title="Helper tasks" count={active.length === tasks.length ? `${active.length} active` : `${active.length} of ${tasks.length} active`}>
       {active.map(row)}
       {idle.length === 0 ? null : (
         <>
@@ -99,6 +98,6 @@ export function HelperTasks({ owner, tasks, onHalt, now }: HelperTasksProps) {
           </Button>
         </>
       )}
-    </div>
+    </InsetCard>
   );
 }

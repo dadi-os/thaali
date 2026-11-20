@@ -1,21 +1,32 @@
-import { useLayoutEffect, useRef, type CSSProperties, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { Button } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
-import { PlanButton } from "./PlanButton";
 import { StateView } from "../../shared/states/ModuleState";
 import { Clamp, Truncate } from "../../shared/ui/Truncate";
+import { useSize } from "../../shared/hooks/useSize";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { Plan } from "../../types/planner";
 import { isSameDay, wallMinutes } from "./dates";
-import { axisRange, formatSpan, gapsBetween, hasEnded, type Segment, segmentsOn } from "./layout";
-import { attendedLabel, isCurrent, planTone } from "./plans";
+import { formatSpan, gapsBetween, type Segment, segmentsOn } from "./layout";
+import { PlanButton } from "./PlanButton";
+import { planTone } from "./plans";
+import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { plannedClock } from "./zones";
 
-/** Pixels per minute on the shared time axis. */
-const PPM = 56 / 60;
+/** Pixels per minute at the least: an hour is 56 px. A window taller than the whole day stretches the day to fill it. */
+const MIN_PPM = 56 / 60;
 /** Width of the hour-label column. */
 export const AXIS_W = 64;
+/** Space above midnight, so the first label is not cut off. */
+const TOP_PAD = 12;
+/** Minutes in a day. */
+const DAY = 1440;
 /** The least free stretch, in minutes, the grid names. */
 const FREE_MIN = 30;
+/** Where an empty day opens, in minutes: seven in the morning. */
+const MORNING = 420;
+/** The shortest a plan block is drawn, in px, so a short plan stays legible. */
+const MIN_BLOCK = 28;
 
 const SHEET: CSSProperties = {
   background: "var(--bone-raised)",
@@ -33,26 +44,49 @@ const hourText = (min: number) => `${Math.floor(min / 60) % 12 || 12} ${min >= 7
 type BlockProps = {
   segment: Segment;
   now: Date;
+  /** Where the plan stands against the clock: past, now, next or later. */
+  state: TimeState;
   zone: string;
   top: number;
+  height: number;
   selected: boolean;
   compact: boolean;
   onOpen: (plan: Plan, element: Element) => void;
 };
 
-/** One plan on the axis: tall as its time, side by side with plans it overlaps, muted when declined. */
-function Block({ segment, now, zone, top, selected, compact, onOpen }: BlockProps) {
-  const { block: plan, startMin, endMin, lane, lanes } = segment;
-  const height = Math.max(compact ? 24 : 32, (endMin - startMin) * PPM - 3);
+/**
+ * One plan on the axis, as tall as its time (never under 28 px). A short block is one line, title and time, centred. A
+ * taller one starts at the top with the title and time on the first line and one line under them: its status, then its
+ * place or note; a tall block gives the note room for more lines, so the bottom is not left bare. In a narrow Week
+ * column the title takes the room and wraps, with the time under it when it fits.
+ */
+function Block({ segment, now, state, zone, top, height, selected, compact, onOpen }: BlockProps) {
+  const { block: plan, lane, lanes } = segment;
   const there = plannedClock(plan, zone);
   const declined = plan.rsvp === "no";
-  const current = isCurrent(plan, now);
-  const ended = hasEnded(plan, now);
-  const status = declined ? "Declined" : attendedLabel(plan);
+  const current = state === "now";
+  const ended = state === "past";
+  const missed = plan.attended === false;
   const range = `${formatClock(plan.start_at)} – ${formatClock(plan.end_at!)}`;
   const inset = compact ? 3 : 8;
   const narrow = compact && lanes > 1;
-  const detail = !compact && height >= 50 ? (there ?? (plan.body ?? (plan.place === null ? null : `${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`))) : null;
+  const short = height < 58;
+  const pad = compact ? 6 : 14;
+  const status = plan.attended === true ? "Attended" : missed ? "Didn’t attend" : declined ? "Declined" : null;
+  const note = plan.place === null ? null : `${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`;
+  const phase = state === "later" || declined ? null : planStatus(plan, now, state);
+  const line = [phase, status].filter((part): part is string => part !== null).join(" · ");
+  const detail = there ?? note ?? (compact ? null : `${formatSpan((segment.endMin - segment.startMin))} long`);
+    const quiet = declined || missed || ended;
+  const titleStyle: CSSProperties = { fontSize: compact ? 13 : 14, fontWeight: current ? 700 : 600, lineHeight: compact ? "16px" : "20px", textDecoration: missed ? "line-through" : "none", color: quiet ? "var(--ink-muted)" : "var(--ink)" };
+  const mark =
+    plan.attended === true && !compact ? (
+      <span aria-label="Attended" style={{ display: "flex", color: "var(--sage-deep)", flex: "none" }}>
+        <Icon name="check" size={compact ? 12 : 14} />
+      </span>
+    ) : ended && !declined && plan.attended === null && !compact ? (
+      <span aria-label="Not marked" style={{ width: 12, height: 12, borderRadius: "50%", border: "1.5px dashed var(--ink-faint)", flex: "none" }} />
+    ) : null;
   return (
     <PlanButton
       plan={plan}
@@ -70,40 +104,34 @@ function Block({ segment, now, zone, top, selected, compact, onOpen }: BlockProp
         height,
         display: "flex",
         flexDirection: "column",
-        justifyContent: compact || height < 50 ? "flex-start" : "center",
+        justifyContent: short ? "center" : "flex-start",
         gap: 2,
-        padding: narrow ? "3px 6px" : compact ? "3px 8px" : "5px 14px",
+        padding: narrow ? "3px 5px" : short ? `0 ${pad}px` : compact ? `5px ${pad}px` : `8px ${pad}px`,
         borderRadius: compact ? 10 : 14,
         ...SHEET,
         ...(declined ? { background: "var(--bone)", border: "1px dashed var(--ink-ghost)", boxShadow: "none" } : {}),
-        ...(selected || current ? { border: "1px solid var(--sage-deep)" } : {}),
+        ...(current ? { border: "1px solid var(--sage-deep)", backgroundColor: "var(--bone-raised)", backgroundImage: "linear-gradient(var(--sage-active), var(--sage-active))" } : {}),
+        ...(selected ? { border: "1px solid var(--sage-deep)" } : {}),
+        ...(ended && !declined ? { background: "color-mix(in srgb, var(--bone-raised) 55%, transparent)", boxShadow: "none" } : {}),
         zIndex: 2,
-        color: declined ? "var(--ink-muted)" : "var(--ink)",
         overflow: "hidden",
         textAlign: "left",
       }}
     >
-      <div style={{ display: "flex", alignItems: narrow ? "flex-start" : "center", gap: compact ? 6 : 9, minHeight: compact ? 16 : 20 }}>
-        {narrow ? null : <span style={{ width: compact ? 6 : 8, height: compact ? 6 : 8, borderRadius: "50%", background: planTone(plan), flex: "none" }} />}
-        {narrow ? (
-          <Clamp text={plan.title} lines={Math.max(1, Math.floor((height - 8) / 15))} style={{ flex: 1, minWidth: 0, fontSize: 12, fontWeight: 600, lineHeight: "15px" }} />
-        ) : (
-          <Truncate text={plan.title} style={{ flex: 1, minWidth: 0, fontSize: compact ? 13 : 14, fontWeight: 600 }} />
-        )}
+      <div style={{ display: "flex", alignItems: narrow ? "flex-start" : "center", gap: compact ? 6 : 9, minWidth: 0 }}>
+        {narrow ? null : <span className={current ? "dot-pulse" : undefined} style={{ width: compact ? 6 : 8, height: compact ? 6 : 8, borderRadius: "50%", background: current ? "var(--sage-deep)" : ended ? "var(--ink-ghost)" : planTone(plan), flex: "none" }} />}
+        {narrow ? <Clamp text={plan.title} lines={Math.max(1, Math.floor((height - 6) / 14))} style={{ flex: 1, minWidth: 0, ...titleStyle, fontSize: 12, lineHeight: "14px" }} /> : <Truncate text={plan.title} style={{ flex: 1, minWidth: 0, ...titleStyle }} />}
         {compact ? null : <span style={{ fontSize: 12, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", fontVariantNumeric: "tabular-nums" }}>{range}</span>}
-        {plan.attended === true ? (
-          <span aria-label="Attended" style={{ display: "flex", color: "var(--sage-deep)" }}>
-            <Icon name="check" size={compact ? 12 : 14} />
-          </span>
-        ) : ended && !declined && plan.attended === null && !compact ? (
-          <span aria-label="Not marked" style={{ width: 12, height: 12, borderRadius: "50%", border: "1.5px dashed var(--ink-faint)", flex: "none" }} />
-        ) : null}
+        {mark}
       </div>
-      {narrow ? null : height >= (compact ? 40 : 46) && (compact || status !== null || detail !== null) ? (
-        <span style={{ fontSize: compact ? 11 : 12, color: "var(--ink-muted)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", paddingLeft: compact ? 12 : 17 }}>
-          {compact ? formatClock(plan.start_at) : [status, detail].filter((part) => part !== null).join(" · ")}
-        </span>
-      ) : null}
+      {narrow || short ? null : compact ? (
+        height >= 50 ? <span style={{ fontSize: 12, lineHeight: "16px", color: state === "now" || state === "next" ? "var(--sage-text)" : "var(--ink-muted)", paddingLeft: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{state === "now" || state === "next" ? phase : [formatClock(plan.start_at), status].filter(Boolean).join(" · ")}</span> : null
+      ) : (
+        <>
+          {line === "" && (detail === null || detail === "") ? null : <Truncate text={line === "" ? detail! : line} style={{ fontSize: 13, lineHeight: "18px", color: state === "now" || state === "next" ? "var(--sage-text)" : "var(--ink-muted)", paddingLeft: 17 }} />}
+          {line === "" || detail === null || detail === "" || height < 74 ? null : <Truncate text={detail} style={{ fontSize: 13, lineHeight: "18px", color: "var(--ink-muted)", paddingLeft: 17 }} />}
+        </>
+      )}
       {current ? (
         <span style={{ position: "absolute", left: 0, bottom: 0, height: 2, width: `${Math.min(100, ((now.getTime() - Date.parse(plan.start_at)) / (Date.parse(plan.end_at!) - Date.parse(plan.start_at))) * 100)}%`, background: "var(--sage-deep)" }} />
       ) : null}
@@ -124,104 +152,124 @@ export type TimeGridProps = {
   selected: string | null;
   /** Open a plan's detail beside the chosen block. */
   onOpen: (plan: Plan, element: Element) => void;
-  /** A sticky header above the axis laid out on {@link columnsOf}; Week's day headers and span row. */
+  /** A sticky header above the axis laid out on {@link columnsOf}; Week's day bubbles and all-day band. */
   head?: ReactNode;
 };
 
 /**
- * The Planner's time axis: hour rules, a now line, and one column per day under a single scroll, so Day and Week
- * move together. Plans sit by time in side-by-side lanes and free stretches of 30 minutes or more are named.
+ * Where the grid opens, in minutes: an hour line a little before what matters, never inside a plan. On today, near the plans,
+ * that is the hour before what is on now or next; when now is far from the day's plans (two hours before the first or after
+ * the last) the plans come first, and the Now marker is a jump away.
+ */
+function anchorOf(columns: Segment[][], single: boolean, nowMinute: number | null): number {
+  const flat = columns.flat();
+  const first = flat.length === 0 ? null : Math.min(...flat.map((s) => s.startMin));
+  const lastEnd = flat.length === 0 ? null : Math.max(...flat.map((s) => s.endMin));
+  let focus: number;
+  if (single && nowMinute !== null && first !== null && lastEnd !== null && nowMinute >= first - 120 && nowMinute <= lastEnd + 120) {
+    const upcoming = flat.find((s) => s.endMin > nowMinute)?.startMin ?? null;
+    focus = upcoming !== null ? Math.min(upcoming, nowMinute) : Math.max(...flat.map((s) => s.startMin));
+  } else if (single && nowMinute !== null && first === null) {
+    focus = nowMinute;
+  } else {
+    focus = first ?? MORNING;
+  }
+  let anchor = Math.max(0, Math.floor((focus - 45) / 60) * 60);
+  for (const s of flat) if (s.startMin < anchor && s.endMin > anchor) anchor = s.startMin;
+  return anchor;
+}
+
+/**
+ * The Planner's time axis: the whole day, 12 AM to 12 AM, drawn as its own layer of hour rules and labels that does not
+ * depend on the plans, with the plans laid over it by time in side-by-side lanes. One scroll serves every column, so Day
+ * and Week move together, and it opens at the hour before what is on now or next. Free stretches of 30 minutes or more
+ * are named, and the now line crosses today's column.
  */
 export function TimeGrid({ days, plans, now, zone, selected, onOpen, head }: TimeGridProps) {
+  const [scroller, size] = useSize<HTMLDivElement>();
   const columns = days.map((day) => segmentsOn(plans, day));
   const todayIndex = days.findIndex((day) => isSameDay(day, now));
   const nowMinute = todayIndex < 0 ? null : wallMinutes(now);
-  const planMinutes = columns.flat().flatMap((s) => [s.startMin, s.endMin]);
-  const nearPlans = nowMinute !== null && (planMinutes.length === 0 || (nowMinute <= Math.max(...planMinutes) + 120 && nowMinute >= Math.min(...planMinutes) - 120));
-  const minutes = [...planMinutes, ...(nearPlans ? [nowMinute!] : [])];
-  const range = axisRange(columns);
-  const lo = minutes.length === 0 || columns.flat().length === 0 ? range.from * 60 : Math.max(0, Math.floor((Math.min(...minutes) - 60) / 60) * 60);
-  const hi = minutes.length === 0 || columns.flat().length === 0 ? range.to * 60 : Math.min(1440, Math.ceil((Math.max(...minutes) + 60) / 60) * 60);
-  const hours = Array.from({ length: (hi - lo) / 60 + 1 }, (_, i) => lo + i * 60);
-  const top = (minute: number) => (minute - lo) * PPM;
+  const ppm = Math.max(MIN_PPM, (size.height - TOP_PAD - 24) / DAY);
+  const top = (minute: number) => minute * ppm;
+  const hours = Array.from({ length: DAY / 60 + 1 }, (_, i) => i * 60);
   const compact = days.length > 1;
+  const nextId = nextPlanId(plans, now);
   const none = columns.every((column) => column.length === 0);
-  const template = columnsOf(days.length);
-  const scroller = useRef<HTMLDivElement>(null);
-  const flat = columns.flat();
-  const upcoming = nowMinute === null ? null : (flat.find((x) => x.endMin > nowMinute)?.startMin ?? null);
-  const lastStart = flat.length === 0 ? null : Math.max(...flat.map((x) => x.startMin));
-  const earliest = flat.length === 0 ? null : Math.min(...flat.map((x) => x.startMin));
-  const focus = days.length === 1 && nowMinute !== null ? (upcoming !== null ? Math.min(upcoming, nowMinute) : (lastStart ?? nowMinute)) : earliest;
-  const first = days[0]!.getTime();
+  const anchor = anchorOf(columns, days.length === 1, nowMinute);
+  const [scrolled, setScrolled] = useState(0);
+  const seen = { from: (scrolled - TOP_PAD) / ppm, to: (scrolled - TOP_PAD + size.height) / ppm };
+  const away = nowMinute === null || size.height === 0 ? null : nowMinute < seen.from ? "up" : nowMinute > seen.to ? "down" : null;
+  const placed = useRef<number | null>(null);
+  const key = days[0]!.getTime() * 10 + days.length;
   useLayoutEffect(() => {
-    if (focus === null) return;
-    let anchor = Math.max(lo, Math.floor((focus - 45) / 60) * 60);
-    for (const x of flat) if (x.startMin < anchor && x.endMin > anchor) anchor = x.startMin;
-    scroller.current!.scrollTop = Math.max(0, (anchor - lo) * PPM);
-  }, [first, days.length]);
+    if (size.height === 0 || placed.current === key) return;
+    placed.current = key;
+    scroller.current!.scrollTop = anchor * ppm + TOP_PAD - 10;
+  }, [key, size.height, anchor, ppm, scroller]);
+  const template = columnsOf(days.length);
   return (
-    <div ref={scroller} className="scroll" style={{ flex: 1, minHeight: 0 }}>
+    <>
       {head}
-      <div style={{ position: "relative", display: "grid", gridTemplateColumns: template, height: (hi - lo) * PPM + 24, marginTop: 12 }}>
-        {hours.map((m) => (
-          <div key={m} style={{ position: "absolute", left: 0, right: 0, top: top(m), borderTop: "1px solid var(--rule)", zIndex: 0 }}>
-            <span
-              style={{
-                position: "absolute",
-                top: -8,
-                left: 0,
-                fontSize: 12,
-                color: "var(--ink-muted)",
-                width: AXIS_W,
-                textAlign: "right",
-                paddingRight: 10,
-                fontVariantNumeric: "tabular-nums",
-                whiteSpace: "nowrap",
-              }}
-            >
-              {hourText(m)}
-            </span>
+      <div style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
+      {away === null ? null : (
+        <div style={{ order: away === "up" ? -1 : 1, flex: "none", display: "flex", justifyContent: "flex-end", padding: "2px 6px" }}>
+          <Button tone="quiet" size="sm" onClick={() => scroller.current!.scrollTo({ top: nowMinute! * ppm - size.height / 2 + TOP_PAD, behavior: "smooth" })}>
+            {`Now ${away === "down" ? "↓" : "↑"} ${formatClock(now.toISOString())}`}
+          </Button>
+        </div>
+      )}
+      <div ref={scroller} className="scroll" onScroll={(event) => setScrolled(event.currentTarget.scrollTop)} style={{ flex: 1, minHeight: 0 }}>
+      {none ? (
+        <div style={{ position: "sticky", top: 0, height: 0, zIndex: 1, pointerEvents: "none" }}>
+          <div style={{ position: "absolute", left: AXIS_W, right: 0, top: Math.max(40, size.height * 0.3), display: "flex", justifyContent: "center" }}>
+            <div style={{ width: 380, background: "var(--glass-solid)", borderRadius: 18, padding: "16px 8px", display: "flex" }}>
+              <StateView dense kind="empty" title="Nothing planned" detail="Plans appear here as agents schedule them." />
+            </div>
           </div>
-        ))}
+        </div>
+      ) : null}
+      <div style={{ position: "relative", display: "grid", gridTemplateColumns: template, height: DAY * ppm + TOP_PAD + 12, paddingTop: TOP_PAD }}>
+        <div style={{ position: "absolute", left: 0, right: 0, top: TOP_PAD, height: DAY * ppm, zIndex: 0, pointerEvents: "none" }} aria-hidden="true">
+          {hours.map((m) => (
+            <div key={m} style={{ position: "absolute", left: 0, right: 0, top: top(m), borderTop: "1px solid var(--rule)" }}>
+              <span style={{ position: "absolute", top: -9, left: 0, width: AXIS_W, paddingRight: 10, textAlign: "right", fontSize: 12, lineHeight: "16px", color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{hourText(m)}</span>
+            </div>
+          ))}
+        </div>
         <div />
         {days.map((day, index) => {
           const segments = columns[index]!;
-          const isToday = index === todayIndex;
           return (
-            <div key={day.toISOString()} data-day={day.toISOString().slice(0, 10)} style={{ position: "relative", borderLeft: compact ? "1px solid var(--rule)" : "none", background: compact && isToday ? "var(--sage-fill)" : "transparent" }}>
+            <div key={day.toISOString()} data-day={day.toISOString().slice(0, 10)} style={{ position: "relative", borderLeft: compact ? "1px solid var(--rule)" : "none", background: compact && index === todayIndex ? "var(--sage-fill)" : "transparent" }}>
               {gapsBetween(segments, FREE_MIN).map((gap) =>
-                (gap.endMin - gap.startMin) * PPM < 26 ? null : (
-                  <div
-                    key={gap.startMin}
-                    aria-label={`Free ${formatSpan(gap.endMin - gap.startMin)}`}
-                    style={{ position: "absolute", left: 0, right: 0, top: top(gap.startMin), height: (gap.endMin - gap.startMin) * PPM, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 1 }}
-                  >
+                (gap.endMin - gap.startMin) * ppm < 26 ? null : (
+                  <div key={gap.startMin} aria-label={`Free ${formatSpan(gap.endMin - gap.startMin)}`} style={{ position: "absolute", left: 0, right: 0, top: top(gap.startMin), height: (gap.endMin - gap.startMin) * ppm, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 1 }}>
                     <span style={{ fontSize: compact ? 11 : 12, color: "var(--ink-faint)", background: "var(--glass-solid)", padding: "1px 8px", borderRadius: 999 }}>{`Free · ${formatSpan(gap.endMin - gap.startMin)}`}</span>
                   </div>
                 ),
               )}
               {segments.map((segment) => (
-                <Block key={segment.block.id} segment={segment} now={now} zone={zone} top={top(segment.startMin)} selected={selected === segment.block.id} compact={compact} onOpen={onOpen} />
+                <Block key={segment.block.id} segment={segment} now={now} state={timeState(segment.block, now, nextId)} zone={zone} top={top(segment.startMin)} height={Math.max(MIN_BLOCK, (segment.endMin - segment.startMin) * ppm - 2)} selected={selected === segment.block.id} compact={compact} onOpen={onOpen} />
               ))}
             </div>
           );
         })}
-        {nearPlans && nowMinute! >= lo && nowMinute! <= hi ? (
+        {nowMinute !== null ? (
           <>
-            <div style={{ position: "absolute", left: AXIS_W - 4, right: 0, top: top(nowMinute!) - 1, height: 2, background: "var(--sage-deep)", opacity: compact ? 0.3 : 1, zIndex: 3, pointerEvents: "none" }} />
-            <span style={{ position: "absolute", left: 2, width: AXIS_W - 10, top: top(nowMinute!) - 10, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 999, zIndex: 4, pointerEvents: "none" }}>{formatClock(now.toISOString())}</span>
+            <div style={{ position: "absolute", left: AXIS_W - 4, right: 0, top: TOP_PAD + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", opacity: compact ? 0.3 : 1, zIndex: 1, pointerEvents: "none" }} />
+            <span style={{ position: "absolute", left: 2, width: AXIS_W - 10, top: TOP_PAD + top(nowMinute) - 10, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 999, zIndex: 4, pointerEvents: "none" }}>
+              <span aria-hidden="true" className="animate-pulse-out pointer-events-none absolute inset-0 rounded-full ring-1 ring-sage [--pulse-from:0.7] [--pulse-scale:1.35]" />
+              <span style={{ position: "relative" }}>{formatClock(now.toISOString())}</span>
+            </span>
+            {compact && todayIndex >= 0 ? (
+              <div style={{ position: "absolute", left: `calc(${AXIS_W}px + (100% - ${AXIS_W}px) * ${todayIndex / days.length})`, width: `calc((100% - ${AXIS_W}px) / ${days.length})`, top: TOP_PAD + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", zIndex: 1, pointerEvents: "none" }} />
+            ) : null}
           </>
         ) : null}
-        {compact && todayIndex >= 0 && nearPlans && nowMinute! >= lo && nowMinute! <= hi ? (
-          <div style={{ position: "absolute", left: `calc(${AXIS_W}px + (100% - ${AXIS_W}px) * ${todayIndex / days.length})`, width: `calc((100% - ${AXIS_W}px) / ${days.length})`, top: top(nowMinute!) - 1, height: 2, background: "var(--sage-deep)", zIndex: 3, pointerEvents: "none" }} />
-        ) : null}
-        {none ? (
-          <div style={{ position: "absolute", left: AXIS_W, right: 0, top: 0, bottom: 0, display: "flex", zIndex: 1, pointerEvents: "none" }}>
-            <StateView dense kind="empty" title="Nothing planned" detail="Plans appear here as agents schedule them." />
-          </div>
-        ) : null}
       </div>
-    </div>
+      </div>
+      </div>
+    </>
   );
 }

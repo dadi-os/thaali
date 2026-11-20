@@ -5,7 +5,6 @@ import { IconButton } from "../../ui/Button";
 import { RISE } from "../../motion";
 import { useContextActions } from "../../interaction/contextMenu";
 import { formatAbsolute } from "../../lib/ux/time";
-import { Chip } from "../../ui/Chip";
 import type { MessageStatus } from "../../../types/hath";
 import type { ChatMessage } from "../../../contexts/chat";
 import { MarkdownBody } from "../Markdown";
@@ -147,9 +146,9 @@ function AgentBubble({ message, live, standing }: { message: ChatMessage; live: 
       </div>
       <MessageFiles files={message.files ?? []} sending={[]} align="start" />
       {standing === "needs_input" ? (
-        <span role="status" className="flex"><Chip tone="tide">Needs your input</Chip></span>
+        <span role="status" className="flex items-center gap-1.5 text-[12.5px] font-medium text-tide-ink"><span className="size-1.5 rounded-full bg-tide" />Needs your input</span>
       ) : standing === "blocked" ? (
-        <span role="status" className="flex"><Chip tone="late">Blocked</Chip></span>
+        <span role="status" className="flex items-center gap-1.5 text-[12.5px] font-medium text-error"><span className="size-1.5 rounded-full bg-error" />Blocked</span>
       ) : null}
       <MessageMeta message={message} copyLabel="Copy response" align="start" />
     </MessageRow>

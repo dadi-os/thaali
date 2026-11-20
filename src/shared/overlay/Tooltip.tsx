@@ -1,4 +1,5 @@
 import {
+  useEffect,
   useId,
   useLayoutEffect,
   useRef,
@@ -15,6 +16,10 @@ export type TooltipProps = {
   children: ReactNode;
   side?: "top" | "bottom";
   className?: string;
+  /** Wait this long in ms after the pointer arrives before showing; focus shows at once. */
+  delayMs?: number;
+  /** Wrap long content, such as a URL, inside a bounded width instead of one line. */
+  wrap?: boolean;
 };
 
 const PAD = 10;
@@ -41,11 +46,14 @@ export function Tooltip({
   children,
   side = "top",
   className,
+  delayMs = 0,
+  wrap = false,
 }: TooltipProps) {
   const id = useId();
   const triggerRef = useRef<HTMLSpanElement>(null);
   const tipRef = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
+  const timerRef = useRef<number | undefined>(undefined);
   const [pos, setPos] = useState({ left: 0, top: 0, placed: side });
 
   useLayoutEffect(() => {
@@ -74,14 +82,29 @@ export function Tooltip({
     setPos({ left, top, placed });
   }, [open, side, content]);
 
+  useEffect(() => () => window.clearTimeout(timerRef.current), []);
+
+  const show = (after: number) => {
+    window.clearTimeout(timerRef.current);
+    if (after > 0) {
+      timerRef.current = window.setTimeout(() => setOpen(true), after);
+    } else {
+      setOpen(true);
+    }
+  };
+  const hide = () => {
+    window.clearTimeout(timerRef.current);
+    setOpen(false);
+  };
+
   return (
     <span
       ref={triggerRef}
       className={`inline-flex ${className ?? ""}`}
-      onMouseEnter={() => setOpen(true)}
-      onMouseLeave={() => setOpen(false)}
-      onFocus={() => setOpen(true)}
-      onBlur={() => setOpen(false)}
+      onMouseEnter={() => show(delayMs)}
+      onMouseLeave={hide}
+      onFocus={() => show(0)}
+      onBlur={hide}
     >
       <span aria-describedby={open ? id : undefined}>{children}</span>
       {createPortal(
@@ -92,7 +115,12 @@ export function Tooltip({
               id={id}
               role="tooltip"
               className="tooltip-bubble pointer-events-none fixed"
-              style={{ left: pos.left, top: pos.top, zIndex: "var(--z-tooltip)" }}
+              style={{
+                left: pos.left,
+                top: pos.top,
+                zIndex: "var(--z-tooltip)",
+                ...(wrap ? { whiteSpace: "normal", maxWidth: "min(420px, calc(100vw - 20px))", overflowWrap: "anywhere" } : {}),
+              }}
               exit={{ opacity: 0 }}
               transition={{ duration: FAST_S, ease: EASE }}
             >

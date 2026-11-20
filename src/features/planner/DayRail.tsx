@@ -4,9 +4,8 @@ import { Truncate } from "../../shared/ui/Truncate";
 import { openExternal } from "../../shared/desktop/open";
 import { pushToast } from "../../contexts/toasts";
 import { formatClock } from "../../shared/lib/ux/time";
-import type { Plan } from "../../types/planner";
-import { formatUntil } from "./dates";
-import { formatSpan } from "./layout";
+import type { Plan, Task } from "../../types/planner";
+import { duration, inPhrase } from "./phrases";
 import { isCurrent } from "./plans";
 import { Checklist } from "./Checklist";
 
@@ -37,8 +36,10 @@ export type DayRailProps = {
   now: Date;
   /** Show Now and Next above the Checklist; false for a day that is not today. */
   live: boolean;
-  /** Open the Checklist's Someday section on arrival. */
-  somedayOpen: boolean;
+  /** Opens the Someday sheet. */
+  onSomeday: () => void;
+  /** Opens a task's details beside the chosen control. */
+  onOpenTask: (task: Task, element: Element) => void;
   /** The side column when false is a stack under the timeline: the Checklist takes the room Now and Next leave. */
   docked: boolean;
   /** Opens a plan's details under the chosen control. */
@@ -49,11 +50,11 @@ export type DayRailProps = {
  * The Day view's side rail: what is on now with its time left, what is next with where it is and Directions to its
  * address, and under them the Checklist, which scrolls on its own.
  */
-export function DayRail({ day, plans, now, live, somedayOpen, docked, onOpen }: DayRailProps) {
+export function DayRail({ day, plans, now, live, onSomeday, onOpenTask, docked, onOpen }: DayRailProps) {
   const { current, next } = nowAndNextPlans(plans, now);
   const address = next?.place?.address ?? null;
   return (
-    <div className={`flex min-h-0 min-w-0 flex-col gap-3 ${docked ? "w-[320px] flex-none" : "flex-1"}`}>
+    <div className={`flex min-w-0 flex-col gap-3 ${docked ? "min-h-0 w-[320px] flex-none" : "flex-none"}`}>
       {live && current !== null ? (
         <Card aria-label="Now" style={{ padding: 16, gap: 8, flex: "none" }}>
           <span className="ui-label">Now</span>
@@ -62,12 +63,12 @@ export function DayRail({ day, plans, now, live, somedayOpen, docked, onOpen }: 
           </button>
           <span className="text-[13px] text-ink-muted">{`${formatClock(current.start_at)} – ${formatClock(current.end_at!)}`}</span>
           <Track fraction={(now.getTime() - Date.parse(current.start_at)) / (Date.parse(current.end_at!) - Date.parse(current.start_at))} />
-          <span className="text-[13px] text-ink-muted">{formatSpan(Math.max(0, Math.round((Date.parse(current.end_at!) - now.getTime()) / 60_000)))} left</span>
+          <span className="text-[13px] text-ink-muted">{`${duration(Math.max(0, Date.parse(current.end_at!) - now.getTime()))} left`}</span>
         </Card>
       ) : null}
       {live && next !== null ? (
         <Card aria-label="Next" style={{ padding: 16, gap: 8, flex: "none" }}>
-          <span className="ui-label">{`Up next · ${formatUntil(now, new Date(next.start_at))}`}</span>
+          <span className="ui-label">{`Up next · ${inPhrase(Date.parse(next.start_at) - now.getTime())}`}</span>
           <button type="button" onClick={(event) => onOpen(next, event.currentTarget)} className="min-w-0 text-left text-[17px] font-semibold">
             <Truncate text={next.title} />
           </button>
@@ -94,7 +95,7 @@ export function DayRail({ day, plans, now, live, somedayOpen, docked, onOpen }: 
           )}
         </Card>
       ) : null}
-      <Checklist day={day} now={now} somedayOpen={somedayOpen} />
+      <Checklist day={day} now={now} onSomeday={onSomeday} onOpenTask={onOpenTask} height={docked ? undefined : 460} />
     </div>
   );
 }

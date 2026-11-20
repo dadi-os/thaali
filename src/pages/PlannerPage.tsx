@@ -2,13 +2,18 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
+import { useShortcut } from "../shared/interaction/shortcuts";
 import { PageHeader } from "../shared/layout/shell/PageHeader";
 import { addDays, dateKey, endOfMonth, isSameDay, parseDateKey, startOfDay, startOfMonth, weekDays } from "../features/planner/dates";
 import { DayView } from "../features/planner/DayView";
+import { DayLoading, MonthLoading, WeekLoading } from "../features/planner/Loading";
 import { MonthView } from "../features/planner/MonthView";
+import { monthPlans, plansOn } from "../features/planner/plans";
+import { SomedaySheet } from "../features/planner/Someday";
 import { PlanDetailsContext } from "../features/planner/PlanButton";
-import { dayBadge, dayTasksKey, monthBadge } from "../features/planner/tasks";
-import { usePlanPopover } from "../features/planner/usePlanPopover";
+import { dayBadge, dayTasksKey, groupTasks, monthBadge } from "../features/planner/tasks";
+import { daySummary, periodSummary } from "../features/planner/timeState";
+import { useDetailsPopover } from "../features/planner/useDetailsPopover";
 import { WeekView } from "../features/planner/WeekView";
 import { isMeshOnline, planner } from "../shared/api";
 import { Button, IconButton } from "../shared/ui/Button";
@@ -17,13 +22,13 @@ import { Page } from "../shared/layout/Page";
 import { StaleBanner, StateView } from "../shared/states/ModuleState";
 import { Truncate } from "../shared/ui/Truncate";
 import { Segmented } from "../shared/ui/Segmented";
-import { Skeleton } from "../shared/ui/Skeleton";
+import { Sheet } from "../shared/overlay/Sheet";
 import { EASE, LEAVE_S, SLOW_S } from "../shared/motion";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
 import { failureProps } from "../shared/lib/ux/moduleState";
 import { formatRelative } from "../shared/lib/ux/time";
-import type { Plan, PlanViewName } from "../types/planner";
+import type { Plan } from "../types/planner";
 
 /** The main column is wider than this before the day view shows its side panel, in px. */
 const WIDE_FROM = 860;
@@ -67,7 +72,7 @@ export function PlannerPage() {
   const [clock, setClock] = useState(() => ({ now: new Date(), zone: Intl.DateTimeFormat().resolvedOptions().timeZone }));
   const { state: connection } = useConnection();
   const { now, zone } = clock;
-  const popover = usePlanPopover();
+  const popover = useDetailsPopover((day) => navigate("Day", day));
   const requested = params.get("view");
   const view: View = requested === "week" ? "Week" : requested === "month" ? "Month" : "Day";
   const somedayOpen = params.get("someday") === "1";
@@ -76,7 +81,6 @@ export function PlannerPage() {
   const days = view === "Week" ? weekDays(anchor) : view === "Month" ? monthDays(anchor) : [anchor];
   const from = days[0]!.toISOString();
   const to = addDays(days[days.length - 1]!, 1).toISOString();
-  const views: PlanViewName[] = view === "Month" ? ["month"] : ["planner", "month"];
   const online = isMeshOnline(connection);
 
   useEffect(() => {
@@ -94,13 +98,11 @@ export function PlannerPage() {
 
   const query = useQuery({
     queryKey: ["yaad", "planner", "plans", view, from, to, zone],
-    queryFn: async () => {
-      const results = await Promise.all(views.map((name) => planner.plans({ from, to, view: name })));
-      return [...new Map(results.flatMap(({ items }) => items).map((plan) => [plan.id, plan])).values()];
-    },
+    queryFn: async () => (await planner.plans({ from, to })).items,
     enabled: online,
   });
   const state = useModuleState(query, () => false);
+  const dayTasks = useQuery({ queryKey: dayTasksKey(anchor), queryFn: async () => (await planner.tasks({ on: dateKey(anchor) })).items, enabled: online && view === "Day" });
   const plans = state.kind === "ready" ? state.data : [];
   const taskDays = view === "Day" ? [] : days;
   const dayLists = useQueries({
@@ -108,19 +110,35 @@ export function PlannerPage() {
   });
   const badges = <Badge,>(make: (tasks: NonNullable<(typeof dayLists)[number]["data"]>, day: Date) => Badge) =>
     Object.fromEntries(taskDays.map((day, i) => [dateKey(day), dayLists[i]!.data === undefined ? undefined : make(dayLists[i]!.data!, day)])) as Record<string, Badge | undefined>;
-  const navigate = (nextView: View, day: Date, someday = false) => {
-    setParams(() => {
+  const closingOn = (day: Date) => (dayLists[taskDays.findIndex((candidate) => isSameDay(candidate, day))]?.data ?? []).filter((task) => task.closes_at !== null && isSameDay(new Date(task.closes_at), day));
+  const navigate = (nextView: View, day: Date) => {
+    setParams((current) => {
       const next = new URLSearchParams({ view: nextView.toLowerCase(), date: dateKey(day) });
-      if (someday) next.set("someday", "1");
+      if (current.get("someday") === "1") next.set("someday", "1");
       return next;
     });
   };
+  const setSomeday = (open: boolean) =>
+    setParams((current) => {
+      const next = new URLSearchParams(current);
+      if (open) next.set("someday", "1");
+      else next.delete("someday");
+      return next;
+    });
   const move = (step: number) => navigate(view, view === "Day" ? addDays(anchor, step) : view === "Week" ? addDays(anchor, step * 7) : new Date(anchor.getFullYear(), anchor.getMonth() + step, 1));
+  const keys = { unlessTyping: true };
+  useShortcut("arrowleft", () => move(-1), keys);
+  useShortcut("arrowright", () => move(1), keys);
+  useShortcut("t", () => navigate(view, startOfDay(now)), keys);
+  useShortcut("d", () => navigate("Day", anchor), keys);
+  useShortcut("w", () => navigate("Week", anchor), keys);
+  useShortcut("m", () => navigate("Month", anchor), keys);
   const open = (plan: Plan, element: Element) => popover.show(plan, element.getBoundingClientRect());
   const fmt = (options: Intl.DateTimeFormatOptions, d: Date) => new Intl.DateTimeFormat(undefined, options).format(d);
   const title = view === "Day" ? fmt({ weekday: "long", month: "long", day: "numeric" }, anchor) : view === "Week" ? `${fmt({ month: "short", day: "numeric" }, days[0]!)} – ${fmt({ month: "short", day: "numeric" }, days[6]!)}` : fmt({ month: "long", year: "numeric" }, anchor);
   const own = view === "Day" ? plans.filter((plan) => isSameDay(new Date(plan.start_at), anchor)) : plans;
-  const when = view === "Day" ? (isSameDay(anchor, now) ? "today" : "that day") : view === "Week" ? "this week" : "this month";
+  const dayGroups = dayTasks.data === undefined ? null : groupTasks(dayTasks.data, anchor);
+  const summary = view === "Day" ? daySummary(own, dayGroups === null ? null : { open: dayGroups.open.length, pastDue: dayGroups.pastDue.length }) : periodSummary(own, days, view === "Week" ? "week" : "month");
   const shownAt = useRef({ view, time: anchor.getTime() });
   const direction = shownAt.current.view !== view ? 0 : Math.sign(anchor.getTime() - shownAt.current.time);
   useEffect(() => {
@@ -138,30 +156,12 @@ export function PlannerPage() {
       />
     );
   const renderBody = (wide: boolean): ReactNode => {
-    if (state.kind === "loading")
-      return (
-        <div style={{ display: "flex", flex: 1, gap: 16, minWidth: 0, minHeight: 0, alignItems: "stretch" }}>
-          <Card style={{ flex: 1, padding: 18, gap: 0 }}>
-            {Array.from({ length: 9 }, (_, i) => (
-              <div key={i} style={{ display: "flex", alignItems: "center", height: 56, borderTop: "1px solid var(--rule)", gap: 12 }}>
-                <Skeleton width={40} height={10} />
-                {i % 3 === 1 ? <Skeleton width="60%" height={38} radius={12} /> : null}
-              </div>
-            ))}
-          </Card>
-          {wide && view === "Day" ? (
-            <div style={{ display: "flex", flexDirection: "column", width: 320, gap: 12 }}>
-              <Skeleton width="100%" height={120} radius={18} />
-              <Skeleton width="100%" height={240} radius={18} />
-            </div>
-          ) : null}
-        </div>
-      );
+    if (state.kind === "loading") return view === "Day" ? <DayLoading wide={wide} /> : view === "Week" ? <WeekLoading /> : <MonthLoading weeks={days.length / 7} />;
     if (view === "Day")
-      return <DayView day={anchor} now={now} zone={zone} plans={plans} selected={popover.openKey} wide={wide} somedayOpen={somedayOpen} unavailable={failed ? notice : null} onOpen={open} />;
+      return <DayView day={anchor} now={now} zone={zone} plans={plans} selected={popover.openKey} wide={wide} onSomeday={() => setSomeday(true)} onOpenTask={(task, element) => popover.showTask(task, element.getBoundingClientRect())} unavailable={failed ? notice : null} onOpen={open} />;
     if (failed) return <Card style={{ flex: 1, minHeight: 0 }}>{notice}</Card>;
     if (view === "Week") return <WeekView days={days} now={now} zone={zone} plans={plans} badges={badges((tasks, day) => dayBadge(tasks, day, now))} selected={popover.openKey} onOpen={open} onDay={(day) => navigate("Day", day)} />;
-    return <MonthView days={days} now={now} anchor={anchor} plans={plans} badges={badges((tasks, day) => monthBadge(tasks, day))} onOpen={open} onDay={(day) => navigate("Day", day)} />;
+    return <MonthView days={days} now={now} anchor={anchor} plans={monthPlans(plans)} badges={badges((tasks, day) => monthBadge(tasks, day))} onOpen={open} onDay={(day) => navigate("Day", day)} onMore={(day, element) => popover.showDay({ day, plans: plansOn(plans, day), tasks: closingOn(day) }, element.getBoundingClientRect())} />;
   };
   return (
     <PlanDetailsContext.Provider value={popover.show}>
@@ -170,9 +170,9 @@ export function PlannerPage() {
           <>
             <PageHeader
               title="Planner"
-              meta={state.kind === "ready" ? `${own.length} ${own.length === 1 ? "plan" : "plans"} ${when}` : undefined}
+              meta={state.kind === "ready" ? summary : undefined}
               trailing={
-                <Button tone="quiet" size="sm" onClick={() => navigate("Day", anchor, true)}>
+                <Button tone="quiet" size="sm" onClick={() => setSomeday(true)}>
                   Someday
                 </Button>
               }
@@ -197,6 +197,9 @@ export function PlannerPage() {
                 </motion.div>
               </AnimatePresence>
             </div>
+            <Sheet open={somedayOpen} onClose={() => setSomeday(false)} label="Someday" width={480}>
+              <SomedaySheet now={now} onClose={() => setSomeday(false)} onOpenPlan={open} />
+            </Sheet>
           </>
         )}
       </Page>

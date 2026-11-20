@@ -5,7 +5,6 @@ import { hath } from "../../../shared/api";
 import type { WakeEntry, WakeToolCall } from "../../../types/hath";
 import { REVEAL } from "../../../shared/motion";
 import { formatClock } from "../../../shared/lib/ux/time";
-import { Chip } from "../../../shared/ui/Chip";
 import { Icon } from "../../../shared/ui/Icon";
 import { Truncate } from "../../../shared/ui/Truncate";
 import { AgentLink } from "./AgentLink";
@@ -27,13 +26,33 @@ export type WakeEntryListProps = {
   onSelectAgent: (agentId: string) => void;
 };
 
+/** The entries in runs that share a minute, each run with the one clock time it is drawn under. */
+function inMinutes(entries: WakeEntry[]): Array<{ clock: string; entries: WakeEntry[] }> {
+  const groups: Array<{ clock: string; entries: WakeEntry[] }> = [];
+  for (const entry of entries) {
+    const clock = formatClock(entry.at);
+    const last = groups[groups.length - 1];
+    if (last !== undefined && last.clock === clock) {
+      last.entries.push(entry);
+    } else {
+      groups.push({ clock, entries: [entry] });
+    }
+  }
+  return groups;
+}
+
 /** The entries of an open wake, oldest to newest: messages as bubbles aligned by direction, model turns as quiet blocks. */
 export function WakeEntryList({ entries, agentId, nameOf, onSelectAgent }: WakeEntryListProps) {
   return (
-    <div className="flex flex-col gap-2.5">
-      {entries.map((entry) =>
-        entry.type === "message" ? <MessageBubble key={entry.ord} entry={entry} nameOf={nameOf} onSelectAgent={onSelectAgent} /> : <TurnBlock key={entry.ord} entry={entry} agentId={agentId} />,
-      )}
+    <div className="flex flex-col gap-3">
+      {inMinutes(entries).map((group) => (
+        <div key={group.clock} className="flex flex-col gap-2">
+          <span className="text-[11.5px] text-ink-ghost tabular-nums">{group.clock}</span>
+          {group.entries.map((entry) =>
+            entry.type === "message" ? <MessageBubble key={entry.ord} entry={entry} nameOf={nameOf} onSelectAgent={onSelectAgent} /> : <TurnBlock key={entry.ord} entry={entry} agentId={agentId} />,
+          )}
+        </div>
+      ))}
     </div>
   );
 }
@@ -50,9 +69,8 @@ function MessageBubble({ entry, nameOf, onSelectAgent }: { entry: Extract<WakeEn
         <span>
           {notice ? "Note from hath" : received ? "From " : "To "}
           {notice ? null : <span data-selectable className="font-semibold [overflow-wrap:anywhere]"><AgentLink agentId={counterpartId} name={nameOf(counterpartId)} onSelect={onSelectAgent} /></span>}
-          {` · ${formatClock(entry.at)}`}
         </span>
-        {entry.message.status === "needs_input" ? <Chip tone="tide">Needs input</Chip> : entry.message.status === "blocked" ? <Chip tone="late">Blocked</Chip> : null}
+        {entry.message.status === "needs_input" ? <span className="font-medium text-tide-ink">· needs input</span> : entry.message.status === "blocked" ? <span className="font-medium text-error">· blocked</span> : null}
       </span>
       <div data-selectable className={`max-w-[92%] min-w-0 rounded-[12px] border px-3 py-2 text-[13px] leading-[18px] ${notice ? "border-dashed border-rule bg-transparent text-ink-muted" : received ? "border-transparent bg-sage-fill" : "border-glass-border bg-bone-raised"}`}>
         <Expand lines={5} lineHeight={18} open={open} onToggle={() => setOpen(!open)}>
@@ -69,7 +87,6 @@ function TurnBlock({ entry, agentId }: { entry: Extract<WakeEntry, { type: "turn
   const firstLine = entry.thinking?.split("\n").find((line) => line.trim() !== "") ?? "";
   return (
     <div className="flex flex-col gap-1.5 border-l border-rule pl-3">
-      <span className="text-[11.5px] text-ink-muted">{formatClock(entry.at)}</span>
       {entry.text === null ? null : <Rich source={entry.text} size={13} lineHeight={19} />}
       {entry.thinking === null ? null : (
         <div className="flex flex-col">
@@ -116,7 +133,7 @@ function CallRow({ call, agentId }: { call: WakeToolCall; agentId: string }) {
         <Truncate text={target} className="ui-mono min-w-0 flex-1" />
         {result === null ? <span role="status" className="flex-none text-[11px] text-sage-text">running</span> : null}
         {result?.is_error ? <span className="flex-none text-[11px] text-error">error</span> : null}
-        {result?.truncated ? <span className="flex-none rounded-full border border-dashed border-sage-line px-1.5 text-[10.5px] text-ink-muted">cut</span> : null}
+        {result?.truncated ? <span className="flex-none text-[11px] text-ink-ghost">cut short</span> : null}
       </button>
       <AnimatePresence initial={false}>
         {open ? (

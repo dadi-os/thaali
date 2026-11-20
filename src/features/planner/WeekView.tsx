@@ -1,34 +1,71 @@
 import { Card } from "../../shared/ui/Card";
 import { Icon } from "../../shared/ui/Icon";
 import type { Plan } from "../../types/planner";
-import { dateKey, isSameDay } from "./dates";
+import { dateKey, isSameDay, startOfDay } from "./dates";
 import { AllDayBand } from "./AllDayBand";
+import { bandPlans, gridPlans } from "./plans";
 import { type DayBadge } from "./tasks";
 import { columnsOf, TimeGrid } from "./TimeGrid";
 
-type BadgeProps = {
-  badge: DayBadge;
-  onClick: () => void;
+type BubbleProps = {
+  day: Date;
+  /** The ticking clock: only a day that is over or today is tinted for what is due. */
+  now: Date;
+  today: boolean;
+  badge: DayBadge | undefined;
+  onOpen: () => void;
 };
 
-/** A day header's tiny task badge: the open count in clay when something closes that day or is past due, quiet otherwise. */
-function Badge({ badge, onClick }: BadgeProps) {
-  if (badge.open === 0 && !badge.allDone) {
-    return null;
-  }
-  const clay = badge.urgent && badge.open > 0;
+/** What a bubble says about the day's tasks, for assistive technology. */
+function describe(badge: DayBadge | undefined): string {
+  if (badge === undefined) return "";
+  if (badge.open === 0) return badge.allDone ? ", all tasks done" : "";
+  return `, ${badge.open} open ${badge.open === 1 ? "task" : "tasks"}${badge.urgent ? ", some due" : ""}`;
+}
+
+/**
+ * One day of the Week header as a bubble: a rounded, softly tinted pill with the weekday in small caps over the date, and the
+ * day's tasks as a tiny dot and count along its foot (a check when all are done; the dot is rose-clay when something closes that
+ * day or is past due). A day that is over is dimmed, today is the one strong filled bubble, lifted a little. Tapping it opens the day.
+ */
+function Bubble({ day, now, today, badge, onOpen }: BubbleProps) {
+  const urgent = badge !== undefined && badge.urgent && badge.open > 0;
+  const over = !today && day.getTime() < startOfDay(now).getTime();
+  const ink = today ? "var(--today-ink)" : over ? "var(--ink-muted)" : "var(--ink)";
   return (
     <button
       type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick();
+      onClick={onOpen}
+      aria-label={`${new Intl.DateTimeFormat(undefined, { dateStyle: "full" }).format(day)}${describe(badge)}`}
+      className={`ui-trans active:scale-[0.97] ${today ? "ui-hover-today" : "ui-hover-fill"}`}
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        gap: 2,
+        minWidth: 0,
+        margin: "8px 4px 10px",
+        padding: "9px 4px 8px",
+        borderRadius: 22,
+        background: today ? "var(--today)" : "var(--sage-fill)",
+        color: ink,
+        opacity: over ? 0.72 : 1,
+        boxShadow: today ? "0 6px 16px rgba(92, 107, 82, 0.28)" : "none",
+        transform: today ? "translateY(-2px)" : undefined,
       }}
-      aria-label={badge.open === 0 ? "All tasks done" : `${badge.open} open ${badge.open === 1 ? "task" : "tasks"}`}
-      className="ui-trans"
-      style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", gap: 3, minWidth: 20, height: 18, padding: "0 6px", borderRadius: 999, fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums", background: clay ? "var(--late-fill)" : "var(--sage-fill)", color: clay ? "var(--late-ink)" : "var(--ink-muted)" }}
     >
-      {badge.open === 0 ? <Icon name="check" size={11} /> : badge.open}
+      <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.6, textTransform: "uppercase", opacity: today ? 0.85 : 1 }}>{new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day)}</span>
+      <span style={{ fontSize: 20, lineHeight: "26px", fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{day.getDate()}</span>
+      <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 4, height: 16, fontSize: 11, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>
+        {badge === undefined ? null : badge.open > 0 ? (
+          <>
+            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: urgent ? "var(--late)" : "currentColor", opacity: urgent ? 1 : 0.6 }} />
+            {badge.open}
+          </>
+        ) : badge.allDone ? (
+          <Icon name="check" size={12} />
+        ) : null}
+      </span>
     </button>
   );
 }
@@ -38,7 +75,7 @@ export type WeekViewProps = {
   days: Date[];
   now: Date;
   zone: string;
-  /** Plans for the week: timed ones for the axis, all-day and multi-day ones for the span row. */
+  /** Plans for the week: timed ones for the axis, all-day and multi-day ones for the band. */
   plans: Plan[];
   /** The task badge per local date key; a day whose tasks have not loaded has none. */
   badges: Record<string, DayBadge | undefined>;
@@ -49,43 +86,20 @@ export type WeekViewProps = {
 };
 
 /**
- * The Week view: the Day grid with seven columns under one scroll. Day headers carry the weekday, the date and a tiny
- * task badge and open that day; all-day and multi-day plans run along the top as bars.
+ * The Week view: the Day grid with seven columns under one scroll, headed by a bubble per day and, under them, the all-day
+ * band. The header stays in view while the hours scroll.
  */
 export function WeekView({ days, now, zone, plans, badges, selected, onOpen, onDay }: WeekViewProps) {
-  const timed = plans.filter((plan) => !plan.all_day && plan.end_at !== null);
+  const timed = gridPlans(plans);
   const head = (
-    <div style={{ position: "sticky", top: 0, zIndex: 5, background: "var(--glass-solid)", borderBottom: "1px solid var(--rule)" }}>
+    <div style={{ background: "var(--glass-solid)", borderBottom: "1px solid var(--rule)", flex: "none" }}>
       <div style={{ display: "grid", gridTemplateColumns: columnsOf(days.length) }}>
         <div />
-        {days.map((day) => {
-          const today = isSameDay(day, now);
-          const badge = badges[dateKey(day)];
-          return (
-            <div
-              key={day.toISOString()}
-              role="button"
-              tabIndex={0}
-              aria-label={`Show ${new Intl.DateTimeFormat(undefined, { dateStyle: "full" }).format(day)}`}
-              className="ui-hover-fill ui-trans"
-              onClick={() => onDay(day)}
-              onKeyDown={(e) => (e.key === "Enter" || e.key === " " ? onDay(day) : undefined)}
-              style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, padding: "8px 4px 8px", borderRadius: 10, cursor: "pointer", minWidth: 0 }}
-            >
-              <span style={{ fontSize: 11, fontWeight: 600, letterSpacing: 1.6, textTransform: "uppercase", color: today ? "var(--sage-deep)" : "var(--ink-muted)" }}>{new Intl.DateTimeFormat(undefined, { weekday: "short" }).format(day)}</span>
-              <div style={{ position: "relative", display: "flex", alignItems: "center", height: 30 }}>
-                <span style={{ fontSize: 20, fontWeight: 600, fontVariantNumeric: "tabular-nums", color: today ? "var(--bone)" : "var(--ink)", background: today ? "var(--sage-deep)" : "transparent", borderRadius: 999, minWidth: 30, height: 30, display: "inline-flex", alignItems: "center", justifyContent: "center" }}>{day.getDate()}</span>
-                {badge === undefined ? null : (
-                  <span style={{ position: "absolute", left: "100%", marginLeft: 5 }}>
-                    <Badge badge={badge} onClick={() => onDay(day)} />
-                  </span>
-                )}
-              </div>
-            </div>
-          );
-        })}
+        {days.map((day) => (
+          <Bubble key={day.toISOString()} day={day} now={now} today={isSameDay(day, now)} badge={badges[dateKey(day)]} onOpen={() => onDay(day)} />
+        ))}
       </div>
-      <AllDayBand days={days} plans={plans} height={26} onOpen={onOpen} />
+      <AllDayBand days={days} plans={bandPlans(plans)} height={26} onOpen={onOpen} />
     </div>
   );
   return (

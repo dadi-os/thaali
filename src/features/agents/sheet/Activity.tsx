@@ -1,8 +1,9 @@
 import { useMemo, useState } from "react";
-import { SectionHeader } from "../../../shared/components/Module";
+import { AnimatePresence, motion } from "motion/react";
+import { FADE } from "../../../shared/motion";
+import { InsetCard, KeyValue } from "../../../shared/components/Module";
 import { formatRelative } from "../../../shared/lib/ux/time";
 import { Button } from "../../../shared/ui/Button";
-import { Truncate } from "../../../shared/ui/Truncate";
 import { StaleBanner, StateView } from "../../../shared/states/ModuleState";
 import { WakeRow } from "./WakeRow";
 import { useWake, useWakeList } from "./useWakes";
@@ -38,19 +39,17 @@ export function Activity({ agentId, connected, nameOf, schedules, onSelectAgent,
   const openId = chosen === null ? (latest?.id ?? null) : chosen.id;
 
   return (
-    <>
-      {current === null ? null : (
-        <div className="flex flex-col gap-0.5 rounded-[14px] bg-sage-fill px-4 py-2.5">
-          <SectionHeader title="Current call" />
-          <div className="flex min-w-0 items-baseline gap-2">
-            <span data-selectable className="flex-none font-numeric text-[13px] font-semibold">{current.name}</span>
-            <Truncate text={current.target} className="ui-mono min-w-0 flex-1" />
-            <span className="flex-none text-[12px] text-ink-muted">{current.running ? `running ${formatRelative(current.at, now)}` : formatRelative(current.at, now)}</span>
-          </div>
-        </div>
-      )}
+    <InsetCard title="Wakes">
+      <AnimatePresence initial={false}>
+        {current === null ? null : (
+          <motion.div key="current" {...FADE} className="flex flex-col">
+            <KeyValue label="Current call" hint={current.running ? `running ${formatRelative(current.at, now)}` : formatRelative(current.at, now)}>
+              {current.target === "" ? current.name : `${current.name} ${current.target}`}
+            </KeyValue>
+          </motion.div>
+        )}
+      </AnimatePresence>
       <div className="flex flex-col gap-1.5">
-        <SectionHeader title="Wakes" />
         {list.error !== null && wakes !== undefined ? <StaleBanner text="Could not refresh the wakes." onRetry={() => void list.refetch()} /> : null}
         {wakes === undefined ? (
           list.error === null ? (
@@ -65,7 +64,7 @@ export function Activity({ agentId, connected, nameOf, schedules, onSelectAgent,
         ) : wakes.length === 0 ? (
           <StateView kind="empty" compact title="No wakes yet" />
         ) : (
-          <div className="flex flex-col gap-1">
+          <motion.div {...FADE} className="flex flex-col gap-1">
             {wakes.map((wake) => (
               <WakeRow
                 key={wake.id}
@@ -83,9 +82,9 @@ export function Activity({ agentId, connected, nameOf, schedules, onSelectAgent,
                 {list.isFetchingNextPage ? "Loading…" : "Load earlier"}
               </Button>
             ) : null}
-          </div>
+          </motion.div>
         )}
       </div>
-    </>
+    </InsetCard>
   );
 }

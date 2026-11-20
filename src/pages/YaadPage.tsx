@@ -31,7 +31,7 @@ const SHEET_WIDTH = 344;
 /** The kind chips after Everything, in the order the page draws them. */
 const KINDS = Object.keys(KIND_TOKEN) as NodeKind[];
 /** The name each kind's chip carries. */
-const KIND_CHIP = { person: "People", place: "Places", memory: "Memories", plan: "Plans" } as const satisfies Record<NodeKind, string>;
+const KIND_CHIP = { person: "People", place: "Places", memory: "Memories", plan: "Plans", task: "Tasks" } as const satisfies Record<NodeKind, string>;
 /** The graph before Yaad has answered. */
 const EMPTY: GraphData = { nodes: [], edges: [] };
 

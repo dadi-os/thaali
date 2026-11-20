@@ -61,7 +61,14 @@ export function RoutineRow({ item, onCancel, now }: RoutineRowProps) {
           <Clamp text={item.routine.procedure} lines={2} />
         </span>
       ) : null}
-      <span className="text-[13px] text-ink-muted">{routine ? `${cadenceOf(item.routine)} · ${runsLine(item.routine, now)}` : reminderWhen(item.reminder)}</span>
+      {routine ? (
+        <div className="flex flex-col text-[13px] text-ink-muted">
+          <span>{cadenceOf(item.routine)}</span>
+          <span>{runsLine(item.routine, now)}</span>
+        </div>
+      ) : (
+        <span className="text-[13px] text-ink-muted">{reminderWhen(item.reminder)}</span>
+      )}
       <AnimatePresence initial={false}>
         {confirming ? (
           <motion.div key="confirm" {...FADE} className="flex items-center gap-2">

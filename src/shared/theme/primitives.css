@@ -196,6 +196,22 @@
     scale: 0.97;
   }
 
+  /* The word reserves its bold width, so choosing it never resizes the control. */
+  .seg-label {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .seg-label::after {
+    content: attr(data-label);
+    height: 0;
+    overflow: hidden;
+    visibility: hidden;
+    font-weight: 600;
+    pointer-events: none;
+  }
+
   .seg-thumb {
     background: var(--bone);
     box-shadow: 0 1px 2px rgba(92, 107, 82, 0.15);
@@ -214,6 +230,10 @@
 
   .ui-hover-solid:hover:not(:disabled) {
     background-color: var(--sage-deep-hover) !important;
+  }
+
+  .ui-hover-today:hover:not(:disabled) {
+    filter: brightness(1.06);
   }
 
   .ui-hover-solid:active:not(:disabled) {
@@ -516,29 +536,6 @@
   }
 
   /* A disclosure: the chevron turns and the region eases open when an ancestor has `open`. */
-  .chev {
-    transition: transform 320ms var(--ease);
-  }
-
-  .open .chev {
-    transform: rotate(90deg);
-  }
-
-  .reveal {
-    display: grid;
-    grid-template-rows: 0fr;
-    transition: grid-template-rows 320ms var(--ease);
-  }
-
-  .reveal > div {
-    overflow: hidden;
-    min-height: 0;
-  }
-
-  .open > .reveal {
-    grid-template-rows: 1fr;
-  }
-
   /* A helper's live screen: the whole frame is the button; hover shows an expand mark. */
   .pv {
     display: block;

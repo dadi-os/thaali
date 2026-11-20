@@ -229,11 +229,12 @@ export class Fixtures {
   private yaad(route: string, body: unknown): unknown {
     const s = this.scenario;
     if (route === "POST /graph") return yaad.graph(s);
+    if (route === "GET /counts") return yaad.kindCounts(s);
     if (route === "POST /query") return yaad.query(s, body as QueryRequest);
-    if (route === "POST /timeline") return plans(s, body as PlansRequest);
-    if (route === "POST /tasks") return tasks(s, body as TasksRequest);
-    if (route === "PUT /tasks/done") return setTaskDone(body as TaskDoneRequest);
-    if (route === "PUT /timeline/attended") return setAttended(body as AttendedRequest);
+    if (route === "POST /planner/plans") return plans(s, body as PlansRequest);
+    if (route === "POST /planner/tasks") return tasks(s, body as TasksRequest);
+    if (route === "PUT /planner/tasks/done") return setTaskDone(body as TaskDoneRequest);
+    if (route === "PUT /planner/plans/attended") return setAttended(body as AttendedRequest);
     const node = /^GET \/nodes\/([^/]+)$/.exec(route);
     if (node) return yaad.node(s, node[1]!);
     throw new Error(`fixtures: no route for yaad ${route}`);

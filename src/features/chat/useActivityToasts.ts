@@ -75,7 +75,6 @@ export function useActivityToasts(): void {
       const { items } = await planner.plans({
         from: from.toISOString(),
         to: new Date(from.getTime() + PLAN_SOON_MS + 2 * PLAN_POLL_MS).toISOString(),
-        view: "tile",
       });
       return items.filter((n) => n.rsvp !== "no" && !n.all_day && !isMultiDay(n));
     },

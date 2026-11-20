@@ -21,6 +21,7 @@ export const KIND_TOKEN = {
   place: "--tide",
   memory: "--sage",
   plan: "--clay",
+  task: "--ink-muted",
 } as const satisfies Record<NodeKind, string>;
 
 /** How each write source reads where a node says who wrote it. */
@@ -65,8 +66,8 @@ export type Connection = {
   outgoing: boolean;
 };
 
-/** Order connections read in: people, then places, plans, and memories. */
-export const KIND_ORDER: Record<NodeKind, number> = { person: 0, place: 1, plan: 2, memory: 3 };
+/** Order connections read in: people, then places, plans, tasks, and memories. */
+export const KIND_ORDER: Record<NodeKind, number> = { person: 0, place: 1, plan: 2, task: 3, memory: 4 };
 
 /** Every neighbor of `nodeId` across `links`, people first, then by title. */
 export function connectionsOf(nodeId: string, links: MemoryLink[]): Connection[] {

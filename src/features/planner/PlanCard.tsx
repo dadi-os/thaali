@@ -1,170 +1,133 @@
-import { useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
-import { planner } from "../../shared/api";
 import { openExternal } from "../../shared/desktop/open";
 import { Button } from "../../shared/ui/Button";
-import { Chip, type ChipTone } from "../../shared/ui/Chip";
-import { FadeScroll } from "../../shared/ui/FadeScroll";
-import { Icon, type IconName } from "../../shared/ui/Icon";
+import { Segmented, type SegmentedOption } from "../../shared/ui/Segmented";
+import { DetailCard, InsetSection, type FactItem } from "../../shared/ui/DetailCard";
+import { Icon } from "../../shared/ui/Icon";
 import { formatClock, formatDay } from "../../shared/lib/ux/time";
-import { failureTarget, pushToast } from "../../contexts/toasts";
-import type { Plan, Rsvp } from "../../types/planner";
-import { relativeToSession } from "./dates";
-import { formatSpan, hasEnded } from "./layout";
+import { pushToast } from "../../contexts/toasts";
+import type { Plan } from "../../types/planner";
+import { answerAfter, hasStarted, useLivePlan, useSetAttended } from "./attended";
+import { formatRange, formatSpan } from "./layout";
 import { usePlanActions } from "./planActions";
-import { attendedLabel } from "./plans";
+import { useOwnerAgent } from "./taskActions";
+import { nextPlanId, planStatus, timeState } from "./timeState";
 import { plannedClock } from "./zones";
 
-/** The tallest the notes region grows to before it scrolls, in px. */
-const NOTES_MAX = 176;
-
-/** How the RSVP reads, as a chip; it is Yaad's to change, never the app's. */
-const RSVP: Record<"yes" | "no" | "none", { label: string; tone: ChipTone }> = {
-  yes: { label: "Going", tone: "sage" },
-  no: { label: "Declined", tone: "sage" },
-  none: { label: "Not answered", tone: "late" },
-};
-
-function rsvpKey(rsvp: Rsvp): "yes" | "no" | "none" {
-  return rsvp ?? "none";
-}
-
-type FactProps = {
-  icon: IconName;
-  /** Shown on hover when the words truncate. */
-  title: string;
-  /** A hint that stays visible when the words truncate, at the row's end. */
-  hint?: string;
-  children: string;
-};
-
-/** One line of facts: an icon, words that truncate to one line, and an optional hint at the end. */
-function Fact({ icon, title, hint, children }: FactProps) {
-  return (
-    <div className="flex min-w-0 items-center gap-2 text-[14px] text-ink-muted">
-      <span className="flex flex-none">
-        <Icon name={icon} size={14} />
-      </span>
-      <span className="min-w-0 flex-1 truncate tabular-nums" title={title}>
-        {children}
-      </span>
-      {hint === undefined ? null : <span className="flex-none text-[13px] text-ink-ghost">{hint}</span>}
-    </div>
-  );
-}
+/** The two answers to "Were you there?"; neither is chosen until Ankur says. */
+const ANSWERS: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "yes", label: "Attended", icon: "check" },
+  { value: "no", label: "Didn’t attend", icon: "close" },
+];
 
 /** Props of {@link PlanCard}. */
 export type PlanCardProps = {
   plan: Plan;
-  /** The instant "now" is read at, for the relative hint beside the time and for whether the plan has ended. */
+  /** The instant "now" is read at, for the status and for whether the plan has begun. */
   now?: Date;
 };
 
+/** The chip that states a plan's situation: attended or not once answered, else where it stands in time. */
+function statusOf(plan: Plan, now: Date) {
+  const state = timeState(plan, now, nextPlanId([plan], now));
+  if (plan.rsvp === "no") return { label: "Declined", tone: "calm" as const };
+  if (plan.attended === true) return { label: "Attended", tone: "live" as const, icon: <Icon name="check" size={14} /> };
+  if (plan.attended === false) return { label: "Didn’t attend", tone: "calm" as const };
+  return { label: planStatus(plan, now, state), tone: state === "now" ? ("live" as const) : ("calm" as const) };
+}
+
 /**
- * A plan's card: RSVP (read only) and course, a title that wraps to two lines, when and where (with the plan's own clock
- * when its zone differs from the device's), notes that scroll inside a bounded region, and a footer: Attended once the plan has
- * ended, Message agent when one keeps it, Directions, Show in Yaad.
+ * A plan's popover, in the shared detail anatomy: its situation as a dot and a phrase ("Now · 12 min left", "Starts in 25 min",
+ * "Ended 2 h ago", "Attended"), the facts (when, where with Directions, course, kept by, going, attended), the actions
+ * (Attended and Didn't attend once the plan has begun, then Message agent and Show in Yaad), and its notes.
  */
-export function PlanCard({ plan, now = new Date() }: PlanCardProps) {
-  const client = useQueryClient();
+export function PlanCard({ plan: shown, now = new Date() }: PlanCardProps) {
+  const plan = useLivePlan(shown);
+  const setAttended = useSetAttended();
   const actionsFor = usePlanActions();
-  const [attended, setAttendedState] = useState(plan.attended);
-  const current: Plan = { ...plan, attended };
-  const rsvp = RSVP[rsvpKey(plan.rsvp)];
-  const where = plan.place ? [plan.place.title, plan.place.room ? `room ${plan.place.room}` : null, plan.place.address].filter(Boolean).join(" · ") : null;
+  const agent = useOwnerAgent(plan.owner);
+  const declined = plan.rsvp === "no";
   const address = plan.place?.address ?? null;
   const own = plannedClock(plan, Intl.DateTimeFormat().resolvedOptions().timeZone);
   const timed = !plan.all_day && plan.end_at !== null;
-  const asks = plan.rsvp !== "no" && !plan.all_day && hasEnded(plan, now);
+  const asks = !declined && !plan.all_day && hasStarted(plan, now);
   const notes = [plan.body, ...plan.notes.map((note) => note.title)].filter((text): text is string => text !== null && text !== "");
-  const status = attendedLabel(current);
-  const answer = (value: boolean) => {
-    const next = attended === value ? null : value;
-    planner.setAttended({ plan_id: plan.id, attended: next }).then(
-      () => {
-        setAttendedState(next);
-        void client.invalidateQueries({ queryKey: ["yaad", "planner", "plans"] });
-      },
-      (error: unknown) => pushToast({ key: "planner:attended", tone: "error", title: "Couldn’t save attendance", body: error instanceof Error ? error.message : String(error), target: failureTarget(error) }),
-    );
-  };
-  const others = actionsFor(current).flatMap((entry) => (entry !== "separator" && (entry.id === "message" || entry.id === "show-in-yaad") ? [entry] : []));
+  const others = actionsFor(plan).flatMap((entry) => (entry !== "separator" && (entry.id === "message" || entry.id === "show-in-yaad") ? [entry] : []));
+  const minutesOf = (iso: string) => new Date(iso).getHours() * 60 + new Date(iso).getMinutes();
+  const facts: Array<FactItem | null> = [
+    { label: "Date", value: formatDay(plan.start_at) },
+    { label: "Time", value: timed ? formatRange(minutesOf(plan.start_at), minutesOf(plan.end_at!)) : plan.all_day ? "All day" : formatClock(plan.start_at) },
+    timed ? { label: "Length", value: formatSpan((Date.parse(plan.end_at!) - Date.parse(plan.start_at)) / 60_000) } : null,
+    own === null ? null : { label: "Local time", value: own },
+    plan.place === null
+      ? null
+      : {
+          label: "Where",
+          value: `${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}${address === null ? "" : `\n${address}`}`.split("\n").map((line, i) => (
+            <span key={i} className={i === 0 ? "block" : "block text-[13px] text-ink-muted"}>
+              {line}
+            </span>
+          )),
+          action:
+            address === null ? undefined : (
+              <Button
+                tone="quiet"
+                size="sm"
+                icon="link"
+                onClick={() =>
+                  openExternal(`https://maps.apple.com/?daddr=${encodeURIComponent(address)}`).catch((error: unknown) =>
+                    pushToast({ key: "planner:directions", tone: "error", title: "Couldn’t open Maps", body: error instanceof Error ? error.message : String(error) }),
+                  )
+                }
+              >
+                Directions
+              </Button>
+            ),
+        },
+    plan.hub === null || plan.hub.title === plan.title ? null : { label: "Course", value: plan.hub.title },
+    agent === null ? null : { label: "Kept by", value: agent.name },
+    plan.rsvp === null ? null : { label: "Going", value: plan.rsvp === "yes" ? "Yes" : "No, declined" },
+    plan.attended === null ? null : { label: "Attended", value: plan.attended ? "Yes, you were there" : "No, you were not" },
+  ];
   return (
-    <div data-selectable className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-none flex-col gap-3 px-5 pt-5 pb-3">
-        <div className="flex min-w-0 items-center gap-2">
-          <Chip tone={rsvp.tone}>{rsvp.label}</Chip>
-          {plan.hub === null ? null : <Chip tone="tide">{plan.hub.title}</Chip>}
-          <span className="flex-1" />
-          {status === null ? null : <Chip>{status}</Chip>}
-        </div>
-        <h3 title={plan.title} className={`m-0 line-clamp-2 text-[20px] leading-7 font-semibold tracking-[-0.015em] break-words ${plan.rsvp === "no" ? "text-ink-muted" : "text-ink"}`}>
-          {plan.title}
-        </h3>
-        <div className="flex min-w-0 flex-col gap-2">
-          {timed ? (
-            <Fact icon="clock" title={`${formatDay(plan.start_at)}, ${formatClock(plan.start_at)} to ${formatClock(plan.end_at!)}`} hint={relativeToSession(now, new Date(plan.start_at), new Date(plan.end_at!))}>
-              {`${formatClock(plan.start_at)} – ${formatClock(plan.end_at!)} · ${formatSpan((Date.parse(plan.end_at!) - Date.parse(plan.start_at)) / 60_000)}`}
-            </Fact>
-          ) : (
-            <Fact icon="cal" title={formatDay(plan.start_at)}>{`${formatDay(plan.start_at)} · All day`}</Fact>
-          )}
-          {own === null ? null : (
-            <Fact icon="clock" title={own}>
-              {own}
-            </Fact>
-          )}
-          {where === null ? null : (
-            <Fact icon="pin" title={where}>
-              {where}
-            </Fact>
-          )}
-        </div>
-      </div>
-      {notes.length > 0 ? (
-        <FadeScroll maxHeight={NOTES_MAX} className="flex-1">
-          <div className="flex flex-col gap-2 px-5 pb-3">
-            <div className="flex flex-col gap-2 rounded-[14px] bg-sage-fill px-3.5 py-3">
-              {notes.map((text, index) => (
-                <p key={index} className="m-0 text-[14px] leading-relaxed break-words whitespace-pre-line text-ink">
-                  {text}
-                </p>
-              ))}
+    <DetailCard
+      title={plan.title}
+      status={statusOf(plan, now)}
+      muted={declined || plan.attended === false}
+      struck={plan.attended === false}
+      facts={facts}
+      actions={
+        <>
+          {asks ? (
+            <div data-keep-open className="flex w-full items-center gap-3 pb-1">
+              <span className="text-[13px] text-ink-muted">Were you there?</span>
+              <span className="flex-1" />
+              <Segmented
+                size="md"
+                label="Were you there?"
+                options={ANSWERS}
+                value={plan.attended === true ? "yes" : plan.attended === false ? "no" : ""}
+                onChange={(next) => setAttended(plan, answerAfter(plan.attended, next === "yes"))}
+              />
             </div>
-          </div>
-        </FadeScroll>
-      ) : null}
-      <div className="flex flex-none flex-wrap items-center gap-2 border-t border-rule px-5 py-3">
-        {asks ? (
-          <>
-            <Button tone="sage" size="sm" icon="check" selected={attended === true} onClick={() => answer(true)}>
-              Attended
+          ) : null}
+          {others.map((action) => (
+            <Button key={action.id} tone="quiet" size="sm" icon={action.icon} onClick={() => void action.run()}>
+              {action.label}
             </Button>
-            <Button tone="quiet" size="sm" icon="close" selected={attended === false} onClick={() => answer(false)}>
-              Didn’t attend
-            </Button>
-          </>
-        ) : null}
-        {address === null ? null : (
-          <Button
-            tone="quiet"
-            size="sm"
-            icon="link"
-            onClick={() =>
-              openExternal(`https://maps.apple.com/?daddr=${encodeURIComponent(address)}`).catch((error: unknown) =>
-                pushToast({ key: "planner:directions", tone: "error", title: "Couldn’t open Maps", body: error instanceof Error ? error.message : String(error) }),
-              )
-            }
-          >
-            Directions
-          </Button>
-        )}
-        {others.map((action) => (
-          <Button key={action.id} tone="quiet" size="sm" icon={action.icon} onClick={() => void action.run()}>
-            {action.label}
-          </Button>
-        ))}
-      </div>
-    </div>
+          ))}
+        </>
+      }
+      sections={
+        notes.length === 0 ? undefined : (
+          <InsetSection title="Notes">
+            {notes.map((text, index) => (
+              <p key={index} className="m-0 text-[14px] leading-relaxed break-words whitespace-pre-line text-ink">
+                {text}
+              </p>
+            ))}
+          </InsetSection>
+        )
+      }
+    />
   );
 }

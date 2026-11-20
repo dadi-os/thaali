@@ -1,4 +1,4 @@
-import type { LogRecord, Reminder, Routine, WakeEntry, WakeOutcome, WakeReason, WakeSummary, WakeToolCall, WakeUsage } from "../../../types/hath";
+import type { LogRecord, Reminder, Routine, WakeEntry, WakeOutcome, WakeReason, WakeSummary, WakeToolCall } from "../../../types/hath";
 import { countNoun } from "../../../shared/lib/ux/plural";
 import { formatSpan } from "../../../shared/lib/ux/time";
 
@@ -49,17 +49,11 @@ export function compact(n: number): string {
   return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
 }
 
-/** A wake's usage as its chip says it: tokens read and written, and how many of the prompt came from cache. */
-export function usageChip(usage: WakeUsage): string {
-  return `${compact(usage.input_tokens + usage.output_tokens)} tok · ${compact(usage.cache_read)} cached`;
-}
-
 /** A wake's counts as one line, leaving out what is zero; empty when it did nothing. */
 export function countsLine(counts: WakeSummary["counts"]): string {
   return [
     counts.tool_calls > 0 ? `${counts.tool_calls} tool ${countNoun(counts.tool_calls, "call")}` : null,
-    counts.messages_received > 0 ? `${counts.messages_received} in` : null,
-    counts.messages_sent > 0 ? `${counts.messages_sent} out` : null,
+    counts.messages_sent > 0 ? `${counts.messages_sent} ${countNoun(counts.messages_sent, "message")} sent` : null,
   ]
     .filter((part) => part !== null)
     .join(" · ");

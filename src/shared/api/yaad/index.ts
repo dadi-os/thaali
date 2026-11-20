@@ -1,13 +1,10 @@
 import type { Transport } from "../transport";
 import type {
-  DeleteNodeResponse,
+  CountsResponse,
   GraphRequest,
   GraphResponse,
-  IngestRequest,
-  IngestResponse,
   NodeHistoryRecord,
   NodeResponse,
-  PatchNodeRequest,
   QueryRequest,
   QueryResponse,
   RecallRequest,
@@ -15,7 +12,7 @@ import type {
 } from "../../../types/yaad";
 
 /**
- * Yaad HTTP client — memory query, recall, node history, ingest, and hand edits.
+ * Yaad HTTP client — memory query, recall, graph and node history. Yaad is read-only here: agents write memory, the app only reads it.
  * Paths live here; callers pass only domain args.
  */
 export function createYaadClient(transport: Transport, baseUrl: string) {
@@ -50,41 +47,21 @@ export function createYaadClient(transport: Transport, baseUrl: string) {
       });
     },
 
+    /** GET /counts — how many live nodes of each kind Yaad holds, and in all. */
+    counts(): Promise<CountsResponse> {
+      return transport.request({
+        baseUrl,
+        path: "/counts",
+        method: "GET",
+      });
+    },
+
     /** GET /nodes/:id — node with detail and edges. */
     getNode(id: string): Promise<NodeResponse> {
       return transport.request({
         baseUrl,
         path: `/nodes/${id}`,
         method: "GET",
-      });
-    },
-
-    /** PATCH /nodes/:id — hand edit; returns the node as GET does. */
-    patchNode(id: string, body: PatchNodeRequest): Promise<NodeResponse> {
-      return transport.request({
-        baseUrl,
-        path: `/nodes/${id}`,
-        method: "PATCH",
-        body,
-      });
-    },
-
-    /** DELETE /nodes/:id — delete, sweeping neighbors it leaves unlinked. */
-    deleteNode(id: string): Promise<DeleteNodeResponse> {
-      return transport.request({
-        baseUrl,
-        path: `/nodes/${id}`,
-        method: "DELETE",
-      });
-    },
-
-    /** POST /ingest — file free text into nodes and edges (slow: an LLM extracts). */
-    ingest(body: IngestRequest): Promise<IngestResponse> {
-      return transport.request({
-        baseUrl,
-        path: "/ingest",
-        method: "POST",
-        body,
       });
     },
 

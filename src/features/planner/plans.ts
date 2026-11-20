@@ -6,6 +6,11 @@ import { endOfDay, startOfDay } from "./dates";
 /** Owners that are a source, not an agent: nothing to message. */
 const SOURCES = new Set(["manual", "ingest"]);
 
+/** The agent id named by `owner`, or null when it is a source (`manual`, `ingest`) that no agent keeps. */
+export function keptBy(owner: string): string | null {
+  return SOURCES.has(owner) ? null : owner;
+}
+
 /**
  * The active agent that keeps something: its `owner` when that names an agent still running. Null for
  * a source (`manual`, `ingest`) and for an agent that has retired; `agents` is Hath's list, absent until it loads.
@@ -122,4 +127,24 @@ export function barLook(plan: Plan): { background: string; border: string; color
   return plan.hub === null
     ? { background: "var(--sage-active)", border: "1px solid var(--sage-line)", color: "var(--sage-text)" }
     : { background: "var(--tide-fill)", border: "1px solid var(--tide-line)", color: "var(--tide-ink)" };
+}
+
+/** The plans the time grid draws: timed, with a start and an end (a plan that runs past midnight is clipped to each day by the grid). */
+export function gridPlans(plans: Plan[]): Plan[] {
+  return plans.filter((plan) => !plan.all_day && plan.end_at !== null);
+}
+
+/** The plans the all-day band draws: all-day plans and plans that run past a day. */
+export function bandPlans(plans: Plan[]): Plan[] {
+  return plans.filter((plan) => runsAsBar(plan));
+}
+
+/** The plans Month lists: everything, each tile showing its first few and "+N more". */
+export function monthPlans(plans: Plan[]): Plan[] {
+  return plans;
+}
+
+/** The plans with a day and nothing to draw on an axis: no end, and not all day. They wait in the Someday sheet. */
+export function loosePlans(plans: Plan[]): Plan[] {
+  return plans.filter((plan) => plan.end_at === null && !plan.all_day).sort((a, b) => a.start_at.localeCompare(b.start_at));
 }

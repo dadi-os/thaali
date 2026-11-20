@@ -41,7 +41,8 @@ export type SegmentedProps<Value extends string> = {
 /**
  * A switch between a few exclusive choices: the chosen one sits on a raised thumb that glides on a spring to the next
  * choice, taking that choice's width, while the words change colour. Choices wash on hover, the chosen thumb lifts a
- * little, a press sinks the choice, and a keyboard focus draws the app's ring (see `.seg` in the primitives).
+ * little, a press sinks the choice, and a keyboard focus draws the app's ring (see `.seg` in the primitives). Every word reserves
+ * its bold width, so choosing one never changes the control's size.
  */
 export function Segmented<Value extends string>({ options, value, onChange, label, size = "md" }: SegmentedProps<Value>) {
   const group = useId();
@@ -96,7 +97,11 @@ export function Segmented<Value extends string>({ options, value, onChange, labe
                   <Icon name={option.icon} size={look.iconSize} />
                 </span>
               )}
-              {option.label === undefined ? null : <span style={{ position: "relative" }}>{option.label}</span>}
+              {option.label === undefined ? null : (
+                <span className="seg-label" data-label={option.label} style={{ position: "relative" }}>
+                  {option.label}
+                </span>
+              )}
             </button>
           );
         })}

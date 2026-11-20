@@ -6,6 +6,9 @@ import { openAgent } from "../../contexts/chat";
 import { requestCompose } from "../../contexts/reply";
 import type { AgentRecord } from "../../types/hath";
 import type { Task } from "../../types/planner";
+
+/** What a message is about and who keeps it: a task, or a plan. */
+export type Keepable = Pick<Task, "owner" | "title">;
 import { ownerAgent } from "./plans";
 
 /** What {@link taskActions} needs from the app. */
@@ -42,8 +45,8 @@ export function useTaskActions(tick: TaskActionDeps["tick"]): (task: Task) => Ac
 }
 
 export type MessageAgentProps = {
-  /** The task, whose title the message is about. */
-  task: Task;
+  /** The task or plan, whose title the message is about. */
+  task: Keepable;
   /** Draw the button as the send icon alone, for a row with little room. */
   iconOnly?: boolean;
 };
@@ -66,4 +69,10 @@ export function MessageAgent({ task, iconOnly = false }: MessageAgentProps) {
       Message agent
     </Button>
   );
+}
+
+/** The active agent that keeps something, read from Hath's cached agents; null for a source or an agent that no longer runs. */
+export function useOwnerAgent(owner: string): AgentRecord | null {
+  const agents = useQuery<AgentRecord[]>({ queryKey: AGENTS_QUERY_KEY, queryFn: skipToken });
+  return ownerAgent(owner, agents.data);
 }

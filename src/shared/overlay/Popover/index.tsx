@@ -9,7 +9,7 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, animate, motion, useMotionValue } from "motion/react";
-import { EASE, SLOW_S, SLOWER_S } from "../../motion";
+import { EASE, SLOW_S } from "../../motion";
 import { useDismiss } from "../../interaction/dismiss";
 import { placePanel } from "./placement";
 import { inHoverZone } from "./zone";
@@ -115,6 +115,12 @@ export function Popover({
     return rect ? { x: rect.left + anchor.x, y: rect.top + anchor.y } : { x: anchor.x, y: anchor.y };
   };
   const origin = originOf();
+  /** The content the panel opened with: only a later change of content fades across; the first content arrives with the panel, as one surface. */
+  const openedWith = useRef(contentKey);
+  if (!open) {
+    openedWith.current = contentKey;
+  }
+  const swapped = contentKey !== openedWith.current;
   const hoverRef = useRef(hover);
   hoverRef.current = hover;
   const hoverable = hover !== undefined;
@@ -278,7 +284,7 @@ export function Popover({
           initial={{ opacity: 0, scale: 0.975 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.985, transition: { duration: SLOW_S * 0.75, ease: EASE } }}
-          transition={{ duration: SLOWER_S, ease: EASE }}
+          transition={{ duration: SLOW_S, ease: EASE }}
           onClick={(e) => e.stopPropagation()}
         >
           {bridge ? (
@@ -288,7 +294,7 @@ export function Popover({
           ) : null}
           <div
             key={`body-${contentKey}`}
-            className="popover-glass__body relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit]"
+            className={`relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[inherit] ${swapped ? "popover-glass__body" : ""}`}
           >
             {children}
           </div>

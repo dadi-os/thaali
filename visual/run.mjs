@@ -21,7 +21,7 @@ import { ensureServer, ensureTool, ORIGIN } from "./harness.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", planner: "/planner", "planner-week": "/planner?view=week", "planner-month": "/planner?view=month", "planner-someday": "/planner?someday=1", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
+const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", planner: "/planner", "planner-week": "/planner?view=week", "planner-month": "/planner?view=month", "planner-someday": "/planner?someday=1", "home@11": "/?clock=11:00", "home@1320": "/?clock=13:20", "home@1500": "/?clock=15:00", "planner@11": "/planner?clock=11:00", "planner@1320": "/planner?clock=13:20", "week@1320": "/planner?view=week&clock=13:20", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
 const SCENARIOS = ["normal", "loading", "offline", "blip", "module-offline", "errors", "empty", "long", "many", "asking"];
 /** Width by height; the portrait monitor is 1080x1920. */
 const SIZES = { "1440": [1440, 900], "900": [900, 700], "1920": [1920, 1080], "1080x1920": [1080, 1920] };
@@ -222,10 +222,33 @@ function flowJobs(scenario) {
       ...frames("hath-activity-older", [700]),
     ]),
     ...["health-specialist", "cse-300-specialist", "efficiency-specialist", "coding-manager", "networking-specialist"].map((agent) => job(`hath-state-${agent}`, `/hath?agent=${agent}`, [{ wait: 700 }, { shot: `flow-hath-state-${agent}~${scenario}.png` }])),
+    job("hath-popover-open", "/hath", [
+      { eval: `document.querySelector('circle[aria-label="Open finance-specialist"]').dispatchEvent(new MouseEvent("click", { bubbles: true })); 0` },
+      ...frames("hath-popover-open", [50, 160, 320, 520, 800, 1400]),
+    ]),
+    job("hath-about", "/hath?agent=career-manager", [
+      { eval: `document.querySelector("[role=dialog] .scroll").scrollTop = 99999; 0` },
+      ...frames("hath-about-shut", [700]),
+      { eval: clickText("[role=dialog] button", "Charter") },
+      { eval: `document.querySelector("[role=dialog] .scroll").scrollTop = 99999; 0` },
+      ...frames("hath-about-open", [900]),
+    ]),
+    job("hath-long", "/hath?agent=application-wells-fargo-technology-summer-internship-software-engineering&fixtures=long", [{ wait: 800 }, { shot: "flow-hath-long~long.png" }]),
+    job("hath-narrow", "/hath?agent=finance-specialist", [{ wait: 800 }, { shot: `flow-hath-narrow~${scenario}.png` }], 2500, 640, 760),
+    job("hath-wake-open", "/hath?agent=finance-specialist", [
+      { eval: `document.querySelector("[role=dialog] .scroll").scrollTop = 99999; 0` },
+      { wait: 500 },
+      { eval: clickText("[role=dialog] [class*='cursor-pointer']", "Opened by") },
+      ...frames("hath-wake-open", [200, 800]),
+    ]),
+    job("hath-popover-list", "/hath?view=list", [
+      { eval: `[...document.querySelectorAll(".agent-row")].find((b) => b.textContent.includes("finance-specialist")).click(); 0` },
+      ...frames("hath-popover-list", [50, 160, 320, 520, 800, 1400]),
+    ]),
     job("hath-stop", "/hath?agent=finance-specialist", [
       { eval: `document.querySelector("button[aria-label='Stop finance-specialist']").click(); 0` },
       ...frames("hath-stop-confirm", [400]),
-      { eval: expectText("Stop this job and its helper tasks?") },
+      { eval: expectText("Ends the run and its helper tasks.") },
       { eval: clickText("button", "Stop") },
       ...frames("hath-stop-stopped", [1000]),
       { eval: expectText("Stopped by you") },
@@ -250,7 +273,7 @@ function flowJobs(scenario) {
     ]),
     job("planner-tick", `/planner?view=day&fixtures=${scenario}`, [
       { eval: "window.__mountSince = performance.now(); 0" },
-      { eval: clickText("[role=checkbox]", "Reply to the Northwind recruiter") },
+      { eval: 'document.querySelector("[role=checkbox][aria-label$=\\"Reply to the Northwind recruiter\\"]").click(); 0' },
       ...frames("planner-tick", [120, 400, 1100]),
       { eval: expectText("Checked off") },
       { eval: clickText("button", "Undo") },
@@ -263,9 +286,20 @@ function flowJobs(scenario) {
       ...frames("planner-someday-group", [400]),
     ], 2500, 640),
     job("planner-plan", `/planner?view=day&fixtures=${scenario}`, [
-      { eval: 'document.querySelector("[data-context][aria-haspopup=dialog]").click(); 0' },
+      { eval: clickText("button[aria-haspopup=dialog]", "Study block") },
       ...frames("planner-plan-card", [700]),
-      { eval: expectText("Going") },
+      { eval: expectText("When") },
+    ]),
+    job("planner-task", `/planner?view=day&fixtures=${scenario}`, [
+      { eval: 'document.querySelector("section[aria-label=\'Past due\'] button[aria-haspopup=dialog]").click(); 0' },
+      ...frames("planner-task-card", [700]),
+      { eval: expectText("Past due by") },
+      { eval: expectText("Last confirmed") },
+    ]),
+    job("planner-day-more", `/planner?view=month&fixtures=${scenario}`, [
+      { eval: clickText("button", "more") },
+      ...frames("planner-day-card", [700]),
+      { eval: expectText("Open day") },
     ]),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },

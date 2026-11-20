@@ -1,9 +1,8 @@
 import { useState } from "react";
 import type { AgentRecord } from "../../../types/hath";
-import { KeyValue, SectionHeader } from "../../../shared/components/Module";
-import { formatDay, formatRelative } from "../../../shared/lib/ux/time";
+import { InsetCard, KeyValue } from "../../../shared/components/Module";
+import { formatDay } from "../../../shared/lib/ux/time";
 import { Disclosure } from "../../../shared/ui/Disclosure";
-import { AgentLink } from "./AgentLink";
 import { compact } from "./wakes";
 
 /** Characters per token Hath measured for the model's text; a charter's size in tokens is its characters over this. */
@@ -38,39 +37,22 @@ function CharterText({ source }: { source: string }) {
 /** Props of {@link About}. */
 export type AboutProps = {
   agent: AgentRecord;
-  /** The agent's parent when it is one of the agents on the page; its name is a link. */
-  parent: AgentRecord | null;
-  /** Selects the parent agent. */
-  onSelectParent: (id: string) => void;
-  /** The time the relative words are measured from. */
-  now: number;
 };
 
-/** What the agent is: its parent, when it was made and last active, and its charter behind a disclosure. */
-export function About({ agent, parent, onSelectParent, now }: AboutProps) {
+/** What the agent is, in a soft card like the others: when it was made, and its charter as a collapsed row. */
+export function About({ agent }: AboutProps) {
   const [charterOpen, setCharterOpen] = useState(false);
   return (
-    <div className="flex flex-col">
-      <SectionHeader title="About" />
-      <KeyValue label="Parent">
-        {agent.parent_agent_id === null ? (
-          "None"
-        ) : parent === null ? (
-          agent.parent_agent_id
-        ) : (
-          <AgentLink agentId={parent.id} name={parent.name} onSelect={onSelectParent} />
-        )}
-      </KeyValue>
+    <InsetCard title="About">
       <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>
-      <KeyValue label="Last active">{formatRelative(agent.updated_at, now)}</KeyValue>
       <Disclosure
         title="Charter"
-        summary={`~${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens · ${compact(agent.system_prompt.length)} chars`}
+        summary={`~${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens`}
         open={charterOpen}
         onToggle={() => setCharterOpen(!charterOpen)}
       >
         <CharterText source={agent.system_prompt} />
       </Disclosure>
-    </div>
+    </InsetCard>
   );
 }
