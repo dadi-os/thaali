@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { AgentRecord } from "../../types/hath";
 import type { Plan } from "../../types/planner";
-import { bandPlans, barColumns, gridPlans, isCurrent, keptBy, loosePlans, monthPlans, monthTile, ownerAgent, planTone, plansOn, runsAsBar, spanLanes } from "./plans";
+import { allDayMarks, bandPlans, barColumns, gridPlans, isCurrent, keptBy, loosePlans, monthPlans, monthTile, ownerAgent, planTone, plansOn, runsAsBar, spanLanes } from "./plans";
 
 function plan(id: string, start: Date, end: Date | null, over: Partial<Plan> = {}): Plan {
   return { id, title: id, body: null, rsvp: "yes", start_at: start.toISOString(), end_at: end?.toISOString() ?? null, all_day: false, time_zone: null, attended: null, place: null, hub: null, owner: "manual", notes: [], ...over };
@@ -78,5 +78,17 @@ describe("what each view draws from one list of plans", () => {
   it("gives Month everything, and the Someday sheet the plans with no end", () => {
     expect(monthPlans(all)).toHaveLength(5);
     expect(loosePlans(all).map((p) => p.id)).toEqual(["no-end"]);
+  });
+});
+
+describe("all-day marks", () => {
+  it("mark each shown day a bar touches, joining the days of a multi-day plan", () => {
+    const marks = allDayMarks([plan("trip", d(15, 9), d(17, 17)), plan("fair", d(19), d(19, 23), { all_day: true }), plan("c", d(16, 9), d(16, 10))], week);
+    expect(marks[0]).toBeNull();
+    expect(marks[1]).toEqual({ titles: ["trip"], fromPrev: false, toNext: true });
+    expect(marks[2]).toEqual({ titles: ["trip"], fromPrev: true, toNext: true });
+    expect(marks[3]).toEqual({ titles: ["trip"], fromPrev: true, toNext: false });
+    expect(marks[5]).toEqual({ titles: ["fair"], fromPrev: false, toNext: false });
+    expect(marks[6]).toBeNull();
   });
 });

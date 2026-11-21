@@ -96,3 +96,17 @@ export function windowRows(plans: Plan[], now: Date, capacity: number): Windowed
   while (b > a && rows[b]!.kind === "free") b -= 1;
   return { rows: rows.slice(a, b + 1), earlier: planCount(rows.slice(0, a)), later: planCount(rows.slice(b + 1)) };
 }
+
+/** One line recapping a day that is over: "3 plans done · 2 attended"; plans that were declined do not count. */
+export function dayRecap(plans: Plan[]): string {
+  const kept = plans.filter((plan) => plan.rsvp !== "no");
+  if (kept.length === 0) return "";
+  const attended = kept.filter((plan) => plan.attended === true).length;
+  return `${kept.length} ${kept.length === 1 ? "plan" : "plans"} done${attended === 0 ? "" : ` · ${attended} attended`}`;
+}
+
+/** Tomorrow as the widget previews it: its first plan and how many there are, or null when nothing is planned. */
+export function tomorrowPreview(plans: Plan[]): { first: Plan; count: number } | null {
+  const kept = plans.filter((plan) => plan.rsvp !== "no");
+  return kept.length === 0 ? null : { first: kept[0]!, count: kept.length };
+}

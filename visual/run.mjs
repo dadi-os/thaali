@@ -21,7 +21,7 @@ import { ensureServer, ensureTool, ORIGIN } from "./harness.mjs";
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", planner: "/planner", "planner-week": "/planner?view=week", "planner-month": "/planner?view=month", "planner-someday": "/planner?someday=1", "home@11": "/?clock=11:00", "home@1320": "/?clock=13:20", "home@1500": "/?clock=15:00", "planner@11": "/planner?clock=11:00", "planner@1320": "/planner?clock=13:20", "week@1320": "/planner?view=week&clock=13:20", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
+const PAGES = { home: "/", hath: "/hath", yaad: "/yaad", planner: "/planner", "planner-week": "/planner?view=week", "planner-month": "/planner?view=month", "planner-someday": "/planner?someday=1", "home@11": "/?clock=11:00", "home@1320": "/?clock=13:20", "home@1500": "/?clock=15:00", "home@2230": "/?clock=22:30", "week@11": "/planner?view=week&clock=11:00", "planner@11": "/planner?clock=11:00", "planner@1320": "/planner?clock=13:20", "week@1320": "/planner?view=week&clock=13:20", system: "/system", chaavi: "/chaavi", ghar: "/ghar" };
 const SCENARIOS = ["normal", "loading", "offline", "blip", "module-offline", "errors", "empty", "long", "many", "asking"];
 /** Width by height; the portrait monitor is 1080x1920. */
 const SIZES = { "1440": [1440, 900], "900": [900, 700], "1920": [1920, 1080], "1080x1920": [1080, 1920] };

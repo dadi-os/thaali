@@ -13,8 +13,8 @@ import { keptBy, planTone } from "./plans";
 import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { plannedClock } from "./zones";
 
-/** Pixels per minute at the least: an hour is 56 px. A window taller than the whole day stretches the day to fill it. */
-const MIN_PPM = 56 / 60;
+/** An hour is 56 px at the least (Week asks for 64); a window taller than the whole day stretches the day to fill it. */
+
 /** Width of the hour-label column. */
 export const AXIS_W = 64;
 /** Space above midnight, so the first label is not cut off. */
@@ -157,6 +157,10 @@ export type TimeGridProps = {
   onOpen: (plan: Plan, element: Element) => void;
   /** A sticky header above the axis laid out on {@link columnsOf}; Week's day bubbles and all-day band. */
   head?: ReactNode;
+  /** Offer the "Now ↓/↑" jump when now is out of view; Day does, Week leaves it to the now line. */
+  jump?: boolean;
+  /** Pixels per hour at the least; 56 when absent. */
+  hourPx?: number;
 };
 
 /**
@@ -185,15 +189,15 @@ function anchorOf(columns: Segment[][], single: boolean, nowMinute: number | nul
 /**
  * The Planner's time axis: the whole day, 12 AM to 12 AM, drawn as its own layer of hour rules and labels that does not
  * depend on the plans, with the plans laid over it by time in side-by-side lanes. One scroll serves every column, so Day
- * and Week move together, and it opens at the hour before what is on now or next. Free stretches of 30 minutes or more
- * are named, and the now line crosses today's column.
+ * and Week move together, and it opens at the hour before what is on now or next. In Day, free stretches of 30 minutes or more
+ * are named (Week leaves them out as clutter), and the now line crosses today's column.
  */
-export function TimeGrid({ days, plans, now, zone, selected, onOpen, head }: TimeGridProps) {
+export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, jump = true, hourPx = 56 }: TimeGridProps) {
   const [scroller, size] = useSize<HTMLDivElement>();
   const columns = days.map((day) => segmentsOn(plans, day));
   const todayIndex = days.findIndex((day) => isSameDay(day, now));
   const nowMinute = todayIndex < 0 ? null : wallMinutes(now);
-  const ppm = Math.max(MIN_PPM, (size.height - TOP_PAD - 24) / DAY);
+  const ppm = Math.max(hourPx / 60, (size.height - TOP_PAD - 24) / DAY);
   const top = (minute: number) => minute * ppm;
   const hours = Array.from({ length: DAY / 60 + 1 }, (_, i) => i * 60);
   const compact = days.length > 1;
@@ -215,7 +219,7 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head }: Tim
     <>
       {head}
       <div style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
-      {away === null ? null : (
+      {away === null || !jump ? null : (
         <div style={{ order: away === "up" ? -1 : 1, flex: "none", display: "flex", justifyContent: "flex-end", padding: "2px 6px" }}>
           <Button tone="quiet" size="sm" onClick={() => scroller.current!.scrollTo({ top: nowMinute! * ppm - size.height / 2 + TOP_PAD, behavior: "smooth" })}>
             {`Now ${away === "down" ? "↓" : "↑"} ${formatClock(now.toISOString())}`}
@@ -246,7 +250,7 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head }: Tim
           return (
             <div key={day.toISOString()} data-day={day.toISOString().slice(0, 10)} style={{ position: "relative", borderLeft: compact ? "1px solid var(--rule)" : "none", background: compact && index === todayIndex ? "var(--sage-fill)" : "transparent" }}>
               {gapsBetween(segments, FREE_MIN).map((gap) =>
-                (gap.endMin - gap.startMin) * ppm < 26 ? null : (
+                compact || (gap.endMin - gap.startMin) * ppm < 26 ? null : (
                   <div key={gap.startMin} aria-label={`Free ${formatSpan(gap.endMin - gap.startMin)}`} style={{ position: "absolute", left: 0, right: 0, top: top(gap.startMin), height: (gap.endMin - gap.startMin) * ppm, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 1 }}>
                     <span style={{ fontSize: compact ? 11 : 12, color: "var(--ink-faint)", background: "var(--glass-solid)", padding: "1px 8px", borderRadius: 999 }}>{`Free · ${formatSpan(gap.endMin - gap.startMin)}`}</span>
                   </div>

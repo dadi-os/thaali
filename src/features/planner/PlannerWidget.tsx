@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, planner } from "../../shared/api";
+import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -12,7 +13,7 @@ import { addDays, dateKey, startOfDay } from "./dates";
 import { formatSpan } from "./layout";
 import { dayTasksKey, groupTasks, progressOf } from "./tasks";
 import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
-import { ROW, tilePlans, windowRows, type WidgetRow } from "./widget";
+import { dayRecap, ROW, tilePlans, tomorrowPreview, windowRows, type WidgetRow } from "./widget";
 
 /** How often the widget moves its progress and its window. */
 const TICK_MS = 60_000;
@@ -80,10 +81,39 @@ function PlanRow({ row, now, state, wide, first, last }: PlanRowProps) {
   );
 }
 
-/** What tomorrow holds, for the widget once today is over. */
-export function tomorrowLine(plans: ReturnType<typeof tilePlans>): string {
-  if (plans.length === 0) return "Tomorrow · nothing planned yet";
-  return `Tomorrow · ${plans.length} ${plans.length === 1 ? "plan" : "plans"} · first at ${formatClock(plans[0]!.start_at)}`;
+type DayOverProps = {
+  plans: ReturnType<typeof tilePlans>;
+  tomorrow: ReturnType<typeof tilePlans> | null;
+};
+
+/**
+ * The widget once nothing is left today: what the day came to ("3 plans done · 2 attended", or "Nothing planned today"), the
+ * rest of it free, and a card previewing tomorrow's first plan and count. The whole tile opens tomorrow when it has plans.
+ */
+function DayOver({ plans, tomorrow }: DayOverProps) {
+  const preview = tomorrow === null ? null : tomorrowPreview(tomorrow);
+  return (
+    <div className="flex min-h-0 flex-1 flex-col justify-center gap-3 px-2">
+      <div className="flex flex-col gap-1">
+        <span className="text-[15px] leading-5 font-medium">{plans.length === 0 ? "Nothing planned today" : "That’s the day"}</span>
+        <span className="text-[13px] leading-4 text-ink-muted">{[dayRecap(plans), "Free until tomorrow"].filter((part) => part !== "").join(" · ")}</span>
+      </div>
+      <div className="flex items-center gap-3 rounded-[14px] bg-sage-fill px-3 py-2.5">
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="ui-label">Tomorrow</span>
+          {preview === null ? (
+            <span className="text-[13px] leading-5 text-ink-muted">Nothing planned yet</span>
+          ) : (
+            <>
+              <Truncate text={preview.first.title} className="text-[14px] leading-5 font-medium" />
+              <span className="text-[12px] leading-4 text-ink-muted tabular-nums">{`${formatClock(preview.first.start_at)} · ${preview.count} ${preview.count === 1 ? "plan" : "plans"}`}</span>
+            </>
+          )}
+        </span>
+        {preview === null ? null : <Icon name="chevron" size={12} />}
+      </div>
+    </div>
+  );
 }
 
 type BodyProps = {
@@ -105,12 +135,7 @@ function Body({ plans, tomorrow, taskLine, now, geometry }: BodyProps) {
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ gap: ROW.gap }}>
-        {over ? (
-          <div className="flex min-h-0 flex-1 flex-col justify-center gap-1 px-2">
-            <span className="text-[15px] leading-5 font-medium">{plans.length === 0 ? "Nothing planned today" : "That’s the day"}</span>
-            <span className="text-[13px] leading-4 text-ink-muted">{tomorrow === null ? "" : tomorrowLine(tomorrow)}</span>
-          </div>
-        ) : null}
+        {over ? <DayOver plans={plans} tomorrow={tomorrow} /> : null}
         {earlier > 0 ? (
           <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL + 12 + 10 + 12 }}>
             <span className="text-[12px] text-ink-muted tabular-nums">{`↑ ${earlier} earlier`}</span>
