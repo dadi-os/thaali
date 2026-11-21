@@ -263,6 +263,13 @@
     flex: none;
   }
 
+  .btn-xs {
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 6px;
+    font-size: 12px;
+  }
+
   .btn-sm {
     height: 28px;
     padding: 0 12px;

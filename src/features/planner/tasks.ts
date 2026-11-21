@@ -166,22 +166,38 @@ export function monthBadge(tasks: Task[], day: Date): MonthBadge {
   };
 }
 
-/** Tasks whose titles match once case, digits and punctuation are ignored: "Weigh-in 3" and "weigh in 12". */
-export type SomedayGroup = { key: string; label: string; tasks: Task[] };
+/** Items whose titles match once case, digits and punctuation are ignored: "Weigh-in 3" and "weigh in 12". */
+export type TitleGroup<T> = { key: string; label: string; items: T[] };
 
-/** The title with case, digits and punctuation removed, the key repeated Someday tasks share. */
+/** The title with case, digits and punctuation removed, the key repeated items share. */
 function titleKey(title: string): string {
   return title.toLowerCase().replace(/[^a-z\s]/g, " ").replace(/\s+/g, " ").trim();
 }
 
-/** Someday tasks grouped by near-identical title, so forty repeats read as one row; groups sort by label. */
-export function groupSomeday(tasks: Task[]): SomedayGroup[] {
-  const groups = new Map<string, SomedayGroup>();
-  for (const task of tasks) {
-    const key = titleKey(task.title) || task.title;
+/** `items` grouped by near-identical title, so forty repeats read as one row; groups sort by label, a group's label is its first title without a trailing number. */
+export function groupByTitle<T extends { title: string }>(items: T[]): Array<TitleGroup<T>> {
+  const groups = new Map<string, TitleGroup<T>>();
+  for (const item of items) {
+    const key = titleKey(item.title) || item.title;
     const group = groups.get(key);
-    if (group === undefined) groups.set(key, { key, label: task.title, tasks: [task] });
-    else group.tasks.push(task);
+    if (group === undefined) groups.set(key, { key, label: item.title, items: [item] });
+    else group.items.push(item);
+  }
+  for (const group of groups.values()) {
+    if (group.items.length > 1) group.label = group.label.replace(/[\s#:–-]*\d+\s*$/, "").trim() || group.label;
   }
   return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/**
+ * The course a task row names after its status, or null when the title already says it: a title that starts with the hub's
+ * course code ("IBIO 150 — …" under "IBIO 150 class") or contains the hub's whole title needs no second mention.
+ */
+export function courseLabel(task: Pick<Task, "title" | "hub">): string | null {
+  if (task.hub === null) return null;
+  const hub = task.hub.title.trim();
+  const code = hub.replace(/\s+(class|course|lecture|lab|section)$/i, "");
+  const title = task.title.toLowerCase();
+  if (title.includes(hub.toLowerCase()) || title.startsWith(code.toLowerCase())) return null;
+  return hub;
 }

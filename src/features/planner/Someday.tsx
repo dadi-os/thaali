@@ -1,22 +1,22 @@
 import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
 import { isMeshOnline, planner } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
-import { REVEAL } from "../../shared/motion";
 import { StateView } from "../../shared/states/ModuleState";
 import { formatAge, formatClock, formatDay } from "../../shared/lib/ux/time";
+import { CheckCircle } from "../../shared/ui/CheckCircle";
+import { Expandable } from "../../shared/ui/Expandable";
 import { Icon } from "../../shared/ui/Icon";
+import { LIST_ROW_CLASS } from "../../shared/ui/ListRow";
 import { IconButton } from "../../shared/ui/Button";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { Plan, Task } from "../../types/planner";
 import { PLANS_KEY } from "./attended";
 import { addDays, dateKey, startOfDay } from "./dates";
 import { keptBy, loosePlans } from "./plans";
-import { Check } from "./Check";
 import { PlanButton } from "./PlanButton";
 import { MessageAgent } from "./taskActions";
-import { groupSomeday, SOMEDAY_KEY, type SomedayGroup } from "./tasks";
+import { groupByTitle, SOMEDAY_KEY, type TitleGroup } from "./tasks";
 import { useTaskTick } from "./useTaskTick";
 
 /** How far ahead the sheet looks for plans that have a day but no end, in days. */
@@ -64,7 +64,7 @@ type TaskRowProps = {
   task: Task;
   now: Date;
   onTick: (task: Task, done: boolean) => void;
-  /** The row sits under a group header: its message button is the icon alone and its title is the group's. */
+  /** The row sits under a group header: its message button is the icon alone. */
   grouped?: boolean;
 };
 
@@ -73,10 +73,8 @@ function TaskRow({ task, now, onTick, grouped = false }: TaskRowProps) {
   const fresh = task.verified_at === null || now.getTime() - Date.parse(task.verified_at) < 86_400_000;
   const meta = [keptBy(task.owner), fresh ? null : `checked ${formatAge(task.verified_at!, now.getTime())} ago`].filter((part) => part !== null).join(" · ");
   return (
-    <li className="flex list-none items-center gap-2 rounded-[12px] px-2 py-1.5">
-      <button type="button" role="checkbox" aria-checked={task.done} aria-label={task.title} onClick={() => onTick(task, !task.done)} className="flex p-1">
-        <Check done={task.done} />
-      </button>
+    <li className="flex list-none items-center gap-1 rounded-[12px] px-1">
+      <CheckCircle done={task.done} label={`Mark done: ${task.title}`} onToggle={() => onTick(task, !task.done)} />
       <span className="flex min-w-0 flex-1 flex-col">
         <Truncate text={task.title} className="text-[14px] font-medium" />
         {meta === "" ? null : <Truncate text={meta} className="text-[12px] text-ink-muted" />}
@@ -86,36 +84,50 @@ function TaskRow({ task, now, onTick, grouped = false }: TaskRowProps) {
   );
 }
 
-type GroupProps = {
-  group: SomedayGroup;
-  now: Date;
-  onTick: (task: Task, done: boolean) => void;
+type PlanRowProps = {
+  plan: Plan;
+  /** Shows the day first: a group lists its plans by date. */
+  dated: boolean;
+  onOpenPlan: (plan: Plan, element: Element) => void;
 };
 
-/** A run of repeated titles as one row with its count, opening to its tasks; a lone task is just its row. */
-function Group({ group, now, onTick }: GroupProps) {
+/** One loose plan: its day and time, who keeps it, and a way to message them; the row opens the plan's card. */
+function PlanRow({ plan, dated, onOpenPlan }: PlanRowProps) {
+  return (
+    <li className="flex list-none items-center gap-1">
+      <PlanButton plan={plan} aria-haspopup="dialog" onClick={(event) => onOpenPlan(plan, event.currentTarget)} className={LIST_ROW_CLASS}>
+        <span className="flex size-8 flex-none items-center justify-center rounded-full bg-sage-fill text-sage-text">
+          <Icon name="cal" size={15} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <Truncate text={dated ? `${formatDay(plan.start_at)} · ${formatClock(plan.start_at)}` : plan.title} className="text-[14px] font-medium" />
+          <Truncate text={dated ? (keptBy(plan.owner) ?? "") : `${formatDay(plan.start_at)} · ${formatClock(plan.start_at)}${keptBy(plan.owner) === null ? "" : ` · ${plan.owner}`}`} className="text-[12px] text-ink-muted" />
+        </span>
+      </PlanButton>
+      <MessageAgent task={plan} iconOnly />
+    </li>
+  );
+}
+
+type GroupedProps<T> = {
+  group: TitleGroup<T>;
+  /** What a group of this kind is called inside: "tasks" or "plans". */
+  render: (item: T) => ReactNode;
+  /** A single item is drawn as its own row. */
+  single: (item: T) => ReactNode;
+};
+
+/** A run of repeated titles as one Expandable with its count, opening inline to its items; a lone item is just its row. */
+function Grouped<T>({ group, render, single }: GroupedProps<T>) {
   const [open, setOpen] = useState(false);
-  if (group.tasks.length === 1) {
-    return <TaskRow task={group.tasks[0]!} now={now} onTick={onTick} />;
+  if (group.items.length === 1) {
+    return <>{single(group.items[0]!)}</>;
   }
   return (
     <li className="list-none">
-      <button type="button" aria-expanded={open} onClick={() => setOpen(!open)} className="ui-hover-fill ui-trans flex w-full items-center gap-3 rounded-[12px] px-3 py-2.5 text-left">
-        <span className="flex flex-none" style={{ transform: open ? "rotate(90deg)" : "none", transition: "transform var(--fast) var(--ease)" }}>
-          <Icon name="chevron" size={12} />
-        </span>
-        <Truncate text={group.label.replace(/[\s#:–-]*\d+\s*$/, "").trim() || group.label} className="min-w-0 flex-1 text-[14px] font-medium" />
-        <span className="flex-none text-[13px] text-ink-muted tabular-nums">{`×${group.tasks.length}`}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.ul {...REVEAL} className="m-0 overflow-hidden p-0 pl-4">
-            {group.tasks.map((task) => (
-              <TaskRow key={task.id} task={task} now={now} onTick={onTick} grouped />
-            ))}
-          </motion.ul>
-        ) : null}
-      </AnimatePresence>
+      <Expandable look="row" title={<span className="text-[14px] font-medium">{group.label}</span>} trailing={`×${group.items.length}`} open={open} onToggle={() => setOpen(!open)}>
+        <ul className="m-0 p-0">{group.items.map(render)}</ul>
+      </Expandable>
     </li>
   );
 }
@@ -137,7 +149,8 @@ export type SomedaySheetProps = {
 export function SomedaySheet({ now, onClose, onOpenPlan }: SomedaySheetProps) {
   const tick = useTaskTick();
   const { tasks, plans, count } = useSomeday();
-  const groups = groupSomeday(tasks);
+  const taskGroups = groupByTitle(tasks);
+  const planGroups = groupByTitle(plans);
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       <div className="flex flex-none items-center gap-3 px-5 pt-5 pb-3">
@@ -149,34 +162,23 @@ export function SomedaySheet({ now, onClose, onOpenPlan }: SomedaySheetProps) {
       </div>
       <div className="scroll flex min-h-0 flex-1 flex-col gap-5 px-4 pb-5">
         <Section label="Tasks" count={tasks.length}>
-          {groups.length === 0 ? (
+          {taskGroups.length === 0 ? (
             <StateView dense kind="empty" title="No loose tasks" detail="Tasks with no open or close day appear here." />
           ) : (
             <ul className="m-0 flex flex-col gap-0.5 p-0">
-              {groups.map((group) => (
-                <Group key={group.key} group={group} now={now} onTick={tick} />
+              {taskGroups.map((group) => (
+                <Grouped key={group.key} group={group} single={(task) => <TaskRow key={task.id} task={task} now={now} onTick={tick} />} render={(task) => <TaskRow key={task.id} task={task} now={now} onTick={tick} grouped />} />
               ))}
             </ul>
           )}
         </Section>
         <Section label="Plans" count={plans.length}>
-          {plans.length === 0 ? (
+          {planGroups.length === 0 ? (
             <StateView dense kind="empty" title="No loose plans" detail="Plans with a day but no end time appear here." />
           ) : (
             <ul className="m-0 flex flex-col gap-0.5 p-0">
-              {plans.map((plan) => (
-                <li key={plan.id} className="flex list-none items-center gap-1">
-                  <PlanButton plan={plan} aria-haspopup="dialog" onClick={(event) => onOpenPlan(plan, event.currentTarget)} className="ui-hover-fill ui-trans flex min-w-0 flex-1 items-center gap-3 rounded-[12px] px-3 py-2 text-left">
-                    <span className="flex size-8 flex-none items-center justify-center rounded-full bg-sage-fill text-sage-text">
-                      <Icon name="cal" size={15} />
-                    </span>
-                    <span className="flex min-w-0 flex-1 flex-col">
-                      <Truncate text={plan.title} className="text-[14px] font-medium" />
-                      <Truncate text={`${formatDay(plan.start_at)} · ${formatClock(plan.start_at)}${keptBy(plan.owner) === null ? "" : ` · ${plan.owner}`}`} className="text-[12px] text-ink-muted" />
-                    </span>
-                  </PlanButton>
-                  <MessageAgent task={plan} iconOnly />
-                </li>
+              {planGroups.map((group) => (
+                <Grouped key={group.key} group={group} single={(plan) => <PlanRow key={plan.id} plan={plan} dated={false} onOpenPlan={onOpenPlan} />} render={(plan) => <PlanRow key={plan.id} plan={plan} dated onOpenPlan={onOpenPlan} />} />
               ))}
             </ul>
           )}

@@ -3,20 +3,22 @@ import { useQuery } from "@tanstack/react-query";
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { isMeshOnline, planner } from "../../shared/api";
 import { Card } from "../../shared/ui/Card";
+import { CheckCircle } from "../../shared/ui/CheckCircle";
+import { ListRow } from "../../shared/ui/ListRow";
+import { Expandable } from "../../shared/ui/Expandable";
 import { Icon } from "../../shared/ui/Icon";
 import { StateView } from "../../shared/states/ModuleState";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
-import { EASE, FAST_S, REVEAL, SLOW_S, SLOWER_S } from "../../shared/motion";
+import { EASE, SLOW_S, SLOWER_S } from "../../shared/motion";
 import { failureProps } from "../../shared/lib/ux/moduleState";
 import type { Task } from "../../types/planner";
 import { dateKey, formatDayShort, isSameDay } from "./dates";
 import { useContextActions } from "../../shared/interaction/contextMenu";
-import { Check } from "./Check";
 import { useSomeday } from "./Someday";
 import { useTaskActions } from "./taskActions";
-import { dayTasksKey, groupTasks, progressOf } from "./tasks";
+import { courseLabel, dayTasksKey, groupTasks, progressOf } from "./tasks";
 import { taskStatus } from "./timeState";
 import { useTaskTick } from "./useTaskTick";
 
@@ -35,13 +37,15 @@ const HINT_INK = { done: "var(--ink-muted)", late: "var(--late-ink)", soon: "var
 
 /**
  * One task of the day: its ring ticks it (or takes the tick back) and the rest of the row opens its details. Under the title the
- * row says its situation in words ("Past due by 5 days", "Closes today 5:00 PM · in 3 h") and its course.
+ * row says, on one meta line, its situation in words ("Past due by 5 days", "Closes today 5:00 PM · in 3 h") and its course when the title does not already name it. Titles wrap to two lines.
  */
 function Row({ task, now, onTick, onOpen }: RowProps) {
   const reduce = useReducedMotion() ?? false;
   const actionsFor = useTaskActions(onTick);
   const context = useContextActions(() => actionsFor(task));
   const status = taskStatus(task, now);
+  const course = courseLabel(task);
+  const meta = [task.done ? null : status.label, course].filter((part): part is string => part !== null).join(" · ");
   return (
     <motion.li
       layout="position"
@@ -51,21 +55,17 @@ function Row({ task, now, onTick, onOpen }: RowProps) {
       transition={{ duration: SLOW_S, ease: EASE }}
       style={{ listStyle: "none", overflow: "hidden" }}
       {...context}
-      className="flex items-start gap-1 rounded-[12px]"
+      className="flex items-start gap-0 rounded-[12px]"
     >
-      <button type="button" role="checkbox" aria-checked={task.done} aria-label={`${task.done ? "Take back" : "Mark done:"} ${task.title}`} onClick={() => onTick(task, !task.done)} className="ui-hover-fill ui-trans flex flex-none rounded-[12px] p-2.5 pr-1.5 active:scale-90">
-        <Check done={task.done} />
-      </button>
-      <button type="button" aria-haspopup="dialog" onClick={(event) => onOpen(task, event.currentTarget)} className="ui-hover-fill ui-trans flex min-w-0 flex-1 flex-col gap-1 rounded-[12px] py-2.5 pr-2 pl-1.5 text-left">
-        <span style={{ fontSize: 14, fontWeight: 500, lineHeight: "19px", color: task.done ? "var(--ink-muted)" : "var(--ink)", textDecoration: task.done ? "line-through" : "none", display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden", overflowWrap: "anywhere" }}>{task.title}</span>
-        {task.done ? null : <span style={{ fontSize: 12, lineHeight: "16px", fontVariantNumeric: "tabular-nums", color: HINT_INK[status.tone], fontWeight: status.tone === "late" ? 600 : 400 }}>{status.label}</span>}
-        {task.hub === null ? null : (
-          <span style={{ display: "flex", alignItems: "center", gap: 6, minWidth: 0, fontSize: 12, lineHeight: "16px", color: "var(--ink-muted)" }}>
-            <span aria-hidden="true" style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--tide)", flex: "none" }} />
-            <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{task.hub.title}</span>
+      <CheckCircle done={task.done} label={`${task.done ? "Take back" : "Mark done:"} ${task.title}`} onToggle={() => onTick(task, !task.done)} />
+      <ListRow aria-haspopup="dialog" onClick={(event) => onOpen(task, event.currentTarget)} className="flex-1 flex-col items-stretch gap-0.5 px-1.5 py-2">
+        <span className={`line-clamp-2 text-[14px] leading-[19px] font-medium ${task.done ? "text-ink-muted line-through" : ""}`}>{task.title}</span>
+        {meta === "" ? null : (
+          <span className="truncate text-[12px] leading-4 tabular-nums" style={{ color: task.done ? "var(--ink-muted)" : HINT_INK[status.tone], fontWeight: status.tone === "late" && !task.done ? 600 : 400 }}>
+            {meta}
           </span>
         )}
-      </button>
+      </ListRow>
     </motion.li>
   );
 }
@@ -89,36 +89,6 @@ function Group({ label, count, tone, children }: GroupProps) {
       <ul style={{ margin: 0, padding: 0, display: "flex", flexDirection: "column" }}>
         <AnimatePresence initial={false}>{children}</AnimatePresence>
       </ul>
-    </section>
-  );
-}
-
-type FoldProps = {
-  label: string;
-  count: number;
-  open: boolean;
-  onToggle: () => void;
-  children: ReactNode;
-};
-
-/** A group that starts folded: its label and count open it. */
-function Fold({ label, count, open, onToggle, children }: FoldProps) {
-  return (
-    <section aria-label={label}>
-      <button type="button" aria-expanded={open} className="ui-hover-fill ui-trans" onClick={onToggle} style={{ ...LABEL, display: "flex", alignItems: "center", gap: 7, width: "100%", padding: "10px 8px 6px", borderRadius: 10, color: "var(--ink-muted)", textAlign: "left" }}>
-        <span style={{ display: "flex", transform: open ? "rotate(90deg)" : "none", transition: `transform ${FAST_S}s var(--ease)` }}>
-          <Icon name="chevron" size={12} />
-        </span>
-        {label}
-        <span style={{ fontWeight: 500, letterSpacing: 0.5 }}>{count}</span>
-      </button>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.ul {...REVEAL} style={{ margin: 0, padding: 0, overflow: "hidden" }}>
-            <AnimatePresence initial={false}>{children}</AnimatePresence>
-          </motion.ul>
-        ) : null}
-      </AnimatePresence>
     </section>
   );
 }
@@ -225,11 +195,15 @@ export function Checklist({ day, now, onSomeday, onOpenTask, height }: Checklist
           </Group>
         )}
         {groups.done.length === 0 ? null : (
-          <Fold label="Done" count={groups.done.length} open={doneOpen} onToggle={() => setDoneOpen(!doneOpen)}>
-            {groups.done.map((task) => (
-              <Row key={task.id} task={task} now={now} onTick={tick} onOpen={onOpenTask} />
-            ))}
-          </Fold>
+          <Expandable look="row" title={<span className="ui-label">Done</span>} trailing={groups.done.length} open={doneOpen} onToggle={() => setDoneOpen(!doneOpen)}>
+            <ul className="m-0 p-0">
+              <AnimatePresence initial={false}>
+                {groups.done.map((task) => (
+                  <Row key={task.id} task={task} now={now} onTick={tick} onOpen={onOpenTask} />
+                ))}
+              </AnimatePresence>
+            </ul>
+          </Expandable>
         )}
       </div>
     );
@@ -260,12 +234,14 @@ export function Checklist({ day, now, onSomeday, onOpenTask, height }: Checklist
         ) : null}
         {body}
         {someday.count === 0 ? null : (
-          <button type="button" className="ui-hover-fill ui-trans" onClick={onSomeday} style={{ ...LABEL, display: "flex", alignItems: "center", gap: 7, width: "100%", margin: "4px 0 14px", padding: "12px 8px", borderRadius: 12, color: "var(--ink-muted)", textAlign: "left", borderTop: "1px solid var(--rule)" }}>
-            Someday
-            <span style={{ fontWeight: 500, letterSpacing: 0.5 }}>{someday.count}</span>
-            <span style={{ flex: 1 }} />
-            <Icon name="chevron" size={12} />
-          </button>
+          <div className="mt-1 mb-3.5 border-t border-rule pt-1.5">
+            <ListRow onClick={onSomeday}>
+              <span className="ui-label">Someday</span>
+              <span className="text-[12px] text-ink-muted tabular-nums">{someday.count}</span>
+              <span className="flex-1" />
+              <Icon name="chevron" size={12} />
+            </ListRow>
+          </div>
         )}
       </div>
     </Card>

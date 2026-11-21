@@ -6,7 +6,7 @@
  * Usage: node visual/run.mjs --out <dir> [--pages hath,system] [--scenarios normal,asking]
  *        [--widths 1440,900x700,1080x1920] [--interact] [--flows]
  *
- * `--polish` runs only the refinement captures (thread pill, System tile, Home timeline tile, Hath hover, Day view and its rail
+ * `--polish` runs only the refinement captures (thread pill, thread scroll edges (blur does not render in WKWebView), System tile, Home timeline tile, Hath hover, Day view and its rail
  * at three sizes, session popovers with long content at the window's edges, Month, Segmented states); set `SNAP_DARK=1` for the dark scheme.
  *
  * `--flows` adds the scripted flows (agent sheet and takeover modal, toasts, System task rows and logs, chat thread) at
@@ -271,7 +271,7 @@ function flowJobs(scenario) {
       ...frames("yaad-sheet-closed", [700]),
       { eval: expectText("Coming up", true) },
     ]),
-    job("planner-tick", `/planner?view=day&fixtures=${scenario}`, [
+    job("planner-tick", `/planner?view=day&clock=11:00&fixtures=${scenario}`, [
       { eval: "window.__mountSince = performance.now(); 0" },
       { eval: 'document.querySelector("[role=checkbox][aria-label$=\\"Reply to the Northwind recruiter\\"]").click(); 0' },
       ...frames("planner-tick", [120, 400, 1100]),
@@ -279,18 +279,18 @@ function flowJobs(scenario) {
       { eval: clickText("button", "Undo") },
       ...frames("planner-tick-undone", [600]),
     ]),
-    job("planner-someday", `/planner?view=day&someday=1&fixtures=${scenario}`, [
+    job("planner-someday", `/planner?view=day&clock=11:00&someday=1&fixtures=${scenario}`, [
       ...frames("planner-someday-open", [900]),
       { eval: expectText("Gym training split") },
       { eval: clickText("button[aria-expanded=false]", "Gym training split") },
       ...frames("planner-someday-group", [400]),
     ], 2500, 640),
-    job("planner-plan", `/planner?view=day&fixtures=${scenario}`, [
+    job("planner-plan", `/planner?view=day&clock=11:00&fixtures=${scenario}`, [
       { eval: clickText("button[aria-haspopup=dialog]", "Study block") },
       ...frames("planner-plan-card", [700]),
-      { eval: expectText("When") },
+      { eval: expectText("Date") },
     ]),
-    job("planner-task", `/planner?view=day&fixtures=${scenario}`, [
+    job("planner-task", `/planner?view=day&clock=11:00&fixtures=${scenario}`, [
       { eval: 'document.querySelector("section[aria-label=\'Past due\'] button[aria-haspopup=dialog]").click(); 0' },
       ...frames("planner-task-card", [700]),
       { eval: expectText("Past due by") },
@@ -339,6 +339,13 @@ function polishJobs() {
       { eval: emit({ type: "wake_started", agent_id: "finance-specialist", wake_id: "00000000-0000-4000-9000-000000000009", reason: { kind: "message", ref: null } }) },
       { wait: 900 },
       { shot: "polish-thread-pill.png" },
+    ]),
+    job("thread-edges", "/?fixtures=chat-rich", [
+      { eval: sidebarRow("schedule-specialist") },
+      { wait: 1200 },
+      { eval: `(() => { const el = document.querySelector("aside .scroll.overflow-y-auto.overscroll-contain"); el.scrollTop = 1100; })(); 0` },
+      { wait: 400 },
+      { shot: "polish-thread-edges.png" },
     ]),
     job("day-1440", "/planner?view=day&fixtures=many", [{ shot: "polish-day-1440.png" }, { hover: "[role=radio][aria-checked=false]" }, { wait: 300 }, { shot: "polish-segmented-hover.png" }]),
     job("day-960", "/planner?view=day&fixtures=many", [{ shot: "polish-day-960.png" }], 960, 640),

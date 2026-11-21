@@ -4,6 +4,7 @@ import { FADE } from "../../../shared/motion";
 import type { AgentRecord } from "../../../types/hath";
 import { latestAgentStatus, messageKey, type ChatMessage } from "../../../contexts/chat";
 import { trackIncoming } from "../incoming";
+import { ScrollEdge } from "../../../shared/ui/ScrollEdge";
 import { MessageBubble } from "../../../shared/components/Thread/Message";
 import { ThreadEmpty } from "./ThreadEmpty";
 import { ThreadSkeleton } from "./ThreadSkeleton";
@@ -38,6 +39,9 @@ export interface ThreadViewProps {
   /** Fill the composer with an empty-state starter prompt. */
   onSuggest: (text: string) => void;
 }
+
+/** Room the scroll-edge effect takes beyond the floating elements, so text dissolves before it reaches them. */
+const EDGE_REACH_PX = 44;
 
 /** Open thread scroll pane: the human thread's messages. The composer's activity pill shows what the agent is doing, and the agent's newest message carries what the thread still waits on. */
 export function ThreadView({
@@ -84,6 +88,8 @@ export function ThreadView({
 
   return (
     <div className="absolute inset-0">
+      {headerPad > 0 ? <ScrollEdge edge="top" size={headerPad + EDGE_REACH_PX - 16} /> : null}
+      {composerPad > 0 ? <ScrollEdge edge="bottom" size={composerPad + EDGE_REACH_PX - 16} /> : null}
       <AnimatePresence initial={false}>
         {ready && isEmpty && load ? (
           <motion.div

@@ -5,6 +5,7 @@ import { ConversationRow } from "../../shared/components/Thread/ConversationRow"
 import { groupByDay } from "../../shared/components/Thread/format";
 import { FADE } from "../../shared/motion";
 import { StateView } from "../../shared/states/ModuleState";
+import { ScrollEdge } from "../../shared/ui/ScrollEdge";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import type { Conversation, HistoryStatus } from "../../contexts/chat";
@@ -16,6 +17,9 @@ export const WIDE_ROW_PX = 440;
 /** Room the rows keep clear of the floating search above them and the dock below, so the first and last rows can scroll fully into view. */
 const SEARCH_CLEAR_PX = 68;
 const DOCK_CLEAR_PX = 96;
+
+/** Room the scroll-edge effect takes beyond them, so rows dissolve before they reach the glass. */
+const EDGE_REACH_PX = 20;
 
 export type ConversationListProps = {
   /** Thread-agent conversations, newest first. */
@@ -72,6 +76,8 @@ export function ConversationList({
 
   return (
     <div className="relative min-h-0 flex-1">
+      <ScrollEdge edge="top" size={SEARCH_CLEAR_PX + EDGE_REACH_PX} />
+      <ScrollEdge edge="bottom" size={DOCK_CLEAR_PX + EDGE_REACH_PX} />
       <div className="absolute inset-x-0 top-0 z-10 px-3.5 pt-3.5">
         <label className="search-field">
           <Icon name="search" size={15} />

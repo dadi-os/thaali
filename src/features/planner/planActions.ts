@@ -7,6 +7,7 @@ import { requestCompose } from "../../contexts/reply";
 import type { AgentRecord } from "../../types/hath";
 import type { Plan } from "../../types/planner";
 import { hasStarted, useSetAttended } from "./attended";
+import { canTell, rsvpChoice, rsvpMessage } from "./rsvp";
 import { ownerAgent } from "./plans";
 
 /** What {@link planActions} needs from the app to run a plan's actions. */
@@ -15,10 +16,14 @@ export type PlanActionDeps = {
   agent: AgentRecord | null;
   /** Whether the plan has begun, so Ankur can say whether he was there. */
   started: boolean;
+  /** The instant the menu opens at: Going / Not going are offered until the plan ends. */
+  now: Date;
   /** Write whether Ankur was at the plan, or clear the answer. */
   setAttended: (plan: Plan, attended: boolean | null) => void;
   /** Open the conversation with an agent. */
   message: (agentId: string) => void;
+  /** Open the agent's conversation with `text` already in the composer. */
+  tell: (agentId: string, text: string) => void;
   /** Show the plan's node in Yaad. */
   showInYaad: (id: string) => void;
   /** Open the plan card; absent where there is no card to open. */
@@ -28,14 +33,21 @@ export type PlanActionDeps = {
 /**
  * What a person can do with a plan: say whether they attended once it has begun, message the agent that keeps it (when
  * one still runs), show it in Yaad, and open its details. One list, drawn by the right-click menu and the card alike;
- * RSVP and everything else about the plan change by messaging its agent, never by editing here.
+ * Going and Not going say it to the agent that keeps the plan, who records it; nothing here edits the plan.
  */
-export function planActions(plan: Plan, { agent, started, setAttended, message, showInYaad, details }: PlanActionDeps): ActionList {
+export function planActions(plan: Plan, { agent, started, now, setAttended, message, tell, showInYaad, details }: PlanActionDeps): ActionList {
   const list: Array<Action | "separator"> = [];
   if (started && plan.rsvp !== "no" && !plan.all_day) {
     list.push(
       { id: "attended-yes", label: "Attended", icon: "check", selected: plan.attended === true, run: () => setAttended(plan, plan.attended === true ? null : true) },
       { id: "attended-no", label: "Didn’t attend", icon: "close", selected: plan.attended === false, run: () => setAttended(plan, plan.attended === false ? null : false) },
+    );
+  }
+  if (agent !== null && canTell(plan, true, now)) {
+    const choice = rsvpChoice(plan);
+    list.push(
+      { id: "rsvp-yes", label: "Going", detail: `Tell ${agent.name} you are going`, icon: "check", selected: choice === "yes", run: () => tell(agent.id, rsvpMessage(plan, "yes")) },
+      { id: "rsvp-no", label: "Not going", detail: `Tell ${agent.name} you are not going`, icon: "close", selected: choice === "no", run: () => tell(agent.id, rsvpMessage(plan, "no")) },
     );
   }
   if (agent !== null) {
@@ -60,10 +72,15 @@ export function usePlanActions(details?: (plan: Plan) => void): (plan: Plan) => 
     planActions(plan, {
       agent: ownerAgent(plan.owner, queryClient.getQueryData<AgentRecord[]>(AGENTS_QUERY_KEY)),
       started: hasStarted(plan, new Date()),
+      now: new Date(),
       setAttended: (target, attended) => setAttended(target, attended),
       message: (agentId) => {
         openAgent(agentId);
         requestCompose(`I want to talk about "${plan.title}"`);
+      },
+      tell: (agentId, text) => {
+        openAgent(agentId);
+        requestCompose(text);
       },
       showInYaad: (id) => navigate(`/yaad?focus=${id}`),
       details: details === undefined ? undefined : () => details(plan),

@@ -1,8 +1,6 @@
-import { AnimatePresence, motion } from "motion/react";
 import type { WakeOutcome, WakeSummary } from "../../../types/hath";
-import { REVEAL } from "../../../shared/motion";
 import { formatRelative } from "../../../shared/lib/ux/time";
-import { Icon } from "../../../shared/ui/Icon";
+import { Expandable } from "../../../shared/ui/Expandable";
 import { StateView } from "../../../shared/states/ModuleState";
 import { AgentLink } from "./AgentLink";
 import { Arrive } from "./Arrive";
@@ -51,39 +49,35 @@ export function WakeRow({ wake, open, onToggle, nameOf, schedules, onSelectAgent
   const reason = reasonLine(wake.reason, schedules);
   const counts = countsLine(wake.counts);
   return (
-    <div className={`flex flex-col rounded-[14px] border transition-[background-color,border-color] duration-slow ease-dadi ${wake.outcome === "failed" ? "border-error-line" : open ? "border-glass-border bg-bone-raised" : "border-transparent bg-transparent"}`}>
-      <div className="ui-trans flex cursor-pointer flex-col gap-1 rounded-[14px] px-3 py-2.5" onClick={onToggle}>
-        <div className="flex items-center gap-2">
-          <span className={`flex flex-none text-ink-muted ui-trans ${open ? "rotate-90" : ""}`}><Icon name="chevron" size={12} /></span>
-          <span className="min-w-0 flex-1 text-[13.5px] font-semibold [overflow-wrap:anywhere]">
-            {reason.lead}
-            {reason.name === null ? null : (
-              <>
-                {" "}
-                <AgentLink agentId={reason.agentId} name={reason.agentId === null ? reason.name : nameOf(reason.agentId)} onSelect={onSelectAgent} />
-              </>
-            )}
-          </span>
-          <Outcome outcome={wake.outcome} />
-          <button type="button" className="sr-only" aria-expanded={open} onClick={(event) => { event.stopPropagation(); onToggle(); }}>
-            {open ? "Collapse wake" : "Expand wake"}
-          </button>
-        </div>
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 pl-5 text-[12px] text-ink-muted">
-          <span>{[formatRelative(wake.started_at, now), wake.ended_at === null ? `running for ${wakeDuration(wake, now)}` : `ran ${wakeDuration(wake, now)}`, counts === "" ? null : counts].filter((part) => part !== null).join(" · ")}</span>
-        </div>
-        {wake.error === null ? null : (
-          <span data-selectable className="pl-5 text-[12.5px] leading-[17px] text-error [overflow-wrap:anywhere]">{wake.error}</span>
-        )}
-      </div>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div key="body" {...REVEAL} className="overflow-hidden">
-            <WakeBody wake={wake} nameOf={nameOf} onSelectAgent={onSelectAgent} />
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
+    <Expandable
+      open={open}
+      onToggle={onToggle}
+      tone={wake.outcome === "failed" ? "late" : undefined}
+      title={
+        <>
+          {reason.lead}
+          {reason.name === null ? null : (
+            <>
+              {" "}
+              <AgentLink agentId={reason.agentId} name={reason.agentId === null ? reason.name : nameOf(reason.agentId)} onSelect={onSelectAgent} />
+            </>
+          )}
+        </>
+      }
+      secondary={
+        <>
+          {[formatRelative(wake.started_at, now), wake.ended_at === null ? `running for ${wakeDuration(wake, now)}` : `ran ${wakeDuration(wake, now)}`, counts === "" ? null : counts].filter((part) => part !== null).join(" · ")}
+          {wake.error === null ? null : (
+            <span data-selectable className="mt-0.5 block text-[12.5px] leading-[17px] text-error [overflow-wrap:anywhere]">
+              {wake.error}
+            </span>
+          )}
+        </>
+      }
+      trailing={<Outcome outcome={wake.outcome} />}
+    >
+      <WakeBody wake={wake} nameOf={nameOf} onSelectAgent={onSelectAgent} />
+    </Expandable>
   );
 }
 
@@ -91,7 +85,7 @@ export function WakeRow({ wake, open, onToggle, nameOf, schedules, onSelectAgent
 function WakeSkeleton({ wake }: { wake: WakeSummary }) {
   const entries = Math.min(SKELETON_ENTRIES, Math.max(1, wake.counts.tool_calls + wake.counts.messages_received + wake.counts.messages_sent));
   return (
-    <div className="flex flex-col gap-3 px-3 pb-3 pl-8" aria-label="Loading wake">
+    <div className="flex flex-col gap-3 pt-1" aria-label="Loading wake">
       <div className="flex flex-col gap-2.5">
         {Array.from({ length: entries }, (_, index) => (
           <div key={index} className="flex flex-col gap-1.5 border-l border-rule pl-3">
@@ -111,14 +105,14 @@ function WakeBody({ wake, nameOf, onSelectAgent }: { wake: WakeSummary; nameOf: 
   const entries = detail.data?.entries ?? [];
   if (detail.error !== null && detail.data === undefined) {
     return (
-      <div className="px-3 pb-3">
+      <div className="pt-1">
         <StateView kind="error" compact title="Could not read this wake" detail={detail.error.message} onRetry={() => void detail.refetch()} />
       </div>
     );
   }
   return (
     <Arrive ready={detail.data !== undefined} skeleton={<WakeSkeleton wake={wake} />}>
-      <div className="flex flex-col gap-3 px-3 pb-3 pl-8">
+      <div className="flex flex-col gap-3 pt-1">
         {wake.activity_trimmed ? <span className="text-[12.5px] text-ink-muted">Details expired</span> : null}
         {entries.length === 0 ? (
           <span className="text-[12.5px] text-ink-muted">{wake.activity_trimmed ? "No messages were kept." : "Nothing recorded yet."}</span>

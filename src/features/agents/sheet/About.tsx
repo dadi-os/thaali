@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { AgentRecord } from "../../../types/hath";
 import { InsetCard, KeyValue } from "../../../shared/components/Module";
 import { formatDay } from "../../../shared/lib/ux/time";
-import { Disclosure } from "../../../shared/ui/Disclosure";
+import { Expandable } from "../../../shared/ui/Expandable";
 import { compact } from "./wakes";
 
 /** Characters per token Hath measured for the model's text; a charter's size in tokens is its characters over this. */
@@ -45,14 +45,9 @@ export function About({ agent }: AboutProps) {
   return (
     <InsetCard title="About">
       <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>
-      <Disclosure
-        title="Charter"
-        summary={`~${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens`}
-        open={charterOpen}
-        onToggle={() => setCharterOpen(!charterOpen)}
-      >
+      <Expandable title="Charter" trailing={`~${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens`} open={charterOpen} onToggle={() => setCharterOpen(!charterOpen)}>
         <CharterText source={agent.system_prompt} />
-      </Disclosure>
+      </Expandable>
     </InsetCard>
   );
 }

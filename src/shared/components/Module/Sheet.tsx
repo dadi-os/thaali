@@ -58,10 +58,12 @@ export type KeyValueProps = {
   tone?: "late";
   /** The row stacks: the label (and its hint) over the value, which may take two lines, for words such as a task's. */
   wrap?: boolean;
+  /** How many lines a stacked value may take before it is cut: 2 (the default) or 4, for a message. */
+  lines?: 2 | 4;
 };
 
 /** One fact of a sheet on a line: a quiet label at the left and its value at the right, 32 px tall at least. */
-export function KeyValue({ label, children, selectable = false, hint, tone, wrap = false }: KeyValueProps) {
+export function KeyValue({ label, children, selectable = false, hint, tone, wrap = false, lines = 2 }: KeyValueProps) {
   return (
     <div className={`flex min-w-0 text-[13px] ${wrap ? "flex-col gap-0.5 py-1.5" : "min-h-8 items-center gap-3"}`}>
       <span className={`flex-none text-ink-muted ${wrap && hint !== undefined ? "flex items-baseline gap-2" : ""}`}>
@@ -70,7 +72,7 @@ export function KeyValue({ label, children, selectable = false, hint, tone, wrap
       </span>
       <span
         data-selectable={selectable ? "" : undefined}
-        className={`min-w-0 font-medium tabular-nums ${wrap ? "line-clamp-2 text-[13.5px] leading-[19px] [overflow-wrap:anywhere]" : "ml-auto truncate text-right"} ${tone === "late" ? "text-[var(--late-ink)]" : ""}`}
+        className={`min-w-0 font-medium tabular-nums ${wrap ? `${lines === 4 ? "line-clamp-4" : "line-clamp-2"} text-[13.5px] leading-[19px] [overflow-wrap:anywhere]` : "ml-auto truncate text-right"} ${tone === "late" ? "text-[var(--late-ink)]" : ""}`}
       >
         {children}
       </span>

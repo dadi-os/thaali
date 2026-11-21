@@ -1,10 +1,9 @@
 import { useState } from "react";
 import type { AgentRecord, Reminder, Routine } from "../../../types/hath";
-import { Button } from "../../../shared/ui/Button";
+import { Button, TextLink } from "../../../shared/ui/Button";
 import { Card } from "../../../shared/ui/Card";
 import { AnimatePresence, motion } from "motion/react";
 import { AgentName } from "../../../shared/ui/AgentName";
-import { Clamp } from "../../../shared/ui/Truncate";
 import { RISE } from "../../../shared/motion";
 import { countNoun } from "../../../shared/lib/ux/plural";
 import { InsetCard, KeyValue, PopoverActions, PopoverBody, PopoverFacts, PopoverHeader, Situation } from "../../../shared/components/Module";
@@ -30,8 +29,6 @@ export type AgentSheetPanelProps = {
   standing: Standing | null;
   /** The counts of the wake running now. */
   live: LiveWake | undefined;
-  /** When the agent last sent Ankur a message, or null if it never has. */
-  lastAnswered: string | null;
   stop: StopState;
   /** Stops the agent's run and job; hath halts the job's helper tasks. */
   onStop: () => void;
@@ -89,10 +86,10 @@ function routinesCount(feed: SheetFeed<{ routines: Routine[]; reminders: Reminde
  * then inset sections: what the thread waits on, helper tasks, wakes, routines and reminders, and what the agent is. It draws what
  * it is given; {@link AgentSheet} reads the agent, routines and tasks, and the timeline reads its own wakes.
  */
-export function AgentSheetPanel({ agent, standing, live, lastAnswered, stop, onStop, tasks, onHaltTask, routines, onCancelRoutine, onCancelReminder, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
+export function AgentSheetPanel({ agent, standing, live, stop, onStop, tasks, onHaltTask, routines, onCancelRoutine, onCancelReminder, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const situation = situationOf(agent, standing, now);
-  const facts = agentFacts({ agent, counts: live?.counts, nameOf, now, parent, routines: routines.kind === "ready" ? routines.items : undefined, lastAnswered });
+  const facts = agentFacts({ agent, counts: live?.counts, nameOf, now, parent, routines: routines.kind === "ready" ? routines.items : undefined, standing });
   const { job, working } = agent.running;
   const stoppable = working || (job !== null && job.stopped === null);
   const names = routines.kind === "ready" ? routines.items : { routines: [], reminders: [] };
@@ -104,7 +101,7 @@ export function AgentSheetPanel({ agent, standing, live, lastAnswered, stop, onS
         {facts.length === 0 ? null : (
           <PopoverFacts>
             {facts.map((fact) => (
-              <KeyValue key={fact.label} label={fact.label} hint={fact.hint} tone={fact.tone} wrap={fact.wrap} selectable>
+              <KeyValue key={fact.label} label={fact.label} hint={fact.hint} tone={fact.tone} wrap={fact.wrap} lines={fact.long === true ? 4 : 2} selectable>
                 {fact.agentId === undefined ? fact.value : <AgentLink agentId={fact.agentId} name={fact.value} onSelect={onSelectAgent} />}
               </KeyValue>
             ))}
@@ -116,13 +113,6 @@ export function AgentSheetPanel({ agent, standing, live, lastAnswered, stop, onS
           </Button>
           <StopButton agentId={agent.id} stop={stop} stoppable={stoppable} confirming={confirming} setConfirming={setConfirming} />
         </PopoverActions>
-        {standing === null ? null : (
-          <InsetCard title={standing.status === "blocked" ? "Where it is stuck" : "Waiting for your answer"}>
-            <span data-selectable className="text-[13.5px] leading-[19px]">
-              <Clamp text={standing.content} lines={5} />
-            </span>
-          </InsetCard>
-        )}
         <HelperTasks owner={agent.name} tasks={tasks} onHalt={onHaltTask} now={now} />
         <Activity agentId={agent.id} connected={connected} nameOf={nameOf} schedules={names} onSelectAgent={onSelectAgent} now={now} />
         {hasRoutines ? (
@@ -145,9 +135,7 @@ export function AgentSheetPanel({ agent, standing, live, lastAnswered, stop, onS
                 </AnimatePresence>
                 <span className="text-[12.5px] text-ink-muted">
                   To change or add one,{" "}
-                  <button type="button" className="ui-trans font-semibold text-sage-text hover:underline" onClick={onOpenThread}>
-                    message the agent
-                  </button>
+                  <TextLink onClick={onOpenThread}>message the agent</TextLink>
                   .
                 </span>
               </div>

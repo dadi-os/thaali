@@ -75,6 +75,20 @@ async function settle() {
   }
 }
 
+/** The wake toggles of the list, newest first: every expandable's button that names a wake, not a call or a thought. */
+function wakeToggles(): HTMLElement[] {
+  return [...host.querySelectorAll<HTMLElement>("button[aria-expanded][aria-labelledby]")].filter((toggle) => /Opened by|Routine|Reminder|Helper reported|Recovery|Started by/.test(host.querySelector(`#${CSS.escape(toggle.getAttribute("aria-labelledby")!)}`)?.textContent ?? ""));
+}
+
+/** The toggle of the expandable whose title starts with `prefix`. */
+function toggleTitled(prefix: string): HTMLElement {
+  const found = [...host.querySelectorAll<HTMLElement>("button[aria-expanded][aria-labelledby]")].find((toggle) => host.querySelector(`#${CSS.escape(toggle.getAttribute("aria-labelledby")!)}`)?.textContent?.startsWith(prefix));
+  if (found === undefined) {
+    throw new Error(`no expandable titled ${prefix}`);
+  }
+  return found;
+}
+
 /** The button whose text is `text`. */
 function button(text: string): HTMLButtonElement {
   const found = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent === text);
@@ -136,7 +150,7 @@ describe("Activity", () => {
 
   it("shows hath's note to the agent as a note, apart from what anyone said", async () => {
     await render();
-    const failed = [...host.querySelectorAll("[class*='cursor-pointer']")].find((row) => row.textContent?.includes("Failed")) as HTMLElement;
+    const failed = wakeToggles().find((toggle) => toggle.parentElement!.textContent?.includes("Failed"))!;
     act(() => failed.click());
     await settle();
     expect(host.textContent).toContain("Note from hath");
@@ -145,7 +159,7 @@ describe("Activity", () => {
 
   it("fetches the raw row for a result the wake cut short", async () => {
     await render();
-    const readFile = [...host.querySelectorAll("button")].find((candidate) => candidate.textContent?.startsWith("read_file"))!;
+    const readFile = toggleTitled("read_file");
     act(() => readFile.click());
     await settle();
     act(() => button("Show full result").click());
@@ -158,7 +172,7 @@ describe("Activity", () => {
     await render();
     act(() => button("Load earlier").click());
     await settle();
-    const rows = [...host.querySelectorAll("[class*='cursor-pointer']")] as HTMLElement[];
+    const rows = wakeToggles();
     const trimmed = rows[rows.length - 1]!;
     act(() => trimmed.click());
     await settle();

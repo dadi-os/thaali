@@ -3,7 +3,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { FADE } from "../../../shared/motion";
 import { AgentName } from "../../../shared/ui/AgentName";
 import { Tooltip } from "../../../shared/overlay/Tooltip";
-import { IconButton } from "../../../shared/ui/Button";
+import { IconButton, SplitButton } from "../../../shared/ui/Button";
 import { Icon } from "../../../shared/ui/Icon";
 import { Clamp, Truncate } from "../../../shared/ui/Truncate";
 import type { TaskStatus } from "../../../types/hath";
@@ -79,22 +79,9 @@ export function TakeoverHeader({ task, state, onTakeover, onReturn, onMenu, onCl
         </div>
         <Clamp text={task.purpose} lines={1} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
       </div>
-      <div className="flex h-9 flex-none items-stretch overflow-hidden rounded-[12px] bg-sage-deep text-bone">
-        <button type="button" disabled={busy} onClick={controlling ? onReturn : onTakeover} className="ui-trans ui-hover-solid px-4 text-[14px] font-semibold whitespace-nowrap disabled:opacity-60">
-          {state === "pausing" ? "Taking over…" : state === "returning" ? "Returning…" : controlling ? "Return" : "Takeover"}
-        </button>
-        <button
-          type="button"
-          aria-label="More"
-          aria-haspopup="menu"
-          title="More"
-          disabled={busy}
-          onClick={(event) => onMenu(event.currentTarget.parentElement!.getBoundingClientRect())}
-          className="ui-trans ui-hover-solid flex w-8 items-center justify-center border-l border-bone/25 disabled:opacity-60"
-        >
-          <Icon name="chevDown" size={14} />
-        </button>
-      </div>
+      <SplitButton disabled={busy} onClick={controlling ? onReturn : onTakeover} onMenu={onMenu} menuLabel="More">
+        {state === "pausing" ? "Taking over…" : state === "returning" ? "Returning…" : controlling ? "Return" : "Takeover"}
+      </SplitButton>
       <IconButton icon="close" label="Close" size={36} onClick={onClose} />
     </div>
   );

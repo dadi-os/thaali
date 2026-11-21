@@ -5,7 +5,8 @@ import { hath } from "../../../shared/api";
 import type { WakeEntry, WakeToolCall } from "../../../types/hath";
 import { REVEAL } from "../../../shared/motion";
 import { formatClock } from "../../../shared/lib/ux/time";
-import { Icon } from "../../../shared/ui/Icon";
+import { Expandable } from "../../../shared/ui/Expandable";
+import { TextLink } from "../../../shared/ui/Button";
 import { Truncate } from "../../../shared/ui/Truncate";
 import { AgentLink } from "./AgentLink";
 import { Arrive } from "./Arrive";
@@ -89,22 +90,9 @@ function TurnBlock({ entry, agentId }: { entry: Extract<WakeEntry, { type: "turn
     <div className="flex flex-col gap-1.5 border-l border-rule pl-3">
       {entry.text === null ? null : <Rich source={entry.text} size={13} lineHeight={19} />}
       {entry.thinking === null ? null : (
-        <div className="flex flex-col">
-          <button type="button" className="ui-trans flex min-w-0 items-center gap-1.5 py-1 text-left text-[12px] text-ink-muted" aria-expanded={thinkingOpen} onClick={() => setThinkingOpen(!thinkingOpen)}>
-            <span className={`flex flex-none [transition:rotate_var(--fast)_var(--ease)] ${thinkingOpen ? "rotate-90" : ""}`}><Icon name="chevron" size={11} /></span>
-            <span className="flex-none font-semibold">Thinking</span>
-            <span className={`ui-trans flex min-w-0 flex-1 ${thinkingOpen ? "opacity-0" : ""}`}>
-              <Truncate text={firstLine} className="min-w-0 flex-1 italic" />
-            </span>
-          </button>
-          <AnimatePresence initial={false}>
-            {thinkingOpen ? (
-              <motion.div key="thinking" {...REVEAL} className="overflow-hidden">
-                <span data-selectable className="block pt-1 pl-4 text-[12px] leading-[17px] whitespace-pre-wrap text-ink-muted [overflow-wrap:anywhere]">{entry.thinking}</span>
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-        </div>
+        <Expandable look="row" open={thinkingOpen} onToggle={() => setThinkingOpen(!thinkingOpen)} title={<span className="font-semibold">Thinking</span>} secondary={thinkingOpen ? undefined : <span className="block truncate italic">{firstLine}</span>}>
+          <span data-selectable className="block text-[12px] leading-[17px] whitespace-pre-wrap text-ink-muted [overflow-wrap:anywhere]">{entry.thinking}</span>
+        </Expandable>
       )}
       {entry.calls.map((call) => (
         <CallRow key={call.id} call={call} agentId={agentId} />
@@ -124,53 +112,49 @@ function CallRow({ call, agentId }: { call: WakeToolCall; agentId: string }) {
     enabled: wantFull && call.log_id !== null,
   });
   const target = callTarget(call.input);
-  const dot = result === null ? "bg-sage dot-pulse" : result.is_error ? "bg-error" : "bg-sage";
   return (
-    <div className="flex flex-col">
-      <button type="button" className="ui-trans flex w-full items-center gap-2 py-1 text-left" aria-expanded={open} onClick={() => setOpen(!open)}>
-        <span aria-hidden className={`dot size-1.5 ${dot}`} />
-        <span className={`flex-none font-numeric text-[12px] leading-[16px] ${result?.is_error ? "text-error" : "text-ink"}`}>{call.name}</span>
-        <Truncate text={target} className="ui-mono min-w-0 flex-1" />
-        {result === null ? <span role="status" className="flex-none text-[11px] text-sage-text">running</span> : null}
-        {result?.is_error ? <span className="flex-none text-[11px] text-error">error</span> : null}
-        {result?.truncated ? <span className="flex-none text-[11px] text-ink-ghost">cut short</span> : null}
-      </button>
-      <AnimatePresence initial={false}>
-        {open ? (
-          <motion.div key="call" {...REVEAL} className="overflow-hidden">
-            <div className="my-2 ml-3 flex flex-col gap-2 border-l border-rule pl-3">
+    <Expandable
+      look="row"
+      open={open}
+      onToggle={() => setOpen(!open)}
+      title={
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span className={`flex-none font-numeric text-[12px] leading-[16px] ${result?.is_error ? "text-error" : "text-ink"}`}>{call.name}</span>
+          <Truncate text={target} className="ui-mono min-w-0 flex-1" />
+        </span>
+      }
+      trailing={result === null ? <span role="status" className="text-sage-text">running</span> : result.is_error ? <span className="text-error">error</span> : result.truncated ? <span className="text-ink-ghost">cut short</span> : undefined}
+    >
+      <div className="flex flex-col gap-2">
+        <div className="flex flex-col gap-0.5">
+          <span className="ui-label text-[11px]">Input</span>
+          <span data-selectable className={MONO_TEXT}>{prettyJson(call.input)}</span>
+        </div>
+        {result === null ? null : (
+          <div className="flex flex-col gap-0.5">
+            <span className="ui-label text-[11px]">{result.truncated ? `Result (first ${result.content.length} of ${result.chars} characters)` : "Result"}</span>
+            <span data-selectable className={`${MONO_TEXT} ${result.is_error ? "text-error" : ""}`}>{prettyJson(result.content)}</span>
+            {result.truncated && call.log_id !== null && !wantFull ? (
+              <TextLink className="self-start text-[12px]" onClick={() => setWantFull(true)}>
+                Show full result
+              </TextLink>
+            ) : null}
+          </div>
+        )}
+        <AnimatePresence initial={false}>
+          {wantFull ? (
+            <motion.div key="full" {...REVEAL} className="overflow-hidden">
               <div className="flex flex-col gap-0.5">
-                <span className="ui-label text-[11px]">Input</span>
-                <span data-selectable className={MONO_TEXT}>{prettyJson(call.input)}</span>
+                <span className="ui-label text-[11px]">Full result</span>
+                {full.error !== null ? <span data-selectable className="text-[12px] text-error">{full.error.message}</span> : null}
+                <Arrive ready={full.data !== undefined || full.error !== null} skeleton={<span className="sk h-3 w-full" />}>
+                  {full.data === undefined ? null : <span data-selectable className={MONO_TEXT}>{prettyJson(rawContent(full.data.log))}</span>}
+                </Arrive>
               </div>
-              {result === null ? null : (
-                <div className="flex flex-col gap-0.5">
-                  <span className="ui-label text-[11px]">{result.truncated ? `Result (first ${result.content.length} of ${result.chars} characters)` : "Result"}</span>
-                  <span data-selectable className={`${MONO_TEXT} ${result.is_error ? "text-error" : ""}`}>{prettyJson(result.content)}</span>
-                  {result.truncated && call.log_id !== null && !wantFull ? (
-                    <button type="button" className="ui-trans self-start text-[12px] font-semibold text-sage-text" onClick={() => setWantFull(true)}>
-                      Show full result
-                    </button>
-                  ) : null}
-                </div>
-              )}
-              <AnimatePresence initial={false}>
-                {wantFull ? (
-                  <motion.div key="full" {...REVEAL} className="overflow-hidden">
-                    <div className="flex flex-col gap-0.5">
-                      <span className="ui-label text-[11px]">Full result</span>
-                      {full.error !== null ? <span data-selectable className="text-[12px] text-error">{full.error.message}</span> : null}
-                      <Arrive ready={full.data !== undefined || full.error !== null} skeleton={<span className="sk h-3 w-full" />}>
-                        {full.data === undefined ? null : <span data-selectable className={MONO_TEXT}>{prettyJson(rawContent(full.data.log))}</span>}
-                      </Arrive>
-                    </div>
-                  </motion.div>
-                ) : null}
-              </AnimatePresence>
-            </div>
-          </motion.div>
-        ) : null}
-      </AnimatePresence>
-    </div>
+            </motion.div>
+          ) : null}
+        </AnimatePresence>
+      </div>
+    </Expandable>
   );
 }

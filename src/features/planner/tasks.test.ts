@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { Task } from "../../types/planner";
-import { closeHint, groupSomeday, isUrgent, dayBadge, dayTasksKey, groupTasks, monthBadge, progressOf, SOMEDAY_KEY, tickTask } from "./tasks";
+import { closeHint, courseLabel, groupByTitle, isUrgent, dayBadge, dayTasksKey, groupTasks, monthBadge, progressOf, SOMEDAY_KEY, tickTask } from "./tasks";
 
 const day = new Date(2026, 10, 18);
 const now = new Date(2026, 10, 18, 14, 0);
@@ -127,10 +127,26 @@ describe("ticking a task", () => {
   });
 });
 
-describe("someday grouping", () => {
-  it("folds repeated titles into one group with their count and keeps singles apart", () => {
+describe("grouping repeated titles", () => {
+  it("folds repeated titles into one group, drops a trailing number from its label, and keeps singles apart", () => {
     const some = (id: string, title: string) => task(id, { title, opens_on: null, closes_at: null });
-    const groups = groupSomeday([some("1", "Gym training split"), some("2", "Weigh-in 3"), some("3", "gym training split"), some("4", "Weigh-in 12"), some("5", "Organize the garage")]);
-    expect(groups.map((g) => [g.label, g.tasks.length])).toEqual([["Gym training split", 2], ["Organize the garage", 1], ["Weigh-in 3", 2]]);
+    const groups = groupByTitle([some("1", "Gym training split"), some("2", "Weigh-in 3"), some("3", "gym training split"), some("4", "Weigh-in 12"), some("5", "Organize the garage")]);
+    expect(groups.map((g) => [g.label, g.items.length])).toEqual([["Gym training split", 2], ["Organize the garage", 1], ["Weigh-in", 2]]);
+  });
+
+  it("groups anything with a title, plans included", () => {
+    const plans = [{ title: "Call the dentist about the cleaning" }, { title: "Book the oil change" }, { title: "Call the dentist about the cleaning" }];
+    expect(groupByTitle(plans).map((g) => [g.label, g.items.length])).toEqual([["Book the oil change", 1], ["Call the dentist about the cleaning", 2]]);
+  });
+});
+
+describe("courseLabel", () => {
+  const hub = (title: string) => ({ id: "h", title }) as never;
+  it("hides the course when the title starts with its code", () => {
+    expect(courseLabel({ title: "IBIO 150 — Codon survey", hub: hub("IBIO 150 class") })).toBeNull();
+  });
+  it("names the course otherwise, and nothing without a hub", () => {
+    expect(courseLabel({ title: "Chapter 11 reading", hub: hub("IAH 241A class") })).toBe("IAH 241A class");
+    expect(courseLabel({ title: "Chapter 11 reading", hub: null })).toBeNull();
   });
 });

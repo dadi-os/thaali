@@ -1,6 +1,7 @@
 import { ApiError } from "../shared/api/errors";
 import type { ConnectionState, Transport } from "../shared/api/transport";
 import { Fixtures, type Host } from "./fixtures/routes";
+import { LIVE_HOSTS, liveAllowed, liveProxyPath, type LiveHost } from "./liveAllow";
 import type { Scenario } from "./scenario";
 
 /** How long a fixture answer takes, so a loading state is seen before the data. */
@@ -129,6 +130,9 @@ export class FixtureTransport implements Transport {
       throw new Error("Not connected");
     }
     const host = hostOf(opts.baseUrl);
+    if (this.scenario === "live" && (LIVE_HOSTS as readonly string[]).includes(host)) {
+      return this.live<T>(host as LiveHost, opts);
+    }
     if (this.scenario === "loading") {
       return new Promise<T>(() => undefined);
     }
@@ -152,6 +156,23 @@ export class FixtureTransport implements Transport {
       throw apiError(opts.baseUrl, 502, `${host}.dadi is not answering`);
     }
     return this.fixtures.respond({ host, method: opts.method, path: opts.path, body: opts.body }) as T;
+  }
+
+  /** A read of the real Yaad or Hath through the dev server's proxy; any write is refused before it leaves the page. */
+  private async live<T>(host: LiveHost, opts: { baseUrl: string; path: string; method: string; body?: unknown }): Promise<T> {
+    if (!liveAllowed(host, opts.method, opts.path)) {
+      throw new Error(`live mode never writes: ${opts.method} ${host}${opts.path}`);
+    }
+    const response = await fetch(liveProxyPath(host, opts.path), {
+      method: opts.method,
+      headers: opts.body === undefined ? undefined : { "content-type": "application/json" },
+      body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
+    });
+    const text = await response.text();
+    if (!response.ok) {
+      throw apiError(opts.baseUrl, response.status, text);
+    }
+    return JSON.parse(text) as T;
   }
 
   mediaUrl(opts: { baseUrl: string; path: string }): string {

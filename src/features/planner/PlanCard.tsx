@@ -1,6 +1,8 @@
 import { openExternal } from "../../shared/desktop/open";
 import { Button } from "../../shared/ui/Button";
 import { Segmented, type SegmentedOption } from "../../shared/ui/Segmented";
+import { openAgent } from "../../contexts/chat";
+import { requestCompose } from "../../contexts/reply";
 import { DetailCard, InsetSection, type FactItem } from "../../shared/ui/DetailCard";
 import { Icon } from "../../shared/ui/Icon";
 import { formatClock, formatDay } from "../../shared/lib/ux/time";
@@ -9,6 +11,7 @@ import type { Plan } from "../../types/planner";
 import { answerAfter, hasStarted, useLivePlan, useSetAttended } from "./attended";
 import { formatRange, formatSpan } from "./layout";
 import { usePlanActions } from "./planActions";
+import { canTell, rsvpChoice, rsvpMessage, type RsvpAnswer } from "./rsvp";
 import { useOwnerAgent } from "./taskActions";
 import { nextPlanId, planStatus, timeState } from "./timeState";
 import { plannedClock } from "./zones";
@@ -17,6 +20,12 @@ import { plannedClock } from "./zones";
 const ANSWERS: ReadonlyArray<SegmentedOption<string>> = [
   { value: "yes", label: "Attended", icon: "check" },
   { value: "no", label: "Didn’t attend", icon: "close" },
+];
+
+/** The two answers to "Going?"; the one Yaad holds is selected, neither while it holds none. */
+const GOING: ReadonlyArray<SegmentedOption<string>> = [
+  { value: "yes", label: "Going" },
+  { value: "no", label: "Not going" },
 ];
 
 /** Props of {@link PlanCard}. */
@@ -97,6 +106,24 @@ export function PlanCard({ plan: shown, now = new Date() }: PlanCardProps) {
       facts={facts}
       actions={
         <>
+          {agent !== null && canTell(plan, true, now) ? (
+            <div className="flex w-full items-center gap-3 pb-1">
+              <span className="flex min-w-0 flex-1 flex-col">
+                <span className="text-[13px] text-ink-muted">Going?</span>
+                <span className="truncate text-[12px] text-ink-ghost">{`Tell ${agent.name}`}</span>
+              </span>
+              <Segmented
+                size="md"
+                label="Going?"
+                options={GOING}
+                value={rsvpChoice(plan)}
+                onChange={(next) => {
+                  openAgent(agent.id);
+                  requestCompose(rsvpMessage(plan, next as RsvpAnswer));
+                }}
+              />
+            </div>
+          ) : null}
           {asks ? (
             <div data-keep-open className="flex w-full items-center gap-3 pb-1">
               <span className="text-[13px] text-ink-muted">Were you there?</span>

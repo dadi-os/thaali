@@ -4,8 +4,8 @@ import { Icon, type IconName } from "./Icon";
 /** How loud a button is: an outlined default, a sage wash, quiet text, the solid primary, or a destructive tint. */
 export type ButtonTone = "outline" | "sage" | "quiet" | "fill" | "danger";
 
-/** The button scale: 28, 32, 36 and 40 px tall. */
-export type ButtonSize = "sm" | "md" | "lg" | "xl";
+/** The button scale: 20 (a text action inside a dense row or tile), 28, 32, 36 and 40 px tall. */
+export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
 
 /** Hover treatment per tone: the solid tone darkens, the destructive one deepens its tint, the rest wash in sage. */
 const HOVER: Record<ButtonTone, string> = {
@@ -106,5 +106,53 @@ export function Pill({ active = false, count, className, type = "button", childr
       {children}
       {count === undefined ? null : <span style={{ fontSize: 12, fontWeight: 500, fontVariantNumeric: "tabular-nums" }}>{count}</span>}
     </button>
+  );
+}
+
+/** Props of {@link TextLink}. */
+export type TextLinkProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
+  children: ReactNode;
+};
+
+/** A link-weight control inside running text: sage, semibold, underlined on hover ("message the agent", "Show all", an agent's name). */
+export function TextLink({ className, type = "button", children, ...rest }: TextLinkProps) {
+  return (
+    <button type={type} className={["ui-trans", "font-semibold", "text-sage-text", "hover:underline", className ?? ""].filter(Boolean).join(" ")} {...rest}>
+      {children}
+    </button>
+  );
+}
+
+/** Props of {@link SplitButton}. */
+export type SplitButtonProps = {
+  /** The main action's words. */
+  children: ReactNode;
+  onClick: () => void;
+  /** Opens the menu of other actions, given the control's box so the menu can sit under it. */
+  onMenu: (anchor: DOMRect) => void;
+  /** The menu opener's accessible name; it is also its tooltip. */
+  menuLabel: string;
+  disabled?: boolean;
+};
+
+/** One solid control of two parts: the main action, and a 32 px chevron at its end that opens a menu of the others. 36 px tall, 12 px radius. */
+export function SplitButton({ children, onClick, onMenu, menuLabel, disabled = false }: SplitButtonProps) {
+  return (
+    <div className="flex h-9 flex-none items-stretch overflow-hidden rounded-[12px] bg-sage-deep text-bone">
+      <button type="button" disabled={disabled} onClick={onClick} className="ui-trans ui-hover-solid px-4 text-[14px] font-semibold whitespace-nowrap disabled:opacity-60">
+        {children}
+      </button>
+      <button
+        type="button"
+        aria-label={menuLabel}
+        aria-haspopup="menu"
+        title={menuLabel}
+        disabled={disabled}
+        onClick={(event) => onMenu(event.currentTarget.parentElement!.getBoundingClientRect())}
+        className="ui-trans ui-hover-solid flex w-8 items-center justify-center border-l border-bone/25 disabled:opacity-60"
+      >
+        <Icon name="chevDown" size={14} />
+      </button>
+    </div>
   );
 }

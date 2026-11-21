@@ -40,7 +40,6 @@ function sheet({ scenario, agentId, stop = idle }: SheetCase) {
         onHaltTask={resolved}
         standing={standingOf(hath.messages(scenario, agentId), [])}
         live={agent.running.working ? { wakeId: "live", counts: { tool_calls: 7, messages_sent: 0, messages_received: 1 } } : undefined}
-        lastAnswered={null}
         stop={stop}
         onStop={noop}
         routines={{ kind: "ready", items: hath.routines(agentId) }}

@@ -8,6 +8,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { Button } from "../../shared/ui/Button";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { browserKeyActivity, type BrowserActivity } from "./takeover/activity";
 import { createInputSender, keyInput, pointerInput, wheelInput } from "./browserInput";
@@ -227,13 +228,9 @@ export function BrowserFrame({ browserId, className, interactive = false, onActi
           >
             Browser {browserId} stream failed: {overlay.error}
           </p>
-          <button
-            type="button"
-            onClick={() => retryBrowserStream(browserId, profile)}
-            className="rounded-full bg-sage-fill px-2.5 py-0.5 text-[11px] text-sage-deep transition-colors duration-slow ease-dadi hover:bg-sage-line/60"
-          >
+          <Button tone="sage" size="sm" onClick={() => retryBrowserStream(browserId, profile)}>
             Retry
-          </button>
+          </Button>
         </div>
       ) : null}
     </div>

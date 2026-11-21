@@ -1,5 +1,6 @@
 import { Button } from "../../shared/ui/Button";
 import { DetailCard, InsetSection, type FactItem } from "../../shared/ui/DetailCard";
+import { LIST_ROW_CLASS, ListRow } from "../../shared/ui/ListRow";
 import { Truncate } from "../../shared/ui/Truncate";
 import { formatClock } from "../../shared/lib/ux/time";
 import type { Plan, Task } from "../../types/planner";
@@ -78,7 +79,7 @@ export function DayCard({ details, now = new Date(), onOpenPlan, onOpenTask, onO
               <ul className="m-0 flex flex-col gap-0.5 p-0">
                 {plans.map((plan) => (
                   <li key={plan.id} className="list-none">
-                    <PlanButton plan={plan} aria-haspopup="dialog" onClick={(event) => onOpenPlan(plan, event.currentTarget)} className="ui-hover-fill ui-trans flex w-full flex-col rounded-[10px] px-2 py-1.5 text-left">
+                    <PlanButton plan={plan} aria-haspopup="dialog" onClick={(event) => onOpenPlan(plan, event.currentTarget)} className={`${LIST_ROW_CLASS} flex-col items-stretch gap-0 px-2 py-1.5`}>
                       <span className="flex min-w-0 items-baseline gap-2">
                         <Truncate text={plan.title} className={`min-w-0 flex-1 text-[14px] font-medium ${plan.rsvp === "no" ? "text-ink-muted" : ""}`} />
                         <span className="flex-none text-[12px] text-ink-muted tabular-nums">{plan.all_day ? "All day" : plan.end_at === null ? formatClock(plan.start_at) : `${formatClock(plan.start_at)} – ${formatClock(plan.end_at)}`}</span>
@@ -95,10 +96,10 @@ export function DayCard({ details, now = new Date(), onOpenPlan, onOpenTask, onO
               <ul className="m-0 flex flex-col gap-0.5 p-0">
                 {tasks.map((task) => (
                   <li key={task.id} className="list-none">
-                    <button type="button" aria-haspopup="dialog" onClick={(event) => onOpenTask(task, event.currentTarget)} className="ui-hover-fill ui-trans flex w-full flex-col rounded-[10px] px-2 py-1.5 text-left">
+                    <ListRow aria-haspopup="dialog" onClick={(event) => onOpenTask(task, event.currentTarget)} className="flex-col items-stretch gap-0 px-2 py-1.5">
                       <Truncate text={task.title} className={`text-[14px] font-medium ${task.done ? "text-ink-muted line-through" : ""}`} />
                       <span className="text-[12px] tabular-nums" style={{ color: taskStatus(task, now).tone === "late" ? "var(--late-ink)" : "var(--ink-muted)" }}>{taskStatus(task, now).label}</span>
-                    </button>
+                    </ListRow>
                   </li>
                 ))}
               </ul>

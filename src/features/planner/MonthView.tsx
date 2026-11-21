@@ -1,3 +1,4 @@
+import { Button } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { Plan } from "../../types/planner";
@@ -104,9 +105,9 @@ export function MonthView({ days, now, anchor, plans, badges, onOpen, onDay, onM
                 );
               })}
               {more > 0 ? (
-                <button type="button" aria-haspopup="dialog" className="ui-hover-fill ui-trans" onClick={(e) => onMore(day, e.currentTarget)} style={{ fontSize: 12, color: "var(--ink-muted)", textAlign: "left", borderRadius: 6, padding: "0 4px", margin: "0 -4px" }}>
+                <Button tone="quiet" size="xs" aria-haspopup="dialog" onClick={(e) => onMore(day, e.currentTarget)} style={{ alignSelf: "flex-start", marginLeft: -6 }}>
                   {`+${more} more`}
-                </button>
+                </Button>
               ) : null}
             </div>
           );

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion } from "motion/react";
 import type { AgentRecord } from "../../types/hath";
 import { Card } from "../../shared/ui/Card";
+import { ListRow } from "../../shared/ui/ListRow";
 import { AgentName } from "../../shared/ui/AgentName";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useContextActions } from "../../shared/interaction/contextMenu";
@@ -77,10 +78,9 @@ function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow,
   const mark = agentMark(agent.running, now);
   return (
     <motion.div {...RISE} {...context}>
-      <button
+      <ListRow
         ref={ref}
-        type="button"
-        className={`agent-row ui-trans flex min-h-[46px] w-full items-center gap-3.5 border-b border-rule px-[18px] py-1.5 ${dimmed ? "opacity-40" : ""}`}
+        className={`agent-row min-h-[46px] !gap-3.5 !rounded-none border-b border-rule !px-[18px] !py-1.5 ${dimmed ? "opacity-40" : ""}`}
         aria-current={selected}
         onClick={(event) => onPick(agent, event.currentTarget.getBoundingClientRect())}
       >
@@ -96,7 +96,7 @@ function AgentListRow({ row: { agent, depth }, state, selected, dimmed, showNow,
         {showNow ? <Truncate text={nowLine(agent, now)} className="ui-mono min-w-0 flex-1 text-ink-muted" /> : null}
         <span className="w-16 flex-none text-right text-[13px] text-ink-muted tabular-nums">{tasks === 0 ? "–" : tasks}</span>
         <span className="w-16 flex-none text-right text-[13px] text-ink-muted">{formatAge(agent.updated_at, now)}</span>
-      </button>
+      </ListRow>
     </motion.div>
   );
 }

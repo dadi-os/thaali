@@ -32,3 +32,6 @@ src-tauri/bin/**/wintun.dll
 
 .claude/
 visual/.build/
+
+# Snapshots of live Yaad/Hath answers for the visual loop: personal data, never committed
+visual/live-snapshot/

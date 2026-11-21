@@ -3,7 +3,6 @@ import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, planner } from "../../shared/api";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
-import { StateView } from "../../shared/states/ModuleState";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import { formatClock } from "../../shared/lib/ux/time";
@@ -81,23 +80,37 @@ function PlanRow({ row, now, state, wide, first, last }: PlanRowProps) {
   );
 }
 
+/** What tomorrow holds, for the widget once today is over. */
+export function tomorrowLine(plans: ReturnType<typeof tilePlans>): string {
+  if (plans.length === 0) return "Tomorrow · nothing planned yet";
+  return `Tomorrow · ${plans.length} ${plans.length === 1 ? "plan" : "plans"} · first at ${formatClock(plans[0]!.start_at)}`;
+}
+
 type BodyProps = {
   plans: ReturnType<typeof tilePlans>;
+  /** Tomorrow's timed plans, previewed when nothing is left today. */
+  tomorrow: ReturnType<typeof tilePlans> | null;
   taskLine: { done: number; total: number } | null;
   now: Date;
   geometry: TileGeometry;
 };
 
 /** Today's plans as the window the tile can hold, with the tasks footer. */
-function Body({ plans, taskLine, now, geometry }: BodyProps) {
-  const { rows, earlier, later } = windowRows(plans, now, Math.max(ROW.plan, geometry.bh - FOOTER));
+function Body({ plans, tomorrow, taskLine, now, geometry }: BodyProps) {
+  const over = plans.every((plan) => Date.parse(plan.end_at!) <= now.getTime());
+  const { rows, earlier, later } = windowRows(over ? [] : plans, now, Math.max(ROW.plan, geometry.bh - FOOTER));
   const planRows = rows.flatMap((row, index) => (row.kind === "plan" ? [index] : []));
   const nextId = nextPlanId(plans, now);
   const complete = taskLine !== null && taskLine.total > 0 && taskLine.done === taskLine.total;
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ gap: ROW.gap }}>
-        {plans.length === 0 ? <StateView dense kind="empty" title="Nothing planned" detail="Plans appear here as agents schedule them." /> : null}
+        {over ? (
+          <div className="flex min-h-0 flex-1 flex-col justify-center gap-1 px-2">
+            <span className="text-[15px] leading-5 font-medium">{plans.length === 0 ? "Nothing planned today" : "That’s the day"}</span>
+            <span className="text-[13px] leading-4 text-ink-muted">{tomorrow === null ? "" : tomorrowLine(tomorrow)}</span>
+          </div>
+        ) : null}
         {earlier > 0 ? (
           <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL + 12 + 10 + 12 }}>
             <span className="text-[12px] text-ink-muted tabular-nums">{`↑ ${earlier} earlier`}</span>
@@ -146,18 +159,26 @@ export function PlannerWidget({ order }: { order: number }) {
     enabled: online,
   });
   const tasks = useQuery({ queryKey: dayTasksKey(today), queryFn: async () => (await planner.tasks({ on: dateKey(today) })).items, enabled: online });
+  const tomorrowDay = addDays(today, 1);
+  const next = useQuery({
+    queryKey: ["yaad", "planner", "plans", "tile", dateKey(tomorrowDay)],
+    queryFn: async () => (await planner.plans({ from: tomorrowDay.toISOString(), to: addDays(tomorrowDay, 1).toISOString() })).items,
+    enabled: online,
+  });
   const state = useModuleState(query, () => false);
   const plans = state.kind === "ready" ? tilePlans(state.data, today) : [];
   const taskLine = tasks.data === undefined ? null : progressOf(groupTasks(tasks.data, today));
+  const over = state.kind === "ready" && plans.every((plan) => Date.parse(plan.end_at!) <= now.getTime());
+  const tomorrow = next.data === undefined ? null : tilePlans(next.data, tomorrowDay);
   return (
     <Tile
       area="planner"
       title="Planner"
-      to="/planner?view=day"
+      to={over && tomorrow !== null && tomorrow.length > 0 ? `/planner?view=day&date=${dateKey(tomorrowDay)}` : "/planner?view=day"}
       order={order}
       summary={state.kind === "ready" ? `${plans.length} ${plans.length === 1 ? "plan" : "plans"} today` : undefined}
       loading={state.kind === "loading"}
-      notice={tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["Nothing planned", "Plans appear here as agents schedule them."] }, () => void query.refetch())}
+      notice={tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["Nothing planned today", "Plans appear here as agents schedule them."] }, () => void query.refetch())}
       skeleton={(g) => (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {Array.from({ length: Math.max(2, Math.min(5, Math.floor(g.bh / ROW.plan))) }, (_, i) => (
@@ -176,7 +197,7 @@ export function PlannerWidget({ order }: { order: number }) {
         </div>
       )}
     >
-      {(g) => <Body plans={plans} taskLine={taskLine} now={now} geometry={g} />}
+      {(g) => <Body plans={plans} tomorrow={tomorrow} taskLine={taskLine} now={now} geometry={g} />}
     </Tile>
   );
 }

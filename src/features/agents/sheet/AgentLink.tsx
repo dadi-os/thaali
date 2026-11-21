@@ -1,3 +1,5 @@
+import { TextLink } from "../../../shared/ui/Button";
+
 /** Props of {@link AgentLink}. */
 export type AgentLinkProps = {
   /** The agent it opens; null is Ankur, who has no popover, so his name is plain text. */
@@ -14,9 +16,7 @@ export function AgentLink({ agentId, name, onSelect }: AgentLinkProps) {
     return <>{name}</>;
   }
   return (
-    <button
-      type="button"
-      className="ui-trans font-semibold text-sage-text hover:underline"
+    <TextLink
       title={`Show ${name}`}
       onClick={(event) => {
         event.stopPropagation();
@@ -24,6 +24,6 @@ export function AgentLink({ agentId, name, onSelect }: AgentLinkProps) {
       }}
     >
       {name}
-    </button>
+    </TextLink>
   );
 }

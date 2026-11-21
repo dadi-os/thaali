@@ -14,6 +14,8 @@ export type Fact = {
   tone?: "late";
   /** The value is words (a task) and may take two lines. */
   wrap?: boolean;
+  /** A message: a stacked value that may take four lines. */
+  long?: boolean;
 };
 
 /** How long, in the fewest honest words: `under a minute`, `4 min`, `2 h 10 min`, `3 d`. */
@@ -112,8 +114,8 @@ export type FactInput = {
   parent?: Pick<AgentRecord, "id" | "name"> | null;
   /** Its routines and reminders, once read: the "Routines" fact. */
   routines?: RoutineList;
-  /** When it last sent Ankur a message, if it ever has: the "Last answered you" fact. */
-  lastAnswered?: string | null;
+  /** What the agent's newest message to Ankur leaves open: the first fact, in the agent's own words. */
+  standing?: Standing | null;
   /** The counts of the wake running now, when one does. */
   counts: { tool_calls: number; messages_sent: number } | undefined;
   nameOf: (id: string | null) => string;
@@ -124,10 +126,13 @@ export type FactInput = {
  * The agent's facts: each a label and a value that states something true, in the order the popovers keep. Nothing is
  * listed because hath returned it: no ids, no empty rows, a count only when the agent did that much.
  */
-export function agentFacts({ agent, counts, nameOf, now, parent = null, routines, lastAnswered = null }: FactInput): Fact[] {
+export function agentFacts({ agent, counts, nameOf, now, parent = null, routines, standing = null }: FactInput): Fact[] {
   const brief = briefOf(agent, now);
   const { job, waiting_on: waiting } = agent.running;
   const facts: Fact[] = [];
+  if (standing !== null) {
+    facts.push({ label: standing.status === "blocked" ? "Stuck on" : "Asked you", value: standing.content.replace(/\s+/g, " ").trim(), hint: relative(standing.at, now), wrap: true, long: true });
+  }
   if (job !== null && brief.ask !== null) {
     const routine = brief.ask.routine;
     facts.push({ label: routine ? "Started by" : "Asked by", value: routine ? "Its own routine" : brief.ask.who === "You" ? "You" : nameOf(job.requester), hint: relative(job.opened.at, now) });
@@ -170,8 +175,6 @@ export function agentFacts({ agent, counts, nameOf, now, parent = null, routines
   if (routinesWords !== null) {
     facts.push(routinesWords);
   }
-  if (lastAnswered !== null) {
-    facts.push({ label: "Last answered you", value: relative(lastAnswered, now) });
-  }
+  facts.push({ label: "Last active", value: relative(agent.updated_at, now) });
   return facts;
 }

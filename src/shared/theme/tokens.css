@@ -86,6 +86,12 @@
   --glass-hover: rgba(250, 250, 247, 0.9);
   --glass-solid: #fafaf7;
   --glass-blur: 24px;
+  --edge-blur-1: 1px;
+  --edge-blur-2: 2px;
+  --edge-blur-3: 4px;
+  --edge-blur-4: 9px;
+  --edge-blur-5: 16px;
+  --edge-veil: 0.82;
   --glass-rim-top: rgba(255, 255, 255, 0.55);
   --glass-border: rgba(185, 201, 171, 0.7);
 
@@ -191,6 +197,87 @@
 
   .code-view span {
     color: var(--shiki-dark);
+  }
+}
+
+/*
+ * Scroll-edge effect: five blur layers, each reaching less far from the edge than the one before and blurring more,
+ * under a veil of the rail's own ground. Reduce Transparency and forced colors keep the veil and drop the blur.
+ */
+.scroll-edge {
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  pointer-events: none;
+  --edge-dir: to bottom;
+  background: linear-gradient(
+    var(--edge-dir),
+    color-mix(in srgb, var(--rail-ground) calc(var(--edge-veil) * 100%), transparent) 0%,
+    color-mix(in srgb, var(--rail-ground) calc(var(--edge-veil) * 62%), transparent) 38%,
+    color-mix(in srgb, var(--rail-ground) calc(var(--edge-veil) * 24%), transparent) 72%,
+    transparent 100%
+  );
+}
+
+.scroll-edge--top {
+  top: 0;
+}
+
+.scroll-edge--bottom {
+  bottom: 0;
+  --edge-dir: to top;
+}
+
+.scroll-edge__blur {
+  position: absolute;
+  inset: 0;
+  -webkit-mask-image: linear-gradient(var(--edge-dir), #000 0%, #000 var(--edge-hold), transparent var(--edge-reach));
+  mask-image: linear-gradient(var(--edge-dir), #000 0%, #000 var(--edge-hold), transparent var(--edge-reach));
+}
+
+.scroll-edge__blur:nth-child(1) {
+  --edge-hold: 70%;
+  --edge-reach: 100%;
+  -webkit-backdrop-filter: blur(var(--edge-blur-1));
+  backdrop-filter: blur(var(--edge-blur-1));
+}
+
+.scroll-edge__blur:nth-child(2) {
+  --edge-hold: 58%;
+  --edge-reach: 90%;
+  -webkit-backdrop-filter: blur(var(--edge-blur-2));
+  backdrop-filter: blur(var(--edge-blur-2));
+}
+
+.scroll-edge__blur:nth-child(3) {
+  --edge-hold: 46%;
+  --edge-reach: 80%;
+  -webkit-backdrop-filter: blur(var(--edge-blur-3));
+  backdrop-filter: blur(var(--edge-blur-3));
+}
+
+.scroll-edge__blur:nth-child(4) {
+  --edge-hold: 34%;
+  --edge-reach: 68%;
+  -webkit-backdrop-filter: blur(var(--edge-blur-4));
+  backdrop-filter: blur(var(--edge-blur-4));
+}
+
+.scroll-edge__blur:nth-child(5) {
+  --edge-hold: 22%;
+  --edge-reach: 55%;
+  -webkit-backdrop-filter: blur(var(--edge-blur-5));
+  backdrop-filter: blur(var(--edge-blur-5));
+}
+
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .scroll-edge {
+    --edge-veil: 0.94;
+  }
+
+  .scroll-edge__blur {
+    display: none;
   }
 }
 

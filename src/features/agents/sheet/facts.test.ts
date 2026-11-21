@@ -7,7 +7,6 @@ const iso = (minutes: number) => new Date(NOW + minutes * 60_000).toISOString();
 const job = (over: Partial<JobLedger> = {}): JobLedger => ({ job: 1, requester: null, opened: { seq: 1, at: iso(-4), content: "Check the two pending charges." }, answer_by: iso(1), asks: [], helpers: [], stored: [], told: [], reminders: [], stopped: null, ...over });
 const agent = (running: Partial<AgentRecord["running"]> = {}, sessions: AgentRecord["sessions"] = { tasks: [] }): Pick<AgentRecord, "id" | "running" | "updated_at" | "sessions"> => ({ id: "finance", updated_at: iso(-180), sessions, running: { working: false, waiting_on: null, job: null, ...running } });
 const nameOf = (id: string | null) => (id === null ? "Ankur" : id);
-const labels = (facts: ReturnType<typeof agentFacts>) => facts.map((fact) => fact.label);
 
 describe("time words", () => {
   it("says how long in the fewest honest words", () => {
@@ -51,7 +50,14 @@ describe("agentFacts: only true, labelled facts", () => {
       ["Told you", "Working on it."],
       ["Saved to memory", "Chase charges"],
       ["Checks back", "in 20 min"],
+      ["Last active", "3 h ago"],
     ]);
+  });
+
+  it("puts the agent's own words first when its message waits on Ankur", () => {
+    const facts = agentFacts({ agent: agent(), counts: undefined, nameOf, now: NOW, standing: { status: "needs_input", content: "Move gym to Friday?", at: iso(-12) } });
+    expect(facts[0]).toMatchObject({ label: "Asked you", value: "Move gym to Friday?", hint: "12 min ago", long: true });
+    expect(agentFacts({ agent: agent(), counts: undefined, nameOf, now: NOW, standing: { status: "blocked", content: "Cannot sign in.", at: iso(-1) } })[0]!.label).toBe("Stuck on");
   });
 
   it("flags an answer past its time and says who stopped a job", () => {
@@ -69,15 +75,14 @@ describe("agentFacts: only true, labelled facts", () => {
   });
 
   it("gives an idle agent real facts, and drops the ones that are not true", () => {
-    expect(agentFacts({ agent: agent(), counts: undefined, nameOf, now: NOW })).toEqual([]);
+    expect(agentFacts({ agent: agent(), counts: undefined, nameOf, now: NOW }).map((fact) => fact.label)).toEqual(["Last active"]);
     const routines: RoutineList = { routines: [{ id: "r1", active: true, next_run_at: iso(600) } as Routine, { id: "r2", active: false, next_run_at: iso(5) } as Routine], reminders: [] };
-    const facts = agentFacts({ agent: agent({}, { tasks: [{ id: "task/browser/1", kind: "browser", status: "working", purpose: "", current: "", last_activity: iso(0) }, { id: "task/browser/2", kind: "browser", status: "asleep", purpose: "", current: "", last_activity: iso(0) }] }), counts: undefined, nameOf, now: NOW, parent: { id: "boss", name: "career-manager" }, routines, lastAnswered: iso(-3) });
+    const facts = agentFacts({ agent: agent({}, { tasks: [{ id: "task/browser/1", kind: "browser", status: "working", purpose: "", current: "", last_activity: iso(0) }, { id: "task/browser/2", kind: "browser", status: "asleep", purpose: "", current: "", last_activity: iso(0) }] }), counts: undefined, nameOf, now: NOW, parent: { id: "boss", name: "career-manager" }, routines });
     expect(facts.map((fact) => [fact.label, fact.value])).toEqual([
       ["Reports to", "career-manager"],
       ["Helpers", "1 working · 1 resting"],
       ["Routines", "1 routine"],
-      ["Last answered you", "3 min ago"],
+      ["Last active", "3 h ago"],
     ]);
-    expect(labels(facts)).not.toContain("Last active");
   });
 });

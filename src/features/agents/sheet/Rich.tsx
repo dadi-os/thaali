@@ -1,3 +1,4 @@
+import { TextLink } from "../../../shared/ui/Button";
 import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 /** The inline markdown the feed shows: `**bold**` and `code`; anything else is text. */
@@ -90,9 +91,9 @@ export function Expand({ lines, lineHeight, open, onToggle, children }: ExpandPr
         <div ref={inner}>{children}</div>
       </div>
       {overflows ? (
-        <button type="button" className="ui-trans self-start text-[12px] font-semibold text-sage-text" aria-expanded={open} onClick={onToggle}>
+        <TextLink className="self-start text-[12px]" aria-expanded={open} onClick={onToggle}>
           {open ? "Show less" : "Show all"}
-        </button>
+        </TextLink>
       ) : null}
     </div>
   );

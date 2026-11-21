@@ -9,7 +9,7 @@ import type { Plan } from "../../types/planner";
 import { isSameDay, wallMinutes } from "./dates";
 import { formatSpan, gapsBetween, type Segment, segmentsOn } from "./layout";
 import { PlanButton } from "./PlanButton";
-import { planTone } from "./plans";
+import { keptBy, planTone } from "./plans";
 import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { plannedClock } from "./zones";
 
@@ -76,7 +76,9 @@ function Block({ segment, now, state, zone, top, height, selected, compact, onOp
   const note = plan.place === null ? null : `${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`;
   const phase = state === "later" || declined ? null : planStatus(plan, now, state);
   const line = [phase, status].filter((part): part is string => part !== null).join(" · ");
-  const detail = there ?? note ?? (compact ? null : `${formatSpan((segment.endMin - segment.startMin))} long`);
+  const keeper = keptBy(plan.owner);
+  const facts = compact ? [] : [line, there, note, `${formatSpan(segment.endMin - segment.startMin)} long`, keeper === null ? "" : `Kept by ${keeper}`].filter((fact): fact is string => fact !== null && fact !== "");
+  const fit = Math.max(0, Math.floor((height - 16 - 20 - 2) / 18));
     const quiet = declined || missed || ended;
   const titleStyle: CSSProperties = { fontSize: compact ? 13 : 14, fontWeight: current ? 700 : 600, lineHeight: compact ? "16px" : "20px", textDecoration: missed ? "line-through" : "none", color: quiet ? "var(--ink-muted)" : "var(--ink)" };
   const mark =
@@ -128,8 +130,9 @@ function Block({ segment, now, state, zone, top, height, selected, compact, onOp
         height >= 50 ? <span style={{ fontSize: 12, lineHeight: "16px", color: state === "now" || state === "next" ? "var(--sage-text)" : "var(--ink-muted)", paddingLeft: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{state === "now" || state === "next" ? phase : [formatClock(plan.start_at), status].filter(Boolean).join(" · ")}</span> : null
       ) : (
         <>
-          {line === "" && (detail === null || detail === "") ? null : <Truncate text={line === "" ? detail! : line} style={{ fontSize: 13, lineHeight: "18px", color: state === "now" || state === "next" ? "var(--sage-text)" : "var(--ink-muted)", paddingLeft: 17 }} />}
-          {line === "" || detail === null || detail === "" || height < 74 ? null : <Truncate text={detail} style={{ fontSize: 13, lineHeight: "18px", color: "var(--ink-muted)", paddingLeft: 17 }} />}
+          {facts.slice(0, fit).map((text, index) => (
+            <Truncate key={text} text={text} style={{ fontSize: 13, lineHeight: "18px", color: index === 0 && line !== "" && (state === "now" || state === "next") ? "var(--sage-text)" : "var(--ink-muted)", paddingLeft: 17 }} />
+          ))}
         </>
       )}
       {current ? (
@@ -233,7 +236,7 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head }: Tim
         <div style={{ position: "absolute", left: 0, right: 0, top: TOP_PAD, height: DAY * ppm, zIndex: 0, pointerEvents: "none" }} aria-hidden="true">
           {hours.map((m) => (
             <div key={m} style={{ position: "absolute", left: 0, right: 0, top: top(m), borderTop: "1px solid var(--rule)" }}>
-              <span style={{ position: "absolute", top: -9, left: 0, width: AXIS_W, paddingRight: 10, textAlign: "right", fontSize: 12, lineHeight: "16px", color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{hourText(m)}</span>
+              <span style={{ position: "absolute", top: -9, left: 0, width: AXIS_W, visibility: nowMinute !== null && Math.abs(nowMinute - m) * ppm < 14 ? "hidden" : "visible", paddingRight: 10, textAlign: "right", fontSize: 12, lineHeight: "16px", color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{hourText(m)}</span>
             </div>
           ))}
         </div>
