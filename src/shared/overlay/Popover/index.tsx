@@ -269,7 +269,7 @@ export function Popover({
           ref={panelRef}
           role="dialog"
           aria-label={ariaLabel}
-          className={`popover-glass fixed z-[60] flex flex-col ${className ?? ""}`}
+          className={`popover-glass fixed z-(--z-popover) flex flex-col ${className ?? ""}`}
           style={{
             left: pos ? pos.left : origin.x + clearance,
             top: pos ? pos.top : origin.y - HEADER_LIFT,

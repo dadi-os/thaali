@@ -629,6 +629,19 @@
     justify-content: center;
   }
 
+  /* The layer behind a modal: it covers the window, dims it and softens what is behind. */
+  .modal-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: var(--z-modal);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(44, 48, 42, 0.34);
+    -webkit-backdrop-filter: blur(6px);
+    backdrop-filter: blur(6px);
+  }
+
   .scrim-leaving {
     animation: scrim-in 200ms var(--ease) reverse both;
   }

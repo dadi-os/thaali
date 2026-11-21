@@ -1,16 +1,14 @@
 import { useEffect, useState } from "react";
-import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
-import { AnimatePresence, motion } from "motion/react";
 import { hath } from "../../api";
+import { useRetained } from "../../hooks/useRetained";
 import { CopyButton } from "../../ui/CopyButton";
 import { Segmented } from "../../ui/Segmented";
 import { IconButton } from "../../ui/Button";
 import { MarkdownBody } from "../Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../lib/content/attachments";
 import { saveFile } from "../../desktop/download";
-import { useDismiss } from "../../interaction/dismiss";
-import { DIALOG, SCRIM } from "../../motion";
+import { Modal } from "../../overlay/Modal";
 import type { AttachmentSummary } from "../../../types/hath";
 
 /** The color themes the viewer highlights with, in light and dark. */
@@ -88,45 +86,37 @@ async function highlight(text: string, filename: string, mediaType: string): Pro
   });
 }
 
-export type FileViewerProps = {
-  /** The file to show, or null when the viewer is closed. */
+export type PreviewModalProps = {
+  /** The file to show, or null when the modal is closed. */
   file: AttachmentSummary | null;
   onClose: () => void;
 };
 
-/**
- * A message's file over the frosted window: one sheet whose header names the file, its
- * kind and size, with copy (text), download and close; its body is the image, the PDF,
- * the code colored by its language with line numbers, rendered Markdown (or its source),
- * or, for other files, a card to download them. ESC or a click on the frost closes it.
- */
-export function FileViewer({ file, onClose }: FileViewerProps) {
-  useDismiss({ open: file !== null, onDismiss: onClose });
+/** The panel of a wide file: the largest the window allows up to a page's width; an image sizes the panel to itself instead. */
+const WIDE = "h-[min(88vh,820px)] w-[min(92vw,960px)]";
+const FIT = "max-h-[88vh] max-w-[min(92vw,1200px)]";
 
-  return createPortal(
-    <AnimatePresence>
-      {file !== null ? (
-        <motion.div
-          key="file-viewer"
-          className="host-modal fixed inset-0 z-[200] flex items-center justify-center p-6"
-          {...SCRIM}
-          onClick={onClose}
-        >
-          <Sheet key={file.id} file={file} onClose={onClose} />
-        </motion.div>
-      ) : null}
-    </AnimatePresence>,
-    document.body,
+/**
+ * Previews a file in the shared {@link Modal}: a header naming the file, its kind and size, with copy (text),
+ * download and close, over a body for its kind: the image, the PDF, the code colored by its language with line
+ * numbers, rendered Markdown (or its source), or, for other files, a card to download them.
+ */
+export function PreviewModal({ file, onClose }: PreviewModalProps) {
+  const shown = useRetained(file);
+  return (
+    <Modal open={file !== null} onClose={onClose} label={shown?.filename ?? "File"} panelClassName={shown !== null && viewKind(shown.media_type, shown.filename) === "image" ? FIT : WIDE}>
+      {shown === null ? null : <Preview key={shown.id} file={shown} onClose={onClose} />}
+    </Modal>
   );
 }
 
-type SheetProps = {
+type PreviewProps = {
   file: AttachmentSummary;
   onClose: () => void;
 };
 
-/** The open file's sheet: header with its actions over the body for its kind. */
-function Sheet({ file, onClose }: SheetProps) {
+/** The open file's header with its actions over the body for its kind. */
+function Preview({ file, onClose }: PreviewProps) {
   const kind = viewKind(file.media_type, file.filename);
   const textual = kind === "text" || kind === "markdown";
   const [mode, setMode] = useState<MarkdownMode>("rendered");
@@ -154,19 +144,9 @@ function Sheet({ file, onClose }: SheetProps) {
     lines === null ? null : `${lines.toLocaleString()} ${lines === 1 ? "line" : "lines"}`,
     attachmentSizeLabel(file.media_type, file.size_bytes),
   ].filter((part) => part !== null);
-  const wide = kind !== "image";
 
   return (
-    <motion.div
-      role="dialog"
-      aria-modal="true"
-      aria-label={file.filename}
-      className={`file-sheet flex max-h-[88vh] flex-col overflow-hidden rounded-[24px] ${
-        wide ? "h-[min(88vh,820px)] w-[min(92vw,960px)]" : "max-w-[min(92vw,1200px)]"
-      }`}
-      {...DIALOG}
-      onClick={(e) => e.stopPropagation()}
-    >
+    <>
       <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule pr-3 pl-6">
         <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 self-center">
           <p data-selectable className="m-0 truncate text-[15px] leading-5 font-semibold text-ink" title={file.filename}>
@@ -222,7 +202,7 @@ function Sheet({ file, onClose }: SheetProps) {
           <pre data-selectable className="code-view__plain font-mono">{text.data}</pre>
         )}
       </div>
-    </motion.div>
+    </>
   );
 }
 

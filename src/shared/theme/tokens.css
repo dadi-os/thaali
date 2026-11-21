@@ -114,13 +114,14 @@
   --type-caption: 12px;
   --type-label: 11px;
 
-  /* Layers: content 0, sticky 10, title bar 20, scrims and side sheets 30, menus and popovers 40, modals 45, toasts 50, tooltips 60 */
+  /* Layers: content 0, sticky 10, title bar 20, scrims and side sheets 30, modals 45, menus 50, popovers 55, toasts 58, tooltips 60. Everything above a modal is portaled to the body, so a right-click menu or popover opened inside a modal draws over it. */
   --z-sticky: 10;
   --z-titlebar: 20;
   --z-scrim: 30;
-  --z-menu: 40;
   --z-modal: 45;
-  --z-toast: 50;
+  --z-menu: 50;
+  --z-popover: 55;
+  --z-toast: 58;
   --z-tooltip: 60;
 
   /* Motion */
@@ -621,33 +622,6 @@
 
 .terminal-screen__error {
   color: #d39a8e;
-}
-
-/* Expanded host view: the whole window frosts behind a glass sheet. */
-.host-modal {
-  background: rgb(44 48 42 / 0.28);
-}
-
-.host-modal__media {
-  box-shadow:
-    0 2px 6px rgb(27 30 25 / 0.12),
-    0 40px 90px -24px rgb(27 30 25 / 0.5);
-}
-
-.host-modal__close {
-  border: 1px solid var(--glass-border);
-  background: color-mix(in srgb, var(--glass-sheet) 70%, transparent);
-  -webkit-backdrop-filter: blur(16px);
-  backdrop-filter: blur(16px);
-}
-
-/* File viewer: one solid sheet on the frost, its header over the file. */
-.file-sheet {
-  border: 1px solid var(--glass-border);
-  background: var(--bone);
-  box-shadow:
-    0 2px 6px rgba(44, 48, 42, 0.08),
-    0 28px 80px rgba(44, 48, 42, 0.22);
 }
 
 /* Images sit on a faint checkerboard so transparency reads as transparency. */

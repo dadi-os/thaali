@@ -1,32 +1,15 @@
-import { type ReactNode, useCallback, useEffect, useRef, useState, useSyncExternalStore } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { hath, isMeshOnline, nas } from "../../../shared/api";
-import type { NasTask } from "../../../shared/api/nas";
+import { useRef, useSyncExternalStore } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { isMeshOnline, nas } from "../../../shared/api";
 import { useRetained } from "../../../shared/hooks/useRetained";
-import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
 import { useConnection } from "../../../shared/hooks/useConnection";
-import { AnchoredMenu } from "../../../shared/overlay/AnchoredMenu";
-import { ConfirmDialog } from "../../../shared/overlay/ConfirmDialog";
-import { LargeDialog } from "../../../shared/overlay/LargeDialog";
-import type { ActionList } from "../../../shared/interaction/actions";
-import { useShortcut } from "../../../shared/interaction/shortcuts";
-import { pushToast } from "../../../contexts/toasts";
-import { getTakeover, setTakeover, subscribeTakeover } from "../../../contexts/takeover";
-import { BrowserFrame } from "../BrowserFrame";
-import { pageAddress, tasksRefetchInterval } from "../sessions";
-import { type Activity, type BrowserActivity, createBrowserActivity, createTerminalActivity, type TerminalActivity } from "./activity";
-import { createControl, type ControlState } from "./control";
-import { STOP_DETAIL, taskMenu } from "./menu";
-import { TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "./parts";
-import { TerminalPane } from "./TerminalPane";
-
-/** Why a takeover call failed, as a toast Ankur can read. */
-function failed(title: string, err: unknown): void {
-  pushToast({ key: `takeover:${title}`, tone: "error", title, body: err instanceof Error ? err.message : String(err) });
-}
+import { getTakeover, subscribeTakeover } from "../../../contexts/takeover";
+import { tasksRefetchInterval } from "../sessions";
+import { BrowserModal } from "./BrowserModal";
+import { TerminalModal } from "./TerminalModal";
 
 /**
- * The takeover modal: a near-window panel over the app frame, opened by a helper task's preview or its row on the System page.
+ * The helper-task modal host: it shows the browser's or the terminal's modal, opened by a helper task's preview or its row on the System page.
  * It opens watching, with the helper still working and the screen read-only; Takeover pauses the helper and lets Ankur use the
  * browser or type into the terminal, and Return, closing the modal or half an hour without input hands it back with a summary of what he did.
  */
@@ -53,163 +36,5 @@ export function TakeoverModal() {
   }
   const props = { task: shown, resource: shown.resource, open: live !== null };
   const key = `${shown.task}:${session.current}`;
-  return shown.kind === "browser" ? <BrowserTakeover key={key} {...props} /> : <TerminalTakeover key={key} {...props} />;
-}
-
-type OpenTakeoverProps = {
-  task: NasTask;
-  /** What the task holds in Nas: a browser slot or a terminal id. */
-  resource: string;
-  /** False while the modal plays its exit animation. */
-  open: boolean;
-};
-
-const leave = () => setTakeover(null);
-
-/**
- * One takeover's control: watching until Takeover pauses the task in Nas, then in control until it is resumed with the
- * summary `activity` writes. `requestClose` leaves at once while watching and after the hand back while in control.
- */
-function useTakeover<E>(task: NasTask, makeActivity: () => Activity<E>) {
-  const queryClient = useQueryClient();
-  const [control] = useState(() => {
-    const refresh = () => queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] });
-    return createControl<E>({
-      pause: async () => {
-        await nas.pauseTask(task);
-        await refresh();
-      },
-      resume: async (summary) => {
-        await nas.resumeTask(task, summary);
-        await refresh();
-      },
-      activity: makeActivity(),
-      onError: failed,
-    });
-  });
-  useEffect(() => () => control.dispose(), [control]);
-  const state = useSyncExternalStore(control.subscribe, control.getState);
-  const requestClose = () => {
-    if (state === "watching") {
-      leave();
-    } else if (state === "in-control") {
-      void control.handBack().then((handedBack) => handedBack && leave());
-    }
-  };
-  return { control, state, requestClose };
-}
-
-type TakeoverShellProps = OpenTakeoverProps & {
-  state: ControlState;
-  onTakeover: () => void;
-  onReturn: () => void;
-  onClose: () => void;
-  /** The body between the header and the footer. */
-  children: ReactNode;
-};
-
-/** The modal's frame, shared by both kinds: header, the body, footer, the overflow menu and the confirmation before Stop. */
-function TakeoverShell({ task, resource, open, state, onTakeover, onReturn, onClose, children }: TakeoverShellProps) {
-  const queryClient = useQueryClient();
-  const [menu, setMenu] = useState<DOMRect | null>(null);
-  const [confirmingStop, setConfirmingStop] = useState(false);
-  const [stopping, setStopping] = useState(false);
-  const [stopError, setStopError] = useState<string | null>(null);
-
-  useShortcut("mod+.", () => {
-    if (open && state === "in-control") {
-      onReturn();
-    }
-  });
-
-  const stop = async () => {
-    setStopping(true);
-    setStopError(null);
-    try {
-      await hath.haltSession(task.owner, task.task);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] }),
-        queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY }),
-        queryClient.invalidateQueries({ queryKey: ["agent", task.owner] }),
-      ]);
-      setConfirmingStop(false);
-      leave();
-    } catch (err) {
-      setStopError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setStopping(false);
-    }
-  };
-  const refreshTasks = () => queryClient.invalidateQueries({ queryKey: ["nas", "tasks"] });
-  const actions: ActionList = taskMenu({
-    status: task.status,
-    state,
-    onPause: async () => {
-      await nas.pauseTask(task);
-      await refreshTasks();
-    },
-    onResume: async () => {
-      await nas.resumeTask(task);
-      await refreshTasks();
-    },
-    onStop: () => setConfirmingStop(true),
-  });
-  const info = { task: task.task, kind: task.kind, owner: task.owner, purpose: task.purpose, status: task.status, resource };
-  return (
-    <LargeDialog open={open} onClose={onClose} label={`${task.kind === "browser" ? "Browser" : "Terminal"} ${task.id}`}>
-      <TakeoverHeader task={info} state={state} onTakeover={onTakeover} onReturn={onReturn} onMenu={setMenu} onClose={onClose} />
-      {children}
-      <TakeoverFooter kind={task.kind} resource={resource} state={state} />
-      <AnchoredMenu actions={actions} anchor={menu} onClose={() => setMenu(null)} width={180} />
-      <ConfirmDialog
-        open={open && confirmingStop}
-        title="Stop this task?"
-        detail={STOP_DETAIL}
-        confirmLabel="Stop task"
-        icon="power"
-        pending={stopping}
-        error={stopError}
-        onCancel={() => setConfirmingStop(false)}
-        onConfirm={() => void stop()}
-      />
-    </LargeDialog>
-  );
-}
-
-/** The browser's takeover: its live page, read-only until Ankur takes over, then driven with the pointer, the wheel and the keys. */
-function BrowserTakeover(props: OpenTakeoverProps) {
-  const { task, resource } = props;
-  const { control, state, requestClose } = useTakeover(task, createBrowserActivity);
-  const controlling = state === "in-control";
-  const onActivity = useCallback((activity: BrowserActivity) => void control.record(activity), [control]);
-  const navigate = async (action: "back" | "reload") => {
-    control.record({ type: "key", name: action === "back" ? "Back" : "Reload" });
-    try {
-      await nas.navigateBrowser(Number(resource), action);
-    } catch (err) {
-      failed("The browser did not navigate", err);
-    }
-  };
-  return (
-    <TakeoverShell {...props} state={state} onTakeover={() => void control.takeOver()} onReturn={() => void control.handBack()} onClose={requestClose}>
-      <TakeoverBrowser url={pageAddress(task.active_url)} task={task.task} controlling={controlling} onBack={() => void navigate("back")} onReload={() => void navigate("reload")}>
-        <BrowserFrame browserId={Number(resource)} variant="page" interactive={controlling} onActivity={onActivity} />
-      </TakeoverBrowser>
-    </TakeoverShell>
-  );
-}
-
-/** The terminal's takeover: its output pane, which Ankur types into directly once he takes over. */
-function TerminalTakeover(props: OpenTakeoverProps) {
-  const { task, resource } = props;
-  const { control, state, requestClose } = useTakeover(task, createTerminalActivity);
-  const controlling = state === "in-control";
-  const onActivity = useCallback((activity: TerminalActivity) => void control.record(activity), [control]);
-  return (
-    <TakeoverShell {...props} state={state} onTakeover={() => void control.takeOver()} onReturn={() => void control.handBack()} onClose={requestClose}>
-      <TakeoverTerminal controlling={controlling}>
-        <TerminalPane terminalId={resource} controlling={controlling} onActivity={onActivity} />
-      </TakeoverTerminal>
-    </TakeoverShell>
-  );
+  return shown.kind === "browser" ? <BrowserModal key={key} {...props} /> : <TerminalModal key={key} {...props} />;
 }

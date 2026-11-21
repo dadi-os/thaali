@@ -2,7 +2,7 @@ import type { CSSProperties, ReactNode } from "react";
 import { terminalCapture } from "../fixtures/nas";
 import { pageAddress } from "../../features/agents/sessions";
 import { nasTasks } from "../fixtures/tasks";
-import { LargeDialog } from "../../shared/overlay/LargeDialog";
+import { Modal } from "../../shared/overlay/Modal";
 import { TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "../../features/agents/takeover/parts";
 import { CASES } from "./cases";
 
@@ -51,7 +51,7 @@ function takeover({ task, driving = false, width = 1440, height = 900 }: Takeove
   const info = { task, kind: nas.kind, owner: nas.owner, purpose: nas.purpose, status: nas.status, resource: nas.resource };
   return (
     <div style={{ position: "relative", width, height }}>
-      <LargeDialog open onClose={noop} label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`}>
+      <Modal inline open onClose={noop} label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`}>
         <TakeoverHeader task={info} state={state} onTakeover={noop} onReturn={noop} onMenu={noop} onClose={noop} />
         {nas.kind === "browser" ? (
           <TakeoverBrowser url={pageAddress(nas.active_url)} task={task} controlling={driving} onBack={noop} onReload={noop}>
@@ -79,7 +79,7 @@ function takeover({ task, driving = false, width = 1440, height = 900 }: Takeove
           </TakeoverTerminal>
         )}
         <TakeoverFooter kind={nas.kind} resource={nas.resource} state={state} />
-      </LargeDialog>
+      </Modal>
     </div>
   );
 }
