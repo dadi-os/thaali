@@ -296,6 +296,11 @@ function flowJobs(scenario) {
       { eval: expectText("Past due by") },
       { eval: expectText("Last confirmed") },
     ]),
+    job("planner-widget-menu", `/?clock=11:00&fixtures=${scenario}`, [
+      { eval: 'const row = document.querySelector("[data-plan]"); const box = row.getBoundingClientRect(); row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: box.left + 80, clientY: box.top + 20 })); 0' },
+      ...frames("planner-widget-menu", [500]),
+      { eval: expectText("Show in Yaad") },
+    ]),
     job("planner-day-more", `/planner?view=month&fixtures=${scenario}`, [
       { eval: clickText("button", "more") },
       ...frames("planner-day-card", [700]),

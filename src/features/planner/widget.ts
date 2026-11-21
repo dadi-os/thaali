@@ -104,9 +104,3 @@ export function dayRecap(plans: Plan[]): string {
   const attended = kept.filter((plan) => plan.attended === true).length;
   return `${kept.length} ${kept.length === 1 ? "plan" : "plans"} done${attended === 0 ? "" : ` · ${attended} attended`}`;
 }
-
-/** Tomorrow as the widget previews it: its first plan and how many there are, or null when nothing is planned. */
-export function tomorrowPreview(plans: Plan[]): { first: Plan; count: number } | null {
-  const kept = plans.filter((plan) => plan.rsvp !== "no");
-  return kept.length === 0 ? null : { first: kept[0]!, count: kept.length };
-}

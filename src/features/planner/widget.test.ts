@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Plan } from "../../types/planner";
-import { dayRecap, ROW, tilePlans, tomorrowPreview, windowRows } from "./widget";
+import { dayRecap, ROW, tilePlans, windowRows } from "./widget";
 
 const day = new Date(2026, 10, 18);
 const t = (h: number, m = 0) => new Date(2026, 10, 18, h, m).toISOString();
@@ -67,17 +67,11 @@ describe("widget window", () => {
   });
 });
 
-describe("day recap and tomorrow", () => {
+describe("day recap", () => {
   it("recaps what was done and attended, leaving out declined plans", () => {
     const plans = [plan("a", t(9), t(10), { attended: true }), plan("b", t(11), t(12)), plan("c", t(13), t(14), { rsvp: "no" })];
     expect(dayRecap(plans)).toBe("2 plans done · 1 attended");
     expect(dayRecap([plan("a", t(9), t(10))])).toBe("1 plan done");
     expect(dayRecap([])).toBe("");
-  });
-
-  it("previews tomorrow's first plan and count, or nothing", () => {
-    const next = [plan("x", t(9), t(10)), plan("y", t(11), t(12))];
-    expect(tomorrowPreview(next)).toEqual({ first: next[0], count: 2 });
-    expect(tomorrowPreview([])).toBeNull();
   });
 });
