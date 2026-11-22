@@ -24,7 +24,7 @@ const TONE = { done: "live", late: "late", soon: "calm", open: "calm", none: "ca
 /**
  * A task's popover, in the same anatomy as a plan's: its situation as a chip ("Past due by 5 days", "Closes today 11:59 PM
  * · in 3 h", "Done"), the facts (opens, closes, course, kept by, last confirmed), the actions (Mark done first, then
- * Message agent and Show in Yaad), and its notes.
+ * Message agent and Yaad), and its notes.
  */
 export function TaskCard({ task: shown, now = new Date() }: TaskCardProps) {
   const task = useLiveTask(shown);
@@ -50,13 +50,13 @@ export function TaskCard({ task: shown, now = new Date() }: TaskCardProps) {
       facts={facts}
       actions={
         <>
-          <Button data-keep-open tone={task.done ? "outline" : "sage"} size="sm" icon={task.done ? "retry" : "check"} onClick={() => tick(task, !task.done)}>
+          <Button data-keep-open tone={task.done ? "outline" : "sage"} size="rail" icon={task.done ? "retry" : "check"} onClick={() => tick(task, !task.done)}>
             {task.done ? "Take back done" : "Mark done"}
           </Button>
           {agent === null ? null : (
             <Button
               tone="quiet"
-              size="sm"
+              size="rail"
               icon="send"
               onClick={() => {
                 openAgent(agent.id);
@@ -66,8 +66,8 @@ export function TaskCard({ task: shown, now = new Date() }: TaskCardProps) {
               Message agent
             </Button>
           )}
-          <Button tone="quiet" size="sm" icon="graph" onClick={() => navigate(`/yaad?focus=${task.id}`)}>
-            Show in Yaad
+          <Button tone="quiet" size="rail" icon="graph" onClick={() => navigate(`/yaad?focus=${task.id}`)}>
+            Yaad
           </Button>
         </>
       }

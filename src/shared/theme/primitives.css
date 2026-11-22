@@ -270,6 +270,31 @@
     font-size: 12px;
   }
 
+  /* An action rail's button: the height, radius, type and hairline of a Segmented track, so a rail of both reads as one. */
+  .btn-rail {
+    height: 40px;
+    padding: 0 14px;
+    border-radius: 11px;
+    border: 1px solid var(--glass-border);
+    background: var(--sage-fill);
+    font-size: 12.5px;
+  }
+
+  .btn-rail:hover:not(:disabled) {
+    background-color: var(--sage-active) !important;
+    color: var(--ink);
+  }
+
+  .btn-rail:active:not(:disabled) {
+    scale: 0.97;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .btn-rail:active:not(:disabled) {
+      scale: 1;
+    }
+  }
+
   .btn-sm {
     height: 28px;
     padding: 0 12px;

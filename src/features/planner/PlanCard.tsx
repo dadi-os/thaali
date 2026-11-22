@@ -1,4 +1,3 @@
-import { openExternal } from "../../shared/desktop/open";
 import { Button } from "../../shared/ui/Button";
 import { Segmented, type SegmentedOption } from "../../shared/ui/Segmented";
 import { openAgent } from "../../contexts/chat";
@@ -6,7 +5,6 @@ import { requestCompose } from "../../contexts/reply";
 import { DetailCard, InsetSection, type FactItem } from "../../shared/ui/DetailCard";
 import { Icon } from "../../shared/ui/Icon";
 import { formatClock, formatDay } from "../../shared/lib/ux/time";
-import { pushToast } from "../../contexts/toasts";
 import type { Plan } from "../../types/planner";
 import { answerAfter, hasStarted, useLivePlan, useSetAttended } from "./attended";
 import { formatRange, formatSpan } from "./layout";
@@ -15,11 +13,12 @@ import { canTell, rsvpChoice, rsvpMessage, type RsvpAnswer } from "./rsvp";
 import { useOwnerAgent } from "./taskActions";
 import { nextPlanId, planStatus, timeState } from "./timeState";
 import { plannedClock } from "./zones";
+import { WhereCopy } from "./WhereCopy";
 
 /** The two answers to "Were you there?"; neither is chosen until Ankur says. */
 const ANSWERS: ReadonlyArray<SegmentedOption<string>> = [
-  { value: "yes", label: "Attended", icon: "check" },
-  { value: "no", label: "Didn’t attend", icon: "close" },
+  { value: "yes", label: "Attended" },
+  { value: "no", label: "Didn’t attend" },
 ];
 
 /** The two answers to "Going?"; the one Yaad holds is selected, neither while it holds none. */
@@ -46,8 +45,8 @@ function statusOf(plan: Plan, now: Date) {
 
 /**
  * A plan's popover, in the shared detail anatomy: its situation as a dot and a phrase ("Now · 12 min left", "Starts in 25 min",
- * "Ended 2 h ago", "Attended"), the facts (when, where with Directions, course, kept by, going, attended), the actions
- * (Attended and Didn't attend once the plan has begun, then Message agent and Show in Yaad), and its notes.
+ * "Ended 2 h ago", "Attended"), the facts (when, where as a click that copies the address, course, kept by, going, attended), the actions
+ * (one rail: Going / Not going while it can still be answered, Attended and Didn't attend once the plan has begun, Message agent and Yaad), and its notes.
  */
 export function PlanCard({ plan: shown, now = new Date() }: PlanCardProps) {
   const plan = useLivePlan(shown);
@@ -67,31 +66,7 @@ export function PlanCard({ plan: shown, now = new Date() }: PlanCardProps) {
     { label: "Time", value: timed ? formatRange(minutesOf(plan.start_at), minutesOf(plan.end_at!)) : plan.all_day ? "All day" : formatClock(plan.start_at) },
     timed ? { label: "Length", value: formatSpan((Date.parse(plan.end_at!) - Date.parse(plan.start_at)) / 60_000) } : null,
     own === null ? null : { label: "Local time", value: own },
-    plan.place === null
-      ? null
-      : {
-          label: "Where",
-          value: `${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}${address === null ? "" : `\n${address}`}`.split("\n").map((line, i) => (
-            <span key={i} className={i === 0 ? "block" : "block text-[13px] text-ink-muted"}>
-              {line}
-            </span>
-          )),
-          action:
-            address === null ? undefined : (
-              <Button
-                tone="quiet"
-                size="sm"
-                icon="link"
-                onClick={() =>
-                  openExternal(`https://maps.apple.com/?daddr=${encodeURIComponent(address)}`).catch((error: unknown) =>
-                    pushToast({ key: "planner:directions", tone: "error", title: "Couldn’t open Maps", body: error instanceof Error ? error.message : String(error) }),
-                  )
-                }
-              >
-                Directions
-              </Button>
-            ),
-        },
+    plan.place === null ? null : { label: "Where", value: <WhereCopy label={`${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`} address={address} /> },
     plan.hub === null || plan.hub.title === plan.title ? null : { label: "Course", value: plan.hub.title },
     agent === null ? null : { label: "Kept by", value: agent.name },
     plan.rsvp === null ? null : { label: "Going", value: plan.rsvp === "yes" ? "Yes" : "No, declined" },
@@ -107,39 +82,25 @@ export function PlanCard({ plan: shown, now = new Date() }: PlanCardProps) {
       actions={
         <>
           {agent !== null && canTell(plan, true, now) ? (
-            <div className="flex w-full items-center gap-3 pb-1">
-              <span className="flex min-w-0 flex-1 flex-col">
-                <span className="text-[13px] text-ink-muted">Going?</span>
-                <span className="truncate text-[12px] text-ink-ghost">{`Tell ${agent.name}`}</span>
-              </span>
-              <Segmented
-                size="md"
-                label="Going?"
-                options={GOING}
-                value={rsvpChoice(plan)}
-                onChange={(next) => {
-                  openAgent(agent.id);
-                  requestCompose(rsvpMessage(plan, next as RsvpAnswer));
-                }}
-              />
-            </div>
+            <Segmented
+              size="md"
+              label="Going?"
+              options={GOING.map((option) => ({ ...option, title: `${option.label}: tell ${agent.name}` }))}
+              value={rsvpChoice(plan)}
+              onChange={(next) => {
+                openAgent(agent.id);
+                requestCompose(rsvpMessage(plan, next as RsvpAnswer));
+              }}
+            />
           ) : null}
           {asks ? (
-            <div data-keep-open className="flex w-full items-center gap-3 pb-1">
-              <span className="text-[13px] text-ink-muted">Were you there?</span>
-              <span className="flex-1" />
-              <Segmented
-                size="md"
-                label="Were you there?"
-                options={ANSWERS}
-                value={plan.attended === true ? "yes" : plan.attended === false ? "no" : ""}
-                onChange={(next) => setAttended(plan, answerAfter(plan.attended, next === "yes"))}
-              />
-            </div>
+            <span data-keep-open className="inline-flex">
+              <Segmented size="md" label="Were you there?" options={ANSWERS} value={plan.attended === true ? "yes" : plan.attended === false ? "no" : ""} onChange={(next) => setAttended(plan, answerAfter(plan.attended, next === "yes"))} />
+            </span>
           ) : null}
           {others.map((action) => (
-            <Button key={action.id} tone="quiet" size="sm" icon={action.icon} onClick={() => void action.run()}>
-              {action.label}
+            <Button key={action.id} tone="quiet" size="rail" icon={action.icon} onClick={() => void action.run()}>
+              {action.id === "show-in-yaad" ? "Yaad" : action.label}
             </Button>
           ))}
         </>

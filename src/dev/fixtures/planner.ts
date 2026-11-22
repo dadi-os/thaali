@@ -38,6 +38,7 @@ type Draft = {
 };
 
 const ROOM_1345 = { id: "p0000000-0000-4000-8000-000000000001", title: "Engineering Building", address: "428 S Shaw Ln, East Lansing, MI 48824", room: "1345" };
+const CAFE = { id: "p0000000-0000-4000-8000-000000000003", title: "Strange Matter Coffee", address: "311 E Grand River Ave, East Lansing, MI 48823", room: null };
 const GYM = { id: "p0000000-0000-4000-8000-000000000002", title: "IM West", address: "394 Chestnut Rd, East Lansing, MI 48824", room: null };
 const CSE300 = { id: "h0000000-0000-4000-8000-000000000300", title: "CSE 300 class" };
 const CSE335 = { id: "h0000000-0000-4000-8000-000000000335", title: "CSE 335 class" };
@@ -97,7 +98,7 @@ function ordinary(day: Date): Draft[] {
     out.push({ id: "quiz", title: "CSE 300 quiz 2", start: at(day, 13, 0), end: at(day, 13, 50), place: ROOM_1345, hub: CSE300, owner: "cse-300-specialist" });
   }
   if (dow === 6) {
-    out.push({ id: "coffee", title: "Coffee with Maya", start: at(day, 11, 0), end: at(day, 12, 0), rsvp: "yes", owner: "schedule-specialist" });
+    out.push({ id: "coffee", title: "Coffee with Maya", start: at(day, 11, 0), end: at(day, 12, 0), rsvp: "yes", place: CAFE, owner: "schedule-specialist" });
     out.push({ id: "chicago", title: "Weekend in Chicago", start: at(day, 0, 0), end: at(new Date(day.getTime() + 86_400_000), 23, 59), allDay: true, owner: "schedule-specialist" });
   }
   if (day.getDate() === 20) {

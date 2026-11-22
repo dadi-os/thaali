@@ -296,6 +296,14 @@ function flowJobs(scenario) {
       { eval: expectText("Past due by") },
       { eval: expectText("Last confirmed") },
     ]),
+    job("planner-where", `/planner?view=day&clock=11:00&fixtures=${scenario}`, [
+      { eval: clickText("button[aria-haspopup=dialog]", "Coffee with Maya") },
+      { wait: 500 },
+      { eval: 'document.querySelector("button[aria-label=\\"Copy address\\"]").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); 0' },
+      ...frames("planner-where-hover", [400]),
+      { eval: 'document.querySelector("button[aria-label=\\"Copy address\\"]").click(); 0' },
+      ...frames("planner-where-copied", [300]),
+    ]),
     job("planner-widget-menu", `/?clock=11:00&fixtures=${scenario}`, [
       { eval: 'const row = document.querySelector("[data-plan]"); const box = row.getBoundingClientRect(); row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: box.left + 80, clientY: box.top + 20 })); 0' },
       ...frames("planner-widget-menu", [500]),

@@ -4,8 +4,8 @@ import { Icon, type IconName } from "./Icon";
 /** How loud a button is: an outlined default, a sage wash, quiet text, the solid primary, or a destructive tint. */
 export type ButtonTone = "outline" | "sage" | "quiet" | "fill" | "danger";
 
-/** The button scale: 20 (a text action inside a dense row or tile), 28, 32, 36 and 40 px tall. */
-export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl";
+/** The button scale: 20 (a text action inside a dense row or tile), 28, 32, 36 and 40 px tall; `rail` is 40 px in the look of a Segmented track, for an action rail beside one. */
+export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl" | "rail";
 
 /** Hover treatment per tone: the solid tone darkens, the destructive one deepens its tint, the rest wash in sage. */
 const HOVER: Record<ButtonTone, string> = {

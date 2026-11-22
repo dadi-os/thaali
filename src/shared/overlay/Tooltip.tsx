@@ -12,7 +12,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { EASE, FAST_S } from "../motion";
 
 export type TooltipProps = {
-  content: string;
+  content: ReactNode;
   children: ReactNode;
   side?: "top" | "bottom";
   className?: string;

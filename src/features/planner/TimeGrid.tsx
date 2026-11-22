@@ -29,9 +29,9 @@ const MORNING = 420;
 const MIN_BLOCK = 28;
 
 const SHEET: CSSProperties = {
-  background: "var(--bone-raised)",
-  border: "1px solid var(--rule)",
-  boxShadow: "0 1px 2px rgba(44,48,42,.06)",
+  background: "var(--slab)",
+  border: "1px solid var(--slab-border)",
+  boxShadow: "var(--slab-shadow)",
 };
 
 /** The grid template of the axis and `count` day columns, shared by the grid and any header above it. */
@@ -111,17 +111,17 @@ function Block({ segment, now, state, zone, top, height, selected, compact, onOp
         padding: narrow ? "3px 5px" : short ? `0 ${pad}px` : compact ? `5px ${pad}px` : `8px ${pad}px`,
         borderRadius: compact ? 10 : 14,
         ...SHEET,
-        ...(declined ? { background: "var(--bone)", border: "1px dashed var(--ink-ghost)", boxShadow: "none" } : {}),
-        ...(current ? { border: "1px solid var(--sage-deep)", backgroundColor: "var(--bone-raised)", backgroundImage: "linear-gradient(var(--sage-active), var(--sage-active))" } : {}),
-        ...(selected ? { border: "1px solid var(--sage-deep)" } : {}),
-        ...(ended && !declined ? { background: "color-mix(in srgb, var(--bone-raised) 55%, transparent)", boxShadow: "none" } : {}),
+        ...(declined ? { background: "var(--slab-declined)", border: "1px dashed var(--slab-declined-border)", boxShadow: "none" } : {}),
+        ...(current ? { border: "1px solid var(--slab-now-border)", backgroundColor: "var(--slab)", backgroundImage: "linear-gradient(var(--sage-active), var(--sage-active))" } : {}),
+        ...(selected ? { border: "1px solid var(--slab-now-border)" } : {}),
+        ...(ended && !declined ? { background: "var(--slab-past)", boxShadow: "none" } : {}),
         zIndex: 2,
         overflow: "hidden",
         textAlign: "left",
       }}
     >
       <div style={{ display: "flex", alignItems: narrow ? "flex-start" : "center", gap: compact ? 6 : 9, minWidth: 0 }}>
-        {narrow ? null : <span className={current ? "dot-pulse" : undefined} style={{ width: compact ? 6 : 8, height: compact ? 6 : 8, borderRadius: "50%", background: current ? "var(--sage-deep)" : ended ? "var(--ink-ghost)" : planTone(plan), flex: "none" }} />}
+        {narrow ? null : <span style={{ width: compact ? 6 : 8, height: compact ? 6 : 8, borderRadius: "50%", background: current ? "var(--sage-deep)" : ended ? "var(--ink-ghost)" : planTone(plan), flex: "none" }} />}
         {narrow ? <Clamp text={plan.title} lines={Math.max(1, Math.floor((height - 6) / 14))} style={{ flex: 1, minWidth: 0, ...titleStyle, fontSize: 12, lineHeight: "14px" }} /> : <Truncate text={plan.title} style={{ flex: 1, minWidth: 0, ...titleStyle }} />}
         {compact ? null : <span style={{ fontSize: 12, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", fontVariantNumeric: "tabular-nums" }}>{range}</span>}
         {mark}
@@ -155,8 +155,10 @@ export type TimeGridProps = {
   selected: string | null;
   /** Open a plan's detail beside the chosen block. */
   onOpen: (plan: Plan, element: Element) => void;
-  /** A sticky header above the axis laid out on {@link columnsOf}; Week's day bubbles and all-day band. */
+  /** A header laid out on {@link columnsOf} that floats over the top of the grid, pinned while the hours scroll under it; Week's day bubbles and all-day bars. It has no background of its own. */
   head?: ReactNode;
+  /** The header's height in px: the hours start below it, and the grid's rules run up behind it to the top edge. */
+  headHeight?: number;
   /** Offer the "Now ↓/↑" jump when now is out of view; Day does, Week leaves it to the now line. */
   jump?: boolean;
   /** Pixels per hour at the least; 56 when absent. */
@@ -192,12 +194,13 @@ function anchorOf(columns: Segment[][], single: boolean, nowMinute: number | nul
  * and Week move together, and it opens at the hour before what is on now or next. In Day, free stretches of 30 minutes or more
  * are named (Week leaves them out as clutter), and the now line crosses today's column.
  */
-export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, jump = true, hourPx = 56 }: TimeGridProps) {
+export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, headHeight = 0, jump = true, hourPx = 56 }: TimeGridProps) {
   const [scroller, size] = useSize<HTMLDivElement>();
   const columns = days.map((day) => segmentsOn(plans, day));
   const todayIndex = days.findIndex((day) => isSameDay(day, now));
   const nowMinute = todayIndex < 0 ? null : wallMinutes(now);
-  const ppm = Math.max(hourPx / 60, (size.height - TOP_PAD - 24) / DAY);
+  const origin = TOP_PAD + headHeight;
+  const ppm = Math.max(hourPx / 60, (size.height - origin - 12) / DAY);
   const top = (minute: number) => minute * ppm;
   const hours = Array.from({ length: DAY / 60 + 1 }, (_, i) => i * 60);
   const compact = days.length > 1;
@@ -217,7 +220,6 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, jump 
   const template = columnsOf(days.length);
   return (
     <>
-      {head}
       <div style={{ position: "relative", display: "flex", flexDirection: "column", flex: 1, minHeight: 0 }}>
       {away === null || !jump ? null : (
         <div style={{ order: away === "up" ? -1 : 1, flex: "none", display: "flex", justifyContent: "flex-end", padding: "2px 6px" }}>
@@ -226,6 +228,7 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, jump 
           </Button>
         </div>
       )}
+      {head === undefined ? null : <div style={{ position: "absolute", top: 0, left: 0, right: 0, zIndex: 6, pointerEvents: "none" }}>{head}</div>}
       <div ref={scroller} className="scroll" onScroll={(event) => setScrolled(event.currentTarget.scrollTop)} style={{ flex: 1, minHeight: 0 }}>
       {none ? (
         <div style={{ position: "sticky", top: 0, height: 0, zIndex: 1, pointerEvents: "none" }}>
@@ -236,11 +239,11 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, jump 
           </div>
         </div>
       ) : null}
-      <div style={{ position: "relative", display: "grid", gridTemplateColumns: template, height: DAY * ppm + TOP_PAD + 12, paddingTop: TOP_PAD }}>
-        <div style={{ position: "absolute", left: 0, right: 0, top: TOP_PAD, height: DAY * ppm, zIndex: 0, pointerEvents: "none" }} aria-hidden="true">
+      <div style={{ position: "relative", display: "grid", gridTemplateColumns: template, height: DAY * ppm + origin + 12 }}>
+        <div style={{ position: "absolute", left: 0, right: 0, top: origin, height: DAY * ppm, zIndex: 0, pointerEvents: "none" }} aria-hidden="true">
           {hours.map((m) => (
             <div key={m} style={{ position: "absolute", left: 0, right: 0, top: top(m), borderTop: "1px solid var(--rule)" }}>
-              <span style={{ position: "absolute", top: -9, left: 0, width: AXIS_W, visibility: nowMinute !== null && Math.abs(nowMinute - m) * ppm < 14 ? "hidden" : "visible", paddingRight: 10, textAlign: "right", fontSize: 12, lineHeight: "16px", color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{hourText(m)}</span>
+              <span style={{ position: "absolute", top: -9, left: 0, width: AXIS_W, visibility: nowMinute !== null && Math.abs(nowMinute - m) * ppm < 26 ? "hidden" : "visible", paddingRight: 10, textAlign: "right", fontSize: 12, lineHeight: "16px", color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap" }}>{hourText(m)}</span>
             </div>
           ))}
         </div>
@@ -251,26 +254,25 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, jump 
             <div key={day.toISOString()} data-day={day.toISOString().slice(0, 10)} style={{ position: "relative", borderLeft: compact ? "1px solid var(--rule)" : "none", background: compact && index === todayIndex ? "var(--sage-fill)" : "transparent" }}>
               {gapsBetween(segments, FREE_MIN).map((gap) =>
                 compact || (gap.endMin - gap.startMin) * ppm < 26 ? null : (
-                  <div key={gap.startMin} aria-label={`Free ${formatSpan(gap.endMin - gap.startMin)}`} style={{ position: "absolute", left: 0, right: 0, top: top(gap.startMin), height: (gap.endMin - gap.startMin) * ppm, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 1 }}>
+                  <div key={gap.startMin} aria-label={`Free ${formatSpan(gap.endMin - gap.startMin)}`} style={{ position: "absolute", left: 0, right: 0, top: origin + top(gap.startMin), height: (gap.endMin - gap.startMin) * ppm, display: "flex", alignItems: "center", justifyContent: "center", pointerEvents: "none", zIndex: 1 }}>
                     <span style={{ fontSize: compact ? 11 : 12, color: "var(--ink-faint)", background: "var(--glass-solid)", padding: "1px 8px", borderRadius: 999 }}>{`Free · ${formatSpan(gap.endMin - gap.startMin)}`}</span>
                   </div>
                 ),
               )}
               {segments.map((segment) => (
-                <Block key={segment.block.id} segment={segment} now={now} state={timeState(segment.block, now, nextId)} zone={zone} top={top(segment.startMin)} height={Math.max(MIN_BLOCK, (segment.endMin - segment.startMin) * ppm - 2)} selected={selected === segment.block.id} compact={compact} onOpen={onOpen} />
+                <Block key={segment.block.id} segment={segment} now={now} state={timeState(segment.block, now, nextId)} zone={zone} top={origin + top(segment.startMin)} height={Math.max(MIN_BLOCK, (segment.endMin - segment.startMin) * ppm - 2)} selected={selected === segment.block.id} compact={compact} onOpen={onOpen} />
               ))}
             </div>
           );
         })}
         {nowMinute !== null ? (
           <>
-            <div style={{ position: "absolute", left: AXIS_W - 4, right: 0, top: TOP_PAD + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", opacity: compact ? 0.3 : 1, zIndex: 1, pointerEvents: "none" }} />
-            <span style={{ position: "absolute", left: 2, width: AXIS_W - 10, top: TOP_PAD + top(nowMinute) - 10, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 999, zIndex: 4, pointerEvents: "none" }}>
-              <span aria-hidden="true" className="animate-pulse-out pointer-events-none absolute inset-0 rounded-full ring-1 ring-sage [--pulse-from:0.7] [--pulse-scale:1.35]" />
+            <div style={{ position: "absolute", left: AXIS_W, right: 0, top: origin + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", opacity: compact ? 0.3 : 1, zIndex: 1, pointerEvents: "none" }} />
+            <span style={{ position: "absolute", left: 2, width: AXIS_W - 10, top: origin + top(nowMinute) - 10, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 999, zIndex: 4, pointerEvents: "none" }}>
               <span style={{ position: "relative" }}>{formatClock(now.toISOString())}</span>
             </span>
             {compact && todayIndex >= 0 ? (
-              <div style={{ position: "absolute", left: `calc(${AXIS_W}px + (100% - ${AXIS_W}px) * ${todayIndex / days.length})`, width: `calc((100% - ${AXIS_W}px) / ${days.length})`, top: TOP_PAD + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", zIndex: 1, pointerEvents: "none" }} />
+              <div style={{ position: "absolute", left: `calc(${AXIS_W}px + (100% - ${AXIS_W}px) * ${todayIndex / days.length})`, width: `calc((100% - ${AXIS_W}px) / ${days.length})`, top: origin + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", zIndex: 1, pointerEvents: "none" }} />
             ) : null}
           </>
         ) : null}

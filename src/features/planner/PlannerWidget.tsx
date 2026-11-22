@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, planner } from "../../shared/api";
+import { StateView } from "../../shared/states/ModuleState";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -68,7 +69,7 @@ export function PlanRow({ row, now, state, wide, first, last }: PlanRowProps) {
         <span className="text-[12px] leading-4 text-ink-muted tabular-nums">{formatClock(plan.end_at!)}</span>
       </span>
       <span className="relative flex size-2.5 flex-none items-center justify-center" style={{ marginTop: (LINE - 10) / 2 }}>
-        <span className={`dot size-2.5 ${current ? "dot-pulse bg-sage-deep" : over ? "bg-sage-line" : declined ? "border-2 border-ink-ghost bg-bone" : "border-2 bg-bone"}`} style={!current && !over && !declined ? { borderColor: plan.hub === null ? "var(--sage-line)" : "var(--tide)" } : undefined} />
+        <span className={`dot size-2.5 ${current ? "bg-sage-deep" : over ? "bg-sage-line" : declined ? "border-2 border-ink-ghost bg-bone" : "border-2 bg-bone"}`} style={!current && !over && !declined ? { borderColor: plan.hub === null ? "var(--sage-line)" : "var(--tide)" } : undefined} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1 pr-1">
         <Truncate text={plan.title} className={`text-[14px] leading-5 ${current ? "font-semibold" : "font-medium"}`} />
@@ -94,13 +95,15 @@ type BodyProps = {
 /** Today's plans as the window the tile can hold, with the tasks footer. */
 function Body({ plans, taskLine, now, geometry }: BodyProps) {
   const over = plans.length > 0 && plans.every((plan) => Date.parse(plan.end_at!) <= now.getTime());
-  const { rows, earlier, later } = windowRows(plans, now, Math.max(ROW.plan, geometry.bh - FOOTER));
+  const footer = taskLine !== null && taskLine.total > 0;
+  const { rows, earlier, later } = windowRows(plans, now, Math.max(ROW.plan, geometry.bh - (footer || over ? FOOTER : 0)));
   const planRows = rows.flatMap((row, index) => (row.kind === "plan" ? [index] : []));
   const nextId = nextPlanId(plans, now);
   const complete = taskLine !== null && taskLine.total > 0 && taskLine.done === taskLine.total;
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-2">
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden" style={{ gap: ROW.gap }}>
+        {plans.length === 0 ? <StateView dense={geometry.bh < 220} kind="empty" title="No plans today" detail="Plans appear here as agents schedule them." /> : null}
         {earlier > 0 ? (
           <span className="flex flex-none items-center" style={{ height: ROW.chip, paddingLeft: PAD_X + TIME_COL + 12 + 10 + 12 }}>
             <span className="text-[12px] text-ink-muted tabular-nums">{`↑ ${earlier} earlier`}</span>
@@ -122,12 +125,16 @@ function Body({ plans, taskLine, now, geometry }: BodyProps) {
           </span>
         ) : null}
       </div>
-      <div className="flex flex-none flex-col justify-end gap-1.5" style={{ height: FOOTER - 8 }}>
-        <span className="truncate text-[13px] text-ink-muted tabular-nums">{[over ? dayRecap(plans) : "", taskLine === null || taskLine.total === 0 ? "No tasks today" : complete ? "All tasks done" : `${taskLine.done} of ${taskLine.total} tasks`].filter((part) => part !== "").join(" · ")}</span>
-        <span className="h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--sage-deep) 14%, transparent)" }}>
-          <span className="block h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: taskLine === null || taskLine.total === 0 ? 0 : `${(taskLine.done / taskLine.total) * 100}%`, background: complete ? "var(--sage-deep)" : "var(--sage)" }} />
-        </span>
-      </div>
+      {footer || over ? (
+        <div className="flex flex-none flex-col justify-end gap-1.5" style={{ height: FOOTER - 8 }}>
+          <span className="truncate text-[13px] text-ink-muted tabular-nums">{[over ? dayRecap(plans) : "", !footer ? "" : complete ? "All tasks done" : `${taskLine!.done} of ${taskLine!.total} tasks`].filter((part) => part !== "").join(" · ")}</span>
+          {footer ? (
+            <span className="h-1.5 overflow-hidden rounded-full" style={{ background: "color-mix(in srgb, var(--sage-deep) 14%, transparent)" }}>
+              <span className="block h-full rounded-full transition-[width] duration-700 ease-out" style={{ width: `${(taskLine!.done / taskLine!.total) * 100}%`, background: complete ? "var(--sage-deep)" : "var(--sage)" }} />
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -160,7 +167,7 @@ export function PlannerWidget({ order }: { order: number }) {
       order={order}
       summary={state.kind === "ready" ? `${plans.length} ${plans.length === 1 ? "plan" : "plans"} today` : undefined}
       loading={state.kind === "loading"}
-      notice={state.kind === "ready" && plans.length === 0 ? { kind: "empty", title: "No plans today", detail: "Plans appear here as agents schedule them." } : tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["No plans today", "Plans appear here as agents schedule them."] }, () => void query.refetch())}
+      notice={tileNotice(state, { name: "Yaad", request: "POST /timeline", empty: ["No plans today", "Plans appear here as agents schedule them."] }, () => void query.refetch())}
       skeleton={(g) => (
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           {Array.from({ length: Math.max(2, Math.min(5, Math.floor(g.bh / ROW.plan))) }, (_, i) => (

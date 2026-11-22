@@ -123,7 +123,7 @@ export function spanRange(plan: Plan): string | null {
 
 /** The fill, border and ink of an all-day bar: course tide, otherwise sage, muted and dashed when declined. */
 export function barLook(plan: Plan): { background: string; border: string; color: string } {
-  if (plan.rsvp === "no") return { background: "var(--bone)", border: "1px dashed var(--ink-ghost)", color: "var(--ink-muted)" };
+  if (plan.rsvp === "no") return { background: "var(--slab-declined)", border: "1px dashed var(--slab-declined-border)", color: "var(--ink-muted)" };
   return plan.hub === null
     ? { background: "var(--sage-active)", border: "1px solid var(--sage-line)", color: "var(--sage-text)" }
     : { background: "var(--tide-fill)", border: "1px solid var(--tide-line)", color: "var(--tide-ink)" };
@@ -132,25 +132,6 @@ export function barLook(plan: Plan): { background: string; border: string; color
 /** The plans the time grid draws: timed, with a start and an end (a plan that runs past midnight is clipped to each day by the grid). */
 export function gridPlans(plans: Plan[]): Plan[] {
   return plans.filter((plan) => !plan.all_day && plan.end_at !== null);
-}
-
-/** What one Week day header says about all-day and multi-day plans: their titles, and whether a bar runs on from the day before or into the next. */
-export type AllDayMark = { titles: string[]; fromPrev: boolean; toNext: boolean };
-
-/**
- * One entry per day of `days`: the bar plans (all-day or multi-day) touching it, or null when none does. A multi-day plan
- * marks every shown day it covers and joins neighbouring days, so the header can draw one continuous hairline.
- */
-export function allDayMarks(plans: Plan[], days: Date[]): Array<AllDayMark | null> {
-  const bars = plans.filter((plan) => runsAsBar(plan)).flatMap((plan) => {
-    const span = barColumns(plan, days);
-    return span === null ? [] : [{ plan, ...span }];
-  });
-  return days.map((_, index) => {
-    const here = bars.filter((bar) => bar.from <= index && index <= bar.to);
-    if (here.length === 0) return null;
-    return { titles: here.map((bar) => bar.plan.title), fromPrev: here.some((bar) => bar.from < index), toNext: here.some((bar) => bar.to > index) };
-  });
 }
 
 /** The plans the all-day band draws: all-day plans and plans that run past a day. */
