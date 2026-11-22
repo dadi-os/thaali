@@ -3,7 +3,7 @@ import { chaavi } from "../../shared/api";
 import { Button, ButtonGroup, IconButton } from "../../shared/ui/Button";
 import { Field, FieldGroup, FIELD_INPUT, SelectField, TextField } from "../../shared/ui/Field";
 import { Icon } from "../../shared/ui/Icon";
-import { Sheet } from "../../shared/overlay/Sheet";
+import { PreviewModal } from "../../shared/overlay/PreviewModal";
 import { confirmOwner } from "../../shared/desktop/owner";
 import { pushToast } from "../../contexts/toasts";
 import type { ChaaviFolder, ChaaviItemType, ChaaviReveal } from "../../types/chaavi";
@@ -103,7 +103,7 @@ function fieldsFor(type: ChaaviItemType): FormField[] {
   return [];
 }
 
-export type ItemSheetProps = {
+export type ItemModalProps = {
   /** `create` lets the kind change; `edit` keeps it. */
   mode: "create" | "edit";
   /** The starting draft: empty for create, the item's public values for edit. */
@@ -113,11 +113,16 @@ export type ItemSheetProps = {
   folders: ChaaviFolder[];
   /** A save is in flight. */
   pending: boolean;
-  /** Whether the sheet is showing; closing plays its exit. */
+  /** Whether the modal is showing; closing plays its exit. */
   open: boolean;
   onClose: () => void;
   onSubmit: (draft: ItemDraft) => void;
+  /** Draw over the nearest positioned ancestor instead of the window, so the design gallery can frame it. */
+  scoped?: boolean;
 };
+
+/** The modal's panel: a form's width, as tall as the window allows. */
+const PANEL = "h-[min(780px,calc(100%-96px))] w-[min(560px,calc(100%-48px))]";
 
 /** The order the kind select lists kinds in. */
 const KINDS: ChaaviItemType[] = ["login", "note", "card", "bankAccount", "identity", "sshKey", "driversLicense", "passport"];
@@ -136,11 +141,11 @@ function Eye({ name, editing, loaded, shown, onClick }: EyeProps) {
 }
 
 /**
- * The item sheet over the page: a dim scrim and a panel from the right edge holding the item's kind (a new item picks one), its name, its fields, its notes, its
+ * The item form in a centred {@link PreviewModal}, holding the item's kind (a new item picks one), its name, its fields, its notes, its
  * custom fields and its folder. A stored secret starts blank and untouched, so a blank one keeps its value; the eye reads it in after the computer's owner check,
  * and typing replaces it. What stops a save is told in a toast.
  */
-export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClose, onSubmit }: ItemSheetProps) {
+export function ItemModal({ mode, initial, itemId, folders, pending, open, onClose, onSubmit, scoped = false }: ItemModalProps) {
   const [draft, setDraft] = useState<ItemDraft>(initial);
   const [shown, setShown] = useState<Set<string>>(new Set());
   const editing = mode === "edit";
@@ -349,12 +354,8 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
   };
 
   return (
-    <Sheet open={open} onClose={onClose} label={title} locked={pending}>
-      <div className="flex min-h-0 flex-1 flex-col gap-4 p-6">
-        <div className="flex items-center gap-2.5">
-          <span className="min-w-0 flex-1 text-[20px] font-semibold">{title}</span>
-          <IconButton icon="close" label="Close" disabled={pending || undefined} onClick={onClose} />
-        </div>
+    <PreviewModal scoped={scoped} open={open} onClose={onClose} label={title} locked={pending} panelClassName={PANEL} title={<span className="text-[17px] leading-6 font-semibold tracking-[-0.015em] text-ink">{title}</span>}>
+      <div className="flex min-h-0 flex-1 flex-col gap-4 p-5">
         {editing ? null : <SelectField label="Kind" value={draft.type} options={KINDS.map((type): [string, string] => [type, TYPE_META[type].one])} onChange={(value) => setDraft((current) => retype(current, value as ChaaviItemType))} />}
         <div className="scroll -m-0.5 flex min-h-0 flex-1 flex-col gap-4 p-0.5">
           <TextField label="Name" autoFocus value={draft.name} onChange={(value) => update((next) => void (next.name = value))} />
@@ -381,6 +382,6 @@ export function ItemSheet({ mode, initial, itemId, folders, pending, open, onClo
           </Button>
         </ButtonGroup>
       </div>
-    </Sheet>
+    </PreviewModal>
   );
 }

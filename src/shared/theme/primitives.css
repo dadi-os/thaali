@@ -629,7 +629,7 @@
     justify-content: center;
   }
 
-  /* The layer behind a modal: it covers the window, dims it and softens what is behind. */
+  /* The layer behind a modal: it covers the window, frosts what is behind it: a bone-tinted dim and a strong blur. */
   .modal-scrim {
     position: fixed;
     inset: 0;
@@ -637,9 +637,9 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    background: rgba(44, 48, 42, 0.34);
-    -webkit-backdrop-filter: blur(6px);
-    backdrop-filter: blur(6px);
+    background: color-mix(in srgb, var(--bone) 34%, rgba(44, 48, 42, 0.18));
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
   }
 
   .scrim-leaving {

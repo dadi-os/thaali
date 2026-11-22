@@ -4,7 +4,6 @@ import { createRoot } from "react-dom/client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Dialog } from "./Dialog";
 import { PreviewModal } from "./PreviewModal";
-import { Sheet } from "./Sheet";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -48,12 +47,12 @@ describe("PreviewModal", () => {
   });
 });
 
-describe("Dialog and Sheet", () => {
-  it("are the shared modal scoped to the surface they sit in, not portaled to the body", async () => {
+describe("Dialog", () => {
+  it("and a scoped PreviewModal are the shared modal drawn to the surface they sit in, not portaled to the body", async () => {
     const host = await mount(
       <>
         <Dialog open onClose={vi.fn()} title="Delete Chase?">sure</Dialog>
-        <Sheet open onClose={vi.fn()} label="Item">row</Sheet>
+        <PreviewModal scoped open onClose={vi.fn()} label="Item" title="Item">row</PreviewModal>
       </>,
     );
     const panels = host.querySelectorAll<HTMLElement>("[role=dialog].modal-panel");

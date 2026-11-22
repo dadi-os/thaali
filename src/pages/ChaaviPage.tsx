@@ -9,7 +9,7 @@ import { FolderPane } from "../features/chaavi/FolderPane";
 import { isWithin, subtreeRenames } from "../features/chaavi/folders";
 import { ItemDetail } from "../features/chaavi/ItemDetail";
 import { DragGhost, ItemList } from "../features/chaavi/ItemList";
-import { ItemSheet } from "../features/chaavi/ItemSheet";
+import { ItemModal } from "../features/chaavi/ItemModal";
 import { chaavi, isMeshOnline } from "../shared/api";
 import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../shared/api/chaavi";
 import { Button } from "../shared/ui/Button";
@@ -321,7 +321,7 @@ export function ChaaviPage() {
           {ready && state.stale !== null && connection === "connected" ? <StaleBanner text={`Showing what Chaavi reported ${formatRelative(new Date(state.stale.since).toISOString())}`} onRetry={retry} /> : null}
           {renderBody(room.width)}
           {shown?.kind === "create" || shown?.kind === "edit" ? (
-            <ItemSheet
+            <ItemModal
               open={overlay !== null}
               mode={shown.kind}
               initial={shown.kind === "create" ? shown.draft : draftFromItem(shown.item)}

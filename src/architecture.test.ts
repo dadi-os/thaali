@@ -34,7 +34,7 @@ describe("where input and the operating system are handled", () => {
   });
 
   it("closes overlays only through the dismiss stack, never with its own Escape handler", () => {
-    expect(filesMatching(/key === "Escape"/).filter((path) => !path.startsWith("shared/interaction/"))).toEqual(expect.not.arrayContaining(["shared/overlay/Dialog.tsx", "shared/overlay/Sheet.tsx", "shared/overlay/Popover/index.tsx"]));
+    expect(filesMatching(/key === "Escape"/).filter((path) => !path.startsWith("shared/interaction/"))).toEqual(expect.not.arrayContaining(["shared/overlay/Dialog.tsx", "shared/overlay/Popover/index.tsx"]));
   });
 
   it("reaches the Tauri APIs only from the desktop layer, the API layer and the one window-bound radio file", () => {

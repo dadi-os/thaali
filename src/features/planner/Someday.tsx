@@ -53,15 +53,15 @@ type SectionProps = {
   children: ReactNode;
 };
 
-/** A titled section of the modal: its label and count over its rows. */
+/** A titled column of the modal: its label and count over its rows, which scroll on their own. */
 function Section({ label, count, children }: SectionProps) {
   return (
-    <section aria-label={label} className="flex flex-col gap-2">
+    <section aria-label={label} className="flex min-h-0 flex-col gap-2">
       <div className="flex items-baseline gap-2 px-1">
         <span className="ui-label">{label}</span>
         <span className="text-[12px] text-ink-muted tabular-nums">{count}</span>
       </div>
-      {children}
+      <div className="scroll min-h-0 flex-1">{children}</div>
     </section>
   );
 }
@@ -149,12 +149,12 @@ export type SomedayModalProps = {
   onOpenPlan: (plan: Plan, element: Element) => void;
 };
 
-/** The modal's panel: a page's width, as tall as the window allows. */
-const PANEL = "h-[min(780px,calc(100%-96px))] w-[min(560px,calc(100%-48px))]";
+/** The modal's panel: two columns wide, as tall as the window allows. */
+const PANEL = "h-[min(780px,calc(100%-96px))] w-[min(880px,calc(100%-48px))]";
 
 /**
  * Everything with no time on it, in a {@link PreviewModal} of its own: the Someday tasks (repeats grouped under one row with
- * their count, each with its keeper and when it was last checked) and the plans that have a day but no end. Each section says
+ * their count, each with its keeper and when it was last checked) and the plans that have a day but no end. The sections sit side by side, each scrolling on its own, and stack in a narrow panel. Each says
  * when it is empty. Ticking a task is optimistic with Undo, like the Checklist.
  */
 export function SomedayModal({ open, now, onClose, onOpenPlan }: SomedayModalProps) {
@@ -171,29 +171,41 @@ export function SomedayModal({ open, now, onClose, onOpenPlan }: SomedayModalPro
       title={<span className="text-[17px] leading-6 font-semibold tracking-[-0.015em] text-ink">Someday</span>}
       subtitle={count === 0 ? "Nothing waiting for a time" : `${count} ${count === 1 ? "thing" : "things"} with no time yet`}
     >
-      <div className="scroll flex min-h-0 flex-1 flex-col gap-5 px-4 pb-5">
-        <Section label="Tasks" count={tasks.length}>
-          {taskGroups.length === 0 ? (
-            <StateView dense kind="empty" title="No loose tasks" detail="Tasks with no close date appear here." />
-          ) : (
-            <ul className="m-0 flex flex-col gap-0.5 p-0">
-              {taskGroups.map((group) => (
-                <Grouped key={group.key} group={group} single={(task) => <TaskRow key={task.id} task={task} now={now} onTick={tick} />} render={(task) => <TaskRow key={task.id} task={task} now={now} onTick={tick} grouped />} />
-              ))}
-            </ul>
-          )}
-        </Section>
-        <Section label="Plans" count={plans.length}>
-          {planGroups.length === 0 ? (
-            <StateView dense kind="empty" title="No loose plans" detail="Plans with a day but no end time appear here." />
-          ) : (
-            <ul className="m-0 flex flex-col gap-0.5 p-0">
-              {planGroups.map((group) => (
-                <Grouped key={group.key} group={group} single={(plan) => <PlanRow key={plan.id} plan={plan} dated={false} onOpenPlan={onOpenPlan} />} render={(plan) => <PlanRow key={plan.id} plan={plan} dated onOpenPlan={onOpenPlan} />} />
-              ))}
-            </ul>
-          )}
-        </Section>
+      <div className="@container flex min-h-0 flex-1 flex-col">
+        <div className="grid min-h-0 flex-1 grid-cols-1 grid-rows-2 gap-4 px-4 py-4 @[720px]:grid-cols-2 @[720px]:grid-rows-1">
+          <Section label="Tasks" count={tasks.length}>
+            {taskGroups.length === 0 ? (
+              <StateView dense kind="empty" title="No loose tasks" detail="Tasks with no close date appear here." />
+            ) : (
+              <ul className="m-0 flex flex-col gap-0.5 p-0">
+                {taskGroups.map((group) => (
+                  <Grouped
+                    key={group.key}
+                    group={group}
+                    single={(task) => <TaskRow key={task.id} task={task} now={now} onTick={tick} />}
+                    render={(task) => <TaskRow key={task.id} task={task} now={now} onTick={tick} grouped />}
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
+          <Section label="Plans" count={plans.length}>
+            {planGroups.length === 0 ? (
+              <StateView dense kind="empty" title="No loose plans" detail="Plans with a day but no end time appear here." />
+            ) : (
+              <ul className="m-0 flex flex-col gap-0.5 p-0">
+                {planGroups.map((group) => (
+                  <Grouped
+                    key={group.key}
+                    group={group}
+                    single={(plan) => <PlanRow key={plan.id} plan={plan} dated={false} onOpenPlan={onOpenPlan} />}
+                    render={(plan) => <PlanRow key={plan.id} plan={plan} dated onOpenPlan={onOpenPlan} />}
+                  />
+                ))}
+              </ul>
+            )}
+          </Section>
+        </div>
       </div>
     </PreviewModal>
   );

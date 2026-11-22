@@ -26,7 +26,7 @@ thaali/
     contexts/               app-wide state every layer assumes: connection, what each agent is running, chat, drafts, toasts, takeover, dock requests, the desktop shell
     shared/
       ui/                   primitives with no domain knowledge: Button, IconButton, Pill, Segmented, Chip, Switch, Icon (the one icon set), Card, Badge, Skeleton, Truncate, AgentName, Disclosure, CopyButton
-      overlay/              everything that floats, on one dismiss stack: Dialog, ConfirmDialog, LargeDialog, Sheet, MenuSurface (the one menu), AnchoredMenu, ContextMenuHost, Popover, Tooltip, Toast
+      overlay/              everything that floats, on one dismiss stack: Modal (the one centred frame, with a frosting scrim, that Dialog, ConfirmDialog and PreviewModal are built on; no side sheets), MenuSurface (the one menu), AnchoredMenu, ContextMenuHost, Popover, Tooltip, Toast
       interaction/          the desktop input system: scroll edge fades, scoped select all, the one context menu (useContextActions), Action lists, shortcuts, the dismiss stack
       motion/               the only place a duration, easing, spring or enter/exit shape is chosen
       layout/               Page (frame, side panel dock or drawer), Measured, shell/ (AppShell, TitleBar, WindowControls, PageHeader, OfflinePill, Toaster), Wordmark, FieldBloom
@@ -80,7 +80,7 @@ Every page can be loaded against typed fixtures instead of the mesh, and capture
 npm run dev -- --config vite.visual.config.ts   # then open http://127.0.0.1:5174/hath?fixtures=asking
 npm run visual -- --out /tmp/thaali-visual       # every page x scenario at 1440 wide, with DOM checks
 npm run visual -- --out <dir> --pages hath,system --scenarios normal,asking --widths 900,1440,1920,1080x1920 --interact
-npm run visual -- --out <dir> --flow chaavi      # the scripted flows whose name starts with chaavi: browse, the new-item sheet, the delete dialog
+npm run visual -- --out <dir> --flow chaavi      # the scripted flows whose name starts with chaavi: browse, the new-item modal, the delete dialog
 ```
 
 - `?fixtures=<scenario>` (dev server only) swaps the transport for `src/dev/fixtureTransport.ts`. Scenarios: `normal`, `loading` (requests never answer), `offline`, `blip` (connected, then the mesh drops after 4 s), `module-offline` (Ghar, Yaad and Chaavi answer 502), `errors` (every request fails), `empty`, `long` (long names, messages and paths), `many` (about 120 agents, 40 tasks, 1,800 memory nodes), `asking` (a helper task waiting on its agent) `tasks-error` (only Nas's task list fails) and `errors-error` (only Nas's recent errors fail).

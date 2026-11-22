@@ -39,6 +39,13 @@ describe("Modal", () => {
     expect(panel.closest(".modal-scrim")?.parentElement).toBe(document.body);
   });
 
+  it("frosts what is behind it with its scrim, which holds the centred panel", async () => {
+    await mount(<Modal open onClose={vi.fn()} label="Files">body</Modal>);
+    const scrim = document.body.querySelector<HTMLElement>(".modal-scrim")!;
+    expect(scrim.querySelector("[role=dialog]")).not.toBeNull();
+    expect(scrim.parentElement).toBe(document.body);
+  });
+
   it("closes on a press outside the panel and not on one inside it", async () => {
     const onClose = vi.fn();
     await mount(<Modal open onClose={onClose} label="Files"><button type="button">inside</button></Modal>);
