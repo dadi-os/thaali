@@ -1,6 +1,7 @@
 import { Card } from "../../shared/ui/Card";
 import { Skeleton } from "../../shared/ui/Skeleton";
-import { AXIS_W, columnsOf } from "./TimeGrid";
+import { AXIS_W } from "./TimeGrid";
+import { WEEK, weekColumns, weekHeadHeight } from "./weekLayout";
 
 /** Skeleton hour rows: a label and a rule, with a block drawn on some of them. */
 function Hours({ blocks }: { blocks: number[] }) {
@@ -42,36 +43,41 @@ export function DayLoading({ wide }: { wide: boolean }) {
   );
 }
 
-/** What the Week view looks like while it loads: seven day bubbles over seven columns of hour rows with a few blocks. */
+/** What the Week view looks like while it loads: seven day bubbles floating over the hour lines, with a few slabs in the columns, on the Week's own spacing. */
 export function WeekLoading() {
   const blocks = [[1, 4], [2], [1, 3, 5], [4], [2, 5], [3], []];
+  const origin = weekHeadHeight(0);
   return (
-    <Card style={{ flex: 1, padding: "0 14px 14px", minHeight: 0 }}>
-      <div style={{ display: "grid", gridTemplateColumns: columnsOf(7), borderBottom: "1px solid var(--rule)" }}>
+    <Card style={{ position: "relative", flex: 1, padding: 0, minHeight: 0, overflow: "hidden" }}>
+      <div style={{ position: "absolute", top: WEEK.top, left: 0, right: 0, display: "grid", gridTemplateColumns: weekColumns(7), zIndex: 1 }}>
         <div />
         {Array.from({ length: 7 }, (_, i) => (
-          <div key={i} style={{ margin: "8px 4px 10px" }}>
-            <Skeleton width="100%" height={72} radius={22} />
+          <div key={i} style={{ display: "flex", justifyContent: "center" }}>
+            <Skeleton width={96} height={WEEK.bubble} radius={WEEK.bubble / 2} />
           </div>
         ))}
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: columnsOf(7), flex: 1, minHeight: 0, paddingTop: 12 }}>
-        <div className="flex flex-col" style={{ paddingRight: 10 }}>
-          {Array.from({ length: 9 }, (_, i) => (
-            <div key={i} className="flex justify-end" style={{ height: 56 }}>
-              <Skeleton width={30} height={10} />
+      <div style={{ position: "absolute", left: 0, right: 0, top: origin, bottom: 0 }}>
+        {Array.from({ length: 10 }, (_, i) => (
+          <div key={i} style={{ position: "absolute", left: WEEK.edge + WEEK.axis, right: 0, top: i * WEEK.hour, borderTop: "1px solid color-mix(in srgb, var(--rule) 70%, transparent)" }}>
+            <div style={{ position: "absolute", top: -5, left: -WEEK.axis, width: WEEK.axis, display: "flex", justifyContent: "flex-end" }}>
+              <Skeleton width={32} height={10} />
             </div>
-          ))}
-        </div>
-        {blocks.map((rows, c) => (
-          <div key={c} className="relative" style={{ borderLeft: "1px solid var(--rule)" }}>
-            {rows.map((row) => (
-              <div key={row} className="absolute" style={{ left: 3, right: 3, top: row * 56 + 4 }}>
-                <Skeleton width="100%" height={row % 2 === 0 ? 44 : 64} radius={10} />
-              </div>
-            ))}
           </div>
         ))}
+        <div style={{ position: "absolute", inset: 0, display: "grid", gridTemplateColumns: weekColumns(7) }}>
+          <div />
+          {blocks.map((rows, c) => (
+            <div key={c} style={{ position: "relative" }}>
+              {rows.map((row) => (
+                <div key={row} style={{ position: "absolute", left: WEEK.inset, right: WEEK.inset, top: row * WEEK.hour + WEEK.blockGap / 2 }}>
+                  <Skeleton width="100%" height={row % 2 === 0 ? WEEK.hour - WEEK.blockGap : WEEK.hour * 1.5 - WEEK.blockGap} radius={11} />
+                </div>
+              ))}
+            </div>
+          ))}
+          <div />
+        </div>
       </div>
     </Card>
   );

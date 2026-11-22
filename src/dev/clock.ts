@@ -1,5 +1,5 @@
 /**
- * Dev only: `?clock=HH:MM` on a fixtures URL moves the app's clock to that time today (it keeps running from there), so a
+ * Dev only: `?clock=HH:MM` on a fixtures URL moves the app's clock to that time today (it keeps running from there; `&clockdays=-3` moves it that many days first), so a
  * render can put "now" inside a plan, in a free gap, or late in a busy day whatever time it is for real.
  */
 export function installClock(search: string): void {
@@ -13,6 +13,7 @@ export function installClock(search: string): void {
   }
   const RealDate = Date;
   const target = new RealDate();
+  target.setDate(target.getDate() + Number(new URLSearchParams(search).get("clockdays") ?? 0));
   target.setHours(Number(match[1]), Number(match[2]), 0, 0);
   const offset = target.getTime() - RealDate.now();
   class ShiftedDate extends RealDate {

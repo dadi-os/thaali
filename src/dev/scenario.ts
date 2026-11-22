@@ -16,6 +16,7 @@ export const SCENARIOS = [
   "asking",
   "planner-busy",
   "planner-done",
+  "planner-week",
   "tasks-error",
   "errors-error",
   "refused",

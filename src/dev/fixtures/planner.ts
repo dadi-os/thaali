@@ -65,7 +65,7 @@ function plan(day: Date, draft: Draft, now: Date): Plan {
   };
 }
 
-function ordinary(day: Date): Draft[] {
+function ordinary(day: Date, week: boolean): Draft[] {
   const dow = day.getDay();
   const out: Draft[] = [
     { id: "shower-am", title: "Shower", start: at(day, 7, 30), end: at(day, 7, 50), owner: "health-specialist" },
@@ -101,6 +101,20 @@ function ordinary(day: Date): Draft[] {
     out.push({ id: "coffee", title: "Coffee with Maya", start: at(day, 11, 0), end: at(day, 12, 0), rsvp: "yes", place: CAFE, owner: "schedule-specialist" });
     out.push({ id: "chicago", title: "Weekend in Chicago", start: at(day, 0, 0), end: at(new Date(day.getTime() + 86_400_000), 23, 59), allDay: true, owner: "schedule-specialist" });
   }
+  if (week) {
+    if (dow === 1) out.push({ id: "planning", title: "Quarterly planning review with the whole department", start: at(day, 9, 0), end: at(day, 10, 0), owner: "schedule-specialist" });
+    if (dow === 2) out.push({ id: "standup", title: "Standup", start: at(day, 9, 0), end: at(day, 9, 30), owner: "schedule-specialist" });
+    if (dow === 3) out.push({ id: "conf", title: "Midwest Systems Conference", start: at(day, 0, 0), end: at(new Date(day.getTime() + 86_400_000), 23, 59), allDay: true, owner: "schedule-specialist" });
+    if (dow === 4) {
+      out.push({ id: "visit", title: "Campus visit day", start: at(day, 0, 0), end: at(day, 23, 59), allDay: true, owner: "schedule-specialist" });
+      out.push({ id: "hack", title: "Spartahack", start: at(day, 0, 0), end: at(new Date(day.getTime() + 86_400_000), 23, 59), allDay: true, hub: CSE335, owner: "schedule-specialist" });
+    }
+    if (dow === 5) {
+      out.push({ id: "advising", title: "Advising appointment", start: at(day, 10, 0), end: at(day, 11, 30), owner: "schedule-specialist" });
+      out.push({ id: "club", title: "Robotics club meeting", start: at(day, 10, 30), end: at(day, 12, 0), owner: "schedule-specialist" });
+      out.push({ id: "mom", title: "Call with Mom", start: at(day, 16, 0), end: at(day, 16, 30), owner: "schedule-specialist" });
+    }
+  }
   if (day.getDate() === 20) {
     out.push({ id: "dentist", title: "Call the dentist about the cleaning", start: at(day, 10, 0), end: null, owner: "health-specialist" });
   }
@@ -134,7 +148,7 @@ export function plans(scenario: Scenario, request: PlansRequest): { items: Plan[
   const day = startOfDay(new Date(from.getTime() - 86_400_000));
   while (day.getTime() < to.getTime()) {
     const isToday = dateKey(day) === dateKey(now);
-    for (const draft of crowded && isToday ? busy(day) : ordinary(day)) {
+    for (const draft of crowded && isToday ? busy(day) : ordinary(day, scenario === "planner-week")) {
       const built = plan(new Date(day), draft, now);
       const start = new Date(built.start_at).getTime();
       const end = built.end_at === null ? start : new Date(built.end_at).getTime();

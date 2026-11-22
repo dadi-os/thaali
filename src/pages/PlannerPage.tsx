@@ -160,7 +160,7 @@ export function PlannerPage() {
     if (view === "Day")
       return <DayView day={anchor} now={now} zone={zone} plans={plans} selected={popover.openKey} wide={wide} onSomeday={() => setSomeday(true)} onOpenTask={(task, element) => popover.showTask(task, element.getBoundingClientRect())} unavailable={failed ? notice : null} onOpen={open} />;
     if (failed) return <Card style={{ flex: 1, minHeight: 0 }}>{notice}</Card>;
-    if (view === "Week") return <WeekView days={days} now={now} zone={zone} plans={plans} badges={badges((tasks, day) => dayBadge(tasks, day, now))} selected={popover.openKey} onOpen={open} onDay={(day) => navigate("Day", day)} />;
+    if (view === "Week") return <WeekView days={days} now={now} zone={zone} plans={plans} badges={badges((tasks, day) => dayBadge(tasks, day, now))} selected={popover.openKey} onOpen={open} onDay={(day) => navigate("Day", day)} onMore={(day, element) => popover.showDay({ day, plans: plansOn(plans, day), tasks: closingOn(day) }, element.getBoundingClientRect())} />;
     return <MonthView days={days} now={now} anchor={anchor} plans={monthPlans(plans)} badges={badges((tasks, day) => monthBadge(tasks, day))} onOpen={open} onDay={(day) => navigate("Day", day)} onMore={(day, element) => popover.showDay({ day, plans: plansOn(plans, day), tasks: closingOn(day) }, element.getBoundingClientRect())} />;
   };
   return (
