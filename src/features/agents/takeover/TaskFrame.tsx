@@ -5,7 +5,7 @@ import type { NasTask } from "../../../shared/api/nas";
 import { AGENTS_QUERY_KEY } from "../../../shared/hooks/useEvents";
 import { AnchoredMenu } from "../../../shared/overlay/AnchoredMenu";
 import { ConfirmDialog } from "../../../shared/overlay/ConfirmDialog";
-import { Modal } from "../../../shared/overlay/Modal";
+import { PreviewModal } from "../../../shared/overlay/PreviewModal";
 import type { ActionList } from "../../../shared/interaction/actions";
 import { useShortcut } from "../../../shared/interaction/shortcuts";
 import { pushToast } from "../../../contexts/toasts";
@@ -13,7 +13,7 @@ import { setTakeover } from "../../../contexts/takeover";
 import { type Activity } from "./activity";
 import { createControl, type ControlState } from "./control";
 import { STOP_DETAIL, taskMenu } from "./menu";
-import { TakeoverFooter, TakeoverHeader } from "./parts";
+import { taskFooter, taskHead } from "./parts";
 
 /** Why a takeover call failed, as a toast Ankur can read. */
 export function failed(title: string, err: unknown): void {
@@ -73,7 +73,7 @@ type TaskFrameProps = TaskModalProps & {
   children: ReactNode;
 };
 
-/** The frame both task modals share: a {@link Modal} holding the header, the body, the footer, the overflow menu and the confirmation before Stop. */
+/** The frame both task modals share: a {@link PreviewModal} holding the header, the body, the footer, the overflow menu and the confirmation before Stop. */
 export function TaskFrame({ task, resource, open, state, onTakeover, onReturn, onClose, children }: TaskFrameProps) {
   const queryClient = useQueryClient();
   const [menu, setMenu] = useState<DOMRect | null>(null);
@@ -121,10 +121,14 @@ export function TaskFrame({ task, resource, open, state, onTakeover, onReturn, o
   });
   const info = { task: task.task, kind: task.kind, owner: task.owner, purpose: task.purpose, status: task.status, resource };
   return (
-    <Modal open={open} onClose={onClose} label={`${task.kind === "browser" ? "Browser" : "Terminal"} ${task.id}`}>
-      <TakeoverHeader task={info} state={state} onTakeover={onTakeover} onReturn={onReturn} onMenu={setMenu} onClose={onClose} />
+    <PreviewModal
+      open={open}
+      onClose={onClose}
+      label={`${task.kind === "browser" ? "Browser" : "Terminal"} ${task.id}`}
+      {...taskHead(info, { state, onTakeover, onReturn, onMenu: setMenu })}
+      footer={taskFooter(task.kind, resource, state)}
+    >
       {children}
-      <TakeoverFooter kind={task.kind} resource={resource} state={state} />
       <AnchoredMenu actions={actions} anchor={menu} onClose={() => setMenu(null)} width={180} />
       <ConfirmDialog
         open={open && confirmingStop}
@@ -137,7 +141,7 @@ export function TaskFrame({ task, resource, open, state, onTakeover, onReturn, o
         onCancel={() => setConfirmingStop(false)}
         onConfirm={() => void stop()}
       />
-    </Modal>
+    </PreviewModal>
   );
 }
 

@@ -1,10 +1,5 @@
 import type { ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { useDismiss } from "../interaction/dismiss";
-import { floatingSheetMotion, SCRIM } from "../motion";
-
-/** How far the panel floats in from the edges of the surface, in px. */
-const MARGIN = 12;
+import { Modal } from "./Modal";
 
 /** Props of {@link Sheet}. */
 export type SheetProps = {
@@ -24,37 +19,22 @@ export type SheetProps = {
 };
 
 /**
- * A side sheet over the surface it is placed in (the nearest positioned ancestor): a light scrim and a rounded panel that
- * floats a margin in from the window's edges, lifting off the side it enters from and back. Escape and the scrim close it
- * through the shared dismiss stack.
+ * A side sheet over the surface it is placed in (the nearest positioned ancestor): the shared {@link Modal} placed at
+ * an edge, a rounded panel that floats a margin in from the window's edges, lifting off the side it enters from and
+ * back. Escape and the scrim close it through the shared dismiss stack.
  */
 export function Sheet({ open, onClose, label, width = 420, from = "right", locked = false, children }: SheetProps) {
-  useDismiss({ open: open && !locked, onDismiss: onClose });
   return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          key="sheet"
-          className="scrim"
-          style={{ background: "rgba(44, 48, 42, 0.18)", zIndex: "var(--z-scrim)", overflow: "hidden", display: "flex", justifyContent: from === "right" ? "flex-end" : "flex-start", padding: MARGIN, animation: "none" }}
-          onPointerDown={(event) => {
-            if (!locked && event.target === event.currentTarget) {
-              onClose();
-            }
-          }}
-          {...SCRIM}
-        >
-          <motion.div
-            role="dialog"
-            aria-modal="true"
-            aria-label={label}
-            style={{ display: "flex", flexDirection: "column", width, maxWidth: "100%", height: "100%", maxHeight: "100%", minHeight: 0, overflow: "hidden", background: "var(--bone)", border: "1px solid var(--glass-border)", borderRadius: 24, boxShadow: "0 2px 6px rgba(44,48,42,.08), 0 28px 80px rgba(44,48,42,.22)" }}
-            {...floatingSheetMotion(from)}
-          >
-            {children}
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <Modal
+      scoped
+      open={open}
+      onClose={onClose}
+      label={label}
+      locked={locked}
+      placement={from}
+      panelStyle={{ width, maxWidth: "100%", height: "100%", maxHeight: "100%", minHeight: 0, borderRadius: 24 }}
+    >
+      {children}
+    </Modal>
   );
 }

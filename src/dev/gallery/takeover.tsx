@@ -2,8 +2,8 @@ import type { CSSProperties, ReactNode } from "react";
 import { terminalCapture } from "../fixtures/nas";
 import { pageAddress } from "../../features/agents/sessions";
 import { nasTasks } from "../fixtures/tasks";
-import { Modal } from "../../shared/overlay/Modal";
-import { TakeoverBrowser, TakeoverFooter, TakeoverHeader, TakeoverTerminal } from "../../features/agents/takeover/parts";
+import { PreviewModal } from "../../shared/overlay/PreviewModal";
+import { taskFooter, taskHead, TakeoverBrowser, TakeoverTerminal } from "../../features/agents/takeover/parts";
 import { CASES } from "./cases";
 
 /** The takeover modal's cases: the browser and the terminal, watching and in control, and the window at 960 and 1920. */
@@ -51,8 +51,14 @@ function takeover({ task, driving = false, width = 1440, height = 900 }: Takeove
   const info = { task, kind: nas.kind, owner: nas.owner, purpose: nas.purpose, status: nas.status, resource: nas.resource };
   return (
     <div style={{ position: "relative", width, height }}>
-      <Modal inline open onClose={noop} label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`}>
-        <TakeoverHeader task={info} state={state} onTakeover={noop} onReturn={noop} onMenu={noop} onClose={noop} />
+      <PreviewModal
+        scoped
+        open
+        onClose={noop}
+        label={`${nas.kind === "browser" ? "Browser" : "Terminal"} ${nas.id}`}
+        {...taskHead(info, { state, onTakeover: noop, onReturn: noop, onMenu: noop })}
+        footer={taskFooter(nas.kind, nas.resource, state)}
+      >
         {nas.kind === "browser" ? (
           <TakeoverBrowser url={pageAddress(nas.active_url)} task={task} controlling={driving} onBack={noop} onReload={noop}>
             <div style={PAGE}>
@@ -78,8 +84,7 @@ function takeover({ task, driving = false, width = 1440, height = 900 }: Takeove
             <pre style={{ margin: 0, padding: 16, flex: 1 }}>{terminalCapture().output}</pre>
           </TakeoverTerminal>
         )}
-        <TakeoverFooter kind={nas.kind} resource={nas.resource} state={state} />
-      </Modal>
+      </PreviewModal>
     </div>
   );
 }

@@ -8,7 +8,7 @@ import { IconButton } from "../../ui/Button";
 import { MarkdownBody } from "../Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../lib/content/attachments";
 import { saveFile } from "../../desktop/download";
-import { Modal } from "../../overlay/Modal";
+import { PreviewModal } from "../../overlay/PreviewModal";
 import type { AttachmentSummary } from "../../../types/hath";
 
 /** The color themes the viewer highlights with, in light and dark. */
@@ -86,7 +86,7 @@ async function highlight(text: string, filename: string, mediaType: string): Pro
   });
 }
 
-export type PreviewModalProps = {
+export type FileModalProps = {
   /** The file to show, or null when the modal is closed. */
   file: AttachmentSummary | null;
   onClose: () => void;
@@ -97,26 +97,24 @@ const WIDE = "h-[min(88vh,820px)] w-[min(92vw,960px)]";
 const FIT = "max-h-[88vh] max-w-[min(92vw,1200px)]";
 
 /**
- * Previews a file in the shared {@link Modal}: a header naming the file, its kind and size, with copy (text),
- * download and close, over a body for its kind: the image, the PDF, the code colored by its language with line
- * numbers, rendered Markdown (or its source), or, for other files, a card to download them.
+ * A file in the shared {@link PreviewModal}: its name over its kind, line count and size, with copy (text) and
+ * download beside the close button, and a body for its kind: the image, the PDF, the code colored by its language with
+ * line numbers, rendered Markdown (or its source), or, for other files, a card to download them.
  */
-export function PreviewModal({ file, onClose }: PreviewModalProps) {
+export function FileModal({ file, onClose }: FileModalProps) {
   const shown = useRetained(file);
-  return (
-    <Modal open={file !== null} onClose={onClose} label={shown?.filename ?? "File"} panelClassName={shown !== null && viewKind(shown.media_type, shown.filename) === "image" ? FIT : WIDE}>
-      {shown === null ? null : <Preview key={shown.id} file={shown} onClose={onClose} />}
-    </Modal>
-  );
+  return shown === null ? null : <OpenFile key={shown.id} file={shown} open={file !== null} onClose={onClose} />;
 }
 
-type PreviewProps = {
+type OpenFileProps = {
   file: AttachmentSummary;
+  /** False while the modal plays its exit animation. */
+  open: boolean;
   onClose: () => void;
 };
 
-/** The open file's header with its actions over the body for its kind. */
-function Preview({ file, onClose }: PreviewProps) {
+/** One file's modal: it reads the file, then gives the frame its head and the body for its kind. */
+function OpenFile({ file, open, onClose }: OpenFileProps) {
   const kind = viewKind(file.media_type, file.filename);
   const textual = kind === "text" || kind === "markdown";
   const [mode, setMode] = useState<MarkdownMode>("rendered");
@@ -146,26 +144,27 @@ function Preview({ file, onClose }: PreviewProps) {
   ].filter((part) => part !== null);
 
   return (
-    <>
-      <header className="flex h-16 shrink-0 items-center gap-3 border-b border-rule pr-3 pl-6">
-        <div className="flex min-w-0 flex-1 flex-col justify-center gap-1 self-center">
-          <p data-selectable className="m-0 truncate text-[15px] leading-5 font-semibold text-ink" title={file.filename}>
-            {file.filename}
-          </p>
-          <p className="m-0 truncate text-[12.5px] leading-4 text-ink-muted">{meta.join(" · ")}</p>
-        </div>
-        {kind === "markdown" ? (
-          <Segmented options={MARKDOWN_MODES} value={mode} onChange={setMode} label="Markdown view" size="sm" />
-        ) : null}
-        <div className="flex shrink-0 items-center gap-1">
-          {textual && text.data !== undefined ? (
-            <CopyButton text={text.data} label={`Copy ${file.filename}`} size={36} />
-          ) : null}
-          <DownloadButton file={file} text={text.data} />
-          <IconButton icon="close" label="Close" size={36} iconSize={15} onClick={onClose} />
-        </div>
-      </header>
-
+    <PreviewModal
+      open={open}
+      onClose={onClose}
+      label={file.filename}
+      panelClassName={kind === "image" ? FIT : WIDE}
+      title={
+        <span data-selectable className="min-w-0 truncate text-[15px] leading-5 font-semibold text-ink" title={file.filename}>
+          {file.filename}
+        </span>
+      }
+      subtitle={<span className="block truncate text-[12.5px] leading-4">{meta.join(" · ")}</span>}
+      actions={
+        <>
+          {kind === "markdown" ? <Segmented options={MARKDOWN_MODES} value={mode} onChange={setMode} label="Markdown view" size="sm" /> : null}
+          <div className="flex shrink-0 items-center gap-1">
+            {textual && text.data !== undefined ? <CopyButton text={text.data} label={`Copy ${file.filename}`} size={36} /> : null}
+            <DownloadButton file={file} text={text.data} />
+          </div>
+        </>
+      }
+    >
       <div className="scroll min-h-0 flex-1 overflow-auto">
         {kind === "image" ? (
           <div className="file-sheet__canvas flex items-center justify-center">
@@ -202,7 +201,7 @@ function Preview({ file, onClose }: PreviewProps) {
           <pre data-selectable className="code-view__plain font-mono">{text.data}</pre>
         )}
       </div>
-    </>
+    </PreviewModal>
   );
 }
 

@@ -44,67 +44,57 @@ const DOT: Partial<Record<TaskStatus, { color: string; pulse: boolean; label: st
   paused: { color: "var(--ink-faint)", pulse: false, label: "Paused" },
 };
 
-export type TakeoverHeaderProps = {
-  task: TakeoverTask;
+export type TaskPreviewOptions = {
   state: ControlState;
   onTakeover: () => void;
   onReturn: () => void;
   /** Opens the arrow's menu from the split button's box. */
   onMenu: (anchor: DOMRect) => void;
-  onClose: () => void;
 };
 
 /**
- * The modal's header: the task's kind, its id and owner behind a small state dot, its purpose, then one split button.
- * Takeover (Return while Ankur is in control) is the main half and the arrow opens the Pause, Resume and Stop menu.
+ * The head a task's modal gives {@link PreviewModal}: the task's kind as the mark, its id and owner behind a small state
+ * dot over its purpose, and one split button. Takeover (Return while Ankur is in control) is the main half and the arrow
+ * opens the Pause, Resume and Stop menu.
  */
-export function TakeoverHeader({ task, state, onTakeover, onReturn, onMenu, onClose }: TakeoverHeaderProps) {
+export function taskHead(task: TakeoverTask, { state, onTakeover, onReturn, onMenu }: TaskPreviewOptions) {
   const controlling = isControlling(state);
   const busy = state === "pausing" || state === "returning";
   const dot = DOT[task.status];
-  return (
-    <div className="flex min-h-[60px] flex-none items-center gap-3 border-b border-rule py-2 pr-3 pl-4">
-      <span className="flex size-8 flex-none items-center justify-center rounded-[10px] bg-sage-fill text-sage-text">
-        <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={16} />
-      </span>
-      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <div className="flex items-center gap-2.5 text-[13px]">
-          {dot === undefined ? null : (
-            <Tooltip content={dot.label} side="bottom">
-              <span role="img" aria-label={dot.label} className={`dot size-2 ${dot.pulse ? "dot-pulse" : ""}`} style={{ background: dot.color }} />
-            </Tooltip>
-          )}
-          <Truncate text={shortId(task.task)} className="flex-none font-numeric text-ink" />
-          <AgentName name={task.owner} className="flex-1 text-ink-muted" />
-        </div>
-        <Clamp text={task.purpose} lines={1} style={{ fontSize: 13, color: "var(--ink-muted)" }} />
-      </div>
+  return {
+    mark: <Icon name={task.kind === "browser" ? "browser" : "terminal"} size={16} />,
+    title: (
+      <>
+        {dot === undefined ? null : (
+          <Tooltip content={dot.label} side="bottom">
+            <span role="img" aria-label={dot.label} className={`dot size-2 ${dot.pulse ? "dot-pulse" : ""}`} style={{ background: dot.color }} />
+          </Tooltip>
+        )}
+        <Truncate text={shortId(task.task)} className="flex-none font-numeric text-ink" />
+        <AgentName name={task.owner} className="flex-1 text-ink-muted" />
+      </>
+    ),
+    subtitle: <Clamp text={task.purpose} lines={1} style={{ fontSize: 13, color: "var(--ink-muted)" }} />,
+    actions: (
       <SplitButton disabled={busy} onClick={controlling ? onReturn : onTakeover} onMenu={onMenu} menuLabel="More">
         {state === "pausing" ? "Taking over…" : state === "returning" ? "Returning…" : controlling ? "Return" : "Takeover"}
       </SplitButton>
-      <IconButton icon="close" label="Close" size={36} onClick={onClose} />
-    </div>
-  );
+    ),
+  };
 }
 
-export type TakeoverFooterProps = {
-  kind: "browser" | "terminal";
-  resource: string;
-  state: ControlState;
-};
-
-/** The modal's footer: the shortcut that leaves or returns, and where the task runs. */
-export function TakeoverFooter({ kind, resource, state }: TakeoverFooterProps) {
+/** The footer a task's modal gives {@link PreviewModal}: the shortcut that leaves or returns, and where the task runs. */
+export function taskFooter(kind: "browser" | "terminal", resource: string, state: ControlState) {
   const controlling = isControlling(state);
   return (
-    <div className="flex h-11 flex-none items-center gap-3.5 border-t border-rule px-4 text-[13px] text-ink-muted">
+    <>
       <div className="flex items-center gap-1.5">
         <Kbd>{controlling ? "⌘ ." : "Esc"}</Kbd>
         {controlling ? "Return" : "Close"}
       </div>
       <div className="flex-1" />
       <Truncate text={kind === "browser" ? `slot ${resource}` : `tmux ${resource}`} className="ui-mono" />
-    </div>
+    </>
   );
 }
 

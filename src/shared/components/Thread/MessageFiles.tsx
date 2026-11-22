@@ -8,7 +8,7 @@ import { RISE } from "../../motion";
 import { Icon } from "../../ui/Icon";
 import type { AttachmentSummary, MessageAttachment } from "../../../types/hath";
 import { attachmentActions } from "./actions";
-import { PreviewModal } from "../Files/PreviewModal";
+import { FileModal } from "../Files/FileModal";
 
 /** Props of {@link MessageFiles}. */
 export type MessageFilesProps = {
@@ -45,7 +45,7 @@ function FileItem({ file, connected, onOpen }: { file: AttachmentSummary; connec
 
 /**
  * The files a message carries: images as thumbnails, everything else as a chip with its
- * name and size. Any file opens in the PreviewModal while the mesh is connected. Files
+ * name and size. Any file opens in the FileModal while the mesh is connected. Files
  * still sending show by name only.
  */
 export function MessageFiles({ files, sending, align }: MessageFilesProps) {
@@ -73,7 +73,7 @@ export function MessageFiles({ files, sending, align }: MessageFilesProps) {
         ))}
       </AnimatePresence>
 
-      <PreviewModal file={open} onClose={() => setOpen(null)} />
+      <FileModal file={open} onClose={() => setOpen(null)} />
     </div>
   );
 }

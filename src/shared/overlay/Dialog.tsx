@@ -1,8 +1,6 @@
-import { useRef, type ReactNode } from "react";
-import { AnimatePresence, motion } from "motion/react";
-import { useDismiss } from "../interaction/dismiss";
-import { DIALOG, SCRIM } from "../motion";
+import type { ReactNode } from "react";
 import { Truncate } from "../ui/Truncate";
+import { Modal } from "./Modal";
 
 /** Props of {@link Dialog}. */
 export type DialogProps = {
@@ -27,38 +25,20 @@ export type DialogProps = {
 };
 
 /**
- * A dialog over the surface it is placed in (the nearest positioned ancestor): a dim scrim and a panel that
- * grows in and shrinks out. Escape and the scrim close it through the shared dismiss stack, so a menu opened
- * over it closes first.
+ * A small dialog over the surface it is placed in (the nearest positioned ancestor): the shared {@link Modal} with a
+ * titled column inside it. Escape and the scrim close it through the shared dismiss stack, so a menu opened over it
+ * closes first.
  */
 export function Dialog({ open, onClose, title, subtitle, mark, children, footer, width = 380, locked = false }: DialogProps) {
-  const panel = useRef<HTMLDivElement>(null);
-  useDismiss({ open: open && !locked, onDismiss: onClose });
   return (
-    <AnimatePresence>
-      {open ? (
-        <motion.div
-          key="dialog"
-          className="scrim"
-          style={{ background: "rgba(44, 48, 42, 0.22)", zIndex: "var(--z-scrim)", animation: "none" }}
-          onPointerDown={(event) => {
-            if (!locked && event.target === event.currentTarget) {
-              onClose();
-            }
-          }}
-          {...SCRIM}
-        >
-          <motion.div ref={panel} role="dialog" aria-modal="true" aria-label={title} className="dialog-panel" style={{ width, animation: "none" }} {...DIALOG}>
-            {mark}
-            <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-              <span style={{ fontSize: 17, fontWeight: 600 }}>{title}</span>
-              {subtitle ? <Truncate text={subtitle} style={{ minWidth: 0, fontSize: 13, color: "var(--ink-muted)" }} /> : null}
-            </div>
-            {children}
-            {footer ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{footer}</div> : null}
-          </motion.div>
-        </motion.div>
-      ) : null}
-    </AnimatePresence>
+    <Modal scoped open={open} onClose={onClose} label={title} locked={locked} panelClassName="dialog-panel" panelStyle={{ width }}>
+      {mark}
+      <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+        <span style={{ fontSize: 17, fontWeight: 600 }}>{title}</span>
+        {subtitle ? <Truncate text={subtitle} style={{ minWidth: 0, fontSize: 13, color: "var(--ink-muted)" }} /> : null}
+      </div>
+      {children}
+      {footer ? <div style={{ display: "flex", alignItems: "center", gap: 8 }}>{footer}</div> : null}
+    </Modal>
   );
 }

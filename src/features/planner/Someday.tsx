@@ -2,13 +2,13 @@ import { useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, planner } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
+import { PreviewModal } from "../../shared/overlay/PreviewModal";
 import { StateView } from "../../shared/states/ModuleState";
 import { formatAge, formatClock, formatDay } from "../../shared/lib/ux/time";
 import { CheckCircle } from "../../shared/ui/CheckCircle";
 import { Expandable } from "../../shared/ui/Expandable";
 import { Icon } from "../../shared/ui/Icon";
 import { LIST_ROW_CLASS } from "../../shared/ui/ListRow";
-import { IconButton } from "../../shared/ui/Button";
 import { Truncate } from "../../shared/ui/Truncate";
 import type { Plan, Task } from "../../types/planner";
 import { PLANS_KEY } from "./attended";
@@ -19,10 +19,10 @@ import { MessageAgent } from "./taskActions";
 import { dayTasksKey, groupByTitle, isSomeday, SOMEDAY_KEY, type TitleGroup } from "./tasks";
 import { useTaskTick } from "./useTaskTick";
 
-/** How far ahead the sheet looks for plans that have a day but no end, in days. */
+/** How far ahead the modal looks for plans that have a day but no end, in days. */
 const LOOK_AHEAD_DAYS = 90;
 
-/** What the Someday sheet holds: tasks with no window, and plans that have a day but no end. */
+/** What the Someday modal holds: tasks with no window, and plans that have a day but no end. */
 export type SomedayData = { tasks: Task[]; plans: Plan[]; count: number };
 
 /** The Someday tasks (not done) and loose plans, and how many there are in all. */
@@ -53,7 +53,7 @@ type SectionProps = {
   children: ReactNode;
 };
 
-/** A titled section of the sheet: its label and count over its rows. */
+/** A titled section of the modal: its label and count over its rows. */
 function Section({ label, count, children }: SectionProps) {
   return (
     <section aria-label={label} className="flex flex-col gap-2">
@@ -138,34 +138,39 @@ function Grouped<T>({ group, render, single }: GroupedProps<T>) {
   );
 }
 
-export type SomedaySheetProps = {
+export type SomedayModalProps = {
+  /** Whether the modal is showing. */
+  open: boolean;
   /** The ticking clock. */
   now: Date;
-  /** Closes the sheet. */
+  /** Closes the modal. */
   onClose: () => void;
   /** Opens a loose plan's card beside the chosen row. */
   onOpenPlan: (plan: Plan, element: Element) => void;
 };
 
+/** The modal's panel: a page's width, as tall as the window allows. */
+const PANEL = "h-[min(780px,calc(100%-96px))] w-[min(560px,calc(100%-48px))]";
+
 /**
- * Everything with no time on it, in a sheet of its own: the Someday tasks (repeats grouped under one row with their count,
- * each with its keeper and when it was last checked) and the plans that have a day but no end. Each section says when it
- * is empty. Ticking a task is optimistic with Undo, like the Checklist.
+ * Everything with no time on it, in a {@link PreviewModal} of its own: the Someday tasks (repeats grouped under one row with
+ * their count, each with its keeper and when it was last checked) and the plans that have a day but no end. Each section says
+ * when it is empty. Ticking a task is optimistic with Undo, like the Checklist.
  */
-export function SomedaySheet({ now, onClose, onOpenPlan }: SomedaySheetProps) {
+export function SomedayModal({ open, now, onClose, onOpenPlan }: SomedayModalProps) {
   const tick = useTaskTick();
   const { tasks, plans, count } = useSomeday();
   const taskGroups = groupByTitle(tasks);
   const planGroups = groupByTitle(plans);
   return (
-    <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex flex-none items-center gap-3 px-5 pt-5 pb-3">
-        <div className="flex min-w-0 flex-1 flex-col">
-          <h2 className="m-0 text-[20px] leading-7 font-semibold tracking-[-0.015em]">Someday</h2>
-          <span className="text-[13px] text-ink-muted">{count === 0 ? "Nothing waiting for a time" : `${count} ${count === 1 ? "thing" : "things"} with no time yet`}</span>
-        </div>
-        <IconButton icon="close" label="Close" onClick={onClose} />
-      </div>
+    <PreviewModal
+      open={open}
+      onClose={onClose}
+      label="Someday"
+      panelClassName={PANEL}
+      title={<span className="text-[17px] leading-6 font-semibold tracking-[-0.015em] text-ink">Someday</span>}
+      subtitle={count === 0 ? "Nothing waiting for a time" : `${count} ${count === 1 ? "thing" : "things"} with no time yet`}
+    >
       <div className="scroll flex min-h-0 flex-1 flex-col gap-5 px-4 pb-5">
         <Section label="Tasks" count={tasks.length}>
           {taskGroups.length === 0 ? (
@@ -190,6 +195,6 @@ export function SomedaySheet({ now, onClose, onOpenPlan }: SomedaySheetProps) {
           )}
         </Section>
       </div>
-    </div>
+    </PreviewModal>
   );
 }

@@ -21,7 +21,7 @@ describe("Sheet", () => {
     const panel = host.ownerDocument.querySelector<HTMLElement>("[role=dialog]")!;
     expect(panel.style.maxHeight).toBe("100%");
     expect(parseFloat(panel.style.minHeight)).toBe(0);
-    expect(panel.style.overflow).toBe("hidden");
+    expect(panel.classList.contains("modal-panel")).toBe(true);
     expect(panel.querySelector(".scroll.min-h-0.flex-1")).not.toBeNull();
   });
 });

@@ -4,7 +4,8 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { TaskStatus } from "../../../types/hath";
 import type { ControlState } from "./control";
-import { TakeoverHeader, type TakeoverTask } from "./parts";
+import { PreviewModal } from "../../../shared/overlay/PreviewModal";
+import { taskHead, type TakeoverTask } from "./parts";
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -25,11 +26,11 @@ afterEach(() => {
 /** Draws the header of a browser task in `status` with the control in `state`. */
 function render(status: TaskStatus, state: ControlState, handlers = { onTakeover: vi.fn(), onReturn: vi.fn(), onMenu: vi.fn() }) {
   const task: TakeoverTask = { task: "task/browser/3f2a91", kind: "browser", owner: "finance-specialist", purpose: "Find the statement", status, resource: "3" };
-  act(() => root.render(<TakeoverHeader task={task} state={state} onClose={vi.fn()} {...handlers} />));
+  act(() => root.render(<PreviewModal scoped open label="Task" onClose={vi.fn()} {...taskHead(task, { state, ...handlers })}>body</PreviewModal>));
   return handlers;
 }
 
-describe("TakeoverHeader", () => {
+describe("a task modal's head", () => {
   it("has one split control, no Watching label and no status badge", () => {
     render("working", "watching");
     expect(host.textContent).not.toContain("Watching");

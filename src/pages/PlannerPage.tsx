@@ -9,7 +9,7 @@ import { DayView } from "../features/planner/DayView";
 import { DayLoading, MonthLoading, WeekLoading } from "../features/planner/Loading";
 import { MonthView } from "../features/planner/MonthView";
 import { monthPlans, plansOn } from "../features/planner/plans";
-import { SomedaySheet } from "../features/planner/Someday";
+import { SomedayModal } from "../features/planner/Someday";
 import { PlanDetailsContext } from "../features/planner/PlanButton";
 import { dayBadge, dayTasksKey, groupTasks, monthBadge } from "../features/planner/tasks";
 import { daySummary, periodSummary } from "../features/planner/timeState";
@@ -22,7 +22,6 @@ import { Page } from "../shared/layout/Page";
 import { StaleBanner, StateView } from "../shared/states/ModuleState";
 import { Truncate } from "../shared/ui/Truncate";
 import { Segmented } from "../shared/ui/Segmented";
-import { Sheet } from "../shared/overlay/Sheet";
 import { EASE, LEAVE_S, SLOW_S } from "../shared/motion";
 import { useConnection } from "../shared/hooks/useConnection";
 import { useModuleState } from "../shared/hooks/useModuleState";
@@ -199,9 +198,7 @@ export function PlannerPage() {
                 </motion.div>
               </AnimatePresence>
             </div>
-            <Sheet open={somedayOpen} onClose={() => setSomeday(false)} label="Someday" width={480}>
-              <SomedaySheet now={now} onClose={() => setSomeday(false)} onOpenPlan={open} />
-            </Sheet>
+            <SomedayModal open={somedayOpen} now={now} onClose={() => setSomeday(false)} onOpenPlan={open} />
           </>
         )}
       </Page>
