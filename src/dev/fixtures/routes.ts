@@ -6,6 +6,7 @@ import type { QueryRequest } from "../../types/yaad";
 import type { AttendedRequest, PlansRequest, TaskDoneRequest, TasksRequest } from "../../types/planner";
 import type { Scenario } from "../scenario";
 import * as chaavi from "./chaavi";
+import { FixtureFiles } from "./files";
 import * as ghar from "./ghar";
 import * as hath from "./hath";
 import * as nas from "./nas";
@@ -31,6 +32,10 @@ export type FixtureRequest = {
   /** Path and query, as the client sent them. */
   path: string;
   body: unknown;
+  /** The multipart body of an upload. */
+  form?: FormData;
+  /** What the caller reads the response as; a file's bytes answer as text or as a blob. */
+  responseType?: "json" | "text" | "blob";
 };
 
 /**
@@ -41,6 +46,7 @@ export type FixtureRequest = {
 export class Fixtures {
   private readonly devices: GharDevice[];
   private readonly tasks: NasTask[];
+  private readonly files = new FixtureFiles();
   private readonly routines = new Map<string, RoutineList>();
   /** Agents Ankur stopped since the page loaded: their loop ends and their job reads stopped. */
   private readonly stopped = new Set<string>();
@@ -55,14 +61,14 @@ export class Fixtures {
   }
 
   /** The body of the response to `request`. */
-  respond({ host, method, path, body }: FixtureRequest): unknown {
+  respond({ host, method, path, body, form, responseType }: FixtureRequest): unknown {
     const url = new URL(path, "http://fixtures.invalid");
     const route = `${method} ${url.pathname}`;
     switch (host) {
       case "hath":
         return this.hath(route, url, body);
       case "nas":
-        return this.nas(route, url, body);
+        return this.nas(route, url, body, form, responseType);
       case "yaad":
         return this.yaad(route, body);
       case "ghar":
@@ -159,9 +165,16 @@ export class Fixtures {
     return { agent_id: agentId, ended_run: true, job: 1175, stopped_tasks: [], halt_failed: [] };
   }
 
-  private nas(route: string, url: URL, body: unknown): unknown {
+  private nas(route: string, url: URL, body: unknown, form: FormData | undefined, responseType: FixtureRequest["responseType"]): unknown {
     const s = this.scenario;
     if (route === "GET /health") return { status: "ok" };
+    if (route === "GET /fs/list") return this.files.list(url.searchParams.get("path")!);
+    if (route === "GET /fs/stat") return this.files.stat(url.searchParams.get("path")!);
+    if (route === "GET /fs/raw") return this.files.raw(url.searchParams.get("path")!, responseType === "text" ? "text" : "blob");
+    if (route === "POST /fs/upload") return this.files.upload(form!);
+    if (route === "POST /fs/mkdir") return this.files.mkdir((body as { path: string }).path);
+    if (route === "POST /fs/move") return this.files.move((body as { from: string; to: string }).from, (body as { from: string; to: string }).to);
+    if (route === "POST /fs/trash") return this.files.trash((body as { path: string }).path);
     if (route === "GET /status") return nas.status(s);
     if (route === "GET /tasks") return this.tasks.map((task) => ({ ...task }));
     const driven = /^POST \/(browsers|terminals)\/([^/]+)\/(input|keys)$/.exec(route);

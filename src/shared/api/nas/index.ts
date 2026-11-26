@@ -1,3 +1,4 @@
+import type { NasFileEntry, NasFileList, NasFilePath, NasUploaded } from "../../../types/nas";
 import type { Transport } from "../transport";
 
 /** One pointer or key event for Nas POST /browsers/:id/input; `x`/`y` are fractions (0 to 1) of the display. */
@@ -348,6 +349,72 @@ export function createNasClient(transport: Transport, baseUrl: string) {
         path: `/terminals/${encodeURIComponent(id)}/capture?lines=${lines}`,
         method: "GET",
       });
+    },
+
+    /** GET /fs/list — a folder's entries (folders first, then by name); dotfiles only with `hidden`. */
+    listFiles(path: string, hidden = false): Promise<NasFileList> {
+      return transport.request({
+        baseUrl,
+        path: `/fs/list?path=${encodeURIComponent(path)}${hidden ? "&hidden=1" : ""}`,
+        method: "GET",
+      });
+    },
+
+    /** GET /fs/stat — one entry; rejects with a 404 ApiError when the path does not exist. */
+    statFile(path: string): Promise<NasFileEntry> {
+      return transport.request({
+        baseUrl,
+        path: `/fs/stat?path=${encodeURIComponent(path)}`,
+        method: "GET",
+      });
+    },
+
+    /** GET /fs/raw as a URL the webview loads directly, for `<img src>` and `<iframe src>`. */
+    fileUrl(path: string): string {
+      return transport.mediaUrl({ baseUrl, path: `/fs/raw?path=${encodeURIComponent(path)}` });
+    },
+
+    /** GET /fs/raw — a file's bytes, for saving it. */
+    getFileBlob(path: string): Promise<Blob> {
+      return transport.request({
+        baseUrl,
+        path: `/fs/raw?path=${encodeURIComponent(path)}`,
+        method: "GET",
+        responseType: "blob",
+      });
+    },
+
+    /** GET /fs/raw — a text file's contents. */
+    getFileText(path: string): Promise<string> {
+      return transport.request({
+        baseUrl,
+        path: `/fs/raw?path=${encodeURIComponent(path)}`,
+        method: "GET",
+        responseType: "text",
+      });
+    },
+
+    /** POST /fs/upload — put `file` in `folder`; a taken name gets " (2)", so the answer's path is where it landed. */
+    uploadFile(folder: string, file: File): Promise<NasUploaded> {
+      const form = new FormData();
+      form.append("path", folder);
+      form.append("file", file, file.name);
+      return transport.request({ baseUrl, path: "/fs/upload", method: "POST", form });
+    },
+
+    /** POST /fs/mkdir — make a folder. */
+    makeFolder(path: string): Promise<NasFilePath> {
+      return transport.request({ baseUrl, path: "/fs/mkdir", method: "POST", body: { path } });
+    },
+
+    /** POST /fs/move — move or rename; a 409 conflict when `to` exists. */
+    moveFile(from: string, to: string): Promise<NasFilePath> {
+      return transport.request({ baseUrl, path: "/fs/move", method: "POST", body: { from, to } });
+    },
+
+    /** POST /fs/trash — move to ~/.trash/<date>/, swept after 14 days. */
+    trashFile(path: string): Promise<NasFilePath> {
+      return transport.request({ baseUrl, path: "/fs/trash", method: "POST", body: { path } });
     },
   };
 }

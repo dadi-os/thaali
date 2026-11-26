@@ -1,5 +1,7 @@
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { CASES } from "./cases";
 import "./chaavi";
+import "./files";
 import "./ghar";
 import "./shell";
 import "./sheet";
@@ -21,11 +23,18 @@ export type GalleryProps = {
   id: string;
 };
 
+/** The data client cases that read through react-query share, as the app provides one; a gallery case never retries. */
+const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
 /** One gallery case, mounted for the gate to compare with the design's. */
 export function Gallery({ id }: GalleryProps) {
   const render = CASES[id];
   if (render === undefined) {
     throw new Error(`no gallery case "${id}"`);
   }
-  return <div data-ds-case={id}>{render()}</div>;
+  return (
+    <QueryClientProvider client={queryClient}>
+      <div data-ds-case={id}>{render()}</div>
+    </QueryClientProvider>
+  );
 }

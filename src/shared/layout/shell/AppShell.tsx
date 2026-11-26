@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { RISE } from "../../motion";
 import { ChatSidebar } from "../../../features/chat";
 import { TakeoverModal } from "../../../features/agents/takeover";
+import { FileModalHost } from "../../components/Files";
 import { ForgetDeviceDialog } from "../../../features/onboarding/ForgetDevice";
 import { OfflinePill } from "./OfflinePill";
 import { Onboarding, type BootState } from "../../../features/onboarding";
@@ -109,6 +110,7 @@ export function AppShell() {
         </AnimatePresence>
       </div>
       <TakeoverModal />
+      <FileModalHost />
       <Toaster />
       <ContextMenuHost />
       <ProvisionOverlay

@@ -4,13 +4,14 @@ The desktop app for dadi: macOS, Windows, and Linux. Thaali is its internal name
 
 ## Dependencies
 
-- Nas (`http://nas.dadi`) — provision, status, logs, module config, helper tasks (`/tasks`) and their live browser and terminal views
+- Nas (`http://nas.dadi`) — provision, status, logs, module config, helper tasks (`/tasks`) and their live browser and terminal views, and the box's files (`/fs/list`, `stat`, `raw`, `upload`, `mkdir`, `move`, `trash`: the explorer and `box://` links; no change feed, so the explorer reloads its listings after its own writes)
 - Hath (`http://hath.dadi`) — agents, messages, events
 - Yaad (`http://yaad.dadi`) — memory graph
 - Chaavi (`http://chaavi.dadi` API, `https://chaavi.dadi` Bitwarden) — full password manager over Chaavi's `/v1` (logins with TOTP and passkeys, notes, cards, identities, SSH keys, custom fields, folders); extension for browser autofill
 - Ghar (`http://ghar.dadi`) — Matter devices and their tags
 - Dwar (indirect via Hath/Yaad)
 - The dadi network (system `tailscaled` TUN + MagicDNS)
+- File explorer tree: `@headless-tree/core` + `@headless-tree/react` (behavior only; the rows are the app's own), pinned to exact versions
 - Markdown: `streamdown` with `@streamdown/code` (Shiki), `@streamdown/math` (KaTeX, whose CSS is imported directly) and `@streamdown/mermaid`, pinned to exact versions; `react-markdown` + `remark-gfm` for one-line previews
 
 ## Layout
@@ -23,7 +24,7 @@ thaali/
     App.tsx, main.tsx       routes + boot (installs the interaction layer)
     pages/                  route construction sites: Page + a header + nouns
     features/<domain>/      data hooks, derivations and flows owned by one place: agents, chat (the chat rail), chaavi, ghar, home (the Tile frame), logs, memory, onboarding (setup code, provisioning, forget device), system, planner
-    contexts/               app-wide state every layer assumes: connection, what each agent is running, chat, drafts, toasts, takeover, dock requests, the desktop shell
+    contexts/               app-wide state every layer assumes: connection, what each agent is running, chat, drafts, toasts, takeover, the box path the file explorer is open at (`files`), dock requests, the desktop shell
     shared/
       ui/                   primitives with no domain knowledge: Button, IconButton, Pill, Segmented, Chip, Switch, Icon (the one icon set), Card, Badge, Skeleton, Truncate, AgentName, Disclosure, CopyButton
       overlay/              everything that floats, on one dismiss stack: Modal (the one centred frame, with a frosting scrim, that Dialog, ConfirmDialog and PreviewModal are built on; no side sheets), MenuSurface (the one menu), AnchoredMenu, ContextMenuHost, Popover, Tooltip, Toast
@@ -31,9 +32,9 @@ thaali/
       motion/               the only place a duration, easing, spring or enter/exit shape is chosen
       layout/               Page (frame, side panel dock or drawer), Measured, shell/ (AppShell, TitleBar, WindowControls, PageHeader, OfflinePill, Toaster), Wordmark, FieldBloom
       states/               loading, offline, module-offline, error, empty and stale views, ErrorBoundary
-      components/           domain nouns drawn once and varied by props: Task (TaskView, TaskRow, TaskStatus), Thread (conversation list, messages, composer), Graph, Markdown
+      components/           domain nouns drawn once and varied by props: Task (TaskView, TaskRow, TaskStatus), Thread (conversation list, messages, composer), Graph, Markdown (renders `box://` links as FileLink), Files (FileModal: a message attachment, or the explorer opened at a box path; FileLink; `fileActions`; `Explorer/`, the folder tree on headless-tree, the sortable list and the move picker)
       desktop/              every operating-system call: clipboard, opener, downloads, notifications, owner check, tray, updater, device remote, OS detection
-      api/                  transport + domain clients (hath/, yaad/, nas/, chaavi/, ghar/, planner/); mesh-transport.ts is the production transport
+      api/                  transport + domain clients (hath/, yaad/, nas/, chaavi/, ghar/, planner/); nas/ also holds the file calls (list, stat, raw as `fileUrl` or a blob, multipart upload, mkdir, move, trash); mesh-transport.ts is the production transport
       hooks/ lib/           shared hooks and pure TypeScript (content, ux helpers, time)
       theme/                the only CSS: tokens, base (input policy), scroll fades, primitives and a file per module
     dev/                    dev-only fixture transport, typed fixtures and the gallery the fidelity gate renders (never in the production bundle)

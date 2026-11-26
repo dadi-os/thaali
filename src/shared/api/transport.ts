@@ -23,6 +23,8 @@ export interface Transport {
     body?: unknown;
     /** When set, sent as text/plain instead of JSON.stringify(body). */
     bodyText?: string;
+    /** When set, sent as multipart/form-data with the parts in the order they were appended. */
+    form?: FormData;
     /** Default json. Use text for .env / config.toml payloads; blob for screenshots. */
     responseType?: "json" | "text" | "blob";
   }): Promise<T>;

@@ -174,6 +174,7 @@ export class MeshTransport implements Transport {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     body?: unknown;
     bodyText?: string;
+    form?: FormData;
     responseType?: "json" | "text" | "blob";
   }): Promise<T> {
     if (this.port === null || !this.active) {
@@ -184,8 +185,10 @@ export class MeshTransport implements Transport {
     const url = this.meshUrl(opts.baseUrl, path);
     const requestId = crypto.randomUUID();
     const headers: Record<string, string> = { "X-Request-Id": requestId };
-    let body: string | undefined;
-    if (opts.bodyText !== undefined) {
+    let body: string | FormData | undefined;
+    if (opts.form !== undefined) {
+      body = opts.form;
+    } else if (opts.bodyText !== undefined) {
       headers["Content-Type"] = "text/plain; charset=utf-8";
       body = opts.bodyText;
     } else if (opts.body !== undefined) {

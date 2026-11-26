@@ -2,10 +2,11 @@ import "katex/dist/katex.min.css";
 import { cloneElement, createElement, isValidElement, memo } from "react";
 import type { HTMLAttributes, ReactNode } from "react";
 import type { ElementContent } from "hast";
+import type { Plugin, PluggableList } from "unified";
 import type { Components as InlineComponents } from "react-markdown";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { Streamdown } from "streamdown";
+import { defaultRehypePlugins, Streamdown } from "streamdown";
 import type {
   CodeHighlighterPlugin,
   Components,
@@ -20,6 +21,8 @@ import type { MermaidConfig, createMermaidPlugin } from "@streamdown/mermaid";
 import { normalizeMathDelimiters } from "../../lib/content/math";
 import { logLine } from "../../lib/log";
 import { CopyButton } from "../../ui/CopyButton";
+import { parseBoxHref } from "../../lib/content/boxLink";
+import { FileLink } from "../Files/FileLink";
 import { ChatLink, PreviewLink } from "./ChatLink";
 
 export interface MarkdownBodyProps {
@@ -42,6 +45,7 @@ export const MarkdownBody = memo(function MarkdownBody({ content, compact = fals
       mode="static"
       parseIncompleteMarkdown={false}
       plugins={plugins}
+      rehypePlugins={rehypePlugins}
       components={components}
       controls={controls}
       lineNumbers={false}
@@ -173,6 +177,18 @@ const code: CodeHighlighterPlugin = {
   },
 };
 
+/**
+ * Streamdown's rehype chain with `box` added to the link protocols its sanitizer keeps: without it a `box://` link is
+ * stripped to blocked text before it reaches the `a` component and its FileLink.
+ */
+function withBoxLinks(): PluggableList {
+  const [sanitize, schema] = defaultRehypePlugins.sanitize as [Plugin, { protocols?: { href?: string[] } }];
+  const protocols = { ...schema.protocols, href: [...(schema.protocols?.href ?? []), "box"] };
+  return [defaultRehypePlugins.raw!, [sanitize, { ...schema, protocols }], defaultRehypePlugins.harden!];
+}
+
+const rehypePlugins = withBoxLinks();
+
 const plugins: PluginConfig = {
   code,
   math: createMathPlugin({ singleDollarTextMath: false, errorColor: "var(--error)" }),
@@ -218,7 +234,7 @@ const components: Components = {
     if (!href) {
       return <span>{children}</span>;
     }
-    return <ChatLink href={href}>{children}</ChatLink>;
+    return parseBoxHref(href) === null ? <ChatLink href={href}>{children}</ChatLink> : <FileLink href={href}>{children}</FileLink>;
   },
   table({ node: _node, ...props }) {
     return (

@@ -124,6 +124,7 @@ export class FixtureTransport implements Transport {
     method: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
     body?: unknown;
     bodyText?: string;
+    form?: FormData;
     responseType?: "json" | "text" | "blob";
   }): Promise<T> {
     if (!this.active || this.state === "disconnected") {
@@ -155,7 +156,7 @@ export class FixtureTransport implements Transport {
     if (this.scenario === "module-offline" && DOWN_IN_MODULE_OFFLINE.includes(host)) {
       throw apiError(opts.baseUrl, 502, `${host}.dadi is not answering`);
     }
-    return this.fixtures.respond({ host, method: opts.method, path: opts.path, body: opts.body }) as T;
+    return this.fixtures.respond({ host, method: opts.method, path: opts.path, body: opts.body, form: opts.form, responseType: opts.responseType }) as T;
   }
 
   /** A read of the real Yaad or Hath through the dev server's proxy; any write is refused before it leaves the page. */
