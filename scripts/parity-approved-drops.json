@@ -9,5 +9,8 @@
   "hath.listSchedules": "Hath replaced scheduled messages with routines and reminders; listRoutines reads them.",
   "hath.patchSchedule": "Routines and reminders have no PATCH: a routine is changed only by its own agent, so editing is a message to the agent.",
   "hath.cancelSchedule": "Ankur cancels a routine or a reminder instead: cancelRoutine and cancelReminder.",
-  "yaad.query": "Home's Yaad tile paged every kind through POST /query to count it; Yaad now serves the counts and the total of every node in one GET /counts (counts)."
+  "yaad.query": "Home's Yaad tile paged every kind through POST /query to count it; Yaad now serves the counts and the total of every node in one GET /counts (counts).",
+  "hath.attachmentUrl": "Attachments no longer exist: files are plain files on the box and messages carry box:// links, previewed from Nas /fs/raw (nas.fileUrl).",
+  "hath.getAttachmentBlob": "Attachments no longer exist: a file is saved from its box path (nas.getFileBlob).",
+  "hath.getAttachmentText": "Attachments no longer exist: a text file is read from its box path (nas.getFileText)."
 }

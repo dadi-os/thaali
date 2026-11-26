@@ -7,7 +7,6 @@ import type {
   DurableMessage,
   LogEvent,
   LogRecord,
-  MessageAttachment,
   PostRouterResponse,
   RouterState,
   PostMessageResponse,
@@ -70,38 +69,12 @@ export function createHathClient(transport: Transport, baseUrl: string) {
     postMessage(body: {
       to_agent_id: string;
       content: string;
-      attachments?: MessageAttachment[];
     }): Promise<PostMessageResponse> {
       return transport.request({
         baseUrl,
         path: "/messages",
         method: "POST",
         body,
-      });
-    },
-
-    /** GET /attachments/:id as a URL the webview loads directly, for `<img src>`. */
-    attachmentUrl(id: string): string {
-      return transport.mediaUrl({ baseUrl, path: `/attachments/${id}` });
-    },
-
-    /** GET /attachments/:id — any attachment's bytes, for saving it. */
-    getAttachmentBlob(id: string): Promise<Blob> {
-      return transport.request({
-        baseUrl,
-        path: `/attachments/${id}`,
-        method: "GET",
-        responseType: "blob",
-      });
-    },
-
-    /** GET /attachments/:id — a text attachment's contents. */
-    getAttachmentText(id: string): Promise<string> {
-      return transport.request({
-        baseUrl,
-        path: `/attachments/${id}`,
-        method: "GET",
-        responseType: "text",
       });
     },
 
@@ -117,7 +90,6 @@ export function createHathClient(transport: Transport, baseUrl: string) {
     /** POST /router — speak to the router, not an agent. */
     postRouter(body: {
       content: string;
-      attachments?: MessageAttachment[];
     }): Promise<PostRouterResponse> {
       return transport.request({
         baseUrl,

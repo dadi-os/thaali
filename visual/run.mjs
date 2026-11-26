@@ -73,7 +73,7 @@ const expectText = (text, gone = false) => `(() => { if (document.body.innerText
 /** Presses `key` in the first element matching `selector`. */
 const pressKey = (selector, key) => `document.querySelector(${JSON.stringify(selector)}).dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, bubbles: true })); 0`;
 const emit = (event) => `window.__fixtures.emit("hath", "/events", ${JSON.stringify({ ...event, at: "NOW" }).replace('"NOW"', "new Date().toISOString()")}); 0`;
-const message = (seq, content) => ({ type: "message", agent_id: "finance-specialist", from_agent_id: "finance-specialist", to_agent_id: null, content, attachments: [], seq });
+const message = (seq, content) => ({ type: "message", agent_id: "finance-specialist", from_agent_id: "finance-specialist", to_agent_id: null, content, seq });
 
 /** Scripted flows: each opens something, then captures its frames and runs the checks. */
 function flowJobs(scenario) {

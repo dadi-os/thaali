@@ -1,13 +1,12 @@
 import { useEffect, useState } from "react";
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
-import { hath, nas } from "../../api";
+import { nas } from "../../api";
 import { CopyButton } from "../../ui/CopyButton";
 import { Segmented } from "../../ui/Segmented";
 import { IconButton } from "../../ui/Button";
 import { MarkdownBody } from "../Markdown";
 import { attachmentSizeLabel, isTextMediaType } from "../../lib/content/attachments";
 import { saveFile } from "../../desktop/download";
-import type { AttachmentSummary } from "../../../types/hath";
 import type { NasFileEntry } from "../../../types/nas";
 
 /** The color themes the viewer highlights with, in light and dark. */
@@ -49,7 +48,7 @@ const MARKDOWN_MODES: Array<{ value: MarkdownMode; label: string }> = [
 /** Extensions read as Markdown whatever media type the file was stored with. */
 const MARKDOWN_EXTS = new Set(["md", "markdown"]);
 
-/** A file the viewer can show, wherever it is stored: a message attachment on Hath or a path on the box. */
+/** A file the viewer can show, from the box. */
 export type FileSource = {
   /** Names the file's cached reads; it changes when the bytes do. */
   key: string;
@@ -58,27 +57,11 @@ export type FileSource = {
   size: number;
   /** What an image or PDF is loaded from; called only when the file is drawn. */
   url: () => string;
-  /** Image description to use as alt text, when there is one. */
-  description?: string | null;
   /** The file as text. */
   loadText: () => Promise<string>;
   /** The file's bytes, for saving it. */
   loadBlob: () => Promise<Blob>;
 };
-
-/** A message attachment as a {@link FileSource}. */
-export function attachmentSource(file: AttachmentSummary): FileSource {
-  return {
-    key: `attachment:${file.id}`,
-    name: file.filename,
-    mediaType: file.media_type,
-    size: file.size_bytes,
-    url: () => hath.attachmentUrl(file.id),
-    description: file.description,
-    loadText: () => hath.getAttachmentText(file.id),
-    loadBlob: () => hath.getAttachmentBlob(file.id),
-  };
-}
 
 /** A file on the box as a {@link FileSource}; the key carries its modified time, so a file replaced in place is read again. */
 export function boxSource(entry: NasFileEntry): FileSource {
@@ -196,7 +179,7 @@ export function FileViewBody({ view }: { view: FileView }) {
     <div className="scroll min-h-0 flex-1 overflow-auto">
       {kind === "image" ? (
         <div className="file-sheet__canvas flex items-center justify-center">
-          <img src={source.url()} alt={source.description ?? source.name} className="block max-h-[calc(88vh-3rem)] max-w-full object-contain" />
+          <img src={source.url()} alt={source.name} className="block max-h-[calc(88vh-3rem)] max-w-full object-contain" />
         </div>
       ) : kind === "pdf" ? (
         <iframe title={source.name} src={source.url()} className="size-full border-0" />

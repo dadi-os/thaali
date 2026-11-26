@@ -91,7 +91,7 @@ export class Fixtures {
     if (route === "POST /router") return { messages: [] };
     if (route === "POST /messages") {
       const sent = body as { to_agent_id: string; content: string };
-      const response: PostMessageResponse = { to_agent_id: sent.to_agent_id, content: sent.content, attachments: [], seq: 2000, created_at: ago(0) };
+      const response: PostMessageResponse = { to_agent_id: sent.to_agent_id, content: sent.content, seq: 2000, created_at: ago(0) };
       return response;
     }
     const wake = /^GET \/agents\/([^/]+)\/wakes\/([^/]+)$/.exec(route);

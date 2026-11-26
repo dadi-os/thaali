@@ -11,7 +11,6 @@ import type { ChatMessage } from "../../../contexts/chat";
 import { MarkdownBody } from "../Markdown";
 import { messageActions } from "./actions";
 import { formatMessageTime } from "./format";
-import { MessageFiles } from "./MessageFiles";
 
 /** Props of {@link MessageBubble}. */
 export type MessageBubbleProps = {
@@ -101,7 +100,7 @@ function SendControls({ failed, onRetry, onCancel }: { failed: boolean; onRetry?
 
 /**
  * Right-aligned user pill with optional retry / remove for failed sends. The
- * buttons line up with the files and bubble only, so the error and time lines under them
+ * buttons line up with the bubble only, so the error and time lines under them
  * do not pull them down.
  */
 function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage; live: boolean; onRetry?: () => void; onCancel?: () => void }) {
@@ -112,7 +111,6 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
         <div className="flex max-w-full min-w-0 items-center gap-1.5">
           <SendControls failed={failed} onRetry={onRetry} onCancel={onCancel} />
           <div className="flex min-w-0 flex-col items-end gap-1">
-            <MessageFiles files={message.files ?? []} align="end" />
             {message.content ? (
               <div
                 data-selectable
@@ -145,7 +143,6 @@ function AgentBubble({ message, live, standing }: { message: ChatMessage; live: 
       <div data-selectable>
         <SettledMarkdown content={message.content} />
       </div>
-      <MessageFiles files={message.files ?? []} align="start" />
       {standing === "needs_input" ? (
         <span role="status" className="flex items-center gap-1.5 text-[12.5px] font-medium text-tide-ink"><span className="size-1.5 rounded-full bg-tide" />Needs your input</span>
       ) : standing === "blocked" ? (

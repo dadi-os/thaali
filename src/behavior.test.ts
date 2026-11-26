@@ -95,29 +95,6 @@ describe("attachments", () => {
     expect(resolveMediaType({ name: "Dockerfile", type: "" })).toBe("application/octet-stream");
   });
 
-  it("resolves a file-only send to the stored files when its event lands", () => {
-    resetChatStore();
-    const tempSeq = addOptimistic("agent-files", "");
-    const file = {
-      id: "f1",
-      filename: "notes.txt",
-      media_type: "text/plain",
-      size_bytes: 2,
-      description: null,
-    };
-    ingestLiveMessage("agent-files", {
-      seq: 41,
-      from_user: true,
-      content: "",
-      files: [file],
-      at: "2026-10-07T12:00:00Z",
-    });
-    const [row] = getChatState().threads["agent-files"] ?? [];
-    expect(row?.seq).toBe(41);
-    expect(row?.pending).toBe(false);
-    expect(row?.files).toEqual([file]);
-    expect(tempSeq).toBeLessThan(0);
-  });
 });
 
 describe("chatSidebar thread", () => {
@@ -255,7 +232,6 @@ function durableMessage(partial: {
     from_agent_id: partial.from,
     to_agent_id: partial.to,
     content: partial.content,
-    attachments: [],
     created_at: partial.at,
   };
 }
@@ -361,7 +337,7 @@ describe("user-thread history", () => {
     const tempSeq = addOptimistic("planner", "follow up");
     ingestLiveMessage("planner", { seq: 8, from_user: false, content: "reply", at: "2099-01-01T00:00:00Z" });
     markPending("planner", tempSeq);
-    resolveOptimistic("planner", tempSeq, 9, [], "2099-01-01T00:00:05Z");
+    resolveOptimistic("planner", tempSeq, 9, "2099-01-01T00:00:05Z");
     expect(getChatState().threads.planner!.map((m) => m.content)).toEqual(["reply", "follow up"]);
     resetChatStore();
   });

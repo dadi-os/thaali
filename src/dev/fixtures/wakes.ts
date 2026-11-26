@@ -33,7 +33,7 @@ const PEER = "efficiency-specialist";
 
 /** A message row of a wake. */
 function message(seq: number, from: string | null, to: string | null, content: string, minutesAgo: number, status: MessageStatus | null = null): WakeMessage {
-  return { id: `7c1e2b9a-3d4f-4e55-8a10-${String(seq).padStart(12, "0")}`, seq, kind: "message", status, from_agent_id: from, to_agent_id: to, content, created_at: ago(minutesAgo * MIN), attachments: [] };
+  return { id: `7c1e2b9a-3d4f-4e55-8a10-${String(seq).padStart(12, "0")}`, seq, kind: "message", status, from_agent_id: from, to_agent_id: to, content, created_at: ago(minutesAgo * MIN) };
 }
 
 /** The six shapes a wake takes, in the order they repeat from the newest. */

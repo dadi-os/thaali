@@ -10,20 +10,12 @@ import { Skeleton } from "../../ui/Skeleton";
 import { PreviewModal } from "../../overlay/PreviewModal";
 import { failureProps } from "../../lib/ux/moduleState";
 import { StateView } from "../../states/ModuleState";
-import type { AttachmentSummary } from "../../../types/hath";
 import type { NasFileEntry } from "../../../types/nas";
 import { Explorer, resolveBoxPath, type BoxTarget } from "./Explorer";
-import { attachmentSource, boxSource, FileViewActions, FileViewBody, useFileView } from "./FilePreview";
+import { boxSource, FileViewActions, FileViewBody, useFileView } from "./FilePreview";
 
-/** Props of {@link FileModal} for a message attachment. */
-export type AttachmentFileModalProps = {
-  /** The file to show, or null when the modal is closed. */
-  file: AttachmentSummary | null;
-  onClose: () => void;
-};
-
-/** Props of {@link FileModal} for the box's files. */
-export type BoxFileModalProps = {
+/** Props of {@link FileModal}. */
+export type FileModalProps = {
   /** The absolute box path to open at, or null when the modal is closed: a file opens its folder with the file selected, a folder opens its listing. */
   path: string | null;
   /** Pick mode: the explorer offers Insert links, which hands back the selected files and folders and closes. */
@@ -33,58 +25,11 @@ export type BoxFileModalProps = {
   onClose: () => void;
 };
 
-export type FileModalProps = AttachmentFileModalProps | BoxFileModalProps;
-
-/** The panel of a wide file: the largest the window allows up to a page's width; an image sizes the panel to itself instead. */
-const WIDE = "h-[min(88vh,820px)] w-[min(92vw,960px)]";
-const FIT = "max-h-[88vh] max-w-[min(92vw,1200px)]";
-
 /**
- * A file in the shared {@link PreviewModal}, in one of two modes. Given a message attachment (`file`) it shows its name
- * over its kind, line count and size, with copy (text) and download beside the close button, and a body for its kind:
- * the image, the PDF, the code colored by its language with line numbers, rendered Markdown (or its source), or, for
- * other files, a card to download them. Given a box path (`path`) it is the file explorer opened at that path with
- * the same preview of the selected file under the list; a path that is gone opens its nearest parent with a note.
+ * The file explorer in the shared {@link PreviewModal}, opened at a box path, with the preview of the selected file
+ * under the list; a path that is gone opens its nearest parent with a note.
  */
-export function FileModal(props: FileModalProps) {
-  return "path" in props ? <BoxFileModal {...props} /> : <AttachmentFileModal {...props} />;
-}
-
-function AttachmentFileModal({ file, onClose }: AttachmentFileModalProps) {
-  const shown = useRetained(file);
-  return shown === null ? null : <OpenFile key={shown.id} file={shown} open={file !== null} onClose={onClose} />;
-}
-
-type OpenFileProps = {
-  file: AttachmentSummary;
-  /** False while the modal plays its exit animation. */
-  open: boolean;
-  onClose: () => void;
-};
-
-/** One attachment's modal: it reads the file, then gives the frame its head and the body for its kind. */
-function OpenFile({ file, open, onClose }: OpenFileProps) {
-  const view = useFileView(attachmentSource(file));
-  return (
-    <PreviewModal
-      open={open}
-      onClose={onClose}
-      label={file.filename}
-      panelClassName={view.kind === "image" ? FIT : WIDE}
-      title={
-        <span data-selectable className="min-w-0 truncate text-[15px] leading-5 font-semibold text-ink" title={file.filename}>
-          {file.filename}
-        </span>
-      }
-      subtitle={<span className="block truncate text-[12.5px] leading-4">{view.meta}</span>}
-      actions={<FileViewActions view={view} />}
-    >
-      <FileViewBody view={view} />
-    </PreviewModal>
-  );
-}
-
-function BoxFileModal({ path, onPick, scoped, onClose }: BoxFileModalProps) {
+export function FileModal({ path, onPick, scoped, onClose }: FileModalProps) {
   const shown = useRetained(path);
   return shown === null ? null : <OpenBox key={shown} path={shown} onPick={onPick} scoped={scoped} open={path !== null} onClose={onClose} />;
 }

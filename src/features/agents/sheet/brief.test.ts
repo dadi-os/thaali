@@ -82,8 +82,8 @@ describe("nowLine", () => {
   });
 });
 
-const message = (seq: number, over: Partial<DurableMessage> = {}): DurableMessage => ({ id: `m${seq}`, seq, from_agent_id: "finance", to_agent_id: null, content: `message ${seq}`, attachments: [], created_at: OPENED, ...over });
-const sent = (seq: number, over: Partial<WakeMessage> = {}): WakeMessage => ({ id: `m${seq}`, seq, kind: "message", status: null, from_agent_id: "finance", to_agent_id: null, content: `message ${seq}`, created_at: OPENED, attachments: [], ...over });
+const message = (seq: number, over: Partial<DurableMessage> = {}): DurableMessage => ({ id: `m${seq}`, seq, from_agent_id: "finance", to_agent_id: null, content: `message ${seq}`, created_at: OPENED, ...over });
+const sent = (seq: number, over: Partial<WakeMessage> = {}): WakeMessage => ({ id: `m${seq}`, seq, kind: "message", status: null, from_agent_id: "finance", to_agent_id: null, content: `message ${seq}`, created_at: OPENED, ...over });
 const wake = (entries: Array<{ direction: "sent" | "received"; message: WakeMessage }>): WakeDetail => ({ wake: {} as WakeDetail["wake"], entries: entries.map((entry, ord) => ({ ord, at: OPENED, type: "message" as const, ...entry })) });
 
 describe("standingOf: what the thread still waits on", () => {

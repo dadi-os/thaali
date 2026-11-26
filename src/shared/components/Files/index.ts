@@ -1,5 +1,5 @@
 /**
- * Files on the box and in messages: the file modal (message attachments, or the explorer opened at a box path), the
+ * Files on the box and in messages: the file modal (the explorer opened at a box path), the
  * inline link to a box file, and the one list of actions on files.
  *
  * Owns: how a file is previewed, and how a `box://` link looks and opens.

@@ -1,12 +1,9 @@
 import { hath } from "../../api";
 import { copyText } from "../../desktop/clipboard";
-import { saveFile } from "../../desktop/download";
 import type { ActionList } from "../../interaction/actions";
-import { isTextMediaType } from "../../lib/content/attachments";
 import { requestReply } from "../../../contexts/reply";
 import { plainText } from "./format";
 import { applyThreadRead, getChatState, seqToMark, type ChatMessage, type Conversation } from "../../../contexts/chat";
-import type { AttachmentSummary } from "../../../types/hath";
 
 /** What a conversation's actions need from the surface that shows it. */
 export type ConversationActionDeps = {
@@ -54,22 +51,5 @@ export function messageActions(message: ChatMessage): ActionList {
     "separator",
     { id: "message.copy", label: "Copy text", icon: "copy", disabledReason: empty, run: () => copyText(plainText(message.content)) },
     { id: "message.copy-markdown", label: "Copy as Markdown", icon: "doc", disabledReason: empty, run: () => copyText(message.content) },
-  ];
-}
-
-/** Save a stored file through the desktop save dialog. */
-async function saveAttachment(file: AttachmentSummary): Promise<void> {
-  await saveFile(file.filename, await hath.getAttachmentBlob(file.id));
-}
-
-/** The actions on a stored file, declared once for its right-click menu: open it, copy it (its text, or its name for other files) and save it. */
-export function attachmentActions(file: AttachmentSummary, onOpen: () => void): ActionList {
-  const textual = isTextMediaType(file.media_type);
-  return [
-    { id: "attachment.open", label: "Open", icon: "eye", run: onOpen },
-    textual
-      ? { id: "attachment.copy", label: "Copy text", icon: "copy", run: async () => copyText(await hath.getAttachmentText(file.id)) }
-      : { id: "attachment.copy", label: "Copy name", icon: "copy", run: () => copyText(file.filename) },
-    { id: "attachment.save", label: "Save…", icon: "download", run: () => saveAttachment(file) },
   ];
 }

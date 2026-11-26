@@ -11,28 +11,10 @@ export type MessageKind = "message" | "notice" | "utterance";
 /** What a sender says about the job its message closes or parks. */
 export type MessageStatus = "done" | "blocked" | "needs_input";
 
-/** Outbound file on POST /messages — base64 payload, no data-URL prefix. */
-export type MessageAttachment = {
-  media_type: string;
-  data: string;
-  filename?: string;
-};
-
-/** A file a message carries, as Hath stores it; the file itself is GET /attachments/:id. */
-export type AttachmentSummary = {
-  id: string;
-  filename: string;
-  media_type: string;
-  size_bytes: number;
-  /** What an image shows, from Dwar image.describe; null for other files. */
-  description: string | null;
-};
-
 /** Response from Hath POST /messages. */
 export type PostMessageResponse = {
   to_agent_id: string;
   content: string;
-  attachments: AttachmentSummary[];
   seq: number;
   created_at: string;
 };
@@ -64,7 +46,6 @@ export type DurableMessage = {
   from_agent_id: string | null;
   to_agent_id: string | null;
   content: string;
-  attachments: AttachmentSummary[];
   /** notice: hath's note to an agent; it belongs inside a wake, not in the human thread. */
   kind?: MessageKind;
   /** What the agent says about its job in a message to its requester; absent from a hath whose thread route does not carry it. */
@@ -76,7 +57,6 @@ export type DurableMessage = {
 export type RoutedMessage = {
   to_agent_id: string;
   content: string;
-  attachments: AttachmentSummary[];
   seq: number;
   created_at: string;
 };
@@ -277,7 +257,6 @@ export type WakeMessage = {
   to_agent_id: string | null;
   content: string;
   created_at: string;
-  attachments: AttachmentSummary[];
 };
 
 /** One wake as `GET /agents/:id/wakes` lists it and `GET /agents/:id/wakes/:wake_id` opens it. */
@@ -348,7 +327,6 @@ export type HathEvent =
       from_agent_id: string | null;
       to_agent_id: string | null;
       content: string;
-      attachments: AttachmentSummary[];
       seq: number;
       /** notice for hath's word that an agent's work stopped; absent on a message someone wrote. */
       kind?: MessageKind;

@@ -1,5 +1,4 @@
 import type {
-  AttachmentSummary,
   DurableMessage,
   MessageStatus,
   ThreadSummary,
@@ -21,8 +20,6 @@ export type ChatMessage = {
   failed?: boolean;
   /** The real error from the failed send, shown on the bubble; cleared on retry. */
   sendError?: string;
-  /** Files the message carries, as Hath stored them. */
-  files?: AttachmentSummary[];
   /** Loaded from durable REST history; skip typewriter on open. */
   historical?: boolean;
   /** What the agent says about its job in this message to you; null on a plain one, absent on yours. */
@@ -446,7 +443,7 @@ export function addOptimistic(agentId: string, content: string): number {
 }
 
 /**
- * Promote a temp seq to the server seq, take the stored files and Hath's `at` (when it
+ * Promote a temp seq to the server seq, take Hath's `at` (when it
  * stored the message, so a send sorts after replies that came while it was in flight),
  * and clear pending.
  */
@@ -454,7 +451,6 @@ export function resolveOptimistic(
   agentId: string,
   tempSeq: number,
   realSeq: number,
-  files: AttachmentSummary[],
   at: string,
 ): void {
   const current = threadOf(agentId);
@@ -477,7 +473,6 @@ export function resolveOptimistic(
               at,
               pending: false,
               failed: false,
-              files,
             }
           : m,
       ),
@@ -598,7 +593,6 @@ export function hydrateThreadMessages(
       seq: row.seq,
       from_user: row.from_agent_id === null,
       content: row.content,
-      files: row.attachments,
       at: row.created_at,
       historical: seen ? seen.historical : opts?.live ? undefined : true,
       ...(row.from_agent_id === null ? {} : { status: row.status ?? null }),
@@ -633,14 +627,14 @@ export function ingestLiveMessage(agentId: string, msg: ChatMessage): void {
         m.pending && m.from_user && m.content === msg.content,
     );
     if (exact) {
-      resolveOptimistic(agentId, exact.seq, msg.seq, msg.files ?? [], msg.at);
+      resolveOptimistic(agentId, exact.seq, msg.seq, msg.at);
       return;
     }
     const inFlight = current.filter(
       (m) => m.pending && m.from_user,
     );
     if (inFlight.length === 1) {
-      resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.files ?? [], msg.at);
+      resolveOptimistic(agentId, inFlight[0]!.seq, msg.seq, msg.at);
       return;
     }
   }

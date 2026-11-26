@@ -2,7 +2,6 @@ import type {
   AgentDetail,
   AgentRecord,
   AgentRunning,
-  AttachmentSummary,
   DurableMessage,
   HathHealth,
   JobLedger,
@@ -226,14 +225,6 @@ export function threads(scenario: Scenario): ThreadSummary[] {
     : rows;
 }
 
-const RECEIPT: AttachmentSummary = {
-  id: "a1111111-1111-4111-8111-111111111111",
-  filename: "october-statement.pdf",
-  media_type: "application/pdf",
-  size_bytes: 184_320,
-  description: null,
-};
-
 /** Hath `GET /agents/:id/messages`: one thread, oldest first. */
 export function messages(scenario: Scenario, agentId: string): DurableMessage[] {
   const row = (seq: number, fromUser: boolean, content: string, minutesAgo: number, extra: Partial<DurableMessage> = {}): DurableMessage => ({
@@ -242,7 +233,6 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
     from_agent_id: fromUser ? null : agentId,
     to_agent_id: fromUser ? agentId : null,
     content,
-    attachments: [],
     created_at: ago(minutesAgo * MIN),
     ...extra,
   });
@@ -253,7 +243,7 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
     row(1175, true, "Check whether the two pending Chase charges are expected before Friday.", 52),
     row(1176, false, "Picked up. I'll read the October statement and compare against the budget.", 51, { status: null }),
     row(1178, true, "Retry the statement read; the first one timed out.", 30),
-    row(1179, false, "Both pending charges are expected:\n- **$12.40** Spotify, renews on the 3rd\n- **$38.00** gym, monthly\n\nStatement attached.", 8, { attachments: [RECEIPT], status: "done" }),
+    row(1179, false, "Both pending charges are expected:\n- **$12.40** Spotify, renews on the 3rd\n- **$38.00** gym, monthly\n\nReceipt: [receipt.png](box:///var/home/dadi/Inbox/2026-11/receipt.png)", 8, { status: "done" }),
     row(1180, true, "Thanks", 6),
   ];
   if (agentId === "health-specialist") {
@@ -271,7 +261,7 @@ export function messages(scenario: Scenario, agentId: string): DurableMessage[] 
   return rows;
 }
 
-/** The `chat-rich` thread: a long conversation with links of every shape, a table, a heading and attachments, for judging the floating glass and inline links. */
+/** The `chat-rich` thread: a long conversation with links of every shape, a table and a heading, for judging the floating glass and inline links. */
 function richThread(row: (seq: number, fromUser: boolean, content: string, minutesAgo: number, extra?: Partial<DurableMessage>) => DurableMessage): DurableMessage[] {
   const filler = [
     "Check the statement against the budget.",
@@ -307,7 +297,7 @@ function richThread(row: (seq: number, fromUser: boolean, content: string, minut
         "https://github.com/dadi-os/thaali/pull/1234/files?diff=split&w=1&utm_source=newsletter&utm_medium=email",
       ].join("\n"),
       55,
-      { attachments: [RECEIPT, { ...RECEIPT, id: "a2222222-2222-4222-8222-222222222222", filename: "budget-2026.xlsx", media_type: "application/vnd.ms-excel", size_bytes: 52_000 }], status: "done" },
+      { status: "done" },
     ),
     row(1132, true, "Thanks. Anything else to flag from https://example.com/a/very/long/path/that/keeps/going/and/going/forever/and/ever ?", 20),
     row(1133, false, `Nothing else. ${"The remaining items are routine and I have noted each in the tracker. ".repeat(6)}`, 8, { status: "done" }),

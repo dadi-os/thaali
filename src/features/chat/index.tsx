@@ -466,7 +466,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
         to_agent_id: toId,
         content: trimmed,
       });
-      resolveOptimistic(toId, tempSeq, res.seq, res.attachments, res.created_at);
+      resolveOptimistic(toId, tempSeq, res.seq, res.created_at);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       markFailed(toId, tempSeq, message);
@@ -569,7 +569,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
           seq: sent.seq,
           from_user: true,
           content: sent.content,
-          files: sent.attachments,
           at: sent.created_at,
         });
       }

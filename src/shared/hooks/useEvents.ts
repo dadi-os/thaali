@@ -160,7 +160,6 @@ export function useEvents(): void {
           seq: data.seq,
           from_user: data.from_agent_id === null,
           content: data.content,
-          files: data.attachments,
           at: data.at,
         });
         upsertConversation({
