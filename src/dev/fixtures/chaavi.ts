@@ -77,3 +77,13 @@ export function health(): ChaaviHealth {
 export function totp(): ChaaviTotp {
   return { code: "482 913", period: 30, remaining: 19 };
 }
+
+/** Domains whose icon the fixture proxy has. */
+const ICON_COLORS: Record<string, string> = { "apple.com": "#2c302a", "github.com": "#5c6b52" };
+
+/** Chaavi `GET /icons/:domain/icon.png`: a plain coloured square for a known domain, and the generic icon (a different image, as the real proxy's) for any other. */
+export function siteIcon(domain: string): Blob {
+  const color = ICON_COLORS[domain];
+  const svg = color === undefined ? `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><circle cx="16" cy="16" r="10" fill="#b9c9ab"/></svg>` : `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="${color}"/><path d="M8 20l8-10 8 10z" fill="#fafaf7"/></svg>`;
+  return new Blob([svg], { type: "image/svg+xml" });
+}

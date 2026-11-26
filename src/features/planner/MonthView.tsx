@@ -85,8 +85,14 @@ export function MonthView({ days, now, anchor, plans, badges, onOpen, onDay, onM
                 if (!runsAsBar(plan)) {
                   return (
                     <PlanButton key={plan.id} plan={plan} aria-haspopup="dialog" onClick={(e) => onOpen(plan, e.currentTarget)} style={{ display: "flex", alignItems: "center", gap: 5, minWidth: 0, textAlign: "left" }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: planTone(plan), flex: "none" }} />
-                      <Truncate text={plan.title} style={{ flex: 1, minWidth: 0, fontSize: 12, color: "var(--ink-muted)" }} />
+                      {plan.attended === true ? (
+                        <span aria-label="Attended" style={{ display: "flex", flex: "none", color: "var(--sage-deep)" }}>
+                          <Icon name="check" size={10} />
+                        </span>
+                      ) : (
+                        <span style={{ width: 6, height: 6, borderRadius: "50%", background: planTone(plan), flex: "none" }} />
+                      )}
+                      <Truncate text={plan.title} style={{ flex: 1, minWidth: 0, fontSize: 12, color: plan.attended === true ? "var(--ink)" : "var(--ink-muted)", fontWeight: plan.attended === true ? 600 : 400, textDecoration: plan.attended === false ? "line-through" : "none" }} />
                     </PlanButton>
                   );
                 }

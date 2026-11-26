@@ -12,30 +12,34 @@ export type DeviceActionDeps = {
   onToggle: (on: boolean) => void;
   /** Make the device show itself (blink or beep). */
   onIdentify: () => void;
-  /** Open the inspector on the device with its name ready to type over. */
-  onRename: () => void;
-  /** Take the device out from under the tag the page is showing. */
-  onRemoveFromTag: () => void;
+  /** Open the inspector on the device with its name ready to type over; a surface that cannot rename leaves it out and the row is not offered. */
+  onRename?: () => void;
+  /** Take the device out from under the tag the page is showing; needed only with `inTag`. */
+  onRemoveFromTag?: () => void;
   /** Open the inspector on the device. */
   onInspect: () => void;
+  /** What the inspector row says; "Open in inspector" by default, "Open in Ghar" where the inspector is another page. */
+  openLabel?: string;
 };
 
 /**
  * What a person can do with a device: open it in the inspector, switch it, identify it, rename it, and, in a tag's view, take it
  * out from under that tag. One list, drawn by the right-click menu on its tile and by any `...` menu.
  */
-export function deviceActions(device: GharDevice, { disabled, inTag, onToggle, onIdentify, onRename, onRemoveFromTag, onInspect }: DeviceActionDeps): ActionList {
+export function deviceActions(device: GharDevice, { disabled, inTag, onToggle, onIdentify, onRename, onRemoveFromTag, onInspect, openLabel = "Open in inspector" }: DeviceActionDeps): ActionList {
   const unreachable = disabled ? "Ghar is unreachable" : !device.online ? "The device is offline" : undefined;
-  const list: Array<Action | "separator"> = [{ id: "inspect", label: "Open in inspector", icon: "info", run: onInspect }];
+  const list: Array<Action | "separator"> = [{ id: "inspect", label: openLabel, icon: "info", run: onInspect }];
   if (isSwitchable(device)) {
     const on = isOn(device);
     list.push({ id: "power", label: on ? "Turn off" : "Turn on", icon: "power", disabledReason: unreachable, run: () => onToggle(!on) });
   }
   list.push(
     { id: "identify", label: "Identify", icon: "bolt", disabledReason: unreachable, run: onIdentify },
-    { id: "rename", label: "Rename", icon: "pencil", disabledReason: disabled ? "Ghar is unreachable" : undefined, run: onRename },
   );
-  if (inTag !== undefined) {
+  if (onRename !== undefined) {
+    list.push({ id: "rename", label: "Rename", icon: "pencil", disabledReason: disabled ? "Ghar is unreachable" : undefined, run: onRename });
+  }
+  if (inTag !== undefined && onRemoveFromTag !== undefined) {
     list.push("separator", { id: "remove-tag", label: `Remove from ${inTag}`, icon: "close", disabledReason: disabled ? "Ghar is unreachable" : undefined, run: onRemoveFromTag });
   }
   return list;

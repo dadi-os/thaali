@@ -16,6 +16,7 @@ import { usePlanActions } from "./planActions";
 import { addDays, dateKey, startOfDay } from "./dates";
 import { formatSpan } from "./layout";
 import { dayTasksKey, groupTasks, progressOf } from "./tasks";
+import { planLook } from "./planLook";
 import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { dayRecap, ROW, tilePlans, windowRows, type WidgetRow } from "./widget";
 
@@ -61,21 +62,28 @@ export function PlanRow({ row, now, state, wide, first, last }: PlanRowProps) {
   const from = Date.parse(plan.start_at);
   const to = Date.parse(plan.end_at!);
   const over = state === "past";
-  const detail = declined ? "Declined" : planStatus(plan, now, state);
+  const look = planLook(plan, state);
+  const attended = look.kind === "attended";
+  const detail = look.caption ?? planStatus(plan, now, state);
   const fact = [formatSpan((to - from) / 60_000), plan.place === null ? null : `${plan.place.title}${plan.place.room === null ? "" : ` room ${plan.place.room}`}`].filter((part): part is string => part !== null).join(" · ");
   return (
-    <div data-plan={plan.id} tabIndex={0} {...context} className={`relative flex flex-none items-start gap-3 rounded-[12px] px-2 ${current ? "bg-sage-active" : ""} ${over || declined ? "opacity-55" : ""}`} style={{ height: current ? ROW.current : ROW.plan, paddingTop: ROW_TOP }}>
+    <div data-plan={plan.id} tabIndex={0} {...context} className={`relative flex flex-none items-start gap-3 rounded-[12px] px-2 ${current ? "bg-sage-active" : ""} ${(over || declined) && !attended ? "opacity-55" : ""}`} style={{ height: current ? ROW.current : ROW.plan, paddingTop: ROW_TOP, ...(attended ? { background: look.fill, boxShadow: `inset 0 0 0 1px ${look.border}` } : {}) }}>
       <span aria-hidden="true" className="absolute w-px bg-sage-line" style={{ left: SPINE_X, top: first ? ROW_TOP + LINE / 2 : 0, bottom: last ? undefined : 0, height: last ? ROW_TOP + LINE / 2 : undefined }} />
       <span className="flex flex-none flex-col items-end text-right" style={{ width: TIME_COL }}>
         <span className={`text-[13px] leading-5 tabular-nums ${current ? "font-semibold" : ""}`}>{formatClock(plan.start_at)}</span>
         <span className="text-[12px] leading-4 text-ink-muted tabular-nums">{formatClock(plan.end_at!)}</span>
       </span>
       <span className="relative flex size-2.5 flex-none items-center justify-center" style={{ marginTop: (LINE - 10) / 2 }}>
-        <span className={`dot size-2.5 ${current ? "bg-sage-deep" : over ? "bg-sage-line" : declined ? "border-2 border-ink-ghost bg-bone" : "border-2 bg-bone"}`} style={!current && !over && !declined ? { borderColor: plan.hub === null ? "var(--sage-line)" : "var(--tide)" } : undefined} />
+        {attended ? (
+          <span aria-hidden="true" className="flex size-4 flex-none items-center justify-center rounded-full bg-sage-deep text-bone">
+            <Icon name="check" size={10} />
+          </span>
+        ) : null}
+        <span className={`dot size-2.5 ${attended ? "hidden" : ""} ${current ? "bg-sage-deep" : over ? "bg-sage-line" : declined ? "border-2 border-ink-ghost bg-bone" : "border-2 bg-bone"}`} style={!current && !over && !declined ? { borderColor: plan.hub === null ? "var(--sage-line)" : "var(--tide)" } : undefined} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1 pr-1">
         <span className="flex min-w-0 items-center gap-1.5">
-          <Truncate text={plan.title} className={`text-[14px] leading-5 ${current ? "font-semibold" : "font-medium"}`} />
+          <Truncate text={plan.title} className={`text-[14px] leading-5 ${look.struck ? "line-through" : ""} ${current ? "font-semibold" : "font-medium"}`} />
           {meetingLink(plan) === null ? null : <span role="img" aria-label="Video call" title="Video call" className="flex flex-none text-ink-muted"><Icon name="video" size={12} /></span>}
         </span>
         <span className={`truncate text-[13px] leading-4 ${current ? "text-sage-text" : "text-ink-muted"}`}>{detail}</span>

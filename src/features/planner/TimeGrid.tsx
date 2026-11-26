@@ -10,6 +10,7 @@ import { isSameDay, wallMinutes } from "./dates";
 import { formatSpan, gapsBetween, type Segment, segmentsOn } from "./layout";
 import { PlanButton } from "./PlanButton";
 import { meetingLink } from "./meeting";
+import { planLook } from "./planLook";
 import { keptBy, planTone } from "./plans";
 import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { plannedClock } from "./zones";
@@ -67,21 +68,22 @@ function Block({ segment, now, state, zone, top, height, selected, compact, onOp
   const declined = plan.rsvp === "no";
   const current = state === "now";
   const ended = state === "past";
-  const missed = plan.attended === false;
+  const look = planLook(plan, state);
+  const missed = look.struck;
   const range = `${formatClock(plan.start_at)} – ${formatClock(plan.end_at!)}`;
   const inset = compact ? 3 : 8;
   const narrow = compact && lanes > 1;
   const short = height < 58;
   const pad = compact ? 6 : 14;
-  const status = plan.attended === true ? "Attended" : missed ? "Didn’t attend" : declined ? "Declined" : null;
+  const status = look.caption;
   const note = plan.place === null ? null : `${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`;
   const phase = state === "later" || declined ? null : planStatus(plan, now, state);
   const line = [phase, status].filter((part): part is string => part !== null).join(" · ");
   const keeper = keptBy(plan.owner);
   const facts = compact ? [] : [line, there, note, `${formatSpan(segment.endMin - segment.startMin)} long`, keeper === null ? "" : `Kept by ${keeper}`].filter((fact): fact is string => fact !== null && fact !== "");
   const fit = Math.max(0, Math.floor((height - 16 - 20 - 2) / 18));
-    const quiet = declined || missed || ended;
-  const titleStyle: CSSProperties = { fontSize: compact ? 13 : 14, fontWeight: current ? 700 : 600, lineHeight: compact ? "16px" : "20px", textDecoration: missed ? "line-through" : "none", color: quiet ? "var(--ink-muted)" : "var(--ink)" };
+  const quiet = (declined || missed || ended) && plan.attended !== true;
+  const titleStyle: CSSProperties = { fontSize: compact ? 13 : 14, fontWeight: current ? 700 : 600, lineHeight: compact ? "16px" : "20px", textDecoration: missed ? "line-through" : "none", color: look.kind === "attended" ? "var(--ink)" : quiet ? "var(--ink-muted)" : "var(--ink)" };
   const mark =
     plan.attended === true && !compact ? (
       <span aria-label="Attended" style={{ display: "flex", color: "var(--sage-deep)", flex: "none" }}>
@@ -112,10 +114,9 @@ function Block({ segment, now, state, zone, top, height, selected, compact, onOp
         padding: narrow ? "3px 5px" : short ? `0 ${pad}px` : compact ? `5px ${pad}px` : `8px ${pad}px`,
         borderRadius: compact ? 10 : 14,
         ...SHEET,
-        ...(declined ? { background: "var(--slab-declined)", border: "1px dashed var(--slab-declined-border)", boxShadow: "none" } : {}),
+        ...(look.kind === "now" || look.kind === "upcoming" ? {} : { background: look.fill, border: `1px ${look.dashed ? "dashed" : "solid"} ${look.border}`, boxShadow: "none" }),
         ...(current ? { border: "1px solid var(--slab-now-border)", backgroundColor: "var(--slab)", backgroundImage: "linear-gradient(var(--sage-active), var(--sage-active))" } : {}),
         ...(selected ? { border: "1px solid var(--slab-now-border)" } : {}),
-        ...(ended && !declined ? { background: "var(--slab-past)", boxShadow: "none" } : {}),
         zIndex: 2,
         overflow: "hidden",
         textAlign: "left",

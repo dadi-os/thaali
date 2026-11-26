@@ -343,6 +343,8 @@ export class Fixtures {
     if (route === "GET /v1/items") return { items: chaavi.items(s) };
     if (route === "GET /v1/folders") return { folders: chaavi.folders(s) };
     if (/^POST \/v1\/items\/[^/]+\/totp$/.test(route)) return chaavi.totp();
+    const icon = /^GET \/icons\/([^/]+)\/icon\.png$/.exec(route);
+    if (icon !== null) return chaavi.siteIcon(decodeURIComponent(icon[1]!));
     throw new Error(`fixtures: no route for chaavi ${route}`);
   }
 }

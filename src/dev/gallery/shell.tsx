@@ -118,7 +118,7 @@ CASES["shell.pageheader.plain"] = () => (
 );
 CASES["shell.pageheader.meta"] = () => (
   <MemoryRouter>
-    <PageHeader title="Hath" meta="2 working · 18 agents" trailing={<Button tone="outline">Retry</Button>} />
+    <PageHeader title="Hath" meta="2 working · 18 agents" trailing={<Button tone="sage">Retry</Button>} />
   </MemoryRouter>
 );
 CASES["shell.pageheader.hover"] = () => (

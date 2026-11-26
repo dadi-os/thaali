@@ -66,11 +66,11 @@ export function Expandable({ title, secondary, trailing, icon, open, onToggle, l
       <div className="flex flex-col">
         <div
           {...rowProps}
-          className={`xrow ui-trans relative flex h-10 flex-none items-center gap-1 rounded-[12px] pr-2 pl-1 ${selected ? "bg-sage-active" : "hover:bg-sage-fill"} ${rowProps?.className ?? ""}`}
+          className={`xrow ui-trans relative flex h-10 flex-none items-center gap-1 rounded-[12px] pr-2 pl-1 ui-hover-fill ${selected ? "hl-on" : ""} ${rowProps?.className ?? ""}`}
           style={{ ...rowStyle, ...rowProps?.style }}
         >
           {onSelect === undefined ? (
-            <button type="button" aria-expanded={branch ? open : undefined} aria-labelledby={id} onClick={onToggle} className="ui-trans absolute inset-0 rounded-[12px] active:bg-sage-active" />
+            <button type="button" aria-expanded={branch ? open : undefined} aria-labelledby={id} onClick={onToggle} className="absolute inset-0 rounded-[12px]" />
           ) : null}
           {branch ? (
             <button
@@ -79,7 +79,7 @@ export function Expandable({ title, secondary, trailing, icon, open, onToggle, l
               aria-expanded={onSelect === undefined ? undefined : open}
               tabIndex={onSelect === undefined ? -1 : 0}
               onClick={onSelect === undefined ? undefined : onToggle}
-              className={`ui-trans relative flex size-7 flex-none items-center justify-center rounded-[8px] text-ink-muted ${onSelect === undefined ? "pointer-events-none" : "hover:bg-sage-active/60"}`}
+              className={`ui-trans relative flex size-7 flex-none items-center justify-center rounded-[8px] text-ink-muted ${onSelect === undefined ? "pointer-events-none" : "hover:text-ink"}`}
             >
               <motion.span animate={{ rotate: open ? 90 : 0 }} transition={{ duration: SLOW_S, ease: EASE }} className="flex">
                 <Icon name="chevron" size={12} />
@@ -148,7 +148,7 @@ export function Expandable({ title, secondary, trailing, icon, open, onToggle, l
           aria-expanded={open}
           aria-labelledby={id}
           onClick={onToggle}
-          className={`ui-trans absolute inset-0 w-full hover:bg-sage-active/50 active:bg-sage-active ${card ? "rounded-[14px]" : "rounded-[8px]"}`}
+          className={`ui-trans ui-hover-fill absolute inset-0 w-full ${card ? "rounded-[14px]" : "rounded-[8px]"}`}
         />
         <div className={`pointer-events-none relative flex items-start gap-2.5 ${card ? "px-3 py-2.5" : "px-1.5 py-1"}`}>
           <span className={`mt-[5px] flex size-3 flex-none text-ink-muted transition-[rotate] duration-slow ease-dadi ${open ? "rotate-90" : ""}`}>

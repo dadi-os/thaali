@@ -195,7 +195,7 @@ export function Inspector({ device, tags, width, renaming, onRenaming, disabled,
             </Control>
             <ButtonGroup>
               {(["open", "stop", "close"] as const).map((name) => (
-                <Button key={name} tone="outline" size="lg" equal disabled={dis} onClick={() => onSend(coverCommand(name))}>
+                <Button key={name} tone="sage" size="lg" equal disabled={dis} onClick={() => onSend(coverCommand(name))}>
                   {name === "open" ? "Open" : name === "stop" ? "Stop" : "Close"}
                 </Button>
               ))}
@@ -212,10 +212,10 @@ export function Inspector({ device, tags, width, renaming, onRenaming, disabled,
               <span className="ui-label">Heat to</span>
               <span style={{ marginLeft: "auto", fontSize: 14, fontWeight: 600, fontVariantNumeric: "tabular-nums" }}>{`${heat}°`}</span>
               <ButtonGroup>
-                <Button tone="outline" size="sm" aria-label="Lower heat setpoint" disabled={dis || heat === null} style={{ minWidth: 32, padding: 0 }} onClick={() => heat !== null && onSend(setpointCommand(heat - SETPOINT_STEP))}>
+                <Button tone="sage" size="sm" aria-label="Lower heat setpoint" disabled={dis || heat === null} style={{ minWidth: 32, padding: 0 }} onClick={() => heat !== null && onSend(setpointCommand(heat - SETPOINT_STEP))}>
                   −
                 </Button>
-                <Button tone="outline" size="sm" aria-label="Raise heat setpoint" disabled={dis || heat === null} style={{ minWidth: 32, padding: 0 }} onClick={() => heat !== null && onSend(setpointCommand(heat + SETPOINT_STEP))}>
+                <Button tone="sage" size="sm" aria-label="Raise heat setpoint" disabled={dis || heat === null} style={{ minWidth: 32, padding: 0 }} onClick={() => heat !== null && onSend(setpointCommand(heat + SETPOINT_STEP))}>
                   +
                 </Button>
               </ButtonGroup>
@@ -270,7 +270,7 @@ export function Inspector({ device, tags, width, renaming, onRenaming, disabled,
           </div>
         </div>
         <ButtonGroup>
-          <Button tone="outline" size="md" icon="bolt" disabled={dis} onClick={onIdentify}>
+          <Button tone="sage" size="md" icon="bolt" disabled={dis} onClick={onIdentify}>
             Identify
           </Button>
         </ButtonGroup>

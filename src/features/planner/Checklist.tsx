@@ -5,7 +5,6 @@ import { isMeshOnline, planner } from "../../shared/api";
 import { Card } from "../../shared/ui/Card";
 import { CheckCircle } from "../../shared/ui/CheckCircle";
 import { Button } from "../../shared/ui/Button";
-import { ListRow } from "../../shared/ui/ListRow";
 import { Expandable } from "../../shared/ui/Expandable";
 import { Icon } from "../../shared/ui/Icon";
 import { StateView } from "../../shared/states/ModuleState";
@@ -37,8 +36,8 @@ type RowProps = {
 const HINT_INK = { done: "var(--ink-muted)", late: "var(--late-ink)", soon: "var(--ink)", open: "var(--ink-muted)", none: "var(--ink-muted)" } as const;
 
 /**
- * One task of the day: its ring ticks it (or takes the tick back) and the rest of the row opens its details. Under the title the
- * row says, on one meta line, its situation in words ("Past due by 5 days", "Closes today 5:00 PM · in 3 h") and its course when the title does not already name it. Titles wrap to two lines.
+ * One task of the day as a card: its ring ticks it (or takes the tick back) and the rest of the card opens its details. Under the title the
+ * card says, on one meta line, its situation in words ("Past due by 5 days", "Closes today 5:00 PM · in 3 h") and its course when the title does not already name it. Titles wrap to two lines.
  */
 function Row({ task, now, onTick, onOpen }: RowProps) {
   const reduce = useReducedMotion() ?? false;
@@ -54,19 +53,31 @@ function Row({ task, now, onTick, onOpen }: RowProps) {
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, height: 0, transition: reduce ? { duration: 0 } : { delay: SLOW_S, duration: SLOW_S, ease: EASE } }}
       transition={{ duration: SLOW_S, ease: EASE }}
-      style={{ listStyle: "none", overflow: "hidden" }}
+      style={{ listStyle: "none", overflow: "hidden", paddingBottom: 4 }}
       {...context}
-      className="flex items-start gap-0 rounded-[12px]"
     >
-      <CheckCircle done={task.done} label={`${task.done ? "Take back" : "Mark done:"} ${task.title}`} onToggle={() => onTick(task, !task.done)} />
-      <ListRow aria-haspopup="dialog" onClick={(event) => onOpen(task, event.currentTarget)} className="flex-1 flex-col items-stretch gap-0.5 px-1.5 py-2">
-        <span className={`line-clamp-2 text-[14px] leading-[19px] font-medium ${task.done ? "text-ink-muted line-through" : ""}`}>{task.title}</span>
-        {meta === "" ? null : (
-          <span className="truncate text-[12px] leading-4 tabular-nums" style={{ color: task.done ? "var(--ink-muted)" : HINT_INK[status.tone], fontWeight: status.tone === "late" && !task.done ? 600 : 400 }}>
-            {meta}
+      <div className="relative flex min-h-14 items-center rounded-[14px] border border-[var(--slab-border)] bg-[var(--slab)] shadow-[var(--slab-shadow)]">
+        <button
+          type="button"
+          aria-haspopup="dialog"
+          aria-label={`Open ${task.title}`}
+          onClick={(event) => onOpen(task, event.currentTarget)}
+          className="ui-trans ui-hover-fill absolute inset-0 rounded-[14px]"
+        />
+        <div className="pointer-events-none relative flex min-w-0 flex-1 items-center">
+          <span className="pointer-events-auto flex">
+            <CheckCircle done={task.done} label={`${task.done ? "Take back" : "Mark done:"} ${task.title}`} onToggle={() => onTick(task, !task.done)} />
           </span>
-        )}
-      </ListRow>
+          <div className="flex min-w-0 flex-1 flex-col gap-0.5 py-2.5 pr-3 pl-0.5">
+            <span className={`line-clamp-2 text-[14px] leading-[19px] font-medium ${task.done ? "text-ink-muted line-through" : ""}`}>{task.title}</span>
+            {meta === "" ? null : (
+              <span className="truncate text-[12px] leading-4 tabular-nums" style={{ color: task.done ? "var(--ink-muted)" : HINT_INK[status.tone], fontWeight: status.tone === "late" && !task.done ? 600 : 400 }}>
+                {meta}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
     </motion.li>
   );
 }
@@ -216,7 +227,7 @@ export function Checklist({ day, now, onSomeday, onOpenTask, height }: Checklist
         <div style={{ display: "flex", alignItems: "center", gap: 8, height: 28 }}>
           <span style={{ fontSize: 17, fontWeight: 600, color: "var(--sage-text)" }}>Checklist</span>
           <div style={{ flex: 1 }} />
-          <Button tone="outline" size="sm" aria-haspopup="dialog" onClick={onSomeday}>
+          <Button tone="sage" size="sm" aria-haspopup="dialog" onClick={onSomeday}>
             {`Someday · ${someday.count}`}
           </Button>
         </div>

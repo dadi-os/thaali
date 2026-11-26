@@ -26,12 +26,12 @@ describe("task list", () => {
     task("f", "stopped", "2026-10-28T08:00:00Z"),
   ];
 
-  it("counts a paused task with the working ones and every task under All", () => {
-    expect(filterCounts(tasks)).toEqual({ All: 6, Working: 2, Waiting: 1, Idle: 1, Asleep: 1, Stopped: 1 });
+  it("counts a paused task with the working ones and every task but the asleep one under All", () => {
+    expect(filterCounts(tasks)).toEqual({ All: 5, Working: 2, Waiting: 1, Idle: 1, Stopped: 1 });
   });
 
   it("lists a task waiting on its agent first, then the newest activity", () => {
-    expect(listedTasks(tasks, "All").map((t) => t.id)).toEqual(["b", "a", "c", "d", "e", "f"]);
+    expect(listedTasks(tasks, "All").map((t) => t.id)).toEqual(["b", "a", "c", "d", "f"]);
     expect(listedTasks(tasks, "Working").map((t) => t.id)).toEqual(["a", "c"]);
   });
 
@@ -48,12 +48,13 @@ describe("task list", () => {
     expect(shown.tasks[shown.tasks.length - 1]!.status).toBe("asking");
   });
 
-  it("shows only idle tasks when none are active, then asleep ones with stopped last", () => {
+  it("shows only idle tasks when none are active, then stopped ones, and never an asleep one", () => {
     const quiet = tasks.filter((t) => ["idle", "asleep", "stopped"].includes(t.status));
     expect(tileTasks(quiet).title).toBe("Idle tasks");
     expect(tileTasks(quiet).tasks.map((t) => t.id)).toEqual(["d"]);
     const sleeping = tasks.filter((t) => t.status === "stopped" || t.status === "asleep").reverse();
-    expect(tileTasks(sleeping).title).toBe("Asleep tasks");
-    expect(tileTasks(sleeping).tasks.map((t) => t.id)).toEqual(["e", "f"]);
+    expect(tileTasks(sleeping).title).toBe("Stopped tasks");
+    expect(tileTasks(sleeping).tasks.map((t) => t.id)).toEqual(["f"]);
+    expect(tileTasks(tasks.filter((t) => t.status === "asleep")).tasks).toEqual([]);
   });
 });

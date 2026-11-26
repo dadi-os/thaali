@@ -14,6 +14,7 @@ import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../t
 import { copySecret } from "./clipboard";
 import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META, websiteUrl } from "./draft";
 import { Avatar } from "./ItemList";
+import { siteDomain } from "./siteIcon";
 
 /** How long a row says it was copied, in ms. */
 const COPIED_MS = 4_000;
@@ -322,14 +323,14 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
   return (
     <Card className="min-h-0 min-w-0 flex-1 p-0">
       <div className="flex flex-none flex-wrap items-center gap-x-4 gap-y-2.5 px-6 pt-5 pb-4">
-        <Avatar name={item.name} size={52} />
+        <Avatar name={item.name} size={52} domain={siteDomain(item)} />
         <div className="flex min-w-35 flex-[1_1_140px] flex-col gap-1">
           <Truncate text={item.name} className="text-[20px] font-semibold tracking-[-0.015em]" />
           <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} className="text-[14px] text-ink-muted" />
         </div>
         <div className="ml-auto flex flex-none items-center gap-2">
           <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} className={item.favorite ? "text-clay" : ""} />
-          <Button tone="outline" disabled={busy} onClick={onEdit} className="font-semibold text-sage-text">
+          <Button tone="sage" disabled={busy} onClick={onEdit} className="font-semibold text-sage-text">
             Edit
           </Button>
           <IconButton icon="trash" label="Delete item" disabled={busy || undefined} onClick={onDelete} className="text-error" />

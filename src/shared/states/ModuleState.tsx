@@ -48,7 +48,7 @@ function Mark({ kind, size }: { kind: StateKind; size: number }) {
 export function StateView({ kind, title, detail, service, status, requestId, onRetry, compact = false, dense = false }: StateViewProps) {
   const retry =
     onRetry !== undefined && kind !== "empty" ? (
-      <Button tone="outline" size="md" pill icon="retry" className="text-sage-text" onClick={onRetry}>
+      <Button tone="sage" size="md" pill icon="retry" className="text-sage-text" onClick={onRetry}>
         Retry
       </Button>
     ) : null;

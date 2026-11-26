@@ -22,7 +22,7 @@ export const CASES: Record<string, () => ReactNode> = {};
 
 /** The handler for a control whose case only shows its look. */
 const noop = () => undefined;
-const TONES: ButtonTone[] = ["outline", "sage", "quiet", "fill", "danger"];
+const TONES: ButtonTone[] = ["sage", "quiet", "fill", "danger"];
 const SIZES: ButtonSize[] = ["sm", "md", "lg", "xl"];
 
 for (const tone of TONES) {
@@ -41,14 +41,38 @@ for (const tone of TONES) {
 }
 for (const state of ["hover", "active", "focus"]) {
   CASES[`button.fill.md.${state}`] = () => <Button tone="fill">Open thread</Button>;
-  CASES[`button.outline.md.${state}`] = () => <Button tone="outline">Edit</Button>;
+  CASES[`button.sage.md.${state}`] = () => <Button tone="sage">Edit</Button>;
 }
+/** Every tone at every size beside a Segmented, in one frame, for judging the family. */
+CASES["button.family"] = () => (
+  <div className="flex flex-col gap-3 p-6">
+    {(["sage", "quiet", "fill", "danger"] as const).map((tone) => (
+      <div key={tone} className="flex items-center gap-3">
+        {(["xs", "sm", "md", "lg", "xl", "rail"] as const).map((size) => (
+          <Button key={size} tone={tone} size={size} icon={size === "xs" ? undefined : "check"}>
+            {tone} {size}
+          </Button>
+        ))}
+        <Button tone={tone} size="md" disabled>
+          disabled
+        </Button>
+        <IconButton icon="copy" label="Copy" />
+      </div>
+    ))}
+    <Segmented
+      label="View"
+      value="day"
+      onChange={noop}
+      options={["day", "week"]}
+    />
+  </div>
+);
 CASES["button.group.equal"] = () => (
   <ButtonGroup>
     <Button tone="fill" size="lg" equal>
       Resume
     </Button>
-    <Button tone="outline" size="lg" equal>
+    <Button tone="sage" size="lg" equal>
       Hand back
     </Button>
     <Button tone="danger" size="lg" equal>
@@ -61,8 +85,8 @@ CASES["button.fill.md.disabled"] = () => (
     Open thread
   </Button>
 );
-CASES["button.outline.md.disabled"] = () => (
-  <Button tone="outline" disabled>
+CASES["button.sage.md.disabled"] = () => (
+  <Button tone="sage" disabled>
     Edit
   </Button>
 );
@@ -71,8 +95,8 @@ CASES["button.fill.md.selected"] = () => (
     Open thread
   </Button>
 );
-CASES["button.outline.md.selected"] = () => (
-  <Button tone="outline" selected>
+CASES["button.sage.md.selected"] = () => (
+  <Button tone="sage" selected>
     Edit
   </Button>
 );

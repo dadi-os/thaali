@@ -50,7 +50,7 @@ export function TaskCard({ task: shown, now = new Date() }: TaskCardProps) {
       facts={facts}
       actions={
         <>
-          <Button data-keep-open tone={task.done ? "outline" : "sage"} size="rail" icon={task.done ? "retry" : "check"} onClick={() => tick(task, !task.done)}>
+          <Button data-keep-open tone={task.done ? "quiet" : "sage"} size="rail" icon={task.done ? "retry" : "check"} onClick={() => tick(task, !task.done)}>
             {task.done ? "Take back done" : "Mark done"}
           </Button>
           {agent === null ? null : (

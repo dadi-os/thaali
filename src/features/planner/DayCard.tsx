@@ -7,7 +7,7 @@ import type { Plan, Task } from "../../types/planner";
 import { duration } from "./phrases";
 import { nextPlanId, planStatus, taskStatus, timeState, freeBetween } from "./timeState";
 import { PlanButton } from "./PlanButton";
-import { spanRange } from "./plans";
+import { attendedLabel, spanRange } from "./plans";
 import { startOfDay } from "./dates";
 
 /** What a Month tile's "+N more" opens: one day, with every plan and every task closing on it. */
@@ -31,6 +31,7 @@ function relation(day: Date, now: Date): string {
 /** What a plan row says under its title: Declined, the span of a multi-day plan, or where it stands in time; nothing for a plain all-day plan. */
 function secondLine(plan: Plan, now: Date, nextId: string | null): string | null {
   if (plan.rsvp === "no") return "Declined";
+  if (plan.attended !== null) return attendedLabel(plan);
   if (plan.all_day) return spanRange(plan);
   return planStatus(plan, now, timeState(plan, now, nextId));
 }
@@ -79,9 +80,9 @@ export function DayCard({ details, now = new Date(), onOpenPlan, onOpenTask, onO
               <ul className="m-0 flex flex-col gap-0.5 p-0">
                 {plans.map((plan) => (
                   <li key={plan.id} className="list-none">
-                    <PlanButton plan={plan} aria-haspopup="dialog" onClick={(event) => onOpenPlan(plan, event.currentTarget)} className={`${LIST_ROW_CLASS} flex-col items-stretch gap-0 px-2 py-1.5`}>
+                    <PlanButton plan={plan} aria-haspopup="dialog" onClick={(event) => onOpenPlan(plan, event.currentTarget)} className={`${LIST_ROW_CLASS} flex-col items-stretch gap-0 px-2 py-1.5`} style={plan.attended === true ? { background: "var(--slab-attended)", boxShadow: "inset 0 0 0 1px var(--slab-attended-border)" } : undefined}>
                       <span className="flex min-w-0 items-baseline gap-2">
-                        <Truncate text={plan.title} className={`min-w-0 flex-1 text-[14px] font-medium ${plan.rsvp === "no" ? "text-ink-muted" : ""}`} />
+                        <Truncate text={plan.title} className={`min-w-0 flex-1 text-[14px] font-medium ${plan.rsvp === "no" ? "text-ink-muted" : ""} ${plan.attended === false ? "text-ink-muted line-through" : ""}`} />
                         <span className="flex-none text-[12px] text-ink-muted tabular-nums">{plan.all_day ? "All day" : plan.end_at === null ? formatClock(plan.start_at) : `${formatClock(plan.start_at)} – ${formatClock(plan.end_at)}`}</span>
                       </span>
                       {secondLine(plan, now, nextId) === null ? null : <span className="text-[12px] text-ink-muted">{secondLine(plan, now, nextId)}</span>}

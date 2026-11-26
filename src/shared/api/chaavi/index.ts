@@ -1,3 +1,4 @@
+import { CHAAVI_VAULT } from "../constants";
 import type { Transport } from "../transport";
 import type {
   ChaaviCreateItem,
@@ -27,6 +28,18 @@ export const CHAAVI_FOLDERS_KEY = ["chaavi", "folders"] as const;
 /** React Query key for Chaavi health. */
 export const CHAAVI_HEALTH_KEY = ["chaavi", "health"] as const;
 
+/** The domain Chaavi is asked for to learn which icon it serves when it has none: it answers a site it cannot reach with this generic one, so the client can tell. */
+const NO_ICON_DOMAIN = "no-icon.invalid";
+
+/** Whether two blobs hold the same bytes. */
+async function sameBytes(a: Blob, b: Blob): Promise<boolean> {
+  if (a.size !== b.size) {
+    return false;
+  }
+  const [x, y] = await Promise.all([a.arrayBuffer(), b.arrayBuffer()]);
+  return new Uint8Array(x).every((byte, i) => byte === new Uint8Array(y)[i]);
+}
+
 /**
  * Chaavi HTTP client — vault health, item and folder CRUD, and decrypt-on-demand reveal.
  * List/detail never embed secrets; callers reveal one value explicitly and keep it out of
@@ -35,6 +48,9 @@ export const CHAAVI_HEALTH_KEY = ["chaavi", "health"] as const;
 export function createChaaviClient(transport: Transport, baseUrl: string) {
   const item = (id: string) => `/v1/items/${encodeURIComponent(id)}`;
   const folder = (id: string) => `/v1/folders/${encodeURIComponent(id)}`;
+  const icon = (domain: string): Promise<Blob> =>
+    transport.request({ baseUrl: CHAAVI_VAULT, path: `/icons/${encodeURIComponent(domain)}/icon.png`, method: "GET", responseType: "blob" });
+  let genericIcon: Promise<Blob> | null = null;
   return {
     /** GET /health — process liveness and vault ready/unconfigured. */
     getHealth(): Promise<ChaaviHealth> {
@@ -74,6 +90,16 @@ export function createChaaviClient(transport: Transport, baseUrl: string) {
     /** POST /v1/generate — a fresh password, not stored. */
     generatePassword(body: { length?: number; special?: boolean }): Promise<{ password: string }> {
       return transport.request({ baseUrl, path: "/v1/generate", method: "POST", body });
+    },
+
+    /**
+     * GET /icons/:domain/icon.png on Chaavi's own icon proxy, so a login's domain never reaches a third party. Resolves to the site's
+     * icon, or null when Chaavi had none and answered with its generic one.
+     */
+    async getSiteIcon(domain: string): Promise<Blob | null> {
+      genericIcon ??= icon(NO_ICON_DOMAIN);
+      const [found, generic] = await Promise.all([icon(domain), genericIcon]);
+      return (await sameBytes(found, generic)) ? null : found;
     },
 
     /** GET /v1/folders — every folder. */

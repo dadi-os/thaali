@@ -5,7 +5,7 @@ import { Badge } from "../../shared/ui/Badge";
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
-import { MeterRow, SectionHeader, TileList, TileRow } from "../../shared/components/Module";
+import { FooterPill, FooterStrip, type FooterPillTone, MeterRow, SectionHeader, TileList, TileRow } from "../../shared/components/Module";
 import { Measured } from "../../shared/layout/Measured";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
@@ -62,16 +62,12 @@ type DeviceChipProps = {
 
 /** One device on dadi, in the pill language of the other chips: a solid sage dot and ink name when online, a clay dot when waiting to join, a muted dot and name when offline. */
 function DeviceChip({ node_name, online, pending }: DeviceChipProps) {
-  const look = online
-    ? { chip: "bg-sage-fill text-ink", dot: "bg-sage-deep" }
-    : pending
-      ? { chip: "bg-due-fill text-due-ink", dot: "bg-clay" }
-      : { chip: "bg-sage-fill text-ink-muted", dot: "bg-ink-ghost" };
+  const look: { tone: FooterPillTone; dot: string } = online ? { tone: "ink", dot: "bg-sage-deep" } : pending ? { tone: "due", dot: "bg-clay" } : { tone: "muted", dot: "bg-ink-ghost" };
   return (
-    <span className={`inline-flex h-8 flex-none items-center gap-2 rounded-full px-3 text-[13px] font-normal whitespace-nowrap ${look.chip}`} title={`${node_name}: ${online ? "online" : pending ? "waiting to join" : "offline"}`}>
+    <FooterPill tone={look.tone} title={`${node_name}: ${online ? "online" : pending ? "waiting to join" : "offline"}`}>
       <span className={`size-2 flex-none rounded-full ${look.dot}`} />
       {node_name}
-    </span>
+    </FooterPill>
   );
 }
 
@@ -104,12 +100,12 @@ function Body({ status, tasks, clients, geometry }: BodyProps) {
       ) : (
         <div className="flex-1" />
       )}
-      <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: 32 + 13 }} onClick={(event) => event.preventDefault()}>
+      <FooterStrip>
         {clients.length === 0 ? <span className="text-[13px] text-ink-muted">No devices on dadi</span> : null}
         {clients.map((client) => (
           <DeviceChip key={client.node_name} {...client} />
         ))}
-      </div>
+      </FooterStrip>
     </div>
   );
 }

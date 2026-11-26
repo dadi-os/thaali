@@ -1,20 +1,11 @@
 import type { ButtonHTMLAttributes, ReactNode } from "react";
 import { Icon, type IconName } from "./Icon";
 
-/** How loud a button is: an outlined default, a sage wash, quiet text, the solid primary, or a destructive tint. */
-export type ButtonTone = "outline" | "sage" | "quiet" | "fill" | "danger";
+/** How loud a button is: the soft sage tint (the default), quiet text, the solid primary, or a destructive tint. */
+export type ButtonTone = "sage" | "quiet" | "fill" | "danger";
 
-/** The button scale: 20 (a text action inside a dense row or tile), 28, 32, 36 and 40 px tall; `rail` is 40 px in the look of a Segmented track, for an action rail beside one. */
+/** The button scale: 20 (a text action inside a dense row or tile), 28, 32, 36 and 40 px tall; `rail` is 40 px for an action rail. Buttons are standalone: no border and no track, which is what Segmented keeps. */
 export type ButtonSize = "xs" | "sm" | "md" | "lg" | "xl" | "rail";
-
-/** Hover treatment per tone: the solid tone darkens, the destructive one deepens its tint, the rest wash in sage. */
-const HOVER: Record<ButtonTone, string> = {
-  outline: "ui-hover-fill",
-  sage: "ui-hover-fill",
-  quiet: "ui-hover-fill",
-  fill: "ui-hover-solid",
-  danger: "ui-hover-danger",
-};
 
 export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "children"> & {
   tone?: ButtonTone;
@@ -31,8 +22,8 @@ export type ButtonProps = Omit<ButtonHTMLAttributes<HTMLButtonElement>, "childre
 };
 
 /** A text button: label centred, height from the scale, never narrower than its label. */
-export function Button({ tone = "outline", size = "md", pill = false, icon, equal = false, selected, className, type = "button", children, ...rest }: ButtonProps) {
-  const classes = ["btn", `btn-${size}`, `btn-${tone}`, "ui-trans", HOVER[tone], pill ? "btn-pill" : "", equal ? "btn-equal" : "", className ?? ""];
+export function Button({ tone = "sage", size = "md", pill = false, icon, equal = false, selected, className, type = "button", children, ...rest }: ButtonProps) {
+  const classes = ["btn", `btn-${size}`, `btn-${tone}`, "ui-trans", pill ? "btn-pill" : "", equal ? "btn-equal" : "", className ?? ""];
   return (
     <button type={type} className={classes.filter(Boolean).join(" ")} aria-pressed={selected} {...rest}>
       {icon ? <Icon name={icon} size={size === "sm" ? 13 : 14} /> : null}

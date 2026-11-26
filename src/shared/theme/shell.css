@@ -442,6 +442,7 @@
 
   .rail-mark-dadi {
     font-family: "Noto Sans Gujarati", sans-serif;
+    font-synthesis: none;
     font-size: 19px;
     font-weight: 600;
     padding-top: 2px;
@@ -449,6 +450,7 @@
 
   .titlebar-mark {
     font-family: "Noto Sans Gujarati", sans-serif;
+    font-synthesis: none;
     font-size: 18px;
     font-weight: 600;
     color: var(--sage-text);

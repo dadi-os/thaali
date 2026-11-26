@@ -9,19 +9,24 @@ import { Truncate } from "../../shared/ui/Truncate";
 import type { PointerEvent as ReactPointerEvent } from "react";
 import type { ChaaviItem } from "../../types/chaavi";
 import { itemSubtitle } from "./draft";
+import { siteDomain, useSiteIcon } from "./siteIcon";
 
 export type AvatarProps = {
   /** The item's name; its first letter is the mark. */
   name: string;
   /** Width and height in px. */
   size: number;
+  /** The item's site, whose icon replaces the letter once Chaavi serves one. */
+  domain?: string | null;
 };
 
-/** A rounded square holding the first letter of an item's name. */
-export function Avatar({ name, size }: AvatarProps) {
+/** A rounded square holding the site's icon when Chaavi has one, and until then (or without one) the first letter of an item's name; the icon draws over the letter, so nothing moves when it arrives. */
+export function Avatar({ name, size, domain = null }: AvatarProps) {
+  const icon = useSiteIcon(domain);
   return (
     <span
       style={{
+        position: "relative",
         width: size,
         height: size,
         borderRadius: size / 3.2,
@@ -33,9 +38,11 @@ export function Avatar({ name, size }: AvatarProps) {
         fontSize: size * 0.42,
         fontWeight: 600,
         flex: "none",
+        overflow: "hidden",
       }}
     >
       {[...name][0]?.toUpperCase()}
+      {icon.src === null ? null : <img src={icon.src} alt="" draggable={false} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "contain", padding: size * 0.14, background: "#fff" }} />}
     </span>
   );
 }
@@ -96,7 +103,7 @@ function ItemRow({ item, selected, dragging, drag, actions, onSelect }: ItemRowP
         }}
         style={{ display: "flex", alignItems: "center", gap: 12, width: "100%", height: 56, padding: "0 10px", borderRadius: 12, background: selected ? "var(--sage-active)" : "transparent", cursor: "grab", touchAction: "none", ...(dragging ? { opacity: 0.35, scale: 0.97 } : {}) }}
       >
-        <Avatar name={item.name} size={36} />
+        <Avatar name={item.name} size={36} domain={siteDomain(item)} />
         <div style={{ display: "flex", flexDirection: "column", flex: 1, minWidth: 0, gap: 2 }}>
           <Truncate text={item.name} style={{ fontSize: 15, fontWeight: 600 }} />
           <Truncate text={itemSubtitle(item)} style={{ fontSize: 13, color: "var(--ink-muted)" }} />

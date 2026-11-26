@@ -37,7 +37,7 @@ function ScopeRow({ icon, name, count, selected, drop, hot = false, onClick }: S
       data-drop={drop}
       aria-current={selected ? "true" : "false"}
       onClick={onClick}
-      className={`ui-trans ui-hover-fill flex h-10 w-full flex-none items-center gap-2.5 rounded-[12px] px-3 ${selected ? "bg-sage-active font-semibold" : "bg-transparent font-medium"}`}
+      className={`ui-trans ui-hover-fill flex h-10 w-full flex-none items-center gap-2.5 rounded-[12px] px-3 ${selected ? "hl-on font-semibold" : "bg-transparent font-medium"}`}
       style={hot ? HOT_STYLE : undefined}
     >
       <span className={`flex ${selected ? "text-sage-text" : "text-ink-muted"}`}>

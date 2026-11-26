@@ -24,6 +24,9 @@
   --sage-faint: rgba(143, 163, 130, 0.13);
   --sage-fill: rgba(143, 163, 130, 0.1);
   --sage-active: rgba(143, 163, 130, 0.18);
+  --hl-hover: rgba(143, 163, 130, 0.09);
+  --hl-press: rgba(143, 163, 130, 0.16);
+  --hl-on: rgba(143, 163, 130, 0.15);
 
   /* Clay: deadlines and due times, with their ink, fill and line */
   --clay: #b89a63;
@@ -103,6 +106,8 @@
   --slab-now-border: var(--sage-deep);
   --slab-declined: var(--bone);
   --slab-declined-border: var(--ink-ghost);
+  --slab-attended: color-mix(in srgb, var(--sage) 24%, var(--slab));
+  --slab-attended-border: color-mix(in srgb, var(--sage-deep) 60%, transparent);
 
   /* Type scale: Inter 400, 500 and 600 for text, Geist Mono for ids and paths */
   --type-numeral: 34px;
@@ -150,6 +155,9 @@
     --sage-faint: rgba(154, 175, 140, 0.12);
     --sage-fill: rgba(154, 175, 140, 0.1);
     --sage-active: rgba(154, 175, 140, 0.18);
+    --hl-hover: rgba(154, 175, 140, 0.09);
+    --hl-press: rgba(154, 175, 140, 0.16);
+    --hl-on: rgba(154, 175, 140, 0.15);
 
     --clay: #d2bb8a;
     --due-ink: #e0c58e;

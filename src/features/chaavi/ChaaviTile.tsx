@@ -4,7 +4,7 @@ import { CHAAVI_FOLDERS_KEY, CHAAVI_HEALTH_KEY, CHAAVI_ITEMS_KEY } from "../../s
 import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
-import { Meter, TileList, TileRow } from "../../shared/components/Module";
+import { FooterPill, FooterStrip, FOOTER_STRIP_HEIGHT, Meter, TileList, TileRow } from "../../shared/components/Module";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { useModuleState } from "../../shared/hooks/useModuleState";
 import type { ChaaviFolder, ChaaviItem, ChaaviItemType } from "../../types/chaavi";
@@ -13,7 +13,6 @@ import { Tile, type TileGeometry } from "../home/Tile";
 import { ITEM_TYPES, TYPE_META } from "./draft";
 import { buildFolderTree, type FolderNode } from "./folders";
 
-const STRIP_HEIGHT = 28;
 const FOLDER_ROW = 28;
 /** How far each folder level steps in. */
 const INDENT = 18;
@@ -66,7 +65,7 @@ function Body({ items, folders, geometry }: BodyProps) {
     types.set(item.type, (types.get(item.type) ?? 0) + 1);
   }
   const rows = flatten(buildFolderTree(folders, items));
-  const room = Math.max(1, Math.floor((geometry.bh - STRIP_HEIGHT - 13 - 24) / FOLDER_ROW));
+  const room = Math.max(1, Math.floor((geometry.bh - FOOTER_STRIP_HEIGHT - 24) / FOLDER_ROW));
   const widest = Math.max(...rows.filter((row) => row.depth === 0).map((row) => row.node.count), 1);
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-3">
@@ -84,19 +83,19 @@ function Body({ items, folders, geometry }: BodyProps) {
         ))}
       </TileList>
       <div className="flex-1" />
-      <div className="scroll flex flex-none items-center gap-2 overflow-x-auto border-t border-rule pt-3" style={{ height: STRIP_HEIGHT + 13 }} onClick={(event) => event.preventDefault()}>
+      <FooterStrip>
         {ITEM_TYPES.filter((type) => types.has(type)).map((type) => {
           const count = types.get(type)!;
           const name = count === 1 ? TYPE_META[type].one : TYPE_META[type].many;
           return (
-            <span key={type} title={`${count} ${name}`} className="flex flex-none items-center gap-1.5 rounded-full bg-sage-fill px-2.5 py-1 text-[13px] whitespace-nowrap text-ink-muted">
+            <FooterPill key={type} tone="muted" title={`${count} ${name}`}>
               <Icon name={TYPE_META[type].icon} size={14} />
               <span className="font-semibold text-ink tabular-nums">{count}</span>
               <span>{name}</span>
-            </span>
+            </FooterPill>
           );
         })}
-      </div>
+      </FooterStrip>
     </div>
   );
 }

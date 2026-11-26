@@ -257,10 +257,10 @@ export function GharPage() {
             trailing={
               kept ? (
                 <ButtonGroup>
-                  <Button tone="outline" size="lg" disabled={disabled || on === 0} onClick={() => void house.run(allOff(devices))}>
+                  <Button tone="sage" size="lg" disabled={disabled || on === 0} onClick={() => void house.run(allOff(devices))}>
                     All off
                   </Button>
-                  <Button tone="outline" size="lg" disabled={disabled || lights === 0} onClick={() => void house.run(evening(devices))}>
+                  <Button tone="sage" size="lg" disabled={disabled || lights === 0} onClick={() => void house.run(evening(devices))}>
                     Evening
                   </Button>
                   <Button tone="fill" size="lg" icon="plus" disabled={disabled} onClick={() => openPairing(group?.tag.name ?? "")}>

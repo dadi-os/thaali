@@ -124,6 +124,7 @@ export function spanRange(plan: Plan): string | null {
 /** The fill, border and ink of an all-day bar: course tide, otherwise sage, muted and dashed when declined. */
 export function barLook(plan: Plan): { background: string; border: string; color: string } {
   if (plan.rsvp === "no") return { background: "var(--slab-declined)", border: "1px dashed var(--slab-declined-border)", color: "var(--ink-muted)" };
+  if (plan.attended === true) return { background: "var(--slab-attended)", border: "1px solid var(--slab-attended-border)", color: "var(--sage-text)" };
   return plan.hub === null
     ? { background: "var(--sage-active)", border: "1px solid var(--sage-line)", color: "var(--sage-text)" }
     : { background: "var(--tide-fill)", border: "1px solid var(--tide-line)", color: "var(--tide-ink)" };

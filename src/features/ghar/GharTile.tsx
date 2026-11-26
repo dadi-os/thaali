@@ -1,5 +1,8 @@
 import { useEffect, type MouseEvent } from "react";
+import { useNavigate } from "react-router-dom";
 import { motion } from "motion/react";
+import { ghar } from "../../shared/api";
+import { useContextActions } from "../../shared/interaction/contextMenu";
 import { RISE } from "../../shared/motion";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Switch } from "../../shared/ui/Switch";
@@ -10,6 +13,8 @@ import type { GharDevice } from "../../types/ghar";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { isLight, isOn, lightColor, sectionSwitch, switchCommand, tagLights, untaggedDevices } from "./model";
+import { deviceActions } from "./deviceActions";
+import { tagSwitchActions } from "./tagActions";
 import { useHouse, type House } from "./useHouse";
 
 /** A tag column's narrowest and widest, in px: a column keeps a card's shape however wide the tile is. */
@@ -30,6 +35,20 @@ function swallow(event: MouseEvent): void {
   event.stopPropagation();
 }
 
+/** The right-click menu of a light on Home: the page's device actions without rename, which needs the page. */
+function useLightMenu(light: GharDevice, house: House) {
+  const navigate = useNavigate();
+  return useContextActions(() =>
+    deviceActions(light, {
+      disabled: !house.connected,
+      onToggle: (on) => void house.run([{ id: light.id, command: switchCommand(on) }]),
+      onIdentify: () => void house.write(`Identifying ${light.name}`, () => ghar.identify(light.id)),
+      onInspect: () => void navigate(`/ghar?${new URLSearchParams({ device: light.id })}`),
+      openLabel: "Open in Ghar",
+    }),
+  );
+}
+
 type LightRowProps = {
   light: GharDevice;
   house: House;
@@ -38,9 +57,11 @@ type LightRowProps = {
 /** One light as a row: its colour dot and name; a tap flips just this light, and the tile's link does not follow it. */
 function LightRow({ light, house }: LightRowProps) {
   const on = isOn(light);
+  const context = useLightMenu(light, house);
   return (
     <motion.button
       {...RISE}
+      {...context}
       layout="position"
       type="button"
       aria-pressed={on}
@@ -67,9 +88,11 @@ type PillProps = {
 /** One light that carries no tag, as a pill of its own: its colour dot and name; a tap flips just this light, and the tile's link does not follow it. */
 function LightPill({ light, house }: PillProps) {
   const on = isOn(light);
+  const context = useLightMenu(light, house);
   return (
     <motion.button
       {...RISE}
+      {...context}
       layout="position"
       type="button"
       aria-pressed={on}
@@ -87,6 +110,62 @@ function LightPill({ light, house }: PillProps) {
       <span className={`dot size-2 flex-none ${on ? "" : "border border-sage-line"}`} style={{ background: lightColor(light) }} />
       <Truncate text={light.name} />
     </motion.button>
+  );
+}
+
+type TagColumnProps = {
+  card: ReturnType<typeof tagLights>[number];
+  /** The column's width in px. */
+  width: number;
+  /** How many light rows fit the column, and how many it keeps when it must count the rest. */
+  rowsFit: number;
+  kept: number;
+  house: House;
+};
+
+/** One tag's column: its name and count (a tap anywhere on it switches the whole tag), its lights, and a right-click menu to switch all or open the tag in Ghar. */
+function TagColumn({ card, width, rowsFit, kept, house }: TagColumnProps) {
+  const navigate = useNavigate();
+  const context = useContextActions(() =>
+    tagSwitchActions({
+      name: card.name,
+      disabled: !house.connected,
+      on: card.on > 0,
+      onSwitch: () => void house.run(sectionSwitch(card.lights)),
+      onOpen: () => void navigate(`/ghar?${new URLSearchParams({ tag: card.name })}`),
+    }),
+  );
+  return (
+    <section
+      {...context}
+      className={`ghar-group flex flex-none flex-col gap-0.5 rounded-[16px] p-1.5 ${card.on > 0 ? "ghar-group--on" : ""}`}
+      style={{ width }}
+      title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
+      onClick={(event) => {
+        swallow(event);
+        void house.run(sectionSwitch(card.lights));
+      }}
+    >
+      <button
+        type="button"
+        aria-pressed={card.on > 0}
+        aria-label={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
+        className="flex min-w-0 items-baseline justify-between gap-3 rounded-[10px] px-2 py-1 text-left"
+      >
+        <span className="min-w-0 flex-1 text-[14px] font-semibold">
+          <Truncate text={card.name} />
+        </span>
+        <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
+      </button>
+      {(card.lights.length <= rowsFit ? card.lights : card.lights.slice(0, kept)).map((light) => (
+        <LightRow key={light.id} light={light} house={house} />
+      ))}
+      {card.lights.length <= rowsFit || rowsFit < 2 ? null : (
+        <span className="flex items-center px-2 text-[12.5px] text-ink-muted tabular-nums" style={{ height: LIGHT_ROW }}>
+          {`+${card.lights.length - kept} more`}
+        </span>
+      )}
+    </section>
   );
 }
 
@@ -116,36 +195,7 @@ function Tags({ lights, geometry, house }: TagsProps) {
       ) : (
         <div className="scroll flex min-h-0 flex-1 items-start gap-2.5 overflow-x-auto overflow-y-hidden">
           {cards.map((card) => (
-            <section
-              key={card.key}
-              className={`ghar-group flex flex-none flex-col gap-0.5 rounded-[16px] p-1.5 ${card.on > 0 ? "ghar-group--on" : ""}`}
-              style={{ width }}
-              title={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
-              onClick={(event) => {
-                swallow(event);
-                void house.run(sectionSwitch(card.lights));
-              }}
-            >
-              <button
-                type="button"
-                aria-pressed={card.on > 0}
-                aria-label={`Switch ${card.on > 0 ? "off" : "on"} ${card.name}`}
-                className="flex min-w-0 items-baseline justify-between gap-3 rounded-[10px] px-2 py-1 text-left"
-              >
-                <span className="min-w-0 flex-1 text-[14px] font-semibold">
-                  <Truncate text={card.name} />
-                </span>
-                <span className="flex-none text-[12.5px] text-ink-muted tabular-nums">{`${card.on} of ${card.lights.length} on`}</span>
-              </button>
-              {(card.lights.length <= rowsFit ? card.lights : card.lights.slice(0, kept)).map((light) => (
-                <LightRow key={light.id} light={light} house={house} />
-              ))}
-              {card.lights.length <= rowsFit || rowsFit < 2 ? null : (
-                <span className="flex items-center px-2 text-[12.5px] text-ink-muted tabular-nums" style={{ height: LIGHT_ROW }}>
-                  {`+${card.lights.length - kept} more`}
-                </span>
-              )}
-            </section>
+            <TagColumn key={card.key} card={card} width={width} rowsFit={rowsFit} kept={kept} house={house} />
           ))}
         </div>
       )}

@@ -94,7 +94,7 @@ export function TasksBlock() {
   const waiting = counts.Waiting;
   return (
     <>
-      <SectionLabel right={state.kind === "ready" ? <span className="text-[13px] text-ink-muted">{`${tasks.length} · ${waiting} waiting on an agent`}</span> : null}>Tasks</SectionLabel>
+      <SectionLabel right={state.kind === "ready" ? <span className="text-[13px] text-ink-muted">{`${counts.All} · ${waiting} waiting on an agent`}</span> : null}>Tasks</SectionLabel>
       {state.kind === "ready" ? (
         <div className="flex flex-wrap items-center gap-2">
           {TASK_FILTERS.map((name) => (

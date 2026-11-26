@@ -10,6 +10,7 @@ import { PlanButton } from "./PlanButton";
 import { planTone } from "./plans";
 import type { TimeState } from "./timeState";
 import { blockFit, laneBox, WEEK } from "./weekLayout";
+import { planLook } from "./planLook";
 import { plannedClock } from "./zones";
 
 export type WeekBlockProps = {
@@ -44,7 +45,7 @@ export function WeekBlock({ segment, state, zone, top, height, narrow, selected,
   const current = state === "now";
   const ended = state === "past";
   const missed = plan.attended === false;
-  const quiet = declined || missed || ended;
+  const quiet = (declined || missed || ended) && plan.attended !== true;
   const box = Math.max(WEEK.minBlock, height - WEEK.blockGap);
   const reserve = more.length > 0 && box >= 52 ? WEEK.more : 0;
   const fit = blockFit(box - reserve, lanes, narrow);
@@ -52,11 +53,11 @@ export function WeekBlock({ segment, state, zone, top, height, narrow, selected,
   const there = plannedClock(plan, zone);
   const dot = lanes === 1 && !narrow;
   const title: CSSProperties = { fontSize: lanes > 1 ? 12 : 13, lineHeight: "16px", fontWeight: current ? 700 : 600, textDecoration: missed ? "line-through" : "none", color: quiet ? "var(--ink-muted)" : "var(--ink)", overflowWrap: "normal" };
-  const look: CSSProperties = declined
-    ? { backgroundImage: "linear-gradient(var(--slab-declined), var(--slab-declined))", border: "1px dashed var(--slab-declined-border)", boxShadow: "none" }
-    : ended
-      ? { backgroundImage: "linear-gradient(var(--slab-past), var(--slab-past))", border: "1px solid var(--slab-border)", boxShadow: "none" }
-      : { backgroundImage: "linear-gradient(var(--slab), var(--slab))", border: "1px solid var(--slab-border)", boxShadow: "var(--slab-shadow)" };
+  const planned = planLook(plan, state);
+  const look: CSSProperties =
+    planned.kind === "upcoming" || planned.kind === "now"
+      ? { backgroundImage: "linear-gradient(var(--slab), var(--slab))", border: "1px solid var(--slab-border)", boxShadow: "var(--slab-shadow)" }
+      : { backgroundImage: `linear-gradient(${planned.fill}, ${planned.fill})`, border: `1px ${planned.dashed ? "dashed" : "solid"} ${planned.border}`, boxShadow: "none" };
   const check = plan.attended === true && !fit.short && lanes === 1 && !narrow;
   const hidden = more.map((plan) => plan.title).join(", ");
   const also = more.length === 0 ? "" : ` · Also at this time: ${hidden}`;
@@ -102,7 +103,7 @@ export function WeekBlock({ segment, state, zone, top, height, narrow, selected,
         {fit.titleLines === 1 ? <Truncate text={plan.title} style={{ flex: 1, ...title }} /> : <Clamp text={plan.title} lines={fit.titleLines} style={{ flex: 1, ...title }} />}
         {fit.titleLines === 1 && meetingLink(plan) !== null ? <span role="img" aria-label="Video call" title="Video call" style={{ display: "flex", flex: "none", color: "var(--ink-muted)" }}><Icon name="video" size={12} /></span> : null}
       </div>
-      {fit.time ? <Truncate text={range} style={{ fontSize: 12, lineHeight: "16px", color: current ? "var(--sage-text)" : "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }} /> : null}
+      {fit.time ? <Truncate text={planned.kind === "attended" && lanes === 1 && !narrow ? `${range} · Attended` : range} style={{ fontSize: 12, lineHeight: "16px", color: current ? "var(--sage-text)" : "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }} /> : null}
     </PlanButton>
     {more.length === 0 ? null : (
       <div style={{ ...fold, zIndex: 3, display: "flex", alignItems: "flex-end", justifyContent: "flex-end", padding: WEEK.laneGap, pointerEvents: "none" }}>

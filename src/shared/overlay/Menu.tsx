@@ -91,7 +91,7 @@ export function MenuSurface({ actions, onChosen, origin = "top left", width = 22
             role="menuitem"
             disabled={row.disabledReason !== undefined}
             title={row.disabledReason ?? row.detail}
-            className={["menu-item", row.selected ? "menu-item-on" : "", "ui-trans", "ui-hover-fill"].join(" ")}
+            className={["menu-item", row.selected ? "hl-on" : "", "ui-trans", "ui-hover-fill"].join(" ")}
             style={row.destructive ? { color: "var(--error)" } : undefined}
             onClick={() => {
               if (row.keepOpen !== true) {

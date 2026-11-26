@@ -26,3 +26,25 @@ export function tagActions({ disabled, onRename, onAddDevices, onDelete }: TagAc
   ];
   return list;
 }
+
+/** What {@link tagSwitchActions} needs from a tag's card on Home. */
+export type TagSwitchDeps = {
+  /** The tag's name, which the open row names. */
+  name: string;
+  /** Ghar is unreachable: switching shows why it cannot run. */
+  disabled: boolean;
+  /** Whether any of the tag's lights is on. */
+  on: boolean;
+  /** Switch every light of the tag on or off. */
+  onSwitch: (on: boolean) => void;
+  /** Open the tag in Ghar. */
+  onOpen: () => void;
+};
+
+/** What a person can do with a tag from where it shows as a card: switch all its lights and open it in Ghar. */
+export function tagSwitchActions({ name, disabled, on, onSwitch, onOpen }: TagSwitchDeps): ActionList {
+  return [
+    { id: "switch", label: on ? "Turn all off" : "Turn all on", icon: "power", disabledReason: disabled ? "Ghar is unreachable" : undefined, run: () => onSwitch(!on) },
+    { id: "open", label: `Open ${name}`, icon: "info", run: onOpen },
+  ];
+}

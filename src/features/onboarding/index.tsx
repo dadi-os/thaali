@@ -307,7 +307,7 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
             </div>
             <Problem text={setupError} />
             <Button
-              tone="outline"
+              tone="sage"
               size="xl"
               pill
               onClick={() => {
