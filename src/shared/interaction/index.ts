@@ -7,12 +7,13 @@
  * Does not own: what a menu or overlay looks like (shared/overlay) or what an action does (each noun's actions).
  */
 
+import { installInputModality } from "./modality";
 import { installScrollEdges } from "./scrollEdges";
 import { installSelectionScope } from "./selection";
 
 /** Install every document-level input behavior. Returns the function that removes them all. */
 export function installInteraction(): () => void {
-  const stops = [installScrollEdges(), installSelectionScope()];
+  const stops = [installScrollEdges(), installSelectionScope(), installInputModality()];
   return () => {
     for (const stop of stops) {
       stop();

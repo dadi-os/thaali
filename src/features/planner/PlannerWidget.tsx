@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isMeshOnline, planner } from "../../shared/api";
 import { StateView } from "../../shared/states/ModuleState";
+import { Icon } from "../../shared/ui/Icon";
 import { Skeleton } from "../../shared/ui/Skeleton";
 import { Truncate } from "../../shared/ui/Truncate";
 import { useConnection } from "../../shared/hooks/useConnection";
@@ -10,6 +11,7 @@ import { formatClock } from "../../shared/lib/ux/time";
 import { tileNotice } from "../home/notice";
 import { Tile, type TileGeometry } from "../home/Tile";
 import { useContextActions } from "../../shared/interaction/contextMenu";
+import { meetingLink } from "./meeting";
 import { usePlanActions } from "./planActions";
 import { addDays, dateKey, startOfDay } from "./dates";
 import { formatSpan } from "./layout";
@@ -72,7 +74,10 @@ export function PlanRow({ row, now, state, wide, first, last }: PlanRowProps) {
         <span className={`dot size-2.5 ${current ? "bg-sage-deep" : over ? "bg-sage-line" : declined ? "border-2 border-ink-ghost bg-bone" : "border-2 bg-bone"}`} style={!current && !over && !declined ? { borderColor: plan.hub === null ? "var(--sage-line)" : "var(--tide)" } : undefined} />
       </span>
       <span className="flex min-w-0 flex-1 flex-col gap-1 pr-1">
-        <Truncate text={plan.title} className={`text-[14px] leading-5 ${current ? "font-semibold" : "font-medium"}`} />
+        <span className="flex min-w-0 items-center gap-1.5">
+          <Truncate text={plan.title} className={`text-[14px] leading-5 ${current ? "font-semibold" : "font-medium"}`} />
+          {meetingLink(plan) === null ? null : <span role="img" aria-label="Video call" title="Video call" className="flex flex-none text-ink-muted"><Icon name="video" size={12} /></span>}
+        </span>
         <span className={`truncate text-[13px] leading-4 ${current ? "text-sage-text" : "text-ink-muted"}`}>{detail}</span>
       </span>
       {wide ? <Truncate text={fact} className="max-w-[46%] flex-none pt-0.5 text-right text-[13px] leading-5 text-ink-muted" /> : null}

@@ -4,6 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import { isMeshOnline, planner } from "../../shared/api";
 import { Card } from "../../shared/ui/Card";
 import { CheckCircle } from "../../shared/ui/CheckCircle";
+import { Button } from "../../shared/ui/Button";
 import { ListRow } from "../../shared/ui/ListRow";
 import { Expandable } from "../../shared/ui/Expandable";
 import { Icon } from "../../shared/ui/Icon";
@@ -133,8 +134,8 @@ export type ChecklistProps = {
 };
 
 /**
- * The Planner's Checklist for a day: Past due on top, then the day's open tasks, a folded Done and a folded
- * a "Someday" row that opens the sheet, under "n of m checked" and a progress bar. It scrolls on its own and ticks optimistically.
+ * The Planner's Checklist for a day: Past due on top, then the day's open tasks and a folded Done, under "n of m checked" and a progress bar. A
+ * "Someday · n" button stays in the panel header at the right and opens the Someday sheet. It scrolls on its own and ticks optimistically.
  */
 export function Checklist({ day, now, onSomeday, onOpenTask, height }: ChecklistProps) {
   const { state: connection } = useConnection();
@@ -195,7 +196,7 @@ export function Checklist({ day, now, onSomeday, onOpenTask, height }: Checklist
           </Group>
         )}
         {groups.done.length === 0 ? null : (
-          <Expandable look="row" title={<span className="ui-label">Done</span>} trailing={groups.done.length} open={doneOpen} onToggle={() => setDoneOpen(!doneOpen)}>
+          <Expandable look="folder" icon="check" title="Done" trailing={groups.done.length} open={doneOpen} onToggle={() => setDoneOpen(!doneOpen)}>
             <ul className="m-0 p-0">
               <AnimatePresence initial={false}>
                 {groups.done.map((task) => (
@@ -212,18 +213,21 @@ export function Checklist({ day, now, onSomeday, onOpenTask, height }: Checklist
   return (
     <Card aria-label="Checklist" style={{ flex: height === undefined ? 1 : "none", height, minHeight: 0, minWidth: 0, padding: "14px 10px 0 14px", gap: 8 }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: "none", padding: "0 4px 4px 0" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 8, height: 24 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8, height: 28 }}>
           <span style={{ fontSize: 17, fontWeight: 600, color: "var(--sage-text)" }}>Checklist</span>
           <div style={{ flex: 1 }} />
-          {state.kind !== "ready" || total === 0 ? null : complete ? (
-            <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600, color: "var(--sage-deep)" }}>
-              <Completion settled={settled} />
-              All done
-            </span>
-          ) : (
-            <span style={{ fontSize: 14, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>{`${done} of ${total} checked`}</span>
-          )}
+          <Button tone="outline" size="sm" aria-haspopup="dialog" onClick={onSomeday}>
+            {`Someday · ${someday.count}`}
+          </Button>
         </div>
+        {state.kind !== "ready" || total === 0 ? null : complete ? (
+          <span style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 14, fontWeight: 600, color: "var(--sage-deep)" }}>
+            <Completion settled={settled} />
+            All done
+          </span>
+        ) : (
+          <span style={{ fontSize: 14, color: "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }}>{`${done} of ${total} checked`}</span>
+        )}
         <div role="progressbar" aria-valuemin={0} aria-valuemax={total} aria-valuenow={done} style={{ height: 6, borderRadius: 3, background: "color-mix(in srgb, var(--sage-deep) 14%, transparent)", overflow: "hidden" }}>
           <motion.span initial={false} animate={{ width: total === 0 ? "0%" : `${(done / total) * 100}%`, backgroundColor: complete ? "var(--sage-deep)" : "var(--sage)" }} transition={{ duration: SLOW_S, ease: EASE }} style={{ display: "block", height: "100%" }} />
         </div>
@@ -233,16 +237,6 @@ export function Checklist({ day, now, onSomeday, onOpenTask, height }: Checklist
           <div style={{ fontSize: 12, color: "var(--ink-muted)", padding: "0 8px 6px" }}>Showing the last answer from Yaad</div>
         ) : null}
         {body}
-        {someday.count === 0 ? null : (
-          <div className="mt-1 mb-3.5 border-t border-rule pt-1.5">
-            <ListRow onClick={onSomeday}>
-              <span className="ui-label">Someday</span>
-              <span className="text-[12px] text-ink-muted tabular-nums">{someday.count}</span>
-              <span className="flex-1" />
-              <Icon name="chevron" size={12} />
-            </ListRow>
-          </div>
-        )}
       </div>
     </Card>
   );

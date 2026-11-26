@@ -1,5 +1,6 @@
 import { MutationCache, QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes } from "react-router-dom";
+import { AppRouter } from "./shared/layout/AppRouter";
 import { AppShell } from "./shared/layout/shell/AppShell";
 import { ChaaviPage } from "./pages/ChaaviPage";
 import { GharPage } from "./pages/GharPage";
@@ -34,7 +35,7 @@ const queryClient = new QueryClient({
 export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
+      <AppRouter>
         <Routes>
           <Route element={<AppShell />}>
             <Route index element={<HomePage />} />
@@ -50,7 +51,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Route>
         </Routes>
-      </BrowserRouter>
+      </AppRouter>
     </QueryClientProvider>
   );
 }

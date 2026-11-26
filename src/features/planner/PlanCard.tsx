@@ -13,6 +13,8 @@ import { canTell, rsvpChoice, rsvpMessage, type RsvpAnswer } from "./rsvp";
 import { useOwnerAgent } from "./taskActions";
 import { nextPlanId, planStatus, timeState } from "./timeState";
 import { plannedClock } from "./zones";
+import { CopyLinkButton, JoinLink } from "./JoinLink";
+import { meetingLink, placeIsOnlyLink } from "./meeting";
 import { WhereCopy } from "./WhereCopy";
 
 /** The two answers to "Were you there?"; neither is chosen until Ankur says. */
@@ -55,18 +57,20 @@ export function PlanCard({ plan: shown, now = new Date() }: PlanCardProps) {
   const agent = useOwnerAgent(plan.owner);
   const declined = plan.rsvp === "no";
   const address = plan.place?.address ?? null;
+  const call = meetingLink(plan);
   const own = plannedClock(plan, Intl.DateTimeFormat().resolvedOptions().timeZone);
   const timed = !plan.all_day && plan.end_at !== null;
   const asks = !declined && !plan.all_day && hasStarted(plan, now);
   const notes = [plan.body, ...plan.notes.map((note) => note.title)].filter((text): text is string => text !== null && text !== "");
-  const others = actionsFor(plan).flatMap((entry) => (entry !== "separator" && (entry.id === "message" || entry.id === "show-in-yaad") ? [entry] : []));
+  const others = actionsFor(plan).flatMap((entry) => (entry !== "separator" && (entry.id === "join-call" || entry.id === "message" || entry.id === "show-in-yaad") ? [entry] : []));
   const minutesOf = (iso: string) => new Date(iso).getHours() * 60 + new Date(iso).getMinutes();
   const facts: Array<FactItem | null> = [
     { label: "Date", value: formatDay(plan.start_at) },
     { label: "Time", value: timed ? formatRange(minutesOf(plan.start_at), minutesOf(plan.end_at!)) : plan.all_day ? "All day" : formatClock(plan.start_at) },
     timed ? { label: "Length", value: formatSpan((Date.parse(plan.end_at!) - Date.parse(plan.start_at)) / 60_000) } : null,
     own === null ? null : { label: "Local time", value: own },
-    plan.place === null ? null : { label: "Where", value: <WhereCopy label={`${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`} address={address} /> },
+    call === null ? null : { label: "Join", value: <JoinLink link={call} />, hint: call.host, action: <CopyLinkButton link={call} /> },
+    plan.place === null || (call !== null && placeIsOnlyLink(plan, call)) ? null : { label: "Where", value: <WhereCopy label={`${plan.place.title}${plan.place.room === null ? "" : ` · room ${plan.place.room}`}`} address={address === null || (call !== null && call.url === address) ? null : address} /> },
     plan.hub === null || plan.hub.title === plan.title ? null : { label: "Course", value: plan.hub.title },
     agent === null ? null : { label: "Kept by", value: agent.name },
     plan.rsvp === null ? null : { label: "Going", value: plan.rsvp === "yes" ? "Yes" : "No, declined" },

@@ -41,19 +41,35 @@ function mount(item: Parameters<typeof RoutineRow>[0]["item"], onCancel = vi.fn(
   return onCancel;
 }
 
+/** Opens the card: its summary row is the button that carries `aria-expanded`. */
+function open() {
+  act(() => (host.querySelector("button[aria-expanded]") as HTMLButtonElement).click());
+}
+
 describe("RoutineRow", () => {
-  it("shows a routine's title, procedure and cadence, with Cancel as its only control and no editor", () => {
+  it("shut, says what the routine is and when: title, cadence, next and last run; nothing else is shown", () => {
     mount({ kind: "routine", routine });
     expect(host.textContent).toContain("Morning money check");
-    expect(host.textContent).toContain("Read the pending charges.");
     expect(host.textContent).toContain("Every day at 7:30 AM");
     expect(host.textContent).toContain("never ran");
-    expect([...host.querySelectorAll("button")].map((b) => b.textContent)).toEqual(["Cancel"]);
+    expect(host.textContent).not.toContain("Read the pending charges.");
+    expect([...host.querySelectorAll("button")].map((b) => b.getAttribute("aria-label") ?? b.textContent)).not.toContain("Cancel Morning money check");
+    expect((host.querySelector("button[aria-expanded]") as HTMLButtonElement).getAttribute("aria-expanded")).toBe("false");
+  });
+
+  it("opens to the whole procedure, the days it runs, when it was made, and Cancel; there is no editor", () => {
+    mount({ kind: "routine", routine });
+    open();
+    expect(host.textContent).toContain("Read the pending charges.");
+    expect(host.textContent).toContain("Every day");
+    expect(host.textContent).toContain("Created");
+    expect(button("Cancel")).toBeDefined();
     expect(host.querySelector("input, textarea, select")).toBeNull();
   });
 
   it("asks once before cancelling a routine, and cancels by its id", async () => {
     const onCancel = mount({ kind: "routine", routine });
+    open();
     act(() => button("Cancel").click());
     expect(onCancel).not.toHaveBeenCalled();
     expect(host.textContent).toContain("It will not run again.");
@@ -63,6 +79,7 @@ describe("RoutineRow", () => {
 
   it("lets Keep back out of a cancel", () => {
     const onCancel = mount({ kind: "routine", routine });
+    open();
     act(() => button("Cancel").click());
     act(() => button("Keep").click());
     expect(onCancel).not.toHaveBeenCalled();
@@ -72,6 +89,7 @@ describe("RoutineRow", () => {
   it("cancels a reminder by its own id", async () => {
     const onCancel = mount({ kind: "reminder", reminder });
     expect(host.textContent).toContain("Check the charges settled");
+    open();
     act(() => button("Cancel").click());
     await act(async () => button("Cancel reminder").click());
     expect(onCancel).toHaveBeenCalledWith("q1");
@@ -79,6 +97,7 @@ describe("RoutineRow", () => {
 
   it("shows hath's reason when a cancel fails, and offers it again", async () => {
     mount({ kind: "routine", routine }, vi.fn(() => Promise.reject(new Error("routine_not_found"))));
+    open();
     act(() => button("Cancel").click());
     await act(async () => button("Cancel routine").click());
     expect(host.textContent).toContain("routine_not_found");

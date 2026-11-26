@@ -3,10 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { AGENTS_QUERY_KEY } from "../../shared/hooks/useEvents";
 import type { Action, ActionList } from "../../shared/interaction/actions";
 import { openAgent } from "../../contexts/chat";
+import { pushToast } from "../../contexts/toasts";
+import { copyText } from "../../shared/desktop/clipboard";
+import { openExternal } from "../../shared/desktop/open";
 import { requestCompose } from "../../contexts/reply";
 import type { AgentRecord } from "../../types/hath";
 import type { Plan } from "../../types/planner";
 import { hasStarted, useSetAttended } from "./attended";
+import { meetingLink } from "./meeting";
 import { canTell, rsvpChoice, rsvpMessage } from "./rsvp";
 import { ownerAgent } from "./plans";
 
@@ -24,6 +28,10 @@ export type PlanActionDeps = {
   message: (agentId: string) => void;
   /** Open the agent's conversation with `text` already in the composer. */
   tell: (agentId: string, text: string) => void;
+  /** Open a video call's link in the browser. */
+  join: (url: string) => void;
+  /** Copy a video call's link to the clipboard. */
+  copyLink: (url: string) => void;
   /** Show the plan's node in Yaad. */
   showInYaad: (id: string) => void;
   /** Open the plan card; absent where there is no card to open. */
@@ -31,16 +39,23 @@ export type PlanActionDeps = {
 };
 
 /**
- * What a person can do with a plan: say whether they attended once it has begun, message the agent that keeps it (when
+ * What a person can do with a plan: say whether they attended once it has begun, join or copy the link of its video call, message the agent that keeps it (when
  * one still runs), show it in Yaad, and open its details. One list, drawn by the right-click menu and the card alike;
  * Going and Not going say it to the agent that keeps the plan, who records it; nothing here edits the plan.
  */
-export function planActions(plan: Plan, { agent, started, now, setAttended, message, tell, showInYaad, details }: PlanActionDeps): ActionList {
+export function planActions(plan: Plan, { agent, started, now, setAttended, message, tell, join, copyLink, showInYaad, details }: PlanActionDeps): ActionList {
   const list: Array<Action | "separator"> = [];
   if (started && plan.rsvp !== "no" && !plan.all_day) {
     list.push(
       { id: "attended-yes", label: "Attended", icon: "check", selected: plan.attended === true, run: () => setAttended(plan, plan.attended === true ? null : true) },
       { id: "attended-no", label: "Didn’t attend", icon: "close", selected: plan.attended === false, run: () => setAttended(plan, plan.attended === false ? null : false) },
+    );
+  }
+  const call = meetingLink(plan);
+  if (call !== null) {
+    list.push(
+      { id: "join-call", label: "Join call", detail: `${call.service} · ${call.host}`, icon: "video", run: () => join(call.url) },
+      { id: "copy-link", label: "Copy link", icon: "copy", run: () => copyLink(call.url) },
     );
   }
   if (agent !== null && canTell(plan, true, now)) {
@@ -82,6 +97,8 @@ export function usePlanActions(details?: (plan: Plan) => void): (plan: Plan) => 
         openAgent(agentId);
         requestCompose(text);
       },
+      join: (url) => void openExternal(url).catch((error: unknown) => pushToast({ key: "planner:join", tone: "error", title: "Couldn’t open the call", body: error instanceof Error ? error.message : String(error) })),
+      copyLink: (url) => void copyText(url).then(() => pushToast({ key: "planner:copy-link", tone: "info", title: "Link copied" }), (error: unknown) => pushToast({ key: "planner:copy-link", tone: "error", title: "Couldn’t copy the link", body: error instanceof Error ? error.message : String(error) })),
       showInYaad: (id) => navigate(`/yaad?focus=${id}`),
       details: details === undefined ? undefined : () => details(plan),
     });

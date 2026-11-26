@@ -1,7 +1,7 @@
 import { QueryClient } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 import type { Task } from "../../types/planner";
-import { closeHint, courseLabel, groupByTitle, isUrgent, dayBadge, dayTasksKey, groupTasks, monthBadge, progressOf, SOMEDAY_KEY, tickTask } from "./tasks";
+import { closeHint, courseLabel, groupByTitle, isSomeday, isUrgent, dayBadge, dayTasksKey, groupTasks, monthBadge, progressOf, SOMEDAY_KEY, tickTask } from "./tasks";
 
 const day = new Date(2026, 10, 18);
 const now = new Date(2026, 10, 18, 14, 0);
@@ -39,9 +39,19 @@ describe("checklist groups", () => {
       day,
     );
     expect(groups.pastDue.map((t) => t.id)).toEqual(["stale"]);
-    expect(groups.open.map((t) => t.id)).toEqual(["early", "a-late", "b-late", "open-ended"]);
+    expect(groups.open.map((t) => t.id)).toEqual(["early", "a-late", "b-late"]);
     expect(groups.done.map((t) => t.id)).toEqual(["finished"]);
-    expect(progressOf(groups)).toEqual({ done: 1, total: 6 });
+    expect(progressOf(groups)).toEqual({ done: 1, total: 5 });
+  });
+
+  it("treats a task with no close date as Someday, with or without an opening day, in the list, the progress and the badge", () => {
+    const loose = task("headline", { opens_on: "2026-11-16", closes_at: null });
+    const groups = groupTasks([loose, task("real")], day);
+    expect(isSomeday(loose)).toBe(true);
+    expect(groups.open.map((t) => t.id)).toEqual(["real"]);
+    expect(progressOf(groups)).toEqual({ done: 0, total: 1 });
+    expect(dayBadge([loose, task("real")], day, new Date(2026, 10, 18, 9)).open).toBe(1);
+    expect(groupTasks([task("done-loose", { closes_at: null, done: true })], day).done).toEqual([]);
   });
 
   it("leaves windowless tasks to Someday and tasks that open later off the list", () => {

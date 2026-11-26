@@ -29,6 +29,11 @@
     outline: 2px solid var(--sage-deep);
     outline-offset: 2px;
   }
+
+  /* A ring is for the keyboard: after a click or touch (see installInputModality) nothing keeps one, even where focus is put back. */
+  html[data-input="pointer"] :focus-visible {
+    outline: none;
+  }
 }
 
 @keyframes shimmer {
@@ -833,5 +838,39 @@
   *::after {
     animation-duration: 0.01ms !important;
     transition-duration: 0.01ms !important;
+  }
+}
+
+/* An Expandable folder row's count gives way to its actions while the row is hovered or has focus inside. */
+@layer components {
+  .xrow .xact,
+  .xrow .xcount {
+    transition:
+      opacity var(--fast) var(--ease),
+      display var(--fast) allow-discrete;
+  }
+
+  .xrow .xact {
+    display: none;
+    opacity: 0;
+  }
+
+  .xrow:hover .xact,
+  .xrow:focus-within .xact {
+    display: flex;
+    opacity: 1;
+  }
+
+  .xrow:hover .xcount,
+  .xrow:focus-within .xcount {
+    display: none;
+    opacity: 0;
+  }
+
+  @starting-style {
+    .xrow:hover .xact,
+    .xrow:focus-within .xact {
+      opacity: 0;
+    }
   }
 }

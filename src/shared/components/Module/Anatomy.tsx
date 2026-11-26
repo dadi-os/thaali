@@ -9,21 +9,24 @@ export type PopoverHeaderProps = {
   title: ReactNode;
   /** The one situation line: what is true of this thing now ("Now · 12 min left", "Working · 4 min", "Past due"), drawn with {@link Situation}. Plain type, never a pill. */
   situation?: ReactNode;
+  /** The popover's primary action, on the top row between the name and the close control: a small `Button` ("Open thread", "Reply"). */
+  action?: ReactNode;
   /** Closes the popover; no control is drawn without it. */
   onClose?: () => void;
 };
 
 /**
- * The head of every popover: identity over exactly one situation line, with the close control at the right. 20 px sides, 20 px
+ * The head of every popover: identity over exactly one situation line, the primary action (a small Button) and the close control at the right. 20 px sides, 20 px
  * above, 12 px below; the title is 19 px semibold on 28 px lines, the situation sits 6 px under it.
  */
-export function PopoverHeader({ title, situation, onClose }: PopoverHeaderProps) {
+export function PopoverHeader({ title, situation, action, onClose }: PopoverHeaderProps) {
   return (
     <header className="flex flex-none items-start gap-3 px-5 pt-5 pb-3">
       <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
         <div className="min-w-0 text-[19px] leading-7 font-semibold tracking-[-0.015em]">{title}</div>
         {situation}
       </div>
+      {action === undefined ? null : <div className="flex flex-none pt-0.5">{action}</div>}
       {onClose ? <IconButton icon="close" label="Close" onClick={onClose} /> : null}
     </header>
   );

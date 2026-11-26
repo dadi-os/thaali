@@ -7,7 +7,7 @@ import { planActions, type PlanActionDeps } from "./planActions";
 const plan: Plan = { id: "p1", title: "CSE 300 lecture", body: null, rsvp: "yes", start_at: "2026-11-16T15:20:00.000Z", end_at: "2026-11-16T16:40:00.000Z", all_day: false, time_zone: null, attended: null, place: null, hub: null, owner: "cse-300-specialist", notes: [] };
 
 function actionsOf(over: Partial<Plan> = {}, overrides: Partial<PlanActionDeps> = {}) {
-  const deps: PlanActionDeps = { agent: null, started: false, now: new Date(2026, 10, 16, 9), tell: vi.fn(), setAttended: vi.fn(), message: vi.fn(), showInYaad: vi.fn(), ...overrides };
+  const deps: PlanActionDeps = { agent: null, started: false, now: new Date(2026, 10, 16, 9), tell: vi.fn(), setAttended: vi.fn(), message: vi.fn(), join: vi.fn(), copyLink: vi.fn(), showInYaad: vi.fn(), ...overrides };
   const rows = planActions({ ...plan, ...over }, deps).filter((row): row is Action => row !== "separator");
   return { rows, deps, byId: (id: string) => rows.find((row) => row.id === id) };
 }
@@ -60,5 +60,15 @@ describe("plan actions", () => {
     expect(actionsOf({}, { agent: null }).byId("rsvp-yes")).toBeUndefined();
     const agent = { id: "a", name: "a" } as AgentRecord;
     expect(actionsOf({}, { agent, now: new Date(2026, 10, 17) }).byId("rsvp-yes")).toBeUndefined();
+  });
+
+  it("offers Join call and Copy link for a virtual plan, and neither for any other", () => {
+    const virtual = actionsOf({ place: { id: "p", title: "Standup", address: "https://meet.google.com/abc-defg-hij", room: null } });
+    expect(virtual.byId("join-call")?.detail).toBe("Google Meet · meet.google.com");
+    void virtual.byId("join-call")!.run();
+    expect(virtual.deps.join).toHaveBeenCalledWith("https://meet.google.com/abc-defg-hij");
+    void virtual.byId("copy-link")!.run();
+    expect(virtual.deps.copyLink).toHaveBeenCalledWith("https://meet.google.com/abc-defg-hij");
+    expect(actionsOf().byId("join-call")).toBeUndefined();
   });
 });

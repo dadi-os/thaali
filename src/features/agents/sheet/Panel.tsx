@@ -8,7 +8,7 @@ import { RISE } from "../../../shared/motion";
 import { countNoun } from "../../../shared/lib/ux/plural";
 import { InsetCard, KeyValue, PopoverActions, PopoverBody, PopoverFacts, PopoverHeader, Situation } from "../../../shared/components/Module";
 import type { LiveWake } from "../../../contexts/running";
-import { About } from "./About";
+import { Charter } from "./Charter";
 import { AgentLink } from "./AgentLink";
 import { Activity } from "./Activity";
 import { HelperTasks, type SheetTask } from "./HelperTasks";
@@ -89,14 +89,24 @@ function routinesCount(feed: SheetFeed<{ routines: Routine[]; reminders: Reminde
 export function AgentSheetPanel({ agent, standing, live, stop, onStop, tasks, onHaltTask, routines, onCancelRoutine, onCancelReminder, parent, onSelectAgent, nameOf, connected, onOpenThread, onClose, now }: AgentSheetPanelProps) {
   const [confirming, setConfirming] = useState(false);
   const situation = situationOf(agent, standing, now);
-  const facts = agentFacts({ agent, counts: live?.counts, nameOf, now, parent, routines: routines.kind === "ready" ? routines.items : undefined, standing });
+  const facts = agentFacts({ agent, counts: live?.counts, nameOf, now, parent, standing });
   const { job, working } = agent.running;
   const stoppable = working || (job !== null && job.stopped === null);
   const names = routines.kind === "ready" ? routines.items : { routines: [], reminders: [] };
   const hasRoutines = routines.kind !== "ready" || activeRoutines(routines.items.routines).length > 0 || routines.items.reminders.length > 0;
+  const stopShown = stoppable || stop.pending || stop.result !== null || stop.error !== null;
   return (
     <Card className="min-h-0 w-full flex-1" style={{ border: "none", background: "transparent", boxShadow: "none", borderRadius: 0 }}>
-      <PopoverHeader title={<AgentName name={agent.name} />} situation={<Situation tone={situation.tone}>{situation.text}</Situation>} onClose={onClose} />
+      <PopoverHeader
+        title={<AgentName name={agent.name} />}
+        situation={<Situation tone={situation.tone}>{situation.text}</Situation>}
+        action={
+          <Button tone={standing === null ? "sage" : "fill"} size="sm" onClick={onOpenThread}>
+            {standing === null ? "Open thread" : "Reply"}
+          </Button>
+        }
+        onClose={onClose}
+      />
       <PopoverBody>
         {facts.length === 0 ? null : (
           <PopoverFacts>
@@ -107,20 +117,18 @@ export function AgentSheetPanel({ agent, standing, live, stop, onStop, tasks, on
             ))}
           </PopoverFacts>
         )}
-        <PopoverActions below={<StopConfirm stop={stop} confirming={confirming} setConfirming={setConfirming} onStop={onStop} />}>
-          <Button tone={standing === null ? "sage" : "fill"} onClick={onOpenThread}>
-            {standing === null ? "Open thread" : "Reply"}
-          </Button>
-          <StopButton agentId={agent.id} stop={stop} stoppable={stoppable} confirming={confirming} setConfirming={setConfirming} />
-        </PopoverActions>
+        {stopShown ? (
+          <PopoverActions below={<StopConfirm stop={stop} confirming={confirming} setConfirming={setConfirming} onStop={onStop} />}>
+            <StopButton agentId={agent.id} stop={stop} stoppable={stoppable} confirming={confirming} setConfirming={setConfirming} />
+          </PopoverActions>
+        ) : null}
         <HelperTasks owner={agent.name} tasks={tasks} onHalt={onHaltTask} now={now} />
-        <Activity agentId={agent.id} connected={connected} nameOf={nameOf} schedules={names} onSelectAgent={onSelectAgent} now={now} />
         {hasRoutines ? (
           <InsetCard title="Routines & reminders" count={routinesCount(routines)}>
             {routines.kind !== "ready" ? (
               <FeedState feed={routines} />
             ) : (
-              <div className="flex flex-col gap-2 pt-1">
+              <div className="flex flex-col gap-1 pt-1">
                 <AnimatePresence initial={false}>
                   {activeRoutines(routines.items.routines).map((routine) => (
                     <motion.div key={routine.id} {...RISE} layout="position">
@@ -133,16 +141,15 @@ export function AgentSheetPanel({ agent, standing, live, stop, onStop, tasks, on
                     </motion.div>
                   ))}
                 </AnimatePresence>
-                <span className="text-[12.5px] text-ink-muted">
-                  To change or add one,{" "}
-                  <TextLink onClick={onOpenThread}>message the agent</TextLink>
-                  .
+                <span className="px-1 pt-1 text-[12.5px] text-ink-muted">
+                  To change or add one, <TextLink onClick={onOpenThread}>message the agent</TextLink>.
                 </span>
               </div>
             )}
           </InsetCard>
         ) : null}
-        <About agent={agent} />
+        <Activity agentId={agent.id} connected={connected} nameOf={nameOf} schedules={names} onSelectAgent={onSelectAgent} now={now} />
+        <Charter agent={agent} />
       </PopoverBody>
     </Card>
   );

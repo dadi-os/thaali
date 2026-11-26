@@ -28,6 +28,11 @@ export type TaskGroups = {
   done: Task[];
 };
 
+/** A task with no close date belongs to Someday, whether or not it has an opening day: it is never on a day's list. */
+export function isSomeday(task: Pick<Task, "closes_at">): boolean {
+  return task.closes_at === null;
+}
+
 /** The local day a task closes, or null when it is open-ended. */
 export function closeDay(task: Task): Date | null {
   return task.closes_at === null ? null : startOfDay(new Date(task.closes_at));
@@ -44,15 +49,15 @@ export function byClose(a: Task, b: Task): number {
 }
 
 /**
- * `tasks` as `day` groups them. A task with no window at all belongs to Someday and is left out; a task
- * that opens after `day` is not on the list yet.
+ * `tasks` as `day` groups them. A task with no close date belongs to Someday and is left out (even one that has an opening day);
+ * a task that opens after `day` is not on the list yet.
  */
 export function groupTasks(tasks: Task[], day: Date): TaskGroups {
   const key = dateKey(day);
   const groups: TaskGroups = { pastDue: [], open: [], done: [] };
   for (const task of tasks) {
     const closes = closeDay(task);
-    if (task.opens_on === null && closes === null) continue;
+    if (isSomeday(task)) continue;
     if (task.done) {
       groups.done.push(task);
     } else if (task.past_due || (closes !== null && closes.getTime() < startOfDay(day).getTime())) {
@@ -144,9 +149,9 @@ export function dayBadge(tasks: Task[], day: Date, now: Date): DayBadge {
   const key = dateKey(day);
   const today = isSameDay(day, now);
   const counted = tasks.filter((task) => {
-    if (task.done) return false;
-    const closes = closeDay(task);
-    const inWindow = (task.opens_on === null || task.opens_on <= key) && (closes === null || closes.getTime() >= startOfDay(day).getTime());
+    if (task.done || isSomeday(task)) return false;
+    const closes = closeDay(task)!;
+    const inWindow = (task.opens_on === null || task.opens_on <= key) && closes.getTime() >= startOfDay(day).getTime();
     return inWindow || (today && task.past_due);
   });
   const urgent = counted.some((task) => task.past_due || (task.closes_at !== null && isSameDay(new Date(task.closes_at), day)));

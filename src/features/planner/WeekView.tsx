@@ -237,7 +237,7 @@ export function WeekView({ days, now, zone, plans, badges, selected, onOpen, onD
           {nowMinute === null ? null : (
             <>
               <div aria-hidden="true" style={{ position: "absolute", left: edge, right: 0, top: origin + nowMinute * ppm - 1, height: 2, background: "var(--sage-deep)", opacity: 0.25, zIndex: 1, pointerEvents: "none" }} />
-              <div aria-hidden="true" style={{ position: "absolute", left: `calc(${WEEK_LEFT}px + (100% - ${WEEK_LEFT + WEEK.edge}px) * ${todayIndex / days.length})`, width: `calc((100% - ${WEEK_LEFT + WEEK.edge}px) / ${days.length})`, top: origin + nowMinute * ppm - 1, height: 2, background: "var(--sage-deep)", zIndex: 3, pointerEvents: "none" }} />
+              <div aria-hidden="true" style={{ position: "absolute", left: `calc(${WEEK_LEFT}px + (100% - ${WEEK_LEFT + WEEK.edge}px) * ${todayIndex / days.length})`, width: `calc((100% - ${WEEK_LEFT + WEEK.edge}px) / ${days.length})`, top: origin + nowMinute * ppm - 1, height: 2, background: "var(--sage-deep)", zIndex: 1, pointerEvents: "none" }} />
               <span style={{ position: "absolute", left: WEEK.edge, width: WEEK.axis, top: origin + nowMinute * ppm - 10, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 999, zIndex: 4, pointerEvents: "none" }}>
                 {formatClock(now.toISOString())}
               </span>

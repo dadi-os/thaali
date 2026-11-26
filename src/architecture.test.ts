@@ -30,7 +30,7 @@ describe("where input and the operating system are handled", () => {
   });
 
   it("binds keys only in the interaction layer", () => {
-    expect(filesMatching(/addEventListener\(\s*"keydown"/)).toEqual(["shared/interaction/dismiss.ts", "shared/interaction/selection.ts", "shared/interaction/shortcuts.ts"]);
+    expect(filesMatching(/addEventListener\(\s*"keydown"/)).toEqual(["shared/interaction/dismiss.ts", "shared/interaction/modality.ts", "shared/interaction/selection.ts", "shared/interaction/shortcuts.ts"]);
   });
 
   it("closes overlays only through the dismiss stack, never with its own Escape handler", () => {

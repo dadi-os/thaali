@@ -1,7 +1,5 @@
 import { useState } from "react";
 import type { AgentRecord } from "../../../types/hath";
-import { InsetCard, KeyValue } from "../../../shared/components/Module";
-import { formatDay } from "../../../shared/lib/ux/time";
 import { Expandable } from "../../../shared/ui/Expandable";
 import { compact } from "./wakes";
 
@@ -34,20 +32,17 @@ function CharterText({ source }: { source: string }) {
   );
 }
 
-/** Props of {@link About}. */
-export type AboutProps = {
+/** Props of {@link Charter}. */
+export type CharterProps = {
   agent: AgentRecord;
 };
 
-/** What the agent is, in a soft card like the others: when it was made, and its charter as a collapsed row. */
-export function About({ agent }: AboutProps) {
-  const [charterOpen, setCharterOpen] = useState(false);
+/** The agent's charter as a shared-expandable row at the foot of the popover: shut it says how long it is, open it is the whole text. */
+export function Charter({ agent }: CharterProps) {
+  const [open, setOpen] = useState(false);
   return (
-    <InsetCard title="About">
-      <KeyValue label="Created">{formatDay(agent.created_at)}</KeyValue>
-      <Expandable title="Charter" trailing={`~${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens`} open={charterOpen} onToggle={() => setCharterOpen(!charterOpen)}>
-        <CharterText source={agent.system_prompt} />
-      </Expandable>
-    </InsetCard>
+    <Expandable title="Charter" secondary={`${compact(Math.round(agent.system_prompt.length / CHARS_PER_TOKEN))} tokens of instructions`} open={open} onToggle={() => setOpen(!open)}>
+      <CharterText source={agent.system_prompt} />
+    </Expandable>
   );
 }

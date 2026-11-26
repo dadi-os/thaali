@@ -16,7 +16,7 @@ import { addDays, dateKey, startOfDay } from "./dates";
 import { keptBy, loosePlans } from "./plans";
 import { PlanButton } from "./PlanButton";
 import { MessageAgent } from "./taskActions";
-import { groupByTitle, SOMEDAY_KEY, type TitleGroup } from "./tasks";
+import { dayTasksKey, groupByTitle, isSomeday, SOMEDAY_KEY, type TitleGroup } from "./tasks";
 import { useTaskTick } from "./useTaskTick";
 
 /** How far ahead the sheet looks for plans that have a day but no end, in days. */
@@ -36,7 +36,13 @@ export function useSomeday(): SomedayData {
     queryFn: async () => loosePlans((await planner.plans({ from: today.toISOString(), to: addDays(today, LOOK_AHEAD_DAYS).toISOString() })).items),
     enabled: online,
   });
-  const open = (tasks.data ?? []).filter((task) => !task.done);
+  const withOpening = useQuery({ queryKey: dayTasksKey(today), queryFn: async () => (await planner.tasks({ on: dateKey(today) })).items, enabled: online });
+  const seen = new Set<string>();
+  const open = [...(tasks.data ?? []), ...(withOpening.data ?? []).filter(isSomeday)].filter((task) => {
+    if (task.done || seen.has(task.id)) return false;
+    seen.add(task.id);
+    return true;
+  });
   const loose = plans.data ?? [];
   return { tasks: open, plans: loose, count: open.length + loose.length };
 }
@@ -125,8 +131,8 @@ function Grouped<T>({ group, render, single }: GroupedProps<T>) {
   }
   return (
     <li className="list-none">
-      <Expandable look="row" title={<span className="text-[14px] font-medium">{group.label}</span>} trailing={`×${group.items.length}`} open={open} onToggle={() => setOpen(!open)}>
-        <ul className="m-0 p-0">{group.items.map(render)}</ul>
+      <Expandable look="folder" title={group.label} trailing={group.items.length} open={open} onToggle={() => setOpen(!open)}>
+        {group.items.map(render)}
       </Expandable>
     </li>
   );
@@ -163,7 +169,7 @@ export function SomedaySheet({ now, onClose, onOpenPlan }: SomedaySheetProps) {
       <div className="scroll flex min-h-0 flex-1 flex-col gap-5 px-4 pb-5">
         <Section label="Tasks" count={tasks.length}>
           {taskGroups.length === 0 ? (
-            <StateView dense kind="empty" title="No loose tasks" detail="Tasks with no open or close day appear here." />
+            <StateView dense kind="empty" title="No loose tasks" detail="Tasks with no close date appear here." />
           ) : (
             <ul className="m-0 flex flex-col gap-0.5 p-0">
               {taskGroups.map((group) => (

@@ -172,9 +172,11 @@ export function PlannerPage() {
               title="Planner"
               meta={state.kind === "ready" ? summary : undefined}
               trailing={
-                <Button tone="quiet" size="sm" onClick={() => setSomeday(true)}>
-                  Someday
-                </Button>
+                view === "Day" ? undefined : (
+                  <Button tone="quiet" size="sm" onClick={() => setSomeday(true)}>
+                    Someday
+                  </Button>
+                )
               }
             />
             <div style={{ display: "flex", alignItems: "center", gap: 14, flex: "none", flexWrap: "nowrap" }}>

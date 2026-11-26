@@ -26,7 +26,7 @@ const SCENARIOS = ["normal", "loading", "offline", "blip", "module-offline", "er
 /** Width by height; the portrait monitor is 1080x1920. */
 const SIZES = { "1440": [1440, 900], "900": [900, 700], "1920": [1920, 1080], "1080x1920": [1080, 1920] };
 /** How long each scenario waits before its first capture. */
-const SETTLE_MS = { loading: 900, blip: 6500, many: 4500 };
+const SETTLE_MS = { loading: 900, blip: 6500, many: 4500, live: 9000 };
 
 function args() {
   const out = {};
@@ -60,6 +60,8 @@ function interactionSteps(tag) {
   ];
 }
 
+/** Clicks the expandable whose title starts with `prefix`: its button holds no text, so it is found through the title it is named by. */
+const toggleTitled = (prefix) => `(() => { const b = [...document.querySelectorAll("button[aria-expanded][aria-labelledby]")].find((x) => document.getElementById(x.getAttribute("aria-labelledby"))?.textContent.startsWith(${JSON.stringify(prefix)})); b?.click(); })(); 0`;
 const sidebarRow = (agent) => `[...document.querySelectorAll("button")].find((b) => b.textContent.includes("${agent}"))?.click()`;
 /** Clicks the first element matching `selector` whose text holds `text`. */
 const clickText = (selector, text) => `[...document.querySelectorAll(${JSON.stringify(selector)})].find((b) => b.textContent.includes(${JSON.stringify(text)}))?.click(); 0`;
@@ -241,6 +243,29 @@ function flowJobs(scenario) {
       { eval: clickText("[role=dialog] [class*='cursor-pointer']", "Opened by") },
       ...frames("hath-wake-open", [200, 800]),
     ]),
+    job("folder-someday", "/planner?someday=1&clock=11:00", [
+      { wait: 600 },
+      { eval: toggleTitled("Gym training split") },
+      ...frames("folder-someday-open", [120, 300, 900]),
+      { eval: toggleTitled("Weekly weigh-in") },
+      ...frames("folder-someday-two", [900]),
+    ]),
+    job("folder-chaavi", "/chaavi", [
+      { wait: 500 },
+      { eval: `document.querySelector("button[aria-label='Collapse Development']")?.click(); 0` },
+      ...frames("folder-chaavi-shut", [120, 300, 800]),
+      { eval: `document.querySelector("button[aria-label='Expand Development']")?.click(); 0` },
+      ...frames("folder-chaavi-open", [80, 200, 500, 900]),
+    ]),
+    job("hath-routine-open", "/hath?agent=finance-specialist", [
+      { wait: 600 },
+      { eval: `document.querySelector("[role=dialog] .scroll").scrollTop = 99999; 0` },
+      { wait: 400 },
+      { eval: `(() => { const b = [...document.querySelectorAll("[role=dialog] button[aria-expanded][aria-labelledby]")].find((x) => document.getElementById(x.getAttribute("aria-labelledby")).textContent === "Morning money check"); b?.click(); b?.scrollIntoView({ block: "center" }); })(); 0` },
+      ...frames("hath-routine-open", [500]),
+      { eval: `document.querySelector("[role=dialog] button[aria-label='Cancel Morning money check']")?.click(); 0` },
+      ...frames("hath-routine-cancel", [500]),
+    ]),
     job("hath-popover-list", "/hath?view=list", [
       { eval: `[...document.querySelectorAll(".agent-row")].find((b) => b.textContent.includes("finance-specialist")).click(); 0` },
       ...frames("hath-popover-list", [50, 160, 320, 520, 800, 1400]),
@@ -303,6 +328,14 @@ function flowJobs(scenario) {
       ...frames("planner-where-hover", [400]),
       { eval: 'document.querySelector("button[aria-label=\\"Copy address\\"]").click(); 0' },
       ...frames("planner-where-copied", [300]),
+    ]),
+    job("planner-join", `/planner?view=day&clock=11:00&fixtures=${scenario}`, [
+      { eval: clickText("button[aria-haspopup=dialog]", "Advisor meeting") },
+      { wait: 500 },
+      { eval: 'document.querySelector("button[aria-label^=\\"Join\\"]").dispatchEvent(new MouseEvent("mouseover", { bubbles: true })); 0' },
+      ...frames("planner-join-hover", [400]),
+      { eval: 'document.querySelector("button[aria-label=\\"Copy link\\"]").click(); 0' },
+      ...frames("planner-join-copied", [300]),
     ]),
     job("planner-widget-menu", `/?clock=11:00&fixtures=${scenario}`, [
       { eval: 'const row = document.querySelector("[data-plan]"); const box = row.getBoundingClientRect(); row.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: box.left + 80, clientY: box.top + 20 })); 0' },

@@ -9,6 +9,7 @@ import type { Plan } from "../../types/planner";
 import { isSameDay, wallMinutes } from "./dates";
 import { formatSpan, gapsBetween, type Segment, segmentsOn } from "./layout";
 import { PlanButton } from "./PlanButton";
+import { meetingLink } from "./meeting";
 import { keptBy, planTone } from "./plans";
 import { nextPlanId, planStatus, timeState, type TimeState } from "./timeState";
 import { plannedClock } from "./zones";
@@ -123,6 +124,7 @@ function Block({ segment, now, state, zone, top, height, selected, compact, onOp
       <div style={{ display: "flex", alignItems: narrow ? "flex-start" : "center", gap: compact ? 6 : 9, minWidth: 0 }}>
         {narrow ? null : <span style={{ width: compact ? 6 : 8, height: compact ? 6 : 8, borderRadius: "50%", background: current ? "var(--sage-deep)" : ended ? "var(--ink-ghost)" : planTone(plan), flex: "none" }} />}
         {narrow ? <Clamp text={plan.title} lines={Math.max(1, Math.floor((height - 6) / 14))} style={{ flex: 1, minWidth: 0, ...titleStyle, fontSize: 12, lineHeight: "14px" }} /> : <Truncate text={plan.title} style={{ flex: 1, minWidth: 0, ...titleStyle }} />}
+        {narrow || meetingLink(plan) === null ? null : <span role="img" aria-label="Video call" title="Video call" style={{ display: "flex", flex: "none", color: "var(--ink-muted)" }}><Icon name="video" size={12} /></span>}
         {compact ? null : <span style={{ fontSize: 12, color: "var(--ink-muted)", whiteSpace: "nowrap", flex: "none", fontVariantNumeric: "tabular-nums" }}>{range}</span>}
         {mark}
       </div>

@@ -3,6 +3,7 @@ import { Button } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
 import { formatClock } from "../../shared/lib/ux/time";
 import { Clamp, Truncate } from "../../shared/ui/Truncate";
+import { meetingLink } from "./meeting";
 import type { Plan } from "../../types/planner";
 import { formatRange, type Segment } from "./layout";
 import { PlanButton } from "./PlanButton";
@@ -99,6 +100,7 @@ export function WeekBlock({ segment, state, zone, top, height, narrow, selected,
           <span aria-hidden="true" style={{ width: 6, height: 6, marginTop: 5, marginLeft: 3, marginRight: 3, borderRadius: "50%", flex: "none", background: current ? "var(--sage-deep)" : ended ? "var(--ink-ghost)" : planTone(plan) }} />
         ) : null}
         {fit.titleLines === 1 ? <Truncate text={plan.title} style={{ flex: 1, ...title }} /> : <Clamp text={plan.title} lines={fit.titleLines} style={{ flex: 1, ...title }} />}
+        {fit.titleLines === 1 && meetingLink(plan) !== null ? <span role="img" aria-label="Video call" title="Video call" style={{ display: "flex", flex: "none", color: "var(--ink-muted)" }}><Icon name="video" size={12} /></span> : null}
       </div>
       {fit.time ? <Truncate text={range} style={{ fontSize: 12, lineHeight: "16px", color: current ? "var(--sage-text)" : "var(--ink-muted)", fontVariantNumeric: "tabular-nums" }} /> : null}
     </PlanButton>

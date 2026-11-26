@@ -80,3 +80,67 @@ describe("Expandable", () => {
     }
   });
 });
+
+function Tree({ onSelect = vi.fn() }: { onSelect?: () => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <Expandable look="folder" title="Gym" trailing={2} open={open} onToggle={() => setOpen(!open)} onSelect={onSelect}>
+      <span>Monday</span>
+      <span>Tuesday</span>
+    </Expandable>
+  );
+}
+
+describe("Expandable folder look", () => {
+  it("shows its title and count, opens its children under a connector with the chevron, and mounts them only while open", async () => {
+    act(() => root.render(<Tree />));
+    expect(host.textContent).toContain("Gym");
+    expect(host.textContent).toContain("2");
+    expect(host.textContent).not.toContain("Monday");
+    const chevron = host.querySelector("button[aria-label='Expand Gym']") as HTMLButtonElement;
+    expect(chevron.getAttribute("aria-expanded")).toBe("false");
+    act(() => chevron.click());
+    expect(host.textContent).toContain("Monday");
+    expect(host.textContent).toContain("Tuesday");
+    expect(host.querySelector(".border-l")).not.toBeNull();
+    expect((host.querySelector("button[aria-label='Collapse Gym']") as HTMLButtonElement).getAttribute("aria-expanded")).toBe("true");
+    act(() => (host.querySelector("button[aria-label='Collapse Gym']") as HTMLButtonElement).click());
+    await settle();
+    expect(host.textContent).not.toContain("Monday");
+  });
+
+  it("chooses the folder from its title and leaves the chevron to toggling", () => {
+    const onSelect = vi.fn();
+    act(() => root.render(<Tree onSelect={onSelect} />));
+    act(() => (host.querySelector("button[aria-current]") as HTMLButtonElement).click());
+    expect(onSelect).toHaveBeenCalledTimes(1);
+    expect(host.textContent).not.toContain("Monday");
+  });
+
+  it("toggles from the whole row when it has no select, and a leaf has no chevron", () => {
+    function Plain() {
+      const [open, setOpen] = useState(false);
+      return (
+        <>
+          <Expandable look="folder" title="Group" open={open} onToggle={() => setOpen(!open)}>
+            <span>inside</span>
+          </Expandable>
+          <Expandable look="folder" title="Leaf" open={false} onToggle={() => undefined} />
+        </>
+      );
+    }
+    act(() => root.render(<Plain />));
+    const toggles = host.querySelectorAll("button[aria-expanded]");
+    expect(toggles).toHaveLength(1);
+    act(() => (toggles[0] as HTMLButtonElement).click());
+    expect(host.textContent).toContain("inside");
+  });
+
+  it("swaps its folder glyph for the open one with the row", () => {
+    act(() => root.render(<Tree />));
+    const before = host.querySelector("svg path")!.getAttribute("d");
+    act(() => (host.querySelector("button[aria-label='Expand Gym']") as HTMLButtonElement).click());
+    const paths = [...host.querySelectorAll("svg path")].map((path) => path.getAttribute("d"));
+    expect(paths.some((d) => d !== before && d?.includes("L5.4 11"))).toBe(true);
+  });
+});

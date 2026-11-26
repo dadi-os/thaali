@@ -1,7 +1,6 @@
-import type { AgentRecord, AgentTask, RoutineList } from "../../../types/hath";
+import type { AgentRecord, AgentTask } from "../../../types/hath";
 import { formatClock, formatDay } from "../../../shared/lib/ux/time";
 import { briefOf, type Standing } from "./brief";
-import { activeRoutines } from "./routines";
 
 /** One labelled fact of the agent popover's facts block. */
 export type Fact = {
@@ -32,7 +31,11 @@ export function duration(ms: number): string {
     const rest = minutes % 60;
     return hours < 3 && rest > 0 ? `${hours} h ${rest} min` : `${hours} h`;
   }
-  return `${Math.floor(hours / 24)} d`;
+  const days = Math.floor(hours / 24);
+  if (days < 14) {
+    return `${days} d`;
+  }
+  return days < 60 ? `${Math.floor(days / 7)} weeks` : `${Math.floor(days / 30)} months`;
 }
 
 /** `4 min ago` or `in 4 min` for an instant against `now`; `just now` inside a minute. */
@@ -87,33 +90,11 @@ export function situationOf(agent: Pick<AgentRecord, "id" | "running" | "updated
   return { tone: "rest", text: "Idle" };
 }
 
-/** The helper tasks as one fact: only the counts that are true, working first. Null when the agent has none. */
-function helperWords(tasks: AgentTask[]): string | null {
-  const working = tasks.filter((task) => task.status === "working" || task.status === "paused").length;
-  const asking = tasks.filter((task) => task.status === "asking").length;
-  const resting = tasks.length - working - asking;
-  const parts = [working > 0 ? `${working} working` : null, asking > 0 ? `${asking} asking it` : null, resting > 0 ? `${resting} resting` : null].filter((part) => part !== null);
-  return parts.length === 0 ? null : parts.join(" · ");
-}
-
-/** The routines and reminders as one fact: how many, and when the next routine runs. Null when there are none. */
-function routinesFact(list: RoutineList, now: number): Fact | null {
-  const routines = activeRoutines(list.routines);
-  const next = [...routines].sort((a, b) => Date.parse(a.next_run_at) - Date.parse(b.next_run_at))[0];
-  const parts = [routines.length > 0 ? `${routines.length} ${routines.length === 1 ? "routine" : "routines"}` : null, list.reminders.length > 0 ? `${list.reminders.length} ${list.reminders.length === 1 ? "reminder" : "reminders"}` : null].filter((part) => part !== null);
-  if (parts.length === 0) {
-    return null;
-  }
-  return { label: "Routines", value: parts.join(" · "), ...(next === undefined ? {} : { hint: `next ${clockOf(next.next_run_at, now)}` }) };
-}
-
 /** What the popover's facts block says of the agent. */
 export type FactInput = {
-  agent: Pick<AgentRecord, "id" | "running" | "updated_at" | "sessions">;
+  agent: Pick<AgentRecord, "id" | "running" | "updated_at" | "sessions" | "created_at">;
   /** The agent's parent, when it has one the page knows: the "Reports to" fact. */
   parent?: Pick<AgentRecord, "id" | "name"> | null;
-  /** Its routines and reminders, once read: the "Routines" fact. */
-  routines?: RoutineList;
   /** What the agent's newest message to Ankur leaves open: the first fact, in the agent's own words. */
   standing?: Standing | null;
   /** The counts of the wake running now, when one does. */
@@ -126,7 +107,7 @@ export type FactInput = {
  * The agent's facts: each a label and a value that states something true, in the order the popovers keep. Nothing is
  * listed because hath returned it: no ids, no empty rows, a count only when the agent did that much.
  */
-export function agentFacts({ agent, counts, nameOf, now, parent = null, routines, standing = null }: FactInput): Fact[] {
+export function agentFacts({ agent, counts, nameOf, now, parent = null, standing = null }: FactInput): Fact[] {
   const brief = briefOf(agent, now);
   const { job, waiting_on: waiting } = agent.running;
   const facts: Fact[] = [];
@@ -167,14 +148,7 @@ export function agentFacts({ agent, counts, nameOf, now, parent = null, routines
   if (parent !== null) {
     facts.push({ label: "Reports to", value: parent.name, agentId: parent.id });
   }
-  const helpers = helperWords(agent.sessions.tasks);
-  if (helpers !== null) {
-    facts.push({ label: "Helpers", value: helpers });
-  }
-  const routinesWords = routines === undefined ? null : routinesFact(routines, now);
-  if (routinesWords !== null) {
-    facts.push(routinesWords);
-  }
   facts.push({ label: "Last active", value: relative(agent.updated_at, now) });
+  facts.push({ label: "Created", value: new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" }).format(new Date(agent.created_at)), hint: relative(agent.created_at, now) });
   return facts;
 }
