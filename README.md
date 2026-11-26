@@ -26,7 +26,7 @@ thaali/
     features/<domain>/      data hooks, derivations and flows owned by one place: agents, chat (the chat rail), chaavi, ghar, home (the Tile frame), logs, memory, onboarding (setup code, provisioning, forget device), system, planner
     contexts/               app-wide state every layer assumes: connection, what each agent is running, chat, drafts, toasts, takeover, the box path the file explorer is open at (`files`), dock requests, the desktop shell
     shared/
-      ui/                   primitives with no domain knowledge: Button, IconButton, Pill, Segmented, Chip, Switch, Icon (the one icon set), Card, Badge, Skeleton, Truncate, AgentName, Disclosure, CopyButton
+      ui/                   primitives with no domain knowledge: Button, IconButton, Pill, Segmented, Chip, Switch, Icon (the one icon set), Card, Badge, Skeleton, Truncate, AgentName, Expandable, CopyButton
       overlay/              everything that floats, on one dismiss stack: Modal (the one centred frame, with a frosting scrim, that Dialog, ConfirmDialog and PreviewModal are built on; no side sheets), MenuSurface (the one menu), AnchoredMenu, ContextMenuHost, Popover, Tooltip, Toast
       interaction/          the desktop input system: scroll edge fades, scoped select all, the one context menu (useContextActions), Action lists, shortcuts, the dismiss stack
       motion/               the only place a duration, easing, spring or enter/exit shape is chosen
