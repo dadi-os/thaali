@@ -1,12 +1,12 @@
 import { useState } from "react";
-import { AnimatePresence, motion } from "motion/react";
+import { motion } from "motion/react";
 import { hath } from "../../api";
 import { useConnection } from "../../hooks/useConnection";
 import { useContextActions } from "../../interaction/contextMenu";
 import { attachmentSizeLabel } from "../../lib/content/attachments";
 import { RISE } from "../../motion";
 import { Icon } from "../../ui/Icon";
-import type { AttachmentSummary, MessageAttachment } from "../../../types/hath";
+import type { AttachmentSummary } from "../../../types/hath";
 import { attachmentActions } from "./actions";
 import { FileModal } from "../Files/FileModal";
 
@@ -14,8 +14,6 @@ import { FileModal } from "../Files/FileModal";
 export type MessageFilesProps = {
   /** Files Hath stored with the message. */
   files: AttachmentSummary[];
-  /** Files still on their way to Hath, shown by name until it confirms them. */
-  sending: MessageAttachment[];
   /** Side of the thread the files sit on. */
   align: "start" | "end";
 };
@@ -45,15 +43,14 @@ function FileItem({ file, connected, onOpen }: { file: AttachmentSummary; connec
 
 /**
  * The files a message carries: images as thumbnails, everything else as a chip with its
- * name and size. Any file opens in the FileModal while the mesh is connected. Files
- * still sending show by name only.
+ * name and size. Any file opens in the FileModal while the mesh is connected.
  */
-export function MessageFiles({ files, sending, align }: MessageFilesProps) {
+export function MessageFiles({ files, align }: MessageFilesProps) {
   const { state: connection } = useConnection();
   const [open, setOpen] = useState<AttachmentSummary | null>(null);
   const connected = connection === "connected";
 
-  if (files.length === 0 && sending.length === 0) {
+  if (files.length === 0) {
     return null;
   }
 
@@ -62,17 +59,6 @@ export function MessageFiles({ files, sending, align }: MessageFilesProps) {
       {files.map((file) => (
         <FileItem key={file.id} file={file} connected={connected} onOpen={() => setOpen(file)} />
       ))}
-      <AnimatePresence initial={false}>
-        {sending.map((att, index) => (
-          <motion.span key={`${att.filename ?? att.media_type}-${index}`} {...RISE} className={`${chipClass} opacity-60`}>
-            <Icon name="clip" size={14} />
-            <span data-selectable className="truncate">
-              {att.filename ?? att.media_type}
-            </span>
-          </motion.span>
-        ))}
-      </AnimatePresence>
-
       <FileModal file={open} onClose={() => setOpen(null)} />
     </div>
   );

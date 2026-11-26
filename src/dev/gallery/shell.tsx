@@ -43,7 +43,7 @@ const USER_TEXTS = hath
   .map((m) => m.content);
 const DRAFT = USER_TEXTS[0]!;
 const DRAFT_LONG = [...USER_TEXTS, ...USER_TEXTS, ...USER_TEXTS, ...USER_TEXTS].join("\n");
-const ATTACHMENT: DraftAttachment = { media_type: "application/pdf", data: "", filename: "october-statement.pdf", sizeBytes: 184320 };
+const ATTACHMENT: DraftAttachment = { id: 1, file: new File([], "october-statement.pdf", { type: "application/pdf" }), media_type: "application/pdf", sizeBytes: 184320, upload: { state: "staged" } };
 
 type RailCase = {
   scenario: Scenario;

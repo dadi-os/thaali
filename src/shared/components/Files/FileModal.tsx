@@ -26,8 +26,8 @@ export type AttachmentFileModalProps = {
 export type BoxFileModalProps = {
   /** The absolute box path to open at, or null when the modal is closed: a file opens its folder with the file selected, a folder opens its listing. */
   path: string | null;
-  /** Pick mode: the explorer offers Insert links, which hands back the selected paths and closes. */
-  onPick?: (paths: string[]) => void;
+  /** Pick mode: the explorer offers Insert links, which hands back the selected files and folders and closes. */
+  onPick?: (entries: NasFileEntry[]) => void;
   /** Draw over the nearest positioned ancestor instead of the window (see Modal), as the design gallery frames it. */
   scoped?: boolean;
   onClose: () => void;
@@ -91,7 +91,7 @@ function BoxFileModal({ path, onPick, scoped, onClose }: BoxFileModalProps) {
 
 type OpenBoxProps = {
   path: string;
-  onPick?: (paths: string[]) => void;
+  onPick?: (entries: NasFileEntry[]) => void;
   scoped?: boolean;
   /** False while the modal plays its exit animation. */
   open: boolean;
@@ -134,7 +134,7 @@ function OpenBox({ path, onPick, scoped, open, onClose }: OpenBoxProps) {
 
 type BrowserProps = {
   target: BoxTarget;
-  onPick?: (paths: string[]) => void;
+  onPick?: (entries: NasFileEntry[]) => void;
   onClose: () => void;
 };
 
@@ -169,7 +169,7 @@ function Browser({ target, onPick, onClose }: BrowserProps) {
             size="lg"
             disabled={selection.length === 0}
             onClick={() => {
-              onPick(selection.map((entry) => entry.path));
+              onPick(selection);
               onClose();
             }}
           >

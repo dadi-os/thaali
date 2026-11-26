@@ -5,6 +5,7 @@ import { IconButton } from "../../ui/Button";
 import { RISE } from "../../motion";
 import { useContextActions } from "../../interaction/contextMenu";
 import { formatAbsolute } from "../../lib/ux/time";
+import { BOX_SCHEME } from "../../lib/content/boxLink";
 import type { MessageStatus } from "../../../types/hath";
 import type { ChatMessage } from "../../../contexts/chat";
 import { MarkdownBody } from "../Markdown";
@@ -111,7 +112,7 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
         <div className="flex max-w-full min-w-0 items-center gap-1.5">
           <SendControls failed={failed} onRetry={onRetry} onCancel={onCancel} />
           <div className="flex min-w-0 flex-col items-end gap-1">
-            <MessageFiles files={message.files ?? []} sending={message.files ? [] : (message.attachments ?? [])} align="end" />
+            <MessageFiles files={message.files ?? []} align="end" />
             {message.content ? (
               <div
                 data-selectable
@@ -119,7 +120,7 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
                   failed ? "border border-error-line bg-error-fill text-ink" : "bg-sage-active text-ink"
                 }`}
               >
-                {message.content}
+                {message.content.includes(`](${BOX_SCHEME}`) ? <MarkdownBody content={message.content} compact /> : message.content}
               </div>
             ) : null}
           </div>
@@ -144,7 +145,7 @@ function AgentBubble({ message, live, standing }: { message: ChatMessage; live: 
       <div data-selectable>
         <SettledMarkdown content={message.content} />
       </div>
-      <MessageFiles files={message.files ?? []} sending={[]} align="start" />
+      <MessageFiles files={message.files ?? []} align="start" />
       {standing === "needs_input" ? (
         <span role="status" className="flex items-center gap-1.5 text-[12.5px] font-medium text-tide-ink"><span className="size-1.5 rounded-full bg-tide" />Needs your input</span>
       ) : standing === "blocked" ? (

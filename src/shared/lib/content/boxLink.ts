@@ -70,3 +70,14 @@ export function parseBoxHref(href: string): BoxLink | null {
   const path = segments.join("/");
   return { path: path === "" ? "/" : path, folder };
 }
+
+/** The Markdown link to `path` as a message carries it: its name as the text (brackets escaped) and its {@link boxHref} as the target. */
+export function boxMarkdownLink(path: string, folder: boolean): string {
+  const name = baseName(path).replace(/[\\[\]]/g, "\\$&");
+  return `[${name}](${boxHref(path, folder)})`;
+}
+
+/** The Inbox folder Ankur's uploads land in for the month `now` falls in (local time), as `<home>/Inbox/<yyyy-mm>`. */
+export function inboxFolder(now: Date): string {
+  return `${BOX_HOME}/Inbox/${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+}

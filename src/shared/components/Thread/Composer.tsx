@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState, type FormEvent, type KeyboardEvent, type ReactNode, type RefObject } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { attachmentSizeLabel, pasteAsFile, type DraftAttachment } from "../../lib/content/attachments";
+import { draftStatusLine, pasteAsFile, type DraftAttachment } from "../../lib/content/attachments";
 import type { ActionList } from "../../interaction/actions";
 import { AnchoredMenu } from "../../overlay/AnchoredMenu";
 import { FADE, RISE } from "../../motion";
@@ -21,10 +21,13 @@ export type ComposerProps = {
   textareaRef: RefObject<HTMLTextAreaElement | null>;
   fileInputRef: RefObject<HTMLInputElement | null>;
   cameraInputRef: RefObject<HTMLInputElement | null>;
+  /** Files staged to upload to the box when the message is sent, each with its upload state. */
   attachments: DraftAttachment[];
   onRemoveAttachment: (index: number) => void;
   /** Add files to the draft: picked, pasted, dropped, or a long paste turned into a text file. */
   onPickFiles: (files: FileList | File[] | null) => void;
+  /** Open the box's files to pick files and folders to link into the draft. */
+  onLinkFromBox: () => void;
   onSubmit: (e: FormEvent) => void;
   onKeyDown: (e: KeyboardEvent<HTMLTextAreaElement>) => void;
   /** Focus the field once this composer mounts (Talk to Dadi). */
@@ -54,6 +57,7 @@ export function Composer({
   attachments,
   onRemoveAttachment,
   onPickFiles,
+  onLinkFromBox,
   onSubmit,
   onKeyDown,
   autoFocus = false,
@@ -85,6 +89,7 @@ export function Composer({
   const attachActions: ActionList = [
     { id: "attach.file", label: "Attach file", icon: "clip", run: () => fileInputRef.current?.click() },
     { id: "attach.camera", label: "Take picture", icon: "camera", run: () => cameraInputRef.current?.click() },
+    { id: "attach.box", label: "Link from box…", icon: "folder", run: onLinkFromBox },
   ];
 
   return (
@@ -117,23 +122,28 @@ export function Composer({
             {attachments.length > 0 ? (
               <motion.div key="staged" {...RISE} className="flex gap-2 overflow-x-auto px-3 pt-3">
                 <AnimatePresence initial={false}>
-                  {attachments.map((att, index) => (
-                    <motion.div key={`${att.filename ?? att.media_type}-${index}`} {...RISE} className="relative shrink-0">
-                      {att.previewUrl ? (
-                        <img src={att.previewUrl} alt={att.filename ?? "attachment"} className="size-14 rounded-[12px] object-cover" />
+                  {attachments.map((att, index) => {
+                    const status = draftStatusLine(att);
+                    return (
+                    <motion.div key={att.id} {...RISE} className="relative shrink-0">
+                      {att.previewUrl && att.upload.state === "staged" ? (
+                        <img src={att.previewUrl} alt={att.file.name} className="size-14 rounded-[12px] object-cover" />
                       ) : (
                         <div className="flex h-14 max-w-[9rem] flex-col justify-center rounded-[12px] bg-sage-fill px-2.5 text-[11px] leading-tight text-ink-muted">
                           <span data-selectable className="truncate">
-                            {att.filename ?? "file"}
+                            {att.file.name}
                           </span>
-                          <span className="truncate text-ink-ghost">{attachmentSizeLabel(att.media_type, att.sizeBytes)}</span>
+                          <span title={status.text} className={`truncate ${status.failed ? "text-error" : "text-ink-ghost"}`}>
+                            {status.text}
+                          </span>
                         </div>
                       )}
                       <span className="absolute -top-2 -right-2">
-                        <IconButton icon="close" label="Remove attachment" size={32} iconSize={12} onClick={() => onRemoveAttachment(index)} />
+                        <IconButton icon="close" label="Remove attachment" size={32} iconSize={12} disabled={att.upload.state === "uploading"} onClick={() => onRemoveAttachment(index)} />
                       </span>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </AnimatePresence>
               </motion.div>
             ) : null}

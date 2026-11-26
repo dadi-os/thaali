@@ -1,18 +1,13 @@
-import type { MessageAttachment } from "../../../types/hath";
-
-/** Match Dwar/Hath image.describe max. */
-export const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 /** Max files per outbound message. */
 export const MAX_ATTACHMENTS = 8;
 
-/** Pasted text longer than this many characters (~1k tokens) becomes an attachment instead of draft text. */
+/** Pasted text longer than this many characters (~1k tokens) becomes a staged file instead of draft text. */
 export const PASTE_ATTACHMENT_CHARS = 4000;
 
 /**
  * Media types by extension, trusted over the platform's guess (which types `.ts` as
  * video/mp2t and leaves most source files untyped). Text formats map to text types so
- * Hath stores them as text agents can read, not as opaque bytes; source code with no
- * registered type is text/plain, as Hath's own create_attachment does.
+ * the chip sizes them in tokens; source code with no registered type is text/plain.
  */
 const EXT_MEDIA: Record<string, string> = {
   ts: "text/plain",
@@ -72,7 +67,7 @@ const EXT_MEDIA: Record<string, string> = {
   toml: "application/toml",
 };
 
-/** Non-`text/*` media types Hath stores as text; mirrors Hath's list. */
+/** Non-`text/*` media types that read as text. */
 const TEXT_MEDIA_TYPES = new Set([
   "application/json",
   "application/xml",
@@ -83,11 +78,25 @@ const TEXT_MEDIA_TYPES = new Set([
   "application/x-sh",
 ]);
 
-export type DraftAttachment = MessageAttachment & {
+/** Where a staged file is in its upload to the box's Inbox. */
+export type DraftUpload =
+  | { state: "staged" }
+  | { state: "uploading" }
+  /** On the box at `path`, the final one Nas chose (a taken name gets " (2)"). */
+  | { state: "uploaded"; path: string }
+  | { state: "failed"; message: string };
+
+/** A file staged in the composer: it uploads to the box when the message is sent, and the message then links it. */
+export type DraftAttachment = {
+  /** Stable across re-renders and removals, so an upload's progress finds its chip. */
+  id: number;
+  file: File;
+  media_type: string;
   /** Object URL for image preview chips; revoke on remove/send. */
   previewUrl?: string;
   /** File size, for the chip's size label. */
   sizeBytes: number;
+  upload: DraftUpload;
 };
 
 /** True for media types Hath stores and agents read as text. */
@@ -110,38 +119,30 @@ export function attachmentSizeLabel(mediaType: string, bytes: number): string {
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-/** A paste long enough to send as an attachment, as a text file; null when it stays draft text. */
-export function pasteAsFile(text: string): File | null {
+/** A paste long enough to stage as a text file named for the time it was pasted; null when it stays draft text. */
+export function pasteAsFile(text: string, now = new Date()): File | null {
   if (text.length <= PASTE_ATTACHMENT_CHARS) {
     return null;
   }
-  return new File([text], "pasted-text.txt", { type: "text/plain" });
+  const clock = [now.getHours(), now.getMinutes(), now.getSeconds()].map((n) => String(n).padStart(2, "0")).join("");
+  return new File([text], `pasted-${clock}.txt`, { type: "text/plain" });
 }
 
-/** Read files into draft attachments (base64 + optional image preview URL). */
-export async function filesToDraftAttachments(
-  files: FileList | File[],
-): Promise<DraftAttachment[]> {
-  const list = Array.from(files);
-  const out: DraftAttachment[] = [];
-  for (const file of list) {
-    if (file.size > MAX_ATTACHMENT_BYTES) {
-      throw new Error(`${file.name} exceeds the ${MAX_ATTACHMENT_BYTES} byte limit`);
-    }
+let nextDraftId = 1;
+
+/** Stage files as draft attachments, with an image preview URL for images. */
+export function filesToDraftAttachments(files: FileList | File[]): DraftAttachment[] {
+  return Array.from(files).map((file) => {
     const media_type = resolveMediaType(file);
-    const data = await readFileAsBase64(file);
-    const draft: DraftAttachment = {
+    return {
+      id: nextDraftId++,
+      file,
       media_type,
-      data,
-      filename: file.name || undefined,
       sizeBytes: file.size,
+      upload: { state: "staged" },
+      previewUrl: media_type.startsWith("image/") ? URL.createObjectURL(file) : undefined,
     };
-    if (media_type.startsWith("image/")) {
-      draft.previewUrl = URL.createObjectURL(file);
-    }
-    out.push(draft);
-  }
-  return out;
+  });
 }
 
 /** Revoke object URLs created for image preview chips. */
@@ -153,17 +154,16 @@ export function revokeDraftPreviews(attachments: DraftAttachment[]): void {
   }
 }
 
-/** Strip preview URLs for the wire MessageAttachment payload. */
-export function toMessageAttachments(
-  drafts: DraftAttachment[],
-): MessageAttachment[] {
-  return drafts.map(({ media_type, data, filename }) => {
-    const out: MessageAttachment = { media_type, data };
-    if (filename) {
-      out.filename = filename;
-    }
-    return out;
-  });
+/** The line a staged chip shows under its name: its size, or where its upload is; `failed` marks an error to draw as one. */
+export function draftStatusLine(att: DraftAttachment): { text: string; failed: boolean } {
+  switch (att.upload.state) {
+    case "uploading":
+      return { text: "Uploading…", failed: false };
+    case "failed":
+      return { text: att.upload.message, failed: true };
+    default:
+      return { text: attachmentSizeLabel(att.media_type, att.sizeBytes), failed: false };
+  }
 }
 
 /** A file's media type: its extension's when known, else the platform's, else opaque bytes. */
@@ -176,21 +176,4 @@ export function resolveMediaType(file: Pick<File, "name" | "type">): string {
     return file.type;
   }
   return "application/octet-stream";
-}
-
-function readFileAsBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onerror = () => reject(new Error(`failed to read ${file.name}`));
-    reader.onload = () => {
-      const result = reader.result;
-      if (typeof result !== "string") {
-        reject(new Error(`failed to read ${file.name}`));
-        return;
-      }
-      const comma = result.indexOf(",");
-      resolve(comma >= 0 ? result.slice(comma + 1) : result);
-    };
-    reader.readAsDataURL(file);
-  });
 }

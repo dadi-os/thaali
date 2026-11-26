@@ -94,7 +94,7 @@ describe("the file modal at a box path", () => {
 });
 
 describe("pick mode", () => {
-  it("hands back the selected paths and closes", async () => {
+  it("hands back the selected entries and closes", async () => {
     const onPick = vi.fn();
     const onClose = vi.fn();
     await render(<FileModal path={zip.path} onPick={onPick} onClose={onClose} />);
@@ -103,7 +103,7 @@ describe("pick mode", () => {
     await act(async () => {
       insert.click();
     });
-    expect(onPick).toHaveBeenCalledWith([zip.path]);
+    expect(onPick).toHaveBeenCalledWith([zip]);
     expect(onClose).toHaveBeenCalled();
   });
 

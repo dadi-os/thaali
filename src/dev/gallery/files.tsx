@@ -3,6 +3,7 @@ import { isMeshOnline } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { FileModal } from "../../shared/components/Files";
 import { MarkdownBody } from "../../shared/components/Markdown";
+import type { NasFileEntry } from "../../types/nas";
 import { CASES } from "./cases";
 
 /** The file explorer's and the box link's cases, against the fixture tree in `fixtures/files.ts`. */
@@ -21,7 +22,7 @@ function Connected({ children }: { children: ReactNode }) {
 }
 
 /** The explorer opened at `path` in a window of 1440 x 900, as the modal sits over the app. */
-function explorer(path: string, props: { onPick?: (paths: string[]) => void } = {}) {
+function explorer(path: string, props: { onPick?: (entries: NasFileEntry[]) => void } = {}) {
   return (
     <Connected>
       <div style={{ position: "relative", width: 1440, height: 900 }}>

@@ -4,7 +4,7 @@ import { useDismiss } from "../../shared/interaction/dismiss";
 import { RISE } from "../../shared/motion";
 import { IconButton } from "../../shared/ui/Button";
 import { Icon } from "../../shared/ui/Icon";
-import { pasteAsFile, type DraftAttachment } from "../../shared/lib/content/attachments";
+import { draftStatusLine, pasteAsFile, type DraftAttachment } from "../../shared/lib/content/attachments";
 
 /** The open dock's textarea bounds, line height and padding around the field, from the composer it grows into. */
 const FIELD = { min: 40, max: 160, pad: 8, chips: 68 } as const;
@@ -78,7 +78,7 @@ export function Dock({
   }, [open, textareaRef]);
 
   const height = FIELD.pad * 2 + fieldHeight + (attachments.length > 0 ? FIELD.chips : 0);
-  const canSend = (draft.trim().length > 0 || attachments.length > 0) && !routing && !offline;
+  const canSend = (draft.trim().length > 0 || attachments.length > 0) && !routing && !offline && !attachments.some((att) => att.upload.state === "uploading");
   const sub = subline(routing, offline);
   const placeholder = offline ? "dadi unreachable" : routing ? "Dadi is busy" : "Talk to Dadi";
   const classes = ["dock", open ? "open" : "", routing ? "routing" : "", offline ? "disabled" : ""].filter(Boolean).join(" ");
@@ -110,19 +110,24 @@ export function Dock({
         <AnimatePresence initial={false}>
           {attachments.length > 0 ? (
             <motion.div key="staged" {...RISE} className="flex items-start gap-2 pt-3 pr-[18px] pl-3.5" style={{ height: FIELD.chips }}>
-              {attachments.map((att, index) => (
-                <motion.span key={`${att.filename ?? att.media_type}-${index}`} {...RISE} className="relative flex-none">
-                  <span className="flex h-14 max-w-36 flex-col justify-center rounded-xl bg-sage-fill py-0 pr-4 pl-2.5 text-[11px] leading-[14px] text-ink-muted">
-                    <span data-selectable title={att.filename ?? "file"} className="truncate">
-                      {att.filename ?? "file"}
+              {attachments.map((att, index) => {
+                const status = draftStatusLine(att);
+                return (
+                  <motion.span key={att.id} {...RISE} className="relative flex-none">
+                    <span className="flex h-14 max-w-36 flex-col justify-center rounded-xl bg-sage-fill py-0 pr-4 pl-2.5 text-[11px] leading-[14px] text-ink-muted">
+                      <span data-selectable title={att.file.name} className="truncate">
+                        {att.file.name}
+                      </span>
+                      <span title={status.text} className={`truncate ${status.failed ? "text-error" : ""}`}>
+                        {status.failed || att.upload.state === "uploading" ? status.text : att.media_type.startsWith("image/") ? "image" : "file"}
+                      </span>
                     </span>
-                    <span>{att.media_type.startsWith("image/") ? "image" : "file"}</span>
-                  </span>
-                  <span className="absolute -top-3 -right-3">
-                    <IconButton icon="close" label="Remove attachment" size={32} iconSize={11} onClick={() => onRemoveAttachment(index)} />
-                  </span>
-                </motion.span>
-              ))}
+                    <span className="absolute -top-3 -right-3">
+                      <IconButton icon="close" label="Remove attachment" size={32} iconSize={11} disabled={att.upload.state === "uploading"} onClick={() => onRemoveAttachment(index)} />
+                    </span>
+                  </motion.span>
+                );
+              })}
             </motion.div>
           ) : null}
         </AnimatePresence>

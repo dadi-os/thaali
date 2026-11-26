@@ -35,7 +35,6 @@ import {
   resolveOptimistic,
   setHistoryState,
   subscribeChat,
-  type MessageAttachment,
 } from "../../contexts/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../contexts/drafts";
 import { getDockRequests, subscribeDock } from "../../contexts/dock";
@@ -52,9 +51,12 @@ import {
   filesToDraftAttachments,
   MAX_ATTACHMENTS,
   revokeDraftPreviews,
-  toMessageAttachments,
   type DraftAttachment,
+  type DraftUpload,
 } from "../../shared/lib/content/attachments";
+import type { NasFileEntry } from "../../types/nas";
+import { FileModal } from "../../shared/components/Files";
+import { insertLinks, messageWithLinks, pickerStart, uploadDrafts, UploadFailed } from "./inbox";
 import { logLine } from "../../shared/lib/log";
 import { hydrateHistory } from "../../shared/hooks/useEvents";
 import { reportSendFailure } from "./sendFailure";
@@ -134,6 +136,10 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
   const [draftAttachments, setDraftAttachments] = useState<DraftAttachment[]>(
     [],
   );
+  /** The path the box picker is open at (to link files into the draft), or null while it is closed. */
+  const [pickerPath, setPickerPath] = useState<string | null>(null);
+  /** An upload run is in flight: a second send waits for it instead of uploading the same files twice. */
+  const uploadingRef = useRef(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const dockTextareaRef = useRef<HTMLTextAreaElement>(null);
@@ -389,17 +395,44 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     });
   };
 
+  const reportUpload = (id: number, upload: DraftUpload) => {
+    setDraftAttachments((prev) => prev.map((att) => (att.id === id ? { ...att, upload } : att)));
+  };
+
+  /**
+   * Upload the staged files to the Inbox and answer the message text that links them above `typed`.
+   * Files an earlier attempt already uploaded are not sent again. Null means nothing should be sent: an upload
+   * failed (its chip holds the error and the draft stays) or another upload run is already going.
+   */
+  const textWithUploads = async (typed: string): Promise<string | null> => {
+    if (draftAttachments.length === 0) {
+      return typed.trim();
+    }
+    if (uploadingRef.current) {
+      return null;
+    }
+    uploadingRef.current = true;
+    try {
+      const paths = await uploadDrafts(draftAttachments, new Date(), (folder, file) => nas.uploadFile(folder, file), reportUpload);
+      return messageWithLinks(paths, typed);
+    } catch (err: unknown) {
+      if (err instanceof UploadFailed) {
+        logLine("error", err.message, "upload_failed");
+        return null;
+      }
+      throw err;
+    } finally {
+      uploadingRef.current = false;
+    }
+  };
+
   const sendThread = async (
     toId: string,
     content: string,
     existingTempSeq?: number,
-    attachments?: MessageAttachment[],
   ) => {
     const trimmed = content.trim();
-    if (
-      (!trimmed && (!attachments || attachments.length === 0)) ||
-      !connected
-    ) {
+    if (!trimmed || !connected) {
       return;
     }
 
@@ -408,9 +441,13 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       markPending(toId, existingTempSeq);
       tempSeq = existingTempSeq;
     } else {
-      tempSeq = addOptimistic(toId, trimmed, { attachments });
-      setDraft("");
-      clearDraftAttachments();
+      tempSeq = addOptimistic(toId, trimmed);
+      if (draftKeyRef.current === toId) {
+        setDraft("");
+        clearDraftAttachments();
+      } else {
+        saveDraft(toId, "");
+      }
       requestAnimationFrame(() => {
         textareaRef.current?.focus();
         const el = textareaRef.current;
@@ -428,8 +465,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       const res = await hath.postMessage({
         to_agent_id: toId,
         content: trimmed,
-        attachments:
-          attachments && attachments.length > 0 ? attachments : undefined,
       });
       resolveOptimistic(toId, tempSeq, res.seq, res.attachments, res.created_at);
     } catch (err: unknown) {
@@ -459,29 +494,41 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     }
   };
 
-  const onPickFiles = async (files: FileList | File[] | null) => {
+  const onPickFiles = (files: FileList | File[] | null) => {
     if (!files || files.length === 0) {
       return;
     }
+    const next = filesToDraftAttachments(files);
+    setDraftAttachments((prev) => {
+      const room = MAX_ATTACHMENTS - prev.length;
+      if (room <= 0) {
+        revokeDraftPreviews(next);
+        return prev;
+      }
+      const keep = next.slice(0, room);
+      revokeDraftPreviews(next.slice(room));
+      return [...prev, ...keep];
+    });
+  };
+
+  const linkFromBox = async () => {
     try {
-      const next = await filesToDraftAttachments(files);
-      setDraftAttachments((prev) => {
-        const room = MAX_ATTACHMENTS - prev.length;
-        if (room <= 0) {
-          revokeDraftPreviews(next);
-          return prev;
-        }
-        const keep = next.slice(0, room);
-        revokeDraftPreviews(next.slice(room));
-        return [...prev, ...keep];
-      });
-    } catch (err) {
-      logLine(
-        "error",
-        err instanceof Error ? err.message : String(err),
-        "invalid_request",
-      );
+      setPickerPath(await pickerStart(new Date(), (path) => nas.statFile(path)));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      logLine("error", message, "box_picker_failed");
+      pushToast({ key: "box_picker_failed", tone: "error", title: "Couldn't open files", body: message, module: "system" });
     }
+  };
+
+  const insertPicked = (entries: NasFileEntry[]) => {
+    const field = textareaRef.current;
+    const { text, caret } = insertLinks(draft, field ? field.selectionStart : null, entries);
+    setDraft(text);
+    requestAnimationFrame(() => {
+      field?.focus();
+      field?.setSelectionRange(caret, caret);
+    });
   };
 
   const removeDraftAttachment = (index: number) => {
@@ -499,29 +546,22 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
    * sends it on as you. Nothing reports where it went. A message that fails comes back to the dock
    * and a toast says it was copied. While any device has the router running (read live, not from the last render, so two quick sends cannot both pass) a send is refused and the draft stays.
    */
-  const sendDadi = async (
-    content: string,
-    attachments?: MessageAttachment[],
-  ) => {
-    const trimmed = content.trim();
-    if (
-      (!trimmed && (!attachments || attachments.length === 0)) ||
-      !connected ||
-      isRouting()
-    ) {
+  const sendDadi = async (content: string) => {
+    if ((!content.trim() && draftAttachments.length === 0) || !connected || isRouting()) {
       return;
     }
     const savedDraft = draft;
-    const savedAttachments = draftAttachments;
-    setDraft("");
-    setDockOpen(false);
+    let trimmed = content.trim();
     setLocalSend(true);
     try {
-      const res = await hath.postRouter({
-        content: trimmed,
-        attachments:
-          attachments && attachments.length > 0 ? attachments : undefined,
-      });
+      const linked = await textWithUploads(content);
+      if (linked === null) {
+        return;
+      }
+      trimmed = linked;
+      setDraft("");
+      setDockOpen(false);
+      const res = await hath.postRouter({ content: trimmed });
       clearDraftAttachments();
       void queryClient.invalidateQueries({ queryKey: AGENTS_QUERY_KEY });
       for (const sent of res.messages) {
@@ -538,7 +578,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       saveDraft(DADI_DRAFT_KEY, savedDraft);
       if (draftKeyRef.current === DADI_DRAFT_KEY) {
         setDraftText(savedDraft);
-        setDraftAttachments(savedAttachments);
         setDockOpen(true);
       }
       logLine("error", message, "dadi_send_failed");
@@ -548,21 +587,21 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     }
   };
 
-  const onSubmit = (e: FormEvent) => {
+  const onSubmit = async (e: FormEvent) => {
     e.preventDefault();
-    const attachments =
-      draftAttachments.length > 0
-        ? toMessageAttachments(draftAttachments)
-        : undefined;
-    if (viewingThread && openAgentId) {
-      void sendThread(openAgentId, draft, undefined, attachments);
+    if (!viewingThread || !openAgentId || !connected || (!draft.trim() && draftAttachments.length === 0)) {
+      return;
+    }
+    const text = await textWithUploads(draft);
+    if (text !== null) {
+      await sendThread(openAgentId, text);
     }
   };
 
   const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
-      onSubmit(e as unknown as FormEvent);
+      void onSubmit(e as unknown as FormEvent);
     }
   };
 
@@ -573,7 +612,10 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
 
   const placeholder = !connected ? "Connect to message agent" : "Message agent";
 
-  const canSubmit = connected && (draft.trim().length > 0 || draftAttachments.length > 0);
+  const canSubmit =
+    connected &&
+    (draft.trim().length > 0 || draftAttachments.length > 0) &&
+    !draftAttachments.some((att) => att.upload.state === "uploading");
   const composerPad = composerHeight + COMPOSER_GAP;
 
 
@@ -671,7 +713,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                   headerPad={showHostPin ? 0 : THREAD_HEADER_PX}
                   messages={threadMessages}
                   onRetry={(msg) => {
-                    void sendThread(openAgentId, msg.content, msg.seq, msg.attachments);
+                    void sendThread(openAgentId, msg.content, msg.seq);
                   }}
                   onDismiss={dismissFailed}
                   agentName={openAgentRecord.name}
@@ -706,6 +748,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 attachments={draftAttachments}
                 onRemoveAttachment={removeDraftAttachment}
                 onPickFiles={onPickFiles}
+                onLinkFromBox={() => void linkFromBox()}
                 onSubmit={onSubmit}
                 onKeyDown={onKeyDown}
                 onHeight={setComposerHeight}
@@ -741,7 +784,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
             onAttach={pickFiles}
             onOpen={() => setDockOpen(true)}
             onClose={() => setDockOpen(false)}
-            onSend={() => void sendDadi(draft, draftAttachments.length > 0 ? toMessageAttachments(draftAttachments) : undefined)}
+            onSend={() => void sendDadi(draft)}
             textareaRef={dockTextareaRef}
           />
         </motion.div>
@@ -749,6 +792,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       </AnimatePresence>
       <AgentPopover agentId={details === null ? null : details.id} anchor={details === null ? null : details.anchor} onSelect={(id) => setDetails((current) => (current === null ? null : { id, anchor: current.anchor }))} onClose={() => setDetails(null)} />
       <ResizeHandle rail={rail} />
+      <FileModal path={pickerPath} onPick={insertPicked} onClose={() => setPickerPath(null)} />
 
     </aside>
   );

@@ -97,9 +97,7 @@ describe("attachments", () => {
 
   it("resolves a file-only send to the stored files when its event lands", () => {
     resetChatStore();
-    const tempSeq = addOptimistic("agent-files", "", {
-      attachments: [{ media_type: "text/plain", data: "aGk=", filename: "notes.txt" }],
-    });
+    const tempSeq = addOptimistic("agent-files", "");
     const file = {
       id: "f1",
       filename: "notes.txt",
@@ -118,7 +116,6 @@ describe("attachments", () => {
     expect(row?.seq).toBe(41);
     expect(row?.pending).toBe(false);
     expect(row?.files).toEqual([file]);
-    expect(row?.attachments).toBeUndefined();
     expect(tempSeq).toBeLessThan(0);
   });
 });

@@ -1,13 +1,10 @@
 import type {
   AttachmentSummary,
   DurableMessage,
-  MessageAttachment,
   MessageStatus,
   ThreadSummary,
 } from "../types/hath";
 import { pushToast } from "./toasts";
-
-export type { MessageAttachment };
 
 export type ChatMessage = {
   /** Stable row id for an optimistic send; kept when the server seq arrives. */
@@ -24,8 +21,6 @@ export type ChatMessage = {
   failed?: boolean;
   /** The real error from the failed send, shown on the bubble; cleared on retry. */
   sendError?: string;
-  /** Outbound files, kept only while pending or failed so retry can re-POST; cleared once Hath confirms. */
-  attachments?: MessageAttachment[];
   /** Files the message carries, as Hath stored them. */
   files?: AttachmentSummary[];
   /** Loaded from durable REST history; skip typewriter on open. */
@@ -434,13 +429,7 @@ export function appendMessage(agentId: string, msg: ChatMessage): void {
 }
 
 /** Insert an optimistic user message; returns its temporary (negative) seq. */
-export function addOptimistic(
-  agentId: string,
-  content: string,
-  opts?: {
-    attachments?: MessageAttachment[];
-  },
-): number {
+export function addOptimistic(agentId: string, content: string): number {
   const seq = nextTempSeq;
   nextTempSeq -= 1;
   const msg: ChatMessage = {
@@ -450,7 +439,6 @@ export function addOptimistic(
     content,
     at: new Date().toISOString(),
     pending: true,
-    attachments: opts?.attachments,
   };
   setThread(agentId, sortMessages([...threadOf(agentId), msg]));
   emit();
@@ -489,7 +477,6 @@ export function resolveOptimistic(
               at,
               pending: false,
               failed: false,
-              attachments: undefined,
               files,
             }
           : m,

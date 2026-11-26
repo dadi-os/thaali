@@ -1,4 +1,5 @@
 // @vitest-environment happy-dom
+import { readFileSync } from "node:fs";
 import { act, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { describe, expect, it, vi } from "vitest";
@@ -71,5 +72,15 @@ describe("Modal", () => {
     await act(async () => escape());
     await act(async () => press(document.body.querySelector(".modal-scrim")!));
     expect(onClose).not.toHaveBeenCalled();
+  });
+});
+
+describe("layer tokens", () => {
+  it("stack menus, popovers, toasts and tooltips above the modal in that order", () => {
+    const css = readFileSync("src/shared/theme/tokens.css", "utf8");
+    const layer = (name: string) => Number(new RegExp(`--z-${name}:\\s*(\\d+)`).exec(css)?.[1]);
+    const order = ["modal", "menu", "popover", "toast", "tooltip"].map(layer);
+    expect(order.every(Number.isFinite)).toBe(true);
+    expect([...order].sort((a, b) => a - b)).toEqual(order);
   });
 });
