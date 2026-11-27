@@ -270,6 +270,7 @@ export function ChaaviPage() {
             onEdit={() => setOverlay({ kind: "edit", item: selected })}
             onToggleFavorite={() => patch.mutate({ id: selected.id, body: { favorite: !selected.favorite } })}
             onDelete={() => setOverlay({ kind: "delete", item: selected })}
+            onScope={setScope}
           />
         );
       body = narrow ? (

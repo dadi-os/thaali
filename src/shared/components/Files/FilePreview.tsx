@@ -96,15 +96,19 @@ function extensionOf(filename: string): string {
   return lower.includes(".") ? lower.slice(lower.lastIndexOf(".") + 1) : lower;
 }
 
+/** The own value of `table` at `key`: a file named like an Object property (`constructor`, `toString`) has no entry. */
+function own<Value>(table: Record<string, Value>, key: string): Value | undefined {
+  return Object.prototype.hasOwnProperty.call(table, key) ? table[key] : undefined;
+}
+
 /**
  * Color `text` as HTML with Shiki, picking the grammar from the extension, then the media
  * type, else plain text. Shiki loads on first use, with only the grammar this file needs.
  */
-async function highlight(text: string, filename: string, mediaType: string): Promise<string> {
+export async function highlight(text: string, filename: string, mediaType: string): Promise<string> {
   const { bundledLanguages, codeToHtml } = await import("shiki");
   const ext = extensionOf(filename);
-  const lang =
-    EXT_LANG[ext] ?? (ext in bundledLanguages ? ext : (MEDIA_LANG[mediaType] ?? "text"));
+  const lang = own(EXT_LANG, ext) ?? (Object.prototype.hasOwnProperty.call(bundledLanguages, ext) ? ext : (own(MEDIA_LANG, mediaType) ?? "text"));
   return codeToHtml(text, {
     lang,
     themes: THEMES,

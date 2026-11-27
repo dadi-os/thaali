@@ -20,8 +20,8 @@ export type ThreadHeaderProps = {
 };
 
 /**
- * Top of an open thread, floating over it: back as a glass circle on the left and the agent's full name, wrapping if it
- * must, as a centered glass bubble that opens the agent's details. Nothing sits behind them, so messages scroll under both
+ * Top of an open thread, floating over it: back as a glass circle on the left and the agent's full name on one line, cut with an
+ * ellipsis when the header is narrow, as a centered glass bubble that opens the agent's details. Nothing sits behind them, so messages scroll under both
  * and show through the glass.
  */
 export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: ThreadHeaderProps) {
@@ -44,14 +44,14 @@ export function ThreadHeader({ onBack, title, error = null, onOpenDetails }: Thr
               type="button"
               onClick={(event) => onOpenDetails(event.currentTarget.getBoundingClientRect())}
               aria-label={`${title} details`}
-              className={`${bubble} pane-bubble--interactive inline-flex items-center gap-1.5 text-ink`}
+              className={`${bubble} pane-bubble--interactive inline-flex min-w-0 items-center gap-1.5 text-ink`}
             >
-              <AgentName name={title} selectable={false} />
+              <AgentName name={title} selectable={false} className="truncate" />
               <span className="flex flex-none text-ink-ghost"><Icon name="chevron" size={10} /></span>
             </motion.button>
           ) : (
-            <motion.span key="title" {...FADE} className={`${bubble} text-ink`}>
-              <AgentName name={title} />
+            <motion.span key="title" {...FADE} className={`${bubble} min-w-0 text-ink`}>
+              <AgentName name={title} className="truncate" />
             </motion.span>
           )}
         </AnimatePresence>

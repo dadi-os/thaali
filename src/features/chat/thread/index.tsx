@@ -88,7 +88,7 @@ export function ThreadView({
 
   return (
     <div className="absolute inset-0">
-      {headerPad > 0 ? <ScrollEdge edge="top" size={headerPad + EDGE_REACH_PX - 16} /> : null}
+      {headerPad > 0 ? <ScrollEdge edge="top" size={headerPad + EDGE_REACH_PX - 16} solid /> : null}
       {composerPad > 0 ? <ScrollEdge edge="bottom" size={composerPad + EDGE_REACH_PX - 16} /> : null}
       <AnimatePresence initial={false}>
         {ready && isEmpty && load ? (

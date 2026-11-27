@@ -196,13 +196,13 @@ function taskFacts(id: string) {
 /** A stand-in block for page content the gate does not draw: the design fills the frame with these. */
 const placeholder = (width: number | string, height: number, radius = 6) => <span style={{ display: "block", width, height, borderRadius: radius, background: "rgba(44, 48, 42, 0.08)" }} />;
 /** The preview of a task with stand-in content: the real screen is a live stream, so the gate fills the frame as the design draws it. */
-export function previewOf(nas: NasTask, { tall = false } = {}) {
+export function previewOf(nas: NasTask) {
   const shortId = nas.task.replace(/^task\//, "");
   const label = `Open ${nas.kind} task ${shortId}`;
   if (nas.kind === "terminal") {
     return (
       <TaskPreview kind="terminal" caption={nas.resource ? `${shortId} · ${nas.resource}` : shortId} label={label} onOpen={noop}>
-        <pre style={{ margin: 0, padding: "10px 12px", fontFamily: "var(--font-numeric)", fontSize: 11.5, lineHeight: "17px", height: tall ? 288 : 132, overflow: "hidden", whiteSpace: "pre-wrap", overflowWrap: "anywhere", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
+        <pre style={{ margin: 0, padding: "10px 12px", fontFamily: "var(--font-numeric)", fontSize: 11.5, lineHeight: "17px", height: "100%", overflow: "hidden", whiteSpace: "pre-wrap", overflowWrap: "anywhere", display: "flex", flexDirection: "column", justifyContent: "flex-end" }}>
           <div>{terminalCapture().output}</div>
         </pre>
       </TaskPreview>
@@ -210,7 +210,7 @@ export function previewOf(nas: NasTask, { tall = false } = {}) {
   }
   return (
     <TaskPreview kind="browser" caption={pageAddress(nas.active_url)} label={label} onOpen={noop}>
-      <div style={{ height: tall ? 330 : 150, background: "linear-gradient(180deg, #f3f1ec, #e9e6df)", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
+      <div style={{ height: "100%", background: "linear-gradient(180deg, #f3f1ec, #e9e6df)", padding: 18, display: "flex", flexDirection: "column", gap: 10 }}>
         {placeholder("46%", 16)}
         {placeholder("78%", 10)}
         {placeholder("64%", 10)}
@@ -224,9 +224,9 @@ export function previewOf(nas: NasTask, { tall = false } = {}) {
   );
 }
 /** The preview of a fixture task in the `asking` scenario. */
-function preview(id: string, options: { tall?: boolean } = {}) {
+function preview(id: string, width = 300) {
   const { nas } = taskFacts(id);
-  return previewOf(nas, options);
+  return <div style={{ width }}>{previewOf(nas)}</div>;
 }
 /** A task row for a fixture task. */
 function row(id: string, { paused = false } = {}) {
@@ -243,4 +243,7 @@ CASES["task.row.working.hover"] = () => row(TASKS.working);
 CASES["task.preview.browser"] = () => preview(TASKS.working);
 CASES["task.preview.browser.hover"] = () => preview(TASKS.working);
 CASES["task.preview.terminal"] = () => preview(TASKS.idle);
-CASES["task.preview.terminal.tall"] = () => preview(TASKS.idle, { tall: true });
+CASES["task.preview.browser.narrow"] = () => preview(TASKS.working, 200);
+CASES["task.preview.browser.wide"] = () => preview(TASKS.working, 640);
+CASES["task.preview.terminal.narrow"] = () => preview(TASKS.idle, 200);
+CASES["task.preview.terminal.tall"] = () => preview(TASKS.idle, 640);

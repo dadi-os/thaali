@@ -14,8 +14,6 @@
     "parity": "node scripts/parity.mjs"
   },
   "dependencies": {
-    "@headless-tree/core": "1.8.0",
-    "@headless-tree/react": "1.8.0",
     "@react-three/drei": "^10.7.8",
     "@react-three/fiber": "^9.8.0",
     "@streamdown/code": "2.0.0",

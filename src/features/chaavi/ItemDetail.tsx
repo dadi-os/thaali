@@ -4,6 +4,7 @@ import { Button, IconButton } from "../../shared/ui/Button";
 import { Card } from "../../shared/ui/Card";
 import { Field } from "../../shared/ui/Field";
 import { useContextActions } from "../../shared/interaction/contextMenu";
+import { Breadcrumb, type BreadcrumbItem } from "../../shared/ui/Breadcrumb";
 import { Truncate } from "../../shared/ui/Truncate";
 import { copyText } from "../../shared/desktop/clipboard";
 import { confirmOwner } from "../../shared/desktop/owner";
@@ -12,8 +13,9 @@ import { formatClock, formatDay } from "../../shared/lib/ux/time";
 import { pushToast } from "../../contexts/toasts";
 import type { ChaaviFolder, ChaaviItem, ChaaviReveal, ChaaviTotp } from "../../types/chaavi";
 import { copySecret } from "./clipboard";
-import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META, websiteUrl } from "./draft";
+import { FLAT_FIELDS, flatData, fullName, hasKey, isFlatType, LINK_TARGETS, TYPE_META, websiteUrl, type VaultScope } from "./draft";
 import { Avatar } from "./ItemList";
+import { FOLDER_SEP } from "./folders";
 import { siteDomain } from "./siteIcon";
 
 /** How long a row says it was copied, in ms. */
@@ -255,6 +257,8 @@ export type ItemDetailProps = {
   onToggleFavorite: () => void;
   /** Asks for the delete; the page confirms it. */
   onDelete: () => void;
+  /** A step of the item's path was pressed: narrow the list to the whole vault or to that folder. */
+  onScope: (scope: VaultScope) => void;
 };
 
 /**
@@ -262,7 +266,7 @@ export type ItemDetailProps = {
  * it or the copy control copies it unseen, after an owner check. Revealed values live in this component's state only. Give it a
  * `key` of the item's id so a reveal never carries over to the next item.
  */
-export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDelete }: ItemDetailProps) {
+export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDelete, onScope }: ItemDetailProps) {
   const [revealed, setRevealed] = useState<Record<string, string>>({});
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
@@ -277,6 +281,11 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
   );
 
   const folder = folders.find((entry) => entry.id === item.folderId);
+  const where: BreadcrumbItem[] = [
+    { label: "Vault", icon: "lock", onSelect: () => onScope({ kind: "all" }) },
+    ...(folder?.name.split(FOLDER_SEP) ?? []).map((name, index, parts): BreadcrumbItem => ({ label: name, icon: index === 0 ? "folder" : undefined, onSelect: () => onScope({ kind: "folder", path: parts.slice(0, index + 1).join(FOLDER_SEP) }) })),
+    { label: TYPE_META[item.type].one },
+  ];
 
   const secretValue = async (request: ChaaviReveal, reason: string): Promise<string> => {
     await confirmOwner(reason);
@@ -326,7 +335,7 @@ export function ItemDetail({ item, folders, busy, onEdit, onToggleFavorite, onDe
         <Avatar name={item.name} size={52} domain={siteDomain(item)} />
         <div className="flex min-w-35 flex-[1_1_140px] flex-col gap-1">
           <Truncate text={item.name} className="text-[20px] font-semibold tracking-[-0.015em]" />
-          <Truncate text={`${TYPE_META[item.type].one}${folder ? ` · ${folder.name}` : ""}`} className="text-[14px] text-ink-muted" />
+          <Breadcrumb label="Where this item is" items={where} className="-ml-1.5 text-[14px]" />
         </div>
         <div className="ml-auto flex flex-none items-center gap-2">
           <IconButton icon="star" label={item.favorite ? "Remove from favorites" : "Add to favorites"} disabled={busy || undefined} onClick={onToggleFavorite} className={item.favorite ? "text-clay" : ""} />

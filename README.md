@@ -12,7 +12,6 @@ The desktop app for dadi: macOS, Windows, and Linux. Thaali is its internal name
 - Dwar (indirect via Hath/Yaad)
 - The dadi network (system `tailscaled` TUN + MagicDNS)
 - Fonts: Inter, Geist Mono and Noto Sans Gujarati (the દાદી wordmark) are bundled as local woff2 files in `src/assets/fonts` (never a system font), with `font-display: block`; the Gujarati 500 and 600 are preloaded in `index.html`. Noto Sans Gujarati is under the SIL Open Font License 1.1, whose text is [OFL-NotoSansGujarati.txt](src/assets/fonts/OFL-NotoSansGujarati.txt) next to the font
-- File explorer tree: `@headless-tree/core` + `@headless-tree/react` (behavior only; the rows are the app's own), pinned to exact versions
 - Markdown: `streamdown` with `@streamdown/code` (Shiki), `@streamdown/math` (KaTeX, whose CSS is imported directly) and `@streamdown/mermaid`, pinned to exact versions; `react-markdown` + `remark-gfm` for one-line previews
 
 ## Layout
@@ -33,7 +32,7 @@ thaali/
       motion/               the only place a duration, easing, spring or enter/exit shape is chosen
       layout/               Page (frame, side panel dock or drawer), Measured, shell/ (AppShell, TitleBar, WindowControls, PageHeader, OfflinePill, Toaster), Wordmark, FieldBloom
       states/               loading, offline, module-offline, error, empty and stale views, ErrorBoundary
-      components/           domain nouns drawn once and varied by props: Task (TaskView, TaskRow, TaskStatus), Thread (conversation list, messages, composer), Graph, Markdown (renders `box://` links as FileLink), Files (FileModal: the explorer opened at a box path; FileLink; `fileActions`; `Explorer/`, the folder tree on headless-tree, the sortable list and the move picker)
+      components/           domain nouns drawn once and varied by props: Task (TaskView, TaskRow, TaskStatus), Thread (conversation list, messages, composer), Graph, Markdown (renders `box://` links as FileLink), Files (FileModal: the explorer opened at a box path; FileLink; `fileActions`; `Explorer/`, the folder tree on the shared folder Expandable, the sortable list and the move picker)
       desktop/              every operating-system call: clipboard, opener, downloads, notifications, owner check, tray, updater, device remote, OS detection
       api/                  transport + domain clients (hath/, yaad/, nas/, chaavi/, ghar/, planner/); nas/ also holds the file calls (list, stat, raw as `fileUrl` or a blob, multipart upload, mkdir, move, trash); mesh-transport.ts is the production transport
       hooks/ lib/           shared hooks and pure TypeScript (content, ux helpers, time)

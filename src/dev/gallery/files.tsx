@@ -2,6 +2,7 @@ import { useEffect, type ReactNode } from "react";
 import { isMeshOnline } from "../../shared/api";
 import { useConnection } from "../../shared/hooks/useConnection";
 import { FileModal } from "../../shared/components/Files";
+import { FileViewBody, useFileView, type FileSource } from "../../shared/components/Files/FilePreview";
 import { MarkdownBody } from "../../shared/components/Markdown";
 import type { NasFileEntry } from "../../types/nas";
 import { CASES } from "./cases";
@@ -21,11 +22,11 @@ function Connected({ children }: { children: ReactNode }) {
   return isMeshOnline(state) ? <>{children}</> : null;
 }
 
-/** The explorer opened at `path` in a window of 1440 x 900, as the modal sits over the app. */
-function explorer(path: string, props: { onPick?: (entries: NasFileEntry[]) => void } = {}) {
+/** The explorer opened at `path` in a window of `width` x `height` (1440 x 900 by default), as the modal sits over the app. */
+function explorer(path: string, props: { onPick?: (entries: NasFileEntry[]) => void } = {}, width = 1440, height = 900) {
   return (
     <Connected>
-      <div style={{ position: "relative", width: 1440, height: 900 }}>
+      <div style={{ position: "relative", width, height }}>
         <FileModal scoped path={path} onClose={noop} {...props} />
       </div>
     </Connected>
@@ -48,6 +49,7 @@ function SelectAlso({ path, children }: { path: string; children: React.ReactNod
 }
 
 CASES["files.explorer.folder"] = () => explorer(`${COURSE}/materials/lecture-09.md`);
+CASES["files.explorer.narrow"] = () => explorer(`${COURSE}/materials/lecture-09.md`, {}, 760, 640);
 CASES["files.explorer.image"] = () => explorer(`${HOME}/career/resume/headshot.png`);
 CASES["files.explorer.dead"] = () => explorer(`${COURSE}/submissions/hw2.pdf`);
 CASES["files.explorer.empty"] = () => explorer(`${HOME}/scratch/`);
@@ -66,3 +68,34 @@ CASES["files.link.message"] = () => (
     </div>
   </Connected>
 );
+
+/** The viewer's body for a file of `name` holding `text`, as the explorer draws it, for the colored-code cases. */
+function CodeView({ name, mediaType, text }: { name: string; mediaType: string; text: string }) {
+  const source: FileSource = {
+    key: `gallery:${name}`,
+    name,
+    mediaType,
+    size: text.length,
+    url: () => "",
+    loadText: () => Promise.resolve(text),
+    loadBlob: () => Promise.resolve(new Blob([text])),
+  };
+  const view = useFileView(source);
+  return (
+    <div style={{ display: "flex", width: 640, height: 260 }}>
+      <FileViewBody view={view} />
+    </div>
+  );
+}
+
+const CODE = {
+  py: ["train.py", "text/x-python", "import os\n\ndef main(argv: list[str]) -> int:\n    \"\"\"Run.\"\"\"\n    return len(argv) + 1  # count\n"],
+  txt: ["notes.txt", "text/plain", "Call the bank on Monday.\nBring the October statement.\n"],
+  md: ["lecture-09.md", "text/markdown", "# Lecture 9\n\n- **Paging** and `TLB` misses\n"],
+  tex: ["paper.tex", "text/x-tex", "\\section{Intro}\nWe show $x^2$ holds.\n"],
+  makefile: ["Makefile", "text/plain", "all:\n\tgo build ./...\n"],
+  constructor: ["constructor", "text/plain", "a plain file named like an Object property\n"],
+};
+for (const [key, [name, mediaType, text]] of Object.entries(CODE)) {
+  CASES[`files.code.${key}`] = () => <CodeView name={name!} mediaType={mediaType!} text={text!} />;
+}

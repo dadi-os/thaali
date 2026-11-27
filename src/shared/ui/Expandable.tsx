@@ -37,8 +37,8 @@ export type ExpandableProps = {
   onSelect?: () => void;
   /** `folder` look: controls shown in place of the count while the row is hovered or focused (add, rename, delete). */
   actions?: ReactNode;
-  /** Attributes for the `folder` row itself: a drop target's `data-drop`, a context menu's handlers. */
-  rowProps?: HTMLAttributes<HTMLDivElement> & { "data-drop"?: string };
+  /** Attributes for the `folder` row itself: a drop target's `data-drop`, a tree's `data-tree-path`, a context menu's handlers. */
+  rowProps?: HTMLAttributes<HTMLDivElement> & { [attribute: `data-${string}`]: string | undefined };
   /** What opens, inline with the REVEAL preset, mounted only while open. In the `folder` look its children enter one after another. Left out, a `folder` row is a leaf: no chevron. */
   children?: ReactNode;
 };

@@ -6,7 +6,9 @@ import { failureProps } from "../../../lib/ux/moduleState";
 import { failureFacts } from "../../../states/failure";
 import { StaleBanner, StateView } from "../../../states/ModuleState";
 import { BOX_HOME, baseName, parentPath } from "../../../lib/content/boxLink";
+import { useSize } from "../../../hooks/useSize";
 import { IconButton } from "../../../ui/Button";
+import { Breadcrumb, type BreadcrumbItem } from "../../../ui/Breadcrumb";
 import { Icon } from "../../../ui/Icon";
 import { Skeleton } from "../../../ui/Skeleton";
 import type { NasFileEntry } from "../../../../types/nas";
@@ -16,6 +18,9 @@ import { FolderTree } from "./FolderTree";
 import { arrange, DEFAULT_SORT, isFolder, nextSort, type Sort, type SortKey } from "./listing";
 import { MovePicker } from "./MovePicker";
 import { useFolder, useRefreshFiles } from "./useFolder";
+
+/** The explorer is narrower than this, in px, before the filter takes its own row and the folder tree hides behind a toggle. */
+const NARROW_PX = 900;
 
 /** Props of {@link Explorer}. */
 export type ExplorerProps = {
@@ -36,14 +41,17 @@ export type ExplorerProps = {
   children?: ReactNode;
 };
 
-/** The breadcrumb's segments: the home, then each folder down to `folder`, each with the path it opens. */
-function crumbs(folder: string): Array<{ label: string; path: string }> {
+/** The breadcrumb's steps: the home, then each folder down to `folder`, each opening its own path. */
+function crumbs(folder: string, open: (path: string) => void): BreadcrumbItem[] {
   const rest = folder === BOX_HOME ? [] : folder.slice(BOX_HOME.length + 1).split("/");
-  return [{ label: "Home", path: BOX_HOME }, ...rest.map((name, i) => ({ label: name, path: `${BOX_HOME}/${rest.slice(0, i + 1).join("/")}` }))];
+  return [
+    { label: "Home", icon: "home", onSelect: () => open(BOX_HOME) },
+    ...rest.map((name, i): BreadcrumbItem => ({ label: name, onSelect: () => open(`${BOX_HOME}/${rest.slice(0, i + 1).join("/")}`) })),
+  ];
 }
 
 /**
- * The file explorer over the box: the folder tree at the left, and at the right a breadcrumb, a name filter, the folder's
+ * The file explorer over the box: the folder tree at the left, and at the right a breadcrumb with the name filter and the actions menu at its end, the folder's
  * list (sortable) and, under it, whatever preview the surface gives. Actions on files are the one {@link fileActions} list,
  * serving the right-click menu and the menu button. Each write goes to Nas and then reloads the listings, so a failed one
  * leaves the list as Nas has it and says what failed.
@@ -61,13 +69,15 @@ export function Explorer({ folder, onFolderChange, selection, onSelectionChange,
   const [error, setError] = useState<string | null>(null);
   const [info, setInfo] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<string | null>(null);
-  const [version, setVersion] = useState(0);
   const [menu, setMenu] = useState<DOMRect | null>(null);
+
+  const [frame, size] = useSize<HTMLDivElement>();
+  const narrow = size.width > 0 && size.width < NARROW_PX;
+  const [treeOpen, setTreeOpen] = useState(false);
 
   const fail = (err: unknown) => setError(failureFacts(err).message);
 
   const changed = async () => {
-    setVersion((v) => v + 1);
     await refresh();
   };
 
@@ -150,42 +160,41 @@ export function Explorer({ folder, onFolderChange, selection, onSelectionChange,
     });
   };
 
+  const filterField = (
+    <label className={`search-field search-field--compact ${narrow ? "w-full" : "min-w-24"}`}>
+      <Icon name="search" size={14} />
+      <input
+        type="search"
+        className="sfi"
+        placeholder="Filter by name"
+        aria-label="Filter by name"
+        value={filter}
+        onChange={(event) => onFilterChange(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Escape" && filter !== "") {
+            event.stopPropagation();
+            onFilterChange("");
+          }
+        }}
+      />
+    </label>
+  );
+
   return (
-    <div className="relative flex min-h-0 flex-1">
-      <nav aria-label="Folder tree" className="scroll w-56 flex-none overflow-auto border-r border-rule p-2">
-        <FolderTree current={folder} onOpenFolder={go} version={version} onError={fail} />
+    <div ref={frame} className="relative flex min-h-0 flex-1">
+      {narrow && !treeOpen ? null : (
+        <nav aria-label="Folder tree" className={`scroll ${narrow ? "w-56" : "w-64"} flex-none overflow-auto border-r border-rule p-2`}>
+        <FolderTree current={folder} onOpenFolder={go} onError={fail} />
       </nav>
+      )}
       <section className="flex min-w-0 flex-1 flex-col">
         <div className="flex h-12 flex-none items-center gap-2 border-b border-rule px-3">
-          <nav aria-label="Path" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-hidden text-[13px]">
-            {crumbs(folder).map((crumb, i, all) => (
-              <span key={crumb.path} className="flex min-w-0 items-center gap-0.5">
-                {i === 0 ? null : <Icon name="chevron" size={11} style={{ flex: "none" }} />}
-                <button type="button" aria-current={i === all.length - 1 ? "location" : undefined} onClick={() => go(crumb.path)} className={`min-w-0 truncate rounded-[6px] px-1.5 py-0.5 ${i === all.length - 1 ? "font-semibold text-ink" : "text-ink-muted"}`}>
-                  {crumb.label}
-                </button>
-              </span>
-            ))}
-          </nav>
-          <label className="search-field w-44 flex-none">
-            <Icon name="search" size={14} />
-            <input
-              type="search"
-              className="sfi"
-              placeholder="Filter by name"
-              aria-label="Filter by name"
-              value={filter}
-              onChange={(event) => onFilterChange(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Escape" && filter !== "") {
-                  event.stopPropagation();
-                  onFilterChange("");
-                }
-              }}
-            />
-          </label>
+          {narrow ? <IconButton icon="folder" label="Folders" selected={treeOpen} size={32} onClick={() => setTreeOpen(!treeOpen)} /> : null}
+          <Breadcrumb label="Path" items={crumbs(folder, go)} className="min-w-36 flex-1" />
+          {narrow ? null : filterField}
           <IconButton icon="dots" label="Actions" size={32} onClick={(event) => setMenu(event.currentTarget.getBoundingClientRect())} />
         </div>
+        {narrow ? <div className="flex-none border-b border-rule px-3 py-2">{filterField}</div> : null}
         {notice === null ? null : (
           <p role="status" className="flex-none border-b border-rule px-4 py-2 text-[13px] text-ink-muted">
             {notice}
@@ -257,7 +266,6 @@ export function Explorer({ folder, onFolderChange, selection, onSelectionChange,
         key={moving === null ? "closed" : moving.map((entry) => entry.path).join("\n")}
         entries={moving}
         folder={folder}
-        version={version}
         pending={pending}
         error={dialogError}
         onCancel={() => setMoving(null)}

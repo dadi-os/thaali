@@ -10,8 +10,6 @@ export type MovePickerProps = {
   entries: NasFileEntry[] | null;
   /** The folder the entries are in, where the picker starts. */
   folder: string;
-  /** Changes when something was written, so the tree reloads. */
-  version: number;
   /** The move is in flight: the buttons rest and the dialog cannot be dismissed. */
   pending: boolean;
   /** Why the last attempt failed, kept until the next attempt. */
@@ -24,13 +22,13 @@ export type MovePickerProps = {
 };
 
 /** A dialog over the explorer that asks for a destination: the folder tree, with the chosen folder marked, and Move. */
-export function MovePicker({ entries, folder, version, pending, error, onCancel, onMove, onTreeError }: MovePickerProps) {
+export function MovePicker({ entries, folder, pending, error, onCancel, onMove, onTreeError }: MovePickerProps) {
   const [target, setTarget] = useState(folder);
   const title = entries === null ? "Move" : entries.length === 1 ? `Move ${entries[0]!.name}` : `Move ${entries.length} items`;
   return (
     <Dialog open={entries !== null} onClose={onCancel} title={title} subtitle="Choose the folder to move it into" locked={pending} width={420}>
       <div className="scroll h-64 overflow-auto rounded-[12px] border border-rule p-1.5">
-        <FolderTree current={target} onOpenFolder={setTarget} version={version} onError={onTreeError} label="Destination folders" />
+        <FolderTree current={target} onOpenFolder={setTarget} onError={onTreeError} label="Destination folders" />
       </div>
       {error === null ? null : (
         <span role="alert" data-selectable className="text-[13px] leading-[18px] text-error [overflow-wrap:anywhere]">

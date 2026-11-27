@@ -41,7 +41,6 @@ import { getDockRequests, subscribeDock } from "../../contexts/dock";
 import { asQuote, getReplyRequests, getReplyText, subscribeReply } from "../../contexts/reply";
 import { failureTarget, pushToast } from "../../contexts/toasts";
 import {
-  getLiveWakes,
   getRunning,
   isRouting,
   setLocalSend,
@@ -131,7 +130,6 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     getRunning,
     getRunning,
   );
-  const liveWakes = useSyncExternalStore(subscribeRunning, getLiveWakes, getLiveWakes);
 
   const [draftAttachments, setDraftAttachments] = useState<DraftAttachment[]>(
     [],
@@ -739,7 +737,7 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 placeholder={placeholder}
                 canSubmit={canSubmit}
                 working={busy}
-                above={<ActivityChip running={openRunning ?? { working: false, waiting_on: null, job: null }} live={openAgentId ? liveWakes[openAgentId] : undefined} />}
+                above={<ActivityChip running={openRunning ?? { working: false, waiting_on: null, job: null }} />}
                 fieldMaxPx={TEXTAREA_MAX_PX}
                 textareaRef={textareaRef}
                 fileInputRef={fileInputRef}

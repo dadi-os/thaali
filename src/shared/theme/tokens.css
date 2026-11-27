@@ -220,10 +220,6 @@
   .rail {
     --chat-hover: rgba(255, 255, 255, 0.055);
   }
-
-  .code-view span {
-    color: var(--shiki-dark);
-  }
 }
 
 /*
@@ -244,6 +240,10 @@
     color-mix(in srgb, var(--rail-ground) calc(var(--edge-veil) * 24%), transparent) 72%,
     transparent 100%
   );
+}
+
+.scroll-edge--solid {
+  background: linear-gradient(var(--edge-dir), var(--rail-ground) 0%, var(--rail-ground) 62%, transparent 100%);
 }
 
 .scroll-edge--top {
@@ -511,68 +511,9 @@
   box-shadow: 0 1px 2px rgb(92 107 82 / 0.08), 0 6px 18px rgb(44 48 42 / 0.08);
 }
 
-/*
- * Working sheen: one angle turns and drives both a beam of light sweeping through the
- * glass and a ring of light running round its edge, so the pill (or a busy list row)
- * reads as working at the level of the surface itself.
- */
-@property --sheen-turn {
-  syntax: "<angle>";
-  inherits: true;
-  initial-value: 0deg;
-}
-
-.working-sheen {
-  position: relative;
-  isolation: isolate;
-  overflow: hidden;
-  animation: sheen-turn 2.4s linear infinite;
-}
-
-.working-sheen::before,
-.working-sheen::after {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  pointer-events: none;
-}
-
-.working-sheen::before {
-  z-index: -1;
-  background: conic-gradient(
-    from var(--sheen-turn),
-    transparent 0 62%,
-    color-mix(in srgb, var(--sage) 20%, transparent) 84%,
-    transparent 100%
-  );
-}
-
-.working-sheen::after {
-  padding: 1px;
-  background: conic-gradient(
-    from var(--sheen-turn),
-    transparent 0 58%,
-    color-mix(in srgb, var(--sage) 90%, transparent) 84%,
-    transparent 100%
-  );
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
-}
-
-@keyframes sheen-turn {
-  to {
-    --sheen-turn: 360deg;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .working-sheen {
-    animation: none;
-  }
+.activity-chip--waiting {
+  border-color: color-mix(in srgb, var(--ink-ghost) 28%, transparent);
+  box-shadow: 0 1px 2px rgb(44 48 42 / 0.05);
 }
 
 /* Attach choices sit above the plus control. Position is unlayered so it stays out of the row. */
@@ -691,6 +632,12 @@
 
 .code-view span {
   color: var(--shiki-light);
+}
+
+@media (prefers-color-scheme: dark) {
+  .code-view span {
+    color: var(--shiki-dark);
+  }
 }
 
 /* Prose (a Markdown file's source): lines wrap, hanging under their number so the gutter stays one column. */

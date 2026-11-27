@@ -123,7 +123,7 @@ function runningFor(scenario: Scenario, id: string): AgentRunning {
   const waits = id === "networking-specialist" || id === "coding-manager";
   return {
     working: id === "finance-specialist",
-    waiting_on: waits ? { targets: id === "coding-manager" ? ["task/terminal/c5728f"] : [asking?.id ?? "task/browser/d41e07"], since: ago(id === "coding-manager" ? 30_000 : 3 * MIN), wakes_by: ago(-15 * MIN) } : null,
+    waiting_on: waits ? { targets: id === "coding-manager" ? ["task/terminal/c5728f"] : [asking?.id ?? "task/browser/d41e07", "career-manager"], since: ago(id === "coding-manager" ? 30_000 : 3 * MIN), wakes_by: ago(-15 * MIN) } : null,
     job,
   };
 }

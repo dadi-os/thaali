@@ -134,7 +134,7 @@ function Row({ entry, selected, renaming, dropping, actions, onPress, onOpen, on
             }
           : undefined
       }
-      className={`${COLUMNS} h-9 cursor-default rounded-[8px] text-[13px] ${selected || dropping ? "bg-sage-fill" : "hover:bg-sage-fill/50"} ${dropping ? "outline outline-1 outline-sage-line" : ""}`}
+      className={`${COLUMNS} h-9 ui-trans ui-hover-fill cursor-default rounded-[8px] text-[13px] ${selected || dropping ? "hl-on" : ""} ${dropping ? "outline outline-1 outline-sage-line" : ""}`}
     >
       <span className="flex min-w-0 items-center gap-2">
         <Icon name={iconFor(entry)} size={15} style={{ flex: "none" }} />
@@ -258,7 +258,7 @@ export function FileList({
     >
       <div role="presentation" className={`${COLUMNS} sticky top-0 z-10 h-8 flex-none bg-bone text-[12px] text-ink-muted`}>
         {HEADERS.map(({ key, label, end }) => (
-          <button key={key} type="button" aria-label={`Sort by ${label}`} onClick={() => onSort(key)} className={`flex items-center gap-1 ${end ? "justify-end" : ""} ${sort.key === key ? "text-ink" : ""}`}>
+          <button key={key} type="button" aria-label={`Sort by ${label}`} onClick={() => onSort(key)} className={`ui-trans ui-hover-fill -mx-1.5 flex h-6 items-center gap-1 rounded-[6px] px-1.5 ${end ? "justify-end" : ""} ${sort.key === key ? "text-ink" : ""}`}>
             {label}
             {sort.key === key ? <Icon name="chevDown" size={11} style={{ transform: sort.descending ? undefined : "rotate(180deg)" }} /> : null}
           </button>

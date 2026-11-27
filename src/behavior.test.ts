@@ -131,12 +131,13 @@ describe("chatSidebar thread", () => {
 });
 
 describe("activity chip", () => {
-  it("says what the agent's one loop is doing, and nothing at rest", () => {
+  it("says only working or waiting, never a tool count or a wait target, and nothing at rest", () => {
     const at = (running: Partial<AgentRunning>) => ({ working: false, waiting_on: null, job: null, ...running });
-    expect(activityLabel(at({}), undefined)).toBeNull();
-    expect(activityLabel(at({ working: true }), undefined)).toBe("working");
-    expect(activityLabel(at({ working: true }), { wakeId: "w", counts: { tool_calls: 3, messages_sent: 0, messages_received: 1 } })).toBe("working · 3 tool calls");
-    expect(activityLabel(at({ waiting_on: { targets: ["task/browser/3", "bob", "carol"], since: "2026-10-28T14:20:00Z", wakes_by: "2026-10-28T14:50:00Z" } }), undefined)).toBe("waiting on task/browser/3, bob +1");
+    expect(activityLabel(at({}))).toBeNull();
+    expect(activityLabel(at({ working: true }))).toBe("working");
+    const waiting_on = { targets: ["task/browser/3", "bob", "carol"], since: "2026-10-28T14:20:00Z", wakes_by: "2026-10-28T14:50:00Z" };
+    expect(activityLabel(at({ waiting_on }))).toBe("waiting");
+    expect(activityLabel(at({ working: true, waiting_on }))).toBe("working");
   });
 });
 
