@@ -271,7 +271,7 @@ export function TimeGrid({ days, plans, now, zone, selected, onOpen, head, headH
         {nowMinute !== null ? (
           <>
             <div style={{ position: "absolute", left: AXIS_W, right: 0, top: origin + top(nowMinute) - 1, height: 2, background: "var(--sage-deep)", opacity: compact ? 0.3 : 1, zIndex: 1, pointerEvents: "none" }} />
-            <span style={{ position: "absolute", left: 2, width: AXIS_W - 10, top: origin + top(nowMinute) - 10, height: 20, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 999, zIndex: 4, pointerEvents: "none" }}>
+            <span style={{ position: "absolute", left: 4, top: origin + top(nowMinute) - 12, height: 24, padding: "0 8px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 11, fontWeight: 700, fontVariantNumeric: "tabular-nums", whiteSpace: "nowrap", color: "var(--bone)", background: "var(--sage-deep)", borderRadius: 6, zIndex: 4, pointerEvents: "none" }}>
               <span style={{ position: "relative" }}>{formatClock(now.toISOString())}</span>
             </span>
             {compact && todayIndex >= 0 ? (
