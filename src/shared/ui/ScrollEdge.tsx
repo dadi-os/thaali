@@ -4,23 +4,19 @@ export type ScrollEdgeProps = {
   edge: "top" | "bottom";
   /** Height of the strip in px: the floating elements' height plus the room the effect needs to dissolve in. */
   size: number;
-  /** The ground covers content fully up to the floating elements before dissolving, so no text shows through their glass; without it the veil is a gentle tint. */
-  solid?: boolean;
-  /** With `solid`, how far from the edge the ground stays fully opaque, in px; by default 62% of `size`. */
-  solidPx?: number;
 };
 
 /** Blur layers stacked in a strip, each stronger and shorter than the last (steps live in tokens.css). */
-const LAYERS = [1, 2, 3, 4, 5] as const;
+const LAYERS = [1, 2, 3, 4, 5, 6, 7] as const;
 
 /**
  * The scroll-edge effect behind floating glass: content scrolling toward the edge is blurred progressively and
  * dissolves into the surface, with no line where the effect ends. It takes no pointer input and sits under the
  * floating elements, which keep their own glass.
  */
-export function ScrollEdge({ edge, size, solid = false, solidPx }: ScrollEdgeProps) {
+export function ScrollEdge({ edge, size }: ScrollEdgeProps) {
   return (
-    <div aria-hidden className={`scroll-edge scroll-edge--${edge} ${solid ? "scroll-edge--solid" : ""}`} style={{ height: size, ...(solidPx === undefined ? {} : { "--edge-solid": `${solidPx}px` }) }}>
+    <div aria-hidden className={`scroll-edge scroll-edge--${edge}`} style={{ height: size }}>
       {LAYERS.map((layer) => (
         <span key={layer} className="scroll-edge__blur" />
       ))}
