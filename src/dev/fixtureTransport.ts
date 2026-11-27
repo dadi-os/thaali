@@ -104,6 +104,10 @@ export class FixtureTransport implements Transport {
       this.setState("disconnected");
       return;
     }
+    if (this.scenario === "connecting") {
+      this.setState("connecting");
+      return new Promise<void>(() => undefined);
+    }
     this.setState("connected");
     if (this.scenario === "blip") {
       this.blipTimer = setTimeout(() => this.setState("reconnecting"), BLIP_AFTER_MS);

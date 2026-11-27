@@ -1,5 +1,8 @@
 import type { ConnectionState } from "../../shared/api/transport";
 
+/** The title bar's height: onboarding sits under it, so a mark centred on the window sits half of this above the area's centre. */
+export const TITLE_BAR_PX = 40;
+
 /** Launch's read of the saved setup code: still reading, done, or failed with its reason. */
 export type BootState = { status: "pending" } | { status: "ready" } | { status: "failed"; error: string };
 

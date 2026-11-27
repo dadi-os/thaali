@@ -7,6 +7,7 @@ export const SCENARIOS = [
   "normal",
   "loading",
   "offline",
+  "connecting",
   "blip",
   "module-offline",
   "errors",

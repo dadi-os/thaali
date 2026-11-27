@@ -3,6 +3,7 @@ import { CASES } from "./cases";
 import "./chaavi";
 import "./files";
 import "./ghar";
+import "./onboarding";
 import "./shell";
 import "./sheet";
 import "./takeover";

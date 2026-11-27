@@ -29,11 +29,12 @@ import { StateView } from "../../shared/states/ModuleState";
 import { Button, ButtonGroup } from "../../shared/ui/Button";
 import { TextField } from "../../shared/ui/Field";
 import { Icon } from "../../shared/ui/Icon";
-import { EASE, RISE, SLOWER_S } from "../../shared/motion";
+import { EASE, FADE, RISE, SLOWER_S } from "../../shared/motion";
 import { dispatchDesktopShell } from "../../contexts/desktopShell";
 import { QrScanner } from "./QrScanner";
 import { useNeedsProvisioning } from "./useNeedsProvisioning";
-import { failureMessage, onboardingStage, type BootState, type OnboardingStage } from "./stage";
+import { failureMessage, onboardingStage, TITLE_BAR_PX, type BootState, type OnboardingStage } from "./stage";
+import { FORGET_AFTER_MS, useElapsed } from "./useElapsed";
 
 export type { BootState } from "./stage";
 
@@ -105,6 +106,7 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
     failure,
   });
   const failed = failureMessage({ boot, failure });
+  const stillConnecting = useElapsed(stage === "connecting", FORGET_AFTER_MS);
 
   useEffect(() => {
     if (needsProvisioning) {
@@ -216,7 +218,7 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
   return (
     <motion.div
       ref={rootRef}
-      className="absolute inset-0 z-50 overflow-hidden"
+      className="absolute inset-0 z-40 overflow-hidden"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0, transition: { duration: SLOWER_S, ease: EASE } }}
@@ -236,16 +238,17 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
         ) : null}
 
         {stage === "connecting" ? (
-          <Stage key="connecting">
+          <Stage key="connecting" windowCentred>
             <Slot size={SLOT_SIZE.connecting} slotRef={slotRef("connecting")} />
-            <Heading
-              title="Connecting to dadi"
-              text={
-                joining
-                  ? "Joining with your new setup code. The first time, your computer may ask for your password."
-                  : "Joining this computer to dadi. The first time, your computer may ask for your password."
-              }
-            />
+            <AnimatePresence>
+              {stillConnecting ? (
+                <motion.div key="forget" className="absolute bottom-6 left-1/2 -translate-x-1/2" {...FADE}>
+                  <Button tone="quiet" size="md" onClick={onForget}>
+                    Forget this device
+                  </Button>
+                </motion.div>
+              ) : null}
+            </AnimatePresence>
           </Stage>
         ) : null}
 
@@ -340,13 +343,20 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
 
 type StageProps = {
   children: ReactNode;
+  /** Centre the stage on the whole window rather than on the area under the title bar. */
+  windowCentred?: boolean;
 };
 
 /** One stage: a centered, un-boxed column on the field. Every stage enters and leaves the same way, stacked while they cross, and scrolls when the window is short. */
-function Stage({ children }: StageProps) {
+function Stage({ children, windowCentred = false }: StageProps) {
   return (
     <motion.div className="scroll absolute inset-0" {...RISE}>
-      <div className="relative mx-auto flex min-h-full w-full max-w-[28rem] flex-col items-center justify-center gap-6 px-6 py-12 text-center">{children}</div>
+      <div
+        className="relative mx-auto flex min-h-full w-full max-w-[28rem] flex-col items-center justify-center gap-6 px-6 py-12 text-center"
+        style={windowCentred ? { paddingBottom: 48 + TITLE_BAR_PX } : undefined}
+      >
+        {children}
+      </div>
     </motion.div>
   );
 }

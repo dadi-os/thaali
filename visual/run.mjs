@@ -347,6 +347,50 @@ function flowJobs(scenario) {
       ...frames("planner-day-card", [700]),
       { eval: expectText("Open day") },
     ]),
+    ...(scenario === "normal"
+      ? [
+          job("onboarding-connecting", "/?gallery=onboarding.frame&fixtures=connecting", [
+            { wait: 1000 },
+            { shot: "flow-onboarding-connecting-1s.png" },
+            { eval: expectText("Forget this device", true) },
+            { wait: 7600 },
+            { shot: "flow-onboarding-connecting-8s.png" },
+            { wait: 1200 },
+            { shot: "flow-onboarding-connecting-9s.png" },
+            { eval: expectText("Forget this device") },
+            { click: "button" },
+            { wait: 1200 },
+            { shot: "flow-onboarding-connecting-forget-confirm.png" },
+            { eval: expectText("Forget this device?") },
+          ], 500),
+          job("onboarding-offline", "/?gallery=onboarding.frame&fixtures=offline", [{ wait: 900 }, { shot: "flow-onboarding-offline.png" }]),
+        ]
+      : []),
+    ...(scenario === "normal"
+      ? [
+          job("ghar-menus-home", "/?fixtures=normal", [
+            { wait: 600 },
+            { eval: rightClick(".ghar-group [data-context]") },
+            ...frames("ghar-home-light-menu", [500]),
+            { eval: expectText("Open in Ghar") },
+            { eval: escape },
+            { wait: 400 },
+            { eval: rightClick(".ghar-group") },
+            ...frames("ghar-home-tag-menu", [500]),
+            { eval: escape },
+          ]),
+          job("ghar-menus-page", "/ghar?fixtures=normal", [
+            { wait: 600 },
+            { eval: rightClick("[data-page=ghar] [data-context]", "Ceiling Light") },
+            ...frames("ghar-page-device-menu", [500]),
+          ]),
+          job("ghar-menus-tag", "/ghar?fixtures=normal&tag=climate", [
+            { wait: 600 },
+            { eval: rightClick("button[aria-label='climate options']") },
+            ...frames("ghar-page-tag-menu", [500]),
+          ]),
+        ]
+      : []),
     job("chat-thread", "/", [
       { eval: sidebarRow("finance-specialist") },
       ...frames("chat-open", [120, 600]),
@@ -358,6 +402,8 @@ function flowJobs(scenario) {
 /** A click at a viewport point on the first button whose text holds `text`, as a pointer press does, so a popover opens beside that point. */
 const clickAt = (text, x, y) =>
   `(() => { const b = [...document.querySelectorAll("button")].find((el) => el.textContent.includes(${JSON.stringify(text)})); b.dispatchEvent(new MouseEvent("click", { bubbles: true, cancelable: true, clientX: ${x}, clientY: ${y}, detail: 1 })); })(); 0`;
+/** A right-click on the centre of the first element matching `selector` (and holding `text`), as a pointer does. */
+const rightClick = (selector, text = "") => `(() => { const el = [...document.querySelectorAll(${JSON.stringify(selector)})].find((e) => e.textContent.includes(${JSON.stringify(text)})); if (!el) return console.error("no ${selector.replace(/"/g, "")}"); const r = el.getBoundingClientRect(); el.dispatchEvent(new MouseEvent("contextmenu", { bubbles: true, cancelable: true, clientX: r.left + r.width / 2, clientY: r.top + r.height / 2 })); })(); 0`;
 const escape = `document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })); 0`;
 
 /** The refinement captures: one job each, at the sizes the checks call for. */
@@ -408,6 +454,7 @@ function plan(opts, outDir) {
     return { outDir: join(outDir, "shots"), hookScript: join(here, "hook.js"), checksScript: join(here, "checks.js"), jobs: polishJobs() };
   }
   const pages = opts["flows-only"] || typeof opts.flow === "string" ? [] : list(opts.pages, Object.keys(PAGES));
+  for (const page of pages) if (!(page in PAGES)) throw new Error(`unknown page "${page}"; use one of ${Object.keys(PAGES).join(", ")}`);
   const scenarios = list(opts.scenarios, SCENARIOS);
   const sizes = list(opts.widths, ["1440"]);
   const jobs = [];
