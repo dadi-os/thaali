@@ -198,7 +198,7 @@ export function PlannerPage() {
                 </motion.div>
               </AnimatePresence>
             </div>
-            <SomedayModal open={somedayOpen} now={now} onClose={() => setSomeday(false)} onOpenPlan={open} />
+            <SomedayModal open={somedayOpen} now={now} onClose={() => setSomeday(false)} onOpenPlan={open} onOpenTask={(task, element) => popover.showTask(task, element.getBoundingClientRect())} />
           </>
         )}
       </Page>

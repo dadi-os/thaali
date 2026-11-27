@@ -75,6 +75,13 @@ const pressKey = (selector, key) => `document.querySelector(${JSON.stringify(sel
 const emit = (event) => `window.__fixtures.emit("hath", "/events", ${JSON.stringify({ ...event, at: "NOW" }).replace('"NOW"', "new Date().toISOString()")}); 0`;
 const message = (seq, content) => ({ type: "message", agent_id: "finance-specialist", from_agent_id: "finance-specialist", to_agent_id: null, content, seq });
 
+/** Presses `key` in the focused element. */
+const pressActive = (key) => `document.activeElement.dispatchEvent(new KeyboardEvent("keydown", { key: ${JSON.stringify(key)}, bubbles: true })); 0`;
+/** Presses on the Someday card titled `title` and drags it over the `tile`th day tile; `blocked` only names the case. The press stays down until {@link dragRelease}. */
+const dragCard = (title, tile, blocked) => `(() => { const card = [...document.querySelectorAll("[data-card]")].find((c) => c.getAttribute("aria-label") === ${JSON.stringify(title)}); const r = card.getBoundingClientRect(); const t = document.querySelectorAll("[data-drop]")[${tile}].getBoundingClientRect(); card.dispatchEvent(new PointerEvent("pointerdown", { bubbles: true, button: 0, clientX: r.x + r.width / 2, clientY: r.y + 60 })); window.dispatchEvent(new PointerEvent("pointermove", { clientX: r.x + r.width / 2 + 20, clientY: r.y + 90 })); window.dispatchEvent(new PointerEvent("pointermove", { clientX: t.x + t.width / 2, clientY: t.y + t.height / 2 })); ${blocked ? "" : ""} 0 })()`;
+/** Releases the press {@link dragCard} started over the `tile`th day tile. */
+const dragRelease = (tile) => `(() => { const t = document.querySelectorAll("[data-drop]")[${tile}].getBoundingClientRect(); window.dispatchEvent(new PointerEvent("pointerup", { clientX: t.x + t.width / 2, clientY: t.y + t.height / 2 })); 0 })()`;
+
 /** Scripted flows: each opens something, then captures its frames and runs the checks. */
 function flowJobs(scenario) {
   const job = (name, route, steps, settleMs = 2500, height = 900, width = 1440) => ({ name: `flow-${name}~${scenario}`, url: `${ORIGIN}${route}${route.includes("fixtures=") ? "" : `${route.includes("?") ? "&" : "?"}fixtures=${scenario}`}`, width, height, settleMs, steps });
@@ -308,8 +315,39 @@ function flowJobs(scenario) {
       ...frames("planner-someday-open", [900]),
       { eval: expectText("Gym training split") },
       { eval: clickText("button[aria-expanded=false]", "Gym training split") },
-      ...frames("planner-someday-group", [400]),
-    ], 2500, 640),
+      ...frames("planner-someday-group", [500]),
+    ], 2500, 900),
+    ...["many", "empty", "loading", "errors", "long"].map((state) => job(`planner-someday-state-${state}`, `/planner?view=day&clock=11:00&someday=1&fixtures=${state}`, [...frames(`planner-someday-${state}`, [state === "many" ? 4500 : 1200])], 2500, 900)),
+    job("planner-someday-narrow-long", "/planner?view=day&clock=11:00&someday=1&fixtures=long", [...frames("planner-someday-narrow-long", [900])], 2500, 700, 700),
+    job("planner-someday-narrow", `/planner?view=day&clock=11:00&someday=1&fixtures=${scenario}`, [...frames("planner-someday-narrow", [900])], 2500, 640, 640),
+    job("planner-someday-drag", `/planner?view=day&clock=11:00&someday=1&fixtures=${scenario}`, [
+      { wait: 700 },
+      { eval: dragCard("Plan a weekend trip to Detroit", 2, false) },
+      ...frames("planner-someday-drag", [500]),
+      { eval: dragRelease(2) },
+      ...frames("planner-someday-dropped", [600]),
+      { eval: dragCard("Organize the garage", 1, true) },
+      ...frames("planner-someday-nobody", [500]),
+      { eval: dragRelease(1) },
+    ]),
+    job("planner-someday-tick", `/planner?view=day&clock=11:00&someday=1&fixtures=${scenario}`, [
+      { wait: 700 },
+      { eval: `document.querySelector("[role=checkbox][aria-label='Mark done: Organize the garage']").click(); 0` },
+      ...frames("planner-someday-tick", [150, 450, 1300]),
+      { eval: expectText("Checked off") },
+    ]),
+    job("planner-someday-keys", `/planner?view=day&clock=11:00&someday=1&fixtures=${scenario}`, [
+      { wait: 700 },
+      { eval: `[...document.querySelectorAll("[data-card]")].find((c) => c.getAttribute("aria-label") === "Plan a weekend trip to Detroit").focus(); 0` },
+      { eval: pressActive("s") },
+      ...frames("planner-someday-armed", [400]),
+      { eval: expectText("press 1 to 7") },
+      { eval: pressActive("3") },
+      ...frames("planner-someday-armed-done", [400]),
+      { eval: expectText("Sent to") },
+      ...frames("planner-someday-asked", [500]),
+      { eval: expectText("to schedule") },
+    ]),
     job("planner-plan", `/planner?view=day&clock=11:00&fixtures=${scenario}`, [
       { eval: clickText("button[aria-haspopup=dialog]", "Study block") },
       ...frames("planner-plan-card", [700]),

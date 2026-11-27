@@ -186,6 +186,23 @@ const SOMEDAY: TaskDraft[] = [
   ...Array.from({ length: 4 }, (_, i): TaskDraft => ({ id: `weigh-${i}`, title: `Weekly weigh-in ${i + 1}`, owner: "health-specialist", opens: null, closes: null })),
 ];
 
+const OWNERS = ["manual", "ingest", "health-specialist", "schedule-specialist", "finance-specialist", "networking-specialist"];
+const TOPICS = ["Read the paper on", "Email the landlord about", "Sort the photos from", "Look into", "Draft a note about", "Revisit the plan for"];
+
+/** More Someday tasks for the scenarios that stress the board: `many` is over a hundred distinct titles, `long` has titles that run for lines. */
+function somedayExtra(scenario: Scenario): TaskDraft[] {
+  if (scenario === "many") {
+    return Array.from({ length: 110 }, (_, i): TaskDraft => ({ id: `extra-${i}`, title: `${TOPICS[i % TOPICS.length]} topic ${String.fromCharCode(97 + (i % 26))}${Math.floor(i / 26)}x`, owner: OWNERS[i % OWNERS.length]!, opens: null, closes: null }));
+  }
+  if (scenario === "long") {
+    return [
+      { id: "long-1", title: "Figure out whether the lease renewal letter from the property management company needs a reply before the end of the month or whether the portal is enough", owner: "finance-specialist", opens: null, closes: null },
+      { id: "long-2", title: "Antidisestablishmentarianism_reading_list_for_the_philosophy_seminar_without_any_spaces_at_all_so_it_must_wrap_or_cut", owner: "manual", opens: null, closes: null },
+    ];
+  }
+  return [];
+}
+
 function build(scenario: Scenario, draft: TaskDraft, today: Date, now: Date): Task {
   const opens = draft.opens === null ? null : new Date(today.getFullYear(), today.getMonth(), today.getDate() + draft.opens);
   const closes = draft.closes === null ? null : new Date(today.getFullYear(), today.getMonth(), today.getDate() + draft.closes[0], draft.closes[1], draft.closes[2]);
@@ -214,7 +231,7 @@ export function tasks(scenario: Scenario, request: TasksRequest): { items: Task[
   const now = new Date();
   const today = startOfDay(now);
   if ("someday" in request) {
-    return { items: SOMEDAY.map((draft) => build(scenario, draft, today, now)).filter((task) => !task.done) };
+    return { items: [...SOMEDAY, ...somedayExtra(scenario)].map((draft) => build(scenario, draft, today, now)).filter((task) => !task.done) };
   }
   const key = request.on;
   const items = TASKS.map((draft) => build(scenario, draft, today, now)).filter((task) => {
