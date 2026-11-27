@@ -54,10 +54,11 @@ export function WeekBlock({ segment, state, zone, top, height, narrow, selected,
   const dot = lanes === 1 && !narrow;
   const title: CSSProperties = { fontSize: lanes > 1 ? 12 : 13, lineHeight: "16px", fontWeight: current ? 700 : 600, textDecoration: missed ? "line-through" : "none", color: quiet ? "var(--ink-muted)" : "var(--ink)", overflowWrap: "normal" };
   const planned = planLook(plan, state);
+  const lit = current || selected ? "var(--slab-now-border)" : null;
   const look: CSSProperties =
     planned.kind === "upcoming" || planned.kind === "now"
-      ? { backgroundImage: "linear-gradient(var(--slab), var(--slab))", border: "1px solid var(--slab-border)", boxShadow: "var(--slab-shadow)" }
-      : { backgroundImage: `linear-gradient(${planned.fill}, ${planned.fill})`, border: `1px ${planned.dashed ? "dashed" : "solid"} ${planned.border}`, boxShadow: "none" };
+      ? { backgroundImage: "linear-gradient(var(--slab), var(--slab))", border: `1px solid ${lit ?? "var(--slab-border)"}`, boxShadow: "var(--slab-shadow)" }
+      : { backgroundImage: `linear-gradient(${planned.fill}, ${planned.fill})`, border: `1px ${planned.dashed ? "dashed" : "solid"} ${lit ?? planned.border}`, boxShadow: "none" };
   const check = plan.attended === true && !fit.short && lanes === 1 && !narrow;
   const hidden = more.map((plan) => plan.title).join(", ");
   const also = more.length === 0 ? "" : ` · Also at this time: ${hidden}`;
@@ -88,8 +89,7 @@ export function WeekBlock({ segment, state, zone, top, height, narrow, selected,
         zIndex: 2 + lane,
         backgroundColor: "var(--bone)",
         ...look,
-        ...(current ? { backgroundColor: "var(--slab)", backgroundImage: "linear-gradient(var(--sage-active), var(--sage-active))", borderColor: "var(--slab-now-border)" } : {}),
-        ...(selected ? { borderColor: "var(--slab-now-border)" } : {}),
+        ...(current ? { backgroundColor: "var(--slab)", backgroundImage: "linear-gradient(var(--sage-active), var(--sage-active))" } : {}),
       }}
     >
       <div style={{ display: "flex", alignItems: "flex-start", gap: WEEK.dotGap, minWidth: 0 }}>
