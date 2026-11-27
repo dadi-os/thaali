@@ -7,7 +7,7 @@ export type ScrollEdgeProps = {
 };
 
 /** Blur layers stacked in a strip, each stronger and shorter than the last (steps live in tokens.css). */
-const LAYERS = [1, 2, 3, 4, 5, 6, 7] as const;
+const LAYERS = [1, 2, 3, 4, 5] as const;
 
 /**
  * The scroll-edge effect behind floating glass: content scrolling toward the edge is blurred progressively and
