@@ -284,7 +284,7 @@ export function Onboarding({ boot, onRetryBoot }: OnboardingProps) {
         {stage === "paste" ? (
           <Stage key="paste">
             <Slot size={SLOT_SIZE.paste} slotRef={slotRef("paste")} />
-            <Heading title="Join dadi" text="On your box, open Preferences → Devices, add this computer, and paste its setup code here." />
+            <Heading title="Join dadi" text="On your box, run dadi devices add NAME for this computer and paste its setup code here." />
             <PasteForm
               code={code}
               error={setupError}

@@ -225,7 +225,7 @@ export function ChaaviPage() {
     if (unconfigured) {
       body = (
         <Card style={{ flex: 1, minWidth: 0 }}>
-          <StateView kind="empty" title="Vault unconfigured" detail="Set the vault account in Preferences → Chaavi" />
+          <StateView kind="empty" title="Vault unconfigured" detail="On the box, run dadi keys set CHAAVI_EMAIL and CHAAVI_PASSWORD" />
         </Card>
       );
     } else if (state.kind === "loading" || (state.kind === "ready" && foldersState.kind === "loading")) {

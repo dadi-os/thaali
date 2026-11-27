@@ -64,7 +64,7 @@ pub fn start(
     } else if key_spent(&state_dir, auth_key) {
         logutil::emit("info", "sysmesh setup code already used; resuming the saved login");
         tailscale_up(&bins, &socket, control_url, None, hostname)
-            .map_err(|e| format!("{e}. If dadi no longer knows this device, make a new setup code in Preferences → Devices."))?;
+            .map_err(|e| format!("{e}. If dadi no longer knows this device, make a new setup code with dadi devices add on the box."))?;
         wait_until_running(&bins, &socket)?;
     } else {
         tailscale_up(&bins, &socket, control_url, Some(auth_key), hostname)?;
@@ -877,7 +877,7 @@ fn wait_until_running(bins: &Bins, socket: &Path) -> Result<(), String> {
             Backend::Running => return Ok(()),
             Backend::LoggedOut(reason) => {
                 return Err(format!(
-                    "dadi did not accept this setup code ({reason}). Make a new one in Preferences → Devices."
+                    "dadi did not accept this setup code ({reason}). Make a new one with dadi devices add on the box."
                 ))
             }
             Backend::Down => thread::sleep(Duration::from_millis(400)),

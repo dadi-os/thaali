@@ -39,7 +39,7 @@ export function ForgetDeviceDialog({ open, onClose }: ForgetDeviceDialogProps) {
     <ConfirmDialog
       open={open}
       title="Forget this device?"
-      detail="This computer leaves dadi and its setup code is deleted. To bring it back, add it again in Preferences → Devices on your box and paste the new code."
+      detail="This computer leaves dadi and its setup code is deleted. To bring it back, run dadi devices add on your box and paste the new code."
       confirmLabel={busy ? "Forgetting…" : "Forget this device"}
       icon="power"
       pending={busy}

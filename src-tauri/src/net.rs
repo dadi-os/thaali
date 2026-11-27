@@ -4,15 +4,21 @@ use std::sync::Mutex;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager, State};
 
+use crate::logutil;
+use crate::power::StayAwake;
+
 /// The local MagicDNS HTTP proxy port after a successful start.
 pub struct MeshState {
     pub port: Mutex<Option<u16>>,
+    /// Held from a successful join until `mesh_stop`, so idle sleep does not drop the tunnel.
+    awake: Mutex<Option<StayAwake>>,
 }
 
 impl Default for MeshState {
     fn default() -> Self {
         Self {
             port: Mutex::new(None),
+            awake: Mutex::new(None),
         }
     }
 }
@@ -69,6 +75,10 @@ pub async fn mesh_start(
 
     let mut guard = state.port.lock().map_err(|e| e.to_string())?;
     *guard = Some(port);
+    match StayAwake::hold("Thaali keeps its connection to dadi") {
+        Ok(awake) => *state.awake.lock().map_err(|e| e.to_string())? = Some(awake),
+        Err(e) => logutil::emit("error", format!("mesh_start: the computer may sleep and drop the connection: {e}")),
+    }
     Ok(port)
 }
 
@@ -82,6 +92,7 @@ pub async fn mesh_stop(app: AppHandle, state: State<'_, MeshState>) -> Result<()
 
     let mut guard = state.port.lock().map_err(|e| e.to_string())?;
     *guard = None;
+    *state.awake.lock().map_err(|e| e.to_string())? = None;
     Ok(())
 }
 

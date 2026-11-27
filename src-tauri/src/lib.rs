@@ -4,6 +4,7 @@ mod device;
 mod download;
 mod radio;
 mod owner_auth;
+mod power;
 
 #[cfg(windows)]
 mod device_location_windows;

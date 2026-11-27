@@ -127,7 +127,7 @@ export function ChaaviTile({ order }: { order: number }) {
       loading={!unconfigured && (state.kind === "loading" || (state.kind === "ready" && foldersState.kind === "loading"))}
       notice={
         unconfigured
-          ? { kind: "empty", title: "Vault unconfigured", detail: "Set the vault account in Preferences → Chaavi" }
+          ? { kind: "empty", title: "Vault unconfigured", detail: "On the box, run dadi keys set CHAAVI_EMAIL and CHAAVI_PASSWORD" }
           : tileNotice(state, { name: "Chaavi", request: "GET /v1/items", empty: ["The vault is empty", "Logins and notes appear here once you add them."] }, retry)
       }
       skeleton={() => (

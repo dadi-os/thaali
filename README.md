@@ -145,7 +145,7 @@ Plain HTTP on the WireGuard mesh. No localhost fallback.
 
 ## Provisioning
 
-On the box: **Preferences → Devices** mints a Nas `POST /provision` setup QR. The bundle embeds the live LAN Headscale URL (`http://<lan>:8080`). New Tauri Thaali: paste the code (or scan it with the camera) on that LAN → connect to dadi. Credentials store in app data. Browser Thaali has no provisioning.
+On the box: `dadi devices add NAME` mints a Nas `POST /provision` setup code (add `--qr` to draw it as a QR). The bundle embeds the live LAN Headscale URL (`http://<lan>:8080`). New Tauri Thaali: paste the code (or scan it with the camera) on that LAN → connect to dadi. Credentials store in app data. Browser Thaali has no provisioning.
 
 Upgrading from the app when it was named Hath: the bundle ID is now `com.dadi.thaali`, so its app data (credentials) starts empty; add this computer as a device again. The first connect boots out and deletes the old `com.dadi.hath.sysmesh` LaunchDaemon so only one `tailscaled` owns the TUN.
 
@@ -158,6 +158,8 @@ macOS and Linux get the dadi menu bar (Edit is macOS-only); Windows, which has n
 ## Transport / the dadi network
 
 Service data stays fresh from event streams, not timers: Hath's `/events` refetches agents, routines and wakes (`useEvents`), and each service in `LIVE_SOURCES` (`shared/hooks/useLiveQueries.ts`; Yaad, Chaavi, Ghar and Nas) has its stream say `changed`, which refetches the queries under its keys, with a refetch on every reopen and when the window becomes visible again since the streams have no replay. Chaavi and Ghar are followed the same way, and Nas announces only its browser and terminal lists; the System page's status, clients and logs, a busy agent's activity and the live terminal capture are live readings and still poll. All network calls go through a `Transport` (`shared/api/`). Tauri loads `MeshTransport` (dynamic import); the dev server's `?fixtures=` mode loads the fixture transport for the visual loop, and any other start outside Tauri fails loudly. Media the webview loads itself (file previews) takes its URL from `Transport.mediaUrl` (the `/@host` proxy under Tauri). Nas's H.264 browser stream is read through `Transport.openStream` (Tauri's HTTP client, so it never queues behind the webview's per-host connection limit) by `features/agents/browserStream.ts`: one watched connection per browser and profile shared by every view with it (960 px at 5 fps to watch, 1280 px at 30 fps in the expanded view), split into frames by `features/agents/h264.ts`, decoded with WebCodecs (macOS and Windows webviews; Linux WebKitGTK may not decode it, and then the preview shows the error) and drawn on canvases, reconnecting on a logged, bounded backoff when it errors, ends or stalls.
+
+While joined, macOS holds a `PreventUserIdleSystemSleep` assertion (`src-tauri/src/power.rs`, taken in `mesh_start`, released in `mesh_stop`), so idle sleep does not drop the tunnel; the display may still sleep and a closed lid still sleeps the computer. A failed assertion is logged as an error and the join still succeeds. Other platforms hold nothing.
 
 Lifecycle (Tauri):
 
