@@ -43,6 +43,7 @@ function render(over: Partial<ComposerProps>): void {
     onLinkFromBox: vi.fn(),
     onSubmit: vi.fn(),
     onKeyDown: vi.fn(),
+    onDropQuote: vi.fn(),
     onHeight: vi.fn(),
     fieldMaxPx: 160,
     ...over,

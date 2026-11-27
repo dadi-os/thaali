@@ -444,6 +444,34 @@ function polishJobs() {
       { wait: 400 },
       { shot: "polish-thread-edges.png" },
     ]),
+    ...[[1440, 900, ""], [640, 760, "-narrow"]].map(([width, height, tag]) =>
+      job(`thread-reply${tag}`, "/?fixtures=chat-rich", [
+        { eval: sidebarRow("schedule-specialist") },
+        { wait: 1200 },
+        { shot: `polish-thread-replies${tag}.png` },
+        { eval: `[...document.querySelectorAll("[data-message-key] button[aria-label='Show the quoted message']")][0]?.click(); 0` },
+        { wait: 500 },
+        { shot: `polish-thread-jump${tag}.png` },
+        { wait: 1200 },
+        { eval: `[...document.querySelectorAll("[data-message-key]")].find((r) => r.textContent.includes("Both pending charges are expected"))?.scrollIntoView({ block: "center" }); 0` },
+        { wait: 400 },
+        { eval: rightClick("[data-message-key]", "Both pending charges are expected") },
+        { wait: 500 },
+        { shot: `polish-thread-reply-menu${tag}.png` },
+        { eval: escape },
+        { wait: 400 },
+        { eval: rightClick("[data-message-key]", "Last check: all three subscriptions renewed at their usual prices and the pending charges cleared this morning.") },
+        { wait: 400 },
+        { eval: clickText("[role=menuitem]", "Reply") },
+        { wait: 700 },
+        { shot: `polish-thread-compose-quote${tag}.png` },
+        { eval: rightClick("[data-message-key]", "Great, thank you") },
+        { wait: 400 },
+        { eval: clickText("[role=menuitem]", "Reply") },
+        { wait: 700 },
+        { shot: `polish-thread-compose-user-quote${tag}.png` },
+      ], width, height),
+    ),
     job("day-1440", "/planner?view=day&fixtures=many", [{ shot: "polish-day-1440.png" }, { hover: "[role=radio][aria-checked=false]" }, { wait: 300 }, { shot: "polish-segmented-hover.png" }]),
     job("day-960", "/planner?view=day&fixtures=many", [{ shot: "polish-day-960.png" }], 960, 640),
     job("day-narrow", "/planner?view=day&fixtures=many", [{ shot: "polish-day-narrow.png" }], 700, 900),
@@ -456,7 +484,7 @@ function polishJobs() {
 
 function plan(opts, outDir) {
   if (opts.polish) {
-    return { outDir: join(outDir, "shots"), hookScript: join(here, "hook.js"), checksScript: join(here, "checks.js"), jobs: polishJobs() };
+    return { outDir: join(outDir, "shots"), hookScript: join(here, "hook.js"), checksScript: join(here, "checks.js"), jobs: polishJobs().filter((j) => typeof opts.job !== "string" || j.name.startsWith(`polish-${opts.job}`)) };
   }
   const pages = opts["flows-only"] || typeof opts.flow === "string" ? [] : list(opts.pages, Object.keys(PAGES));
   for (const page of pages) if (!(page in PAGES)) throw new Error(`unknown page "${page}"; use one of ${Object.keys(PAGES).join(", ")}`);

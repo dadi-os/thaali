@@ -1,3 +1,4 @@
+import { encodeQuote, withQuote } from "../../shared/components/Thread/replyQuote";
 import type {
   AgentDetail,
   AgentRecord,
@@ -302,6 +303,12 @@ function richThread(row: (seq: number, fromUser: boolean, content: string, minut
     row(1132, true, "Thanks. Anything else to flag from https://example.com/a/very/long/path/that/keeps/going/and/going/forever/and/ever ?", 20),
     row(1133, false, `Nothing else. ${"The remaining items are routine and I have noted each in the tracker. ".repeat(6)}`, 8, { status: "done" }),
     row(1134, false, "Last check: all three subscriptions renewed at their usual prices and the pending charges cleared this morning.", 2, { status: "done" }),
+    row(1135, true, withQuote("Both pending charges are expected. The Spotify renewal lands on the 3rd and the gym is monthly, so nothing needs your attention before Friday.", "Great, thank you"), 1.5),
+    row(1136, true, withQuote(`Nothing else. ${"The remaining items are routine and I have noted each in the tracker. ".repeat(6)}`, "Can you move those notes into the budget sheet?\n\n> keep this as a quote\nand then continue"), 1.2),
+    row(1137, false, withQuote("Last check: all three subscriptions renewed at their usual prices and the pending charges cleared this morning.", "Noted. I will check again on the 3rd when Spotify renews."), 1, { status: "done" }),
+    row(1138, true, withQuote("An older message that is no longer loaded in this thread", "Following up on that one"), 0.8),
+    row(1140, true, `[statement.pdf](box:///var/home/dadi/Inbox/2026-11/statement.pdf)\n${withQuote("Noted. I will check again on the 3rd when Spotify renews.", "Here is the October statement").trim()}`, 0.6),
+    row(1139, true, encodeQuote("Noted. I will check again on the 3rd when Spotify renews.").trimEnd(), 0.5),
   );
   return rows;
 }

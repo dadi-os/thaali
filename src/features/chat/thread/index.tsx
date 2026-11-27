@@ -6,6 +6,7 @@ import { latestAgentStatus, messageKey, type ChatMessage } from "../../../contex
 import { trackIncoming } from "../incoming";
 import { ScrollEdge } from "../../../shared/ui/ScrollEdge";
 import { MessageBubble } from "../../../shared/components/Thread/Message";
+import { parseReply, quotes } from "../../../shared/components/Thread/replyQuote";
 import { ThreadEmpty } from "./ThreadEmpty";
 import { ThreadSkeleton } from "./ThreadSkeleton";
 
@@ -42,6 +43,29 @@ export interface ThreadViewProps {
 
 /** Room the scroll-edge effect takes beyond the floating elements, so text dissolves before it reaches them. */
 const EDGE_REACH_PX = 44;
+
+/** The key of the newest message before `index` that `quote` was taken from, or null when it is not loaded. */
+function quotedKey(messages: ChatMessage[], index: number, quote: string): string | null {
+  for (let i = index - 1; i >= 0; i--) {
+    if (quotes(quote, messages[i]!.content)) {
+      return messageKey(messages[i]!);
+    }
+  }
+  return null;
+}
+
+/** Scrolls the message with this key to the middle of the pane and washes it briefly. */
+function flashMessage(pane: HTMLElement | null, key: string): void {
+  const row = pane?.querySelector<HTMLElement>(`[data-message-key="${CSS.escape(key)}"]`);
+  if (!row) {
+    return;
+  }
+  row.scrollIntoView({ block: "center", behavior: "smooth" });
+  row.classList.remove("message-flash");
+  void row.offsetWidth;
+  row.classList.add("message-flash");
+  row.addEventListener("animationend", () => row.classList.remove("message-flash"), { once: true });
+}
 
 /** Open thread scroll pane: the human thread's messages. The composer's activity pill shows what the agent is doing, and the agent's newest message carries what the thread still waits on. */
 export function ThreadView({
@@ -89,7 +113,7 @@ export function ThreadView({
   return (
     <div className="absolute inset-0">
       {headerPad > 0 ? <ScrollEdge edge="top" size={headerPad + EDGE_REACH_PX - 16} solid /> : null}
-      {composerPad > 0 ? <ScrollEdge edge="bottom" size={composerPad + EDGE_REACH_PX - 16} /> : null}
+      {composerPad > 0 ? <ScrollEdge edge="bottom" size={composerPad + EDGE_REACH_PX - 16} solid solidPx={composerPad} /> : null}
       <AnimatePresence initial={false}>
         {ready && isEmpty && load ? (
           <motion.div
@@ -128,7 +152,10 @@ export function ThreadView({
             </button>
           ) : null}
           <AnimatePresence initial={false}>
-            {drawn.map((msg) => (
+            {drawn.map((msg, index) => {
+              const quote = parseReply(msg.content).quote;
+              const original = quote === null ? null : quotedKey(drawn, index, quote);
+              return (
               <MessageBubble
                 key={messageKey(msg)}
                 message={msg}
@@ -140,8 +167,10 @@ export function ThreadView({
                   msg.failed ? () => onDismiss(msg.seq) : undefined
                 }
                 standing={msg === newestAgent ? standing : null}
+                onJumpToQuote={original === null ? undefined : () => flashMessage(scrollRef.current, original)}
               />
-            ))}
+              );
+            })}
           </AnimatePresence>
         </motion.div>
       </div>

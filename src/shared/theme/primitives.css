@@ -907,3 +907,18 @@
     }
   }
 }
+
+/* A message the reader was taken to: a sage wash that fades out. */
+@keyframes message-flash {
+  from {
+    background: var(--sage-active);
+  }
+  to {
+    background: transparent;
+  }
+}
+
+.message-flash {
+  border-radius: 20px;
+  animation: message-flash 1.4s ease-out;
+}

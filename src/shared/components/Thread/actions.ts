@@ -47,7 +47,7 @@ export function conversationActions(conversation: Conversation, deps: Conversati
 export function messageActions(message: ChatMessage): ActionList {
   const empty = message.content ? undefined : "This message has no text";
   return [
-    { id: "message.reply", label: "Reply", icon: "send", disabledReason: empty, run: () => requestReply(plainText(message.content)) },
+    { id: "message.reply", label: "Reply", icon: "reply", disabledReason: empty, run: () => requestReply(message) },
     "separator",
     { id: "message.copy", label: "Copy text", icon: "copy", disabledReason: empty, run: () => copyText(plainText(message.content)) },
     { id: "message.copy-markdown", label: "Copy as Markdown", icon: "doc", disabledReason: empty, run: () => copyText(message.content) },

@@ -5,6 +5,7 @@ import type { ActionList } from "../../interaction/actions";
 import { AnchoredMenu } from "../../overlay/AnchoredMenu";
 import { FADE, RISE } from "../../motion";
 import { IconButton } from "../../ui/Button";
+import { QuoteCard, type QuoteCardProps } from "./Quote";
 import { Icon } from "../../ui/Icon";
 
 /** Props of {@link Composer}. */
@@ -16,6 +17,10 @@ export type ComposerProps = {
   canSubmit: boolean;
   /** The agent's loop is running: the glass takes a live rim. A send is always live; a message mid-wake joins the agent's next step. */
   working?: boolean;
+  /** The message the draft answers, shown over the field; null when it is not a reply. */
+  quote?: Omit<QuoteCardProps, "onDrop"> | null;
+  /** Drop the quote. */
+  onDropQuote: () => void;
   /** Floats above the field, such as the chip saying what the agent is doing. */
   above?: ReactNode;
   textareaRef: RefObject<HTMLTextAreaElement | null>;
@@ -51,6 +56,8 @@ export function Composer({
   canSubmit,
   working = false,
   above,
+  quote = null,
+  onDropQuote,
   textareaRef,
   fileInputRef,
   cameraInputRef,
@@ -96,6 +103,7 @@ export function Composer({
     <motion.div ref={rootRef} {...RISE} className="pointer-events-none absolute inset-x-0 bottom-0 z-20 pb-[0.65rem]">
       <div className="relative z-10 px-3">
         {above}
+        <AnimatePresence initial={false}>{quote ? <QuoteCard key="quote" {...quote} onDrop={onDropQuote} /> : null}</AnimatePresence>
         <AnimatePresence initial={false}>
           {!connected ? (
             <motion.p key="offline" {...FADE} className="pointer-events-none mb-1.5 px-1 text-center text-[11px] text-ink-ghost">

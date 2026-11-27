@@ -7,10 +7,12 @@ import { useContextActions } from "../../interaction/contextMenu";
 import { formatAbsolute } from "../../lib/ux/time";
 import { BOX_SCHEME } from "../../lib/content/boxLink";
 import type { MessageStatus } from "../../../types/hath";
-import type { ChatMessage } from "../../../contexts/chat";
+import { messageKey, type ChatMessage } from "../../../contexts/chat";
 import { MarkdownBody } from "../Markdown";
 import { messageActions } from "./actions";
 import { formatMessageTime } from "./format";
+import { QuoteBlock } from "./Quote";
+import { parseReply } from "./replyQuote";
 
 /** Props of {@link MessageBubble}. */
 export type MessageBubbleProps = {
@@ -30,15 +32,18 @@ export type MessageBubbleProps = {
    * only to that message, since a later message from you settles it.
    */
   standing?: MessageStatus | null;
+  /** Scroll to the message this one's quote came from; absent when that message is not loaded. */
+  onJumpToQuote?: () => void;
 };
 
-/** The row every message sits in: it rises in when it arrives live, fades out when it leaves, and right-click offers the message's actions. */
+/** The row every message sits in: it rises in when it arrives live, fades out when it leaves, and right-click offers the message's actions, including Reply. */
 function MessageRow({ message, live, dim = false, className, children }: { message: ChatMessage; live: boolean; dim?: boolean; className: string; children: ReactNode }) {
   const context = useContextActions(() => messageActions(message));
   return (
     <motion.div
       {...RISE}
       {...context}
+      data-message-key={messageKey(message)}
       initial={live ? RISE.initial : false}
       animate={{ ...RISE.animate, opacity: dim ? 0.7 : 1 }}
       className={className}
@@ -48,12 +53,12 @@ function MessageRow({ message, live, dim = false, className, children }: { messa
   );
 }
 
-/** Single chat row: quiet user pill or agent markdown, each with its time and a copy button. */
-export function MessageBubble({ message, live = false, onRetry, onCancel, standing = null }: MessageBubbleProps) {
+/** Single chat row: quiet user pill or agent markdown, each with its time and a copy button; a reply opens with the quote of the message it answers. */
+export function MessageBubble({ message, live = false, onRetry, onCancel, standing = null, onJumpToQuote }: MessageBubbleProps) {
   if (message.from_user) {
-    return <UserBubble message={message} live={live} onRetry={onRetry} onCancel={onCancel} />;
+    return <UserBubble message={message} live={live} onRetry={onRetry} onCancel={onCancel} onJumpToQuote={onJumpToQuote} />;
   }
-  return <AgentBubble message={message} live={live} standing={standing} />;
+  return <AgentBubble message={message} live={live} standing={standing} onJumpToQuote={onJumpToQuote} />;
 }
 
 type MessageMetaProps = {
@@ -103,8 +108,9 @@ function SendControls({ failed, onRetry, onCancel }: { failed: boolean; onRetry?
  * buttons line up with the bubble only, so the error and time lines under them
  * do not pull them down.
  */
-function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage; live: boolean; onRetry?: () => void; onCancel?: () => void }) {
+function UserBubble({ message, live, onRetry, onCancel, onJumpToQuote }: { message: ChatMessage; live: boolean; onRetry?: () => void; onCancel?: () => void; onJumpToQuote?: () => void }) {
   const failed = Boolean(message.failed);
+  const { files, quote, body } = parseReply(message.content);
   return (
     <MessageRow message={message} live={live} dim={Boolean(message.pending) && !failed} className="group/msg flex justify-end">
       <div className="flex max-w-[min(92%,34rem)] min-w-0 flex-col items-end gap-1">
@@ -118,7 +124,9 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
                   failed ? "border border-error-line bg-error-fill text-ink" : "bg-sage-active text-ink"
                 }`}
               >
-                {message.content.includes(`](${BOX_SCHEME}`) ? <MarkdownBody content={message.content} compact /> : message.content}
+                {files === "" ? null : <MarkdownBody content={files} compact />}
+                {quote === null ? null : <QuoteBlock text={quote} onJump={onJumpToQuote} />}
+                {body.includes(`](${BOX_SCHEME}`) ? <MarkdownBody content={body} compact /> : body}
               </div>
             ) : null}
           </div>
@@ -137,11 +145,14 @@ function UserBubble({ message, live, onRetry, onCancel }: { message: ChatMessage
 }
 
 /** Left-aligned agent row: the reply as rendered markdown from the first frame, with its time and a copy button under it. */
-function AgentBubble({ message, live, standing }: { message: ChatMessage; live: boolean; standing: MessageStatus | null }) {
+function AgentBubble({ message, live, standing, onJumpToQuote }: { message: ChatMessage; live: boolean; standing: MessageStatus | null; onJumpToQuote?: () => void }) {
+  const { files, quote, body } = parseReply(message.content);
   return (
     <MessageRow message={message} live={live} className="group/msg flex max-w-[min(96%,40rem)] flex-col gap-1 text-[15px] leading-[1.65] text-ink [overflow-anchor:none]">
       <div data-selectable>
-        <SettledMarkdown content={message.content} />
+        {files === "" ? null : <MarkdownBody content={files} />}
+        {quote === null ? null : <QuoteBlock text={quote} onJump={onJumpToQuote} />}
+        <SettledMarkdown content={body} />
       </div>
       {standing === "needs_input" ? (
         <span role="status" className="flex items-center gap-1.5 text-[12.5px] font-medium text-tide-ink"><span className="size-1.5 rounded-full bg-tide" />Needs your input</span>

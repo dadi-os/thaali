@@ -35,10 +35,13 @@ import {
   resolveOptimistic,
   setHistoryState,
   subscribeChat,
+  type ChatMessage,
 } from "../../contexts/chat";
 import { DADI_DRAFT_KEY, loadDraft, saveDraft } from "../../contexts/drafts";
 import { getDockRequests, subscribeDock } from "../../contexts/dock";
-import { asQuote, getReplyRequests, getReplyText, subscribeReply } from "../../contexts/reply";
+import { getReplyRequest, getReplyRequests, subscribeReply } from "../../contexts/reply";
+import { quoteText, withQuote } from "../../shared/components/Thread/replyQuote";
+import { useDismiss } from "../../shared/interaction/dismiss";
 import { failureTarget, pushToast } from "../../contexts/toasts";
 import {
   getRunning,
@@ -223,6 +226,16 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
       return [];
     });
   }, [draftKey]);
+
+  /** The message each thread's draft answers, kept while the person moves between threads. */
+  const [quotes, setQuotes] = useState<Record<string, ChatMessage>>({});
+  const quoted = openAgentId === null ? null : (quotes[openAgentId] ?? null);
+  const dropQuote = (agentId: string) =>
+    setQuotes((prev) => {
+      const { [agentId]: _dropped, ...rest } = prev;
+      return rest;
+    });
+  useDismiss({ open: quoted !== null && viewingThread, onDismiss: () => openAgentId && dropQuote(openAgentId) });
 
   const openRunning = openAgentId ? running[openAgentId] : undefined;
   const busy = viewingThread && openRunning?.working === true;
@@ -589,8 +602,9 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     if (!viewingThread || !openAgentId || !connected || (!draft.trim() && draftAttachments.length === 0)) {
       return;
     }
-    const text = await textWithUploads(draft);
+    const text = await textWithUploads(withQuote(quoted === null ? null : quoted.content, draft));
     if (text !== null) {
+      dropQuote(openAgentId);
       await sendThread(openAgentId, text);
     }
   };
@@ -651,9 +665,13 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
     if (openAgentId === null) {
       return;
     }
-    const held = loadDraft(openAgentId);
-    const reply = getReplyText();
-    setDraft(reply.quote ? `${asQuote(reply.text)}${held}` : `${reply.text}${held === "" ? "" : `\n${held}`}`);
+    const request = getReplyRequest();
+    if (request.message !== null) {
+      setQuotes((prev) => ({ ...prev, [openAgentId]: request.message! }));
+    } else {
+      const held = loadDraft(openAgentId);
+      setDraft(`${request.text}${held === "" ? "" : `\n${held}`}`);
+    }
     requestAnimationFrame(() => textareaRef.current?.focus());
   }, [replyRequests, openAgentId]);
 
@@ -737,6 +755,8 @@ export function ChatSidebar({ className }: ChatSidebarProps) {
                 placeholder={placeholder}
                 canSubmit={canSubmit}
                 working={busy}
+                quote={quoted === null ? null : { author: quoted.from_user ? "You" : openAgentRecord?.name ?? "", text: quoteText(quoted.content) }}
+                onDropQuote={() => dropQuote(openAgentId ?? "")}
                 above={<ActivityChip running={openRunning ?? { working: false, waiting_on: null, job: null }} />}
                 fieldMaxPx={TEXTAREA_MAX_PX}
                 textareaRef={textareaRef}

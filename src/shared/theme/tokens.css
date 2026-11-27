@@ -243,7 +243,7 @@
 }
 
 .scroll-edge--solid {
-  background: linear-gradient(var(--edge-dir), var(--rail-ground) 0%, var(--rail-ground) 62%, transparent 100%);
+  background: linear-gradient(var(--edge-dir), var(--rail-ground) 0%, var(--rail-ground) var(--edge-solid, 62%), transparent 100%);
 }
 
 .scroll-edge--top {
